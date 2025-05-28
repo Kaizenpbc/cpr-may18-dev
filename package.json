@@ -1,0 +1,18 @@
+{
+  "name": "cpr-may18",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "cleanup": "taskkill /f /im node.exe 2>nul || echo 'No node processes to kill'",
+    "check-ports": "netstat -ano | findstr \":3001\\|:5173\" || echo 'Ports are free'",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev", 
+    "dev:clean": "npm run cleanup && timeout /t 2 /nobreak && npm run check-ports",
+    "dev": "npm run dev:clean && start npm run dev:backend && timeout /t 3 /nobreak && npm run dev:frontend",
+    "stop": "npm run cleanup && npm run check-ports"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ]
+}

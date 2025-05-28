@@ -1,0 +1,97 @@
+-- Create email_templates table
+CREATE TABLE IF NOT EXISTS email_templates (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    subject VARCHAR(200) NOT NULL,
+    html TEXT NOT NULL,
+    description TEXT,
+    default_subject VARCHAR(200) NOT NULL,
+    default_html TEXT NOT NULL,
+    last_modified TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert default templates
+INSERT INTO email_templates (
+    id, 
+    name, 
+    subject,
+    html,
+    description,
+    default_subject,
+    default_html
+) VALUES 
+(
+    'COURSE_ASSIGNED_INSTRUCTOR',
+    'Instructor Course Assignment',
+    'New Course Assignment',
+    '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #007bff;">New Course Assignment</h2>
+        <p>You have been assigned to teach a new course:</p>
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+            <p><strong>Course Type:</strong> {{courseType}}</p>
+            <p><strong>Date:</strong> {{date}}</p>
+            <p><strong>Time:</strong> {{startTime}} - {{endTime}}</p>
+            <p><strong>Location:</strong> {{location}}</p>
+            <p><strong>Organization:</strong> {{organization}}</p>
+            <p><strong>Number of Students:</strong> {{students}}</p>
+        </div>
+        <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border-radius: 5px;">
+            <p style="margin: 0;"><strong>Important:</strong> Please review these details in your instructor portal and arrive 15 minutes before the class start time.</p>
+        </div>
+        <p style="color: #6c757d; font-size: 0.9em;">This is an automated message, please do not reply.</p>
+    </div>',
+    'Email template sent to instructors when they are assigned to a course',
+    'New Course Assignment',
+    '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #007bff;">New Course Assignment</h2>
+        <p>You have been assigned to teach a new course:</p>
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+            <p><strong>Course Type:</strong> {{courseType}}</p>
+            <p><strong>Date:</strong> {{date}}</p>
+            <p><strong>Time:</strong> {{startTime}} - {{endTime}}</p>
+            <p><strong>Location:</strong> {{location}}</p>
+            <p><strong>Organization:</strong> {{organization}}</p>
+            <p><strong>Number of Students:</strong> {{students}}</p>
+        </div>
+        <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border-radius: 5px;">
+            <p style="margin: 0;"><strong>Important:</strong> Please review these details in your instructor portal and arrive 15 minutes before the class start time.</p>
+        </div>
+        <p style="color: #6c757d; font-size: 0.9em;">This is an automated message, please do not reply.</p>
+    </div>'
+),
+(
+    'COURSE_SCHEDULED_ORGANIZATION',
+    'Organization Course Confirmation',
+    'Course Request Confirmed',
+    '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #007bff;">Course Request Confirmed</h2>
+        <p>Your course request has been confirmed and an instructor has been assigned:</p>
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+            <p><strong>Course Type:</strong> {{courseType}}</p>
+            <p><strong>Date:</strong> {{date}}</p>
+            <p><strong>Time:</strong> {{startTime}} - {{endTime}}</p>
+            <p><strong>Location:</strong> {{location}}</p>
+            <p><strong>Instructor:</strong> {{instructorName}}</p>
+            <p><strong>Number of Students:</strong> {{students}}</p>
+        </div>
+        <p>You can view the full details and manage your courses through your organization portal.</p>
+        <p style="color: #6c757d; font-size: 0.9em;">This is an automated message, please do not reply.</p>
+    </div>',
+    'Email template sent to organizations when an instructor is assigned to their course request',
+    'Course Request Confirmed',
+    '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #007bff;">Course Request Confirmed</h2>
+        <p>Your course request has been confirmed and an instructor has been assigned:</p>
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+            <p><strong>Course Type:</strong> {{courseType}}</p>
+            <p><strong>Date:</strong> {{date}}</p>
+            <p><strong>Time:</strong> {{startTime}} - {{endTime}}</p>
+            <p><strong>Location:</strong> {{location}}</p>
+            <p><strong>Instructor:</strong> {{instructorName}}</p>
+            <p><strong>Number of Students:</strong> {{students}}</p>
+        </div>
+        <p>You can view the full details and manage your courses through your organization portal.</p>
+        <p style="color: #6c757d; font-size: 0.9em;">This is an automated message, please do not reply.</p>
+    </div>'
+); 
