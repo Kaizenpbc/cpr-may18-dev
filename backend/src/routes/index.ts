@@ -13,7 +13,11 @@ declare global {
 
 const router = Router();
 
-const apiVersionMiddleware = (req: Request, _res: Response, next: NextFunction) => {
+const apiVersionMiddleware = (
+  req: Request,
+  _res: Response,
+  next: NextFunction
+) => {
   const version = req.headers['api-version'] || 'v1';
   req.apiVersion = version as string;
   next();
@@ -34,4 +38,4 @@ router.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Not Found' });
 });
 
-export default router; 
+export default router;

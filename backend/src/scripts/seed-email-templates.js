@@ -3,11 +3,11 @@ const chalk = require('chalk');
 require('dotenv').config();
 
 const defaultTemplates = [
-    {
-        name: 'Instructor Course Assignment',
-        key: 'INSTRUCTOR_COURSE_ASSIGNMENT',
-        subject: 'New Course Assignment - {{courseType}}',
-        body: `
+  {
+    name: 'Instructor Course Assignment',
+    key: 'INSTRUCTOR_COURSE_ASSIGNMENT',
+    subject: 'New Course Assignment - {{courseType}}',
+    body: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #007bff;">New Course Assignment</h2>
                 <p>Dear {{instructorName}},</p>
@@ -28,15 +28,15 @@ const defaultTemplates = [
                 <p style="color: #6c757d; font-size: 0.9em;">This is an automated message from {{appName}}. Please do not reply to this email.</p>
             </div>
         `,
-        category: 'course',
-        is_active: true,
-        is_system: true
-    },
-    {
-        name: 'Organization Course Confirmation',
-        key: 'ORGANIZATION_COURSE_CONFIRMATION',
-        subject: 'Course Request Confirmed - {{courseType}}',
-        body: `
+    category: 'course',
+    is_active: true,
+    is_system: true,
+  },
+  {
+    name: 'Organization Course Confirmation',
+    key: 'ORGANIZATION_COURSE_CONFIRMATION',
+    subject: 'Course Request Confirmed - {{courseType}}',
+    body: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #007bff;">Course Request Confirmed</h2>
                 <p>Dear {{organizationContact}},</p>
@@ -56,15 +56,15 @@ const defaultTemplates = [
                 <p style="color: #6c757d; font-size: 0.9em;">This is an automated message from {{appName}}. For support, contact {{supportEmail}}.</p>
             </div>
         `,
-        category: 'course',
-        is_active: true,
-        is_system: true
-    },
-    {
-        name: 'Course Reminder - Instructor',
-        key: 'COURSE_REMINDER_INSTRUCTOR',
-        subject: 'Reminder: {{courseType}} Tomorrow',
-        body: `
+    category: 'course',
+    is_active: true,
+    is_system: true,
+  },
+  {
+    name: 'Course Reminder - Instructor',
+    key: 'COURSE_REMINDER_INSTRUCTOR',
+    subject: 'Reminder: {{courseType}} Tomorrow',
+    body: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #007bff;">Course Reminder</h2>
                 <p>Dear {{instructorName}},</p>
@@ -90,15 +90,15 @@ const defaultTemplates = [
                 <p>Best regards,<br>{{appName}} Team</p>
             </div>
         `,
-        category: 'reminder',
-        is_active: true,
-        is_system: true
-    },
-    {
-        name: 'Password Reset Request',
-        key: 'PASSWORD_RESET',
-        subject: 'Password Reset Request - {{appName}}',
-        body: `
+    category: 'reminder',
+    is_active: true,
+    is_system: true,
+  },
+  {
+    name: 'Password Reset Request',
+    key: 'PASSWORD_RESET',
+    subject: 'Password Reset Request - {{appName}}',
+    body: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #007bff;">Password Reset Request</h2>
                 <p>Dear {{firstName}},</p>
@@ -116,15 +116,15 @@ const defaultTemplates = [
                 <p>Best regards,<br>{{appName}} Team</p>
             </div>
         `,
-        category: 'system',
-        is_active: true,
-        is_system: true
-    },
-    {
-        name: 'Welcome Email',
-        key: 'WELCOME_EMAIL',
-        subject: 'Welcome to {{appName}}!',
-        body: `
+    category: 'system',
+    is_active: true,
+    is_system: true,
+  },
+  {
+    name: 'Welcome Email',
+    key: 'WELCOME_EMAIL',
+    subject: 'Welcome to {{appName}}!',
+    body: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #007bff;">Welcome to {{appName}}!</h2>
                 <p>Dear {{firstName}},</p>
@@ -148,123 +148,138 @@ const defaultTemplates = [
                 <p>Best regards,<br>{{appName}} Team</p>
             </div>
         `,
-        category: 'notification',
-        is_active: true,
-        is_system: false
-    }
+    category: 'notification',
+    is_active: true,
+    is_system: false,
+  },
 ];
 
 async function seedEmailTemplates(forceUpdate = false) {
-    const pool = new Pool({
-        user: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASSWORD || 'gtacpr',
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT || '5432'),
-        database: process.env.DB_NAME || 'cpr_may18'
-    });
+  const pool = new Pool({
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || 'gtacpr',
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432'),
+    database: process.env.DB_NAME || 'cpr_may18',
+  });
 
-    const client = await pool.connect();
+  const client = await pool.connect();
 
-    try {
-        // Start transaction
-        await client.query('BEGIN');
+  try {
+    // Start transaction
+    await client.query('BEGIN');
 
-        console.log(chalk.blue('🔄 Starting email templates seeding process...'));
+    console.log(chalk.blue('🔄 Starting email templates seeding process...'));
 
-        // Track progress
-        let created = 0;
-        let updated = 0;
-        let skipped = 0;
-        const total = defaultTemplates.length;
+    // Track progress
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    const total = defaultTemplates.length;
 
-        // Insert or update each template
-        for (const [index, template] of defaultTemplates.entries()) {
-            process.stdout.write(chalk.yellow(`\r🔄 Processing template ${index + 1}/${total}: ${template.name}`));
+    // Insert or update each template
+    for (const [index, template] of defaultTemplates.entries()) {
+      process.stdout.write(
+        chalk.yellow(
+          `\r🔄 Processing template ${index + 1}/${total}: ${template.name}`
+        )
+      );
 
-            const result = await client.query(
-                'SELECT id FROM email_templates WHERE key = $1',
-                [template.key]
-            );
+      const result = await client.query(
+        'SELECT id FROM email_templates WHERE key = $1',
+        [template.key]
+      );
 
-            if (result.rows.length === 0) {
-                // Insert new template
-                try {
-                    await client.query(`
+      if (result.rows.length === 0) {
+        // Insert new template
+        try {
+          await client.query(
+            `
                         INSERT INTO email_templates (
                             name, key, subject, body, category,
                             is_active, is_system
                         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-                    `, [
-                        template.name,
-                        template.key,
-                        template.subject,
-                        template.body,
-                        template.category,
-                        template.is_active,
-                        template.is_system
-                    ]);
-                    created++;
-                } catch (insertError) {
-                    console.error('\nError inserting template:', template.name);
-                    console.error('Error details:', insertError);
-                    throw insertError;
-                }
-            } else if (forceUpdate) {
-                // Update existing template if force update is enabled
-                await client.query(`
+                    `,
+            [
+              template.name,
+              template.key,
+              template.subject,
+              template.body,
+              template.category,
+              template.is_active,
+              template.is_system,
+            ]
+          );
+          created++;
+        } catch (insertError) {
+          console.error('\nError inserting template:', template.name);
+          console.error('Error details:', insertError);
+          throw insertError;
+        }
+      } else if (forceUpdate) {
+        // Update existing template if force update is enabled
+        await client.query(
+          `
                     UPDATE email_templates 
                     SET name = $1, subject = $2, body = $3, 
                         category = $4, is_active = $5, is_system = $6,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE key = $7
-                `, [
-                    template.name,
-                    template.subject,
-                    template.body,
-                    template.category,
-                    template.is_active,
-                    template.is_system,
-                    template.key
-                ]);
-                updated++;
-            } else {
-                skipped++;
-            }
-        }
-
-        // Commit transaction
-        await client.query('COMMIT');
-
-        // Clear progress line
-        process.stdout.write('\r' + ' '.repeat(100) + '\r');
-
-        // Print summary
-        console.log(chalk.green('\n✅ Email templates seeding completed successfully!'));
-        console.log(chalk.blue('📊 Summary:'));
-        console.log(chalk.white(`   • Created: ${created}`));
-        console.log(chalk.white(`   • Updated: ${updated}`));
-        console.log(chalk.white(`   • Skipped: ${skipped}`));
-        console.log(chalk.white(`   • Total processed: ${total}`));
-
-    } catch (error) {
-        // Rollback transaction on error
-        await client.query('ROLLBACK');
-        console.error(chalk.red('\n❌ Error seeding email templates:'));
-        console.error(chalk.red(error.message));
-        console.error(chalk.gray(error.stack));
-        process.exit(1);
-    } finally {
-        // Release client back to pool
-        client.release();
-        await pool.end();
-        process.exit(0);
+                `,
+          [
+            template.name,
+            template.subject,
+            template.body,
+            template.category,
+            template.is_active,
+            template.is_system,
+            template.key,
+          ]
+        );
+        updated++;
+      } else {
+        skipped++;
+      }
     }
+
+    // Commit transaction
+    await client.query('COMMIT');
+
+    // Clear progress line
+    process.stdout.write('\r' + ' '.repeat(100) + '\r');
+
+    // Print summary
+    console.log(
+      chalk.green('\n✅ Email templates seeding completed successfully!')
+    );
+    console.log(chalk.blue('📊 Summary:'));
+    console.log(chalk.white(`   • Created: ${created}`));
+    console.log(chalk.white(`   • Updated: ${updated}`));
+    console.log(chalk.white(`   • Skipped: ${skipped}`));
+    console.log(chalk.white(`   • Total processed: ${total}`));
+  } catch (error) {
+    // Rollback transaction on error
+    await client.query('ROLLBACK');
+    console.error(chalk.red('\n❌ Error seeding email templates:'));
+    console.error(chalk.red(error.message));
+    console.error(chalk.gray(error.stack));
+    process.exit(1);
+  } finally {
+    // Release client back to pool
+    client.release();
+    await pool.end();
+    process.exit(0);
+  }
 }
 
 // Check if --force flag is provided
 const forceUpdate = process.argv.includes('--force');
 if (forceUpdate) {
-    console.log(chalk.yellow('⚠️  Force update mode enabled - existing templates will be updated'));
+  console.log(
+    chalk.yellow(
+      '⚠️  Force update mode enabled - existing templates will be updated'
+    )
+  );
 }
 
-seedEmailTemplates(forceUpdate); 
+seedEmailTemplates(forceUpdate);

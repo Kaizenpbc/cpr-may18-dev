@@ -27,7 +27,9 @@ const ResetPassword = () => {
 
   useEffect(() => {
     if (!token) {
-      console.log('[Debug] ResetPassword - No token found, redirecting to forgot password');
+      console.log(
+        '[Debug] ResetPassword - No token found, redirecting to forgot password'
+      );
       navigate('/forgot-password');
     }
   }, [token, navigate]);
@@ -99,7 +101,7 @@ const ResetPassword = () => {
   }
 
   return (
-    <Container maxWidth="sm">
+    <Container maxWidth='sm'>
       <Box
         sx={{
           minHeight: '100vh',
@@ -118,31 +120,35 @@ const ResetPassword = () => {
             alignItems: 'center',
           }}
         >
-          <Typography component="h1" variant="h4" gutterBottom>
+          <Typography component='h1' variant='h4' gutterBottom>
             CPR Training Portal
           </Typography>
-          <Typography variant="h5" gutterBottom>
+          <Typography variant='h5' gutterBottom>
             Reset Your Password
           </Typography>
 
           {error && (
-            <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+            <Alert severity='error' sx={{ width: '100%', mb: 2 }}>
               {error}
             </Alert>
           )}
 
           {isSuccess ? (
             <Box sx={{ width: '100%', textAlign: 'center' }}>
-              <Alert severity="success" sx={{ mb: 3 }}>
+              <Alert severity='success' sx={{ mb: 3 }}>
                 Your password has been successfully reset!
               </Alert>
-              <Typography variant="body1">
+              <Typography variant='body1'>
                 You will be redirected to the login page in a few seconds...
               </Typography>
             </Box>
           ) : (
-            <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
-              <Typography variant="body2" sx={{ mb: 3 }}>
+            <Box
+              component='form'
+              onSubmit={handleSubmit}
+              sx={{ width: '100%' }}
+            >
+              <Typography variant='body2' sx={{ mb: 3 }}>
                 Please enter your new password. The password must:
                 <ul>
                   <li>Be at least 8 characters long</li>
@@ -153,42 +159,42 @@ const ResetPassword = () => {
               </Typography>
 
               <TextField
-                margin="normal"
+                margin='normal'
                 required
                 fullWidth
-                name="password"
-                label="New Password"
-                type="password"
-                id="password"
-                autoComplete="new-password"
+                name='password'
+                label='New Password'
+                type='password'
+                id='password'
+                autoComplete='new-password'
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={e => setPassword(e.target.value)}
                 disabled={isLoading}
                 error={!!error}
               />
               <TextField
-                margin="normal"
+                margin='normal'
                 required
                 fullWidth
-                name="confirmPassword"
-                label="Confirm New Password"
-                type="password"
-                id="confirmPassword"
-                autoComplete="new-password"
+                name='confirmPassword'
+                label='Confirm New Password'
+                type='password'
+                id='confirmPassword'
+                autoComplete='new-password'
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={e => setConfirmPassword(e.target.value)}
                 disabled={isLoading}
                 error={!!error}
               />
               <Button
-                type="submit"
+                type='submit'
                 fullWidth
-                variant="contained"
+                variant='contained'
                 sx={{ mt: 3, mb: 2, py: 1.5 }}
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <CircularProgress size={24} color="inherit" />
+                  <CircularProgress size={24} color='inherit' />
                 ) : (
                   'Reset Password'
                 )}
@@ -202,4 +208,4 @@ const ResetPassword = () => {
 };
 
 console.log('[Debug] ResetPassword.tsx - Exporting component');
-export default ResetPassword; 
+export default ResetPassword;

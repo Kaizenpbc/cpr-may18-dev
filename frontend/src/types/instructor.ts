@@ -126,7 +126,7 @@ export interface InstructorDataState {
 }
 
 // Navigation Types
-export type InstructorView = 
+export type InstructorView =
   | 'dashboard'
   | 'my-classes'
   | 'attendance'
@@ -163,4 +163,4 @@ export interface CombinedScheduleItem {
   // Original data
   course_id?: number;
   originalData?: Course | AvailabilitySlot;
-} 
+}

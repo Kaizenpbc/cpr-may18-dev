@@ -30,7 +30,11 @@ class QueryOptimizer {
    * Optimized query for getting course requests by organization
    * Uses proper indexing and reduced data transfer
    */
-  async getOptimizedCourseRequestsByOrg(organizationId: number, limit = 50, offset = 0) {
+  async getOptimizedCourseRequestsByOrg(
+    organizationId: number,
+    limit = 50,
+    offset = 0
+  ) {
     const query = `
       SELECT 
         cr.id,
@@ -131,7 +135,9 @@ class QueryOptimizer {
    * Uses function-based indexes for date calculations
    */
   async getOptimizedAgingReport(organizationId?: number) {
-    const organizationFilter = organizationId ? 'AND i.organization_id = $1' : '';
+    const organizationFilter = organizationId
+      ? 'AND i.organization_id = $1'
+      : '';
     const params = organizationId ? [organizationId] : [];
 
     const query = `
@@ -229,9 +235,12 @@ class QueryOptimizer {
   /**
    * Execute query with performance timing
    */
-  private async executeWithTiming(query: string, params: any[]): Promise<QueryPerformance> {
+  private async executeWithTiming(
+    query: string,
+    params: any[]
+  ): Promise<QueryPerformance> {
     const startTime = process.hrtime.bigint();
-    
+
     try {
       const result = await pool.query(query, params);
       const endTime = process.hrtime.bigint();
@@ -241,7 +250,7 @@ class QueryOptimizer {
         query: query.replace(/\s+/g, ' ').trim(),
         executionTime: Math.round(executionTime * 100) / 100,
         rowsReturned: result.rows.length,
-        indexesUsed: await this.getIndexesUsed(query)
+        indexesUsed: await this.getIndexesUsed(query),
       };
     } catch (error) {
       throw error;
@@ -256,10 +265,10 @@ class QueryOptimizer {
       const explainQuery = `EXPLAIN (FORMAT JSON) ${query}`;
       const result = await pool.query(explainQuery);
       const plan = result.rows[0]['QUERY PLAN'][0];
-      
+
       const indexes: string[] = [];
       this.extractIndexesFromPlan(plan, indexes);
-      
+
       return [...new Set(indexes)]; // Remove duplicates
     } catch (error) {
       return ['Unable to analyze'];
@@ -273,7 +282,7 @@ class QueryOptimizer {
     if (plan['Index Name']) {
       indexes.push(plan['Index Name']);
     }
-    
+
     if (plan.Plans) {
       plan.Plans.forEach((subPlan: any) => {
         this.extractIndexesFromPlan(subPlan, indexes);
@@ -303,7 +312,6 @@ class QueryOptimizer {
       // Check for slow queries
       const slowQueries = await this.findSlowQueries();
       recommendations.push(...slowQueries);
-
     } catch (error) {
       console.error('Error analyzing performance:', error);
     }
@@ -314,7 +322,9 @@ class QueryOptimizer {
   /**
    * Find foreign key columns without indexes
    */
-  private async findMissingForeignKeyIndexes(): Promise<OptimizationRecommendation[]> {
+  private async findMissingForeignKeyIndexes(): Promise<
+    OptimizationRecommendation[]
+  > {
     const query = `
       SELECT 
         tc.table_name,
@@ -332,12 +342,12 @@ class QueryOptimizer {
     `;
 
     const result = await pool.query(query);
-    
+
     return result.rows.map(row => ({
       table: row.table_name,
       issue: `Missing index on foreign key column: ${row.column_name}`,
       recommendation: `CREATE INDEX idx_${row.table_name}_${row.column_name} ON ${row.table_name}(${row.column_name})`,
-      estimatedImprovement: 'High - Significantly improves JOIN performance'
+      estimatedImprovement: 'High - Significantly improves JOIN performance',
     }));
   }
 
@@ -358,12 +368,12 @@ class QueryOptimizer {
     `;
 
     const result = await pool.query(query);
-    
+
     return result.rows.slice(0, 5).map(row => ({
       table: row.tablename,
       issue: `Unused index: ${row.indexname}`,
       recommendation: `Consider dropping unused index: DROP INDEX ${row.indexname}`,
-      estimatedImprovement: 'Medium - Reduces storage and maintenance overhead'
+      estimatedImprovement: 'Medium - Reduces storage and maintenance overhead',
     }));
   }
 
@@ -386,12 +396,12 @@ class QueryOptimizer {
     `;
 
     const result = await pool.query(query);
-    
+
     return result.rows.map(row => ({
       table: row.tablename,
       issue: `High number of sequential scans: ${row.seq_scan} scans, ${row.seq_tup_read} rows read`,
       recommendation: `Add indexes for common WHERE clauses on ${row.tablename}`,
-      estimatedImprovement: 'High - Converts table scans to index scans'
+      estimatedImprovement: 'High - Converts table scans to index scans',
     }));
   }
 
@@ -405,15 +415,16 @@ class QueryOptimizer {
       {
         table: 'course_requests',
         issue: 'Complex reporting queries may be slow',
-        recommendation: 'Consider creating materialized views for complex analytics',
-        estimatedImprovement: 'High - Pre-computed results for complex queries'
+        recommendation:
+          'Consider creating materialized views for complex analytics',
+        estimatedImprovement: 'High - Pre-computed results for complex queries',
       },
       {
         table: 'invoices',
         issue: 'Date range queries on large tables',
         recommendation: 'Ensure date columns have appropriate indexes',
-        estimatedImprovement: 'Medium - Faster date-based filtering'
-      }
+        estimatedImprovement: 'Medium - Faster date-based filtering',
+      },
     ];
   }
 
@@ -451,13 +462,13 @@ class QueryOptimizer {
 
     const [tableStats, indexStats] = await Promise.all([
       pool.query(tableStatsQuery),
-      pool.query(indexStatsQuery)
+      pool.query(indexStatsQuery),
     ]);
 
     return {
       tableStats: tableStats.rows,
       indexStats: indexStats.rows,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -478,19 +489,21 @@ class QueryOptimizer {
     `;
 
     const result = await pool.query(deadTuplesQuery);
-    
-    const recommendations = result.rows.map(row => {
-      if (row.dead_tuple_percentage > 20) {
-        return `VACUUM ANALYZE ${row.tablename}; -- ${row.dead_tuple_percentage}% dead tuples`;
-      } else if (row.dead_tuple_percentage > 10) {
-        return `ANALYZE ${row.tablename}; -- ${row.dead_tuple_percentage}% dead tuples`;
-      }
-      return null;
-    }).filter(Boolean);
+
+    const recommendations = result.rows
+      .map(row => {
+        if (row.dead_tuple_percentage > 20) {
+          return `VACUUM ANALYZE ${row.tablename}; -- ${row.dead_tuple_percentage}% dead tuples`;
+        } else if (row.dead_tuple_percentage > 10) {
+          return `ANALYZE ${row.tablename}; -- ${row.dead_tuple_percentage}% dead tuples`;
+        }
+        return null;
+      })
+      .filter(Boolean);
 
     return recommendations;
   }
 }
 
 export const queryOptimizer = QueryOptimizer.getInstance();
-export default queryOptimizer; 
+export default queryOptimizer;

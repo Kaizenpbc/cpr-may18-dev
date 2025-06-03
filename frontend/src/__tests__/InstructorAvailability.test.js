@@ -15,13 +15,13 @@ jest.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({
     isAuthenticated: true,
     token: 'mock-token',
-    user: { role: 'Instructor' }
-  })
+    user: { role: 'Instructor' },
+  }),
 }));
 
 // Mock date-fns
 jest.mock('date-fns', () => ({
-  format: jest.fn((date) => '2025-05-21')
+  format: jest.fn(date => '2025-05-21'),
 }));
 
 describe('InstructorAvailability Component', () => {
@@ -33,8 +33,8 @@ describe('InstructorAvailability Component', () => {
     axios.get.mockResolvedValueOnce({
       data: {
         success: true,
-        availability: ['2025-05-21T04:00:00.000Z']
-      }
+        availability: ['2025-05-21T04:00:00.000Z'],
+      },
     });
 
     render(
@@ -59,15 +59,15 @@ describe('InstructorAvailability Component', () => {
     axios.get.mockResolvedValueOnce({
       data: {
         success: true,
-        availability: []
-      }
+        availability: [],
+      },
     });
 
     axios.post.mockResolvedValueOnce({
       data: {
         success: true,
-        message: 'Availability added successfully'
-      }
+        message: 'Availability added successfully',
+      },
     });
 
     render(
@@ -98,15 +98,15 @@ describe('InstructorAvailability Component', () => {
     axios.get.mockResolvedValueOnce({
       data: {
         success: true,
-        availability: ['2025-05-21T04:00:00.000Z']
-      }
+        availability: ['2025-05-21T04:00:00.000Z'],
+      },
     });
 
     axios.delete.mockResolvedValueOnce({
       data: {
         success: true,
-        message: 'Availability removed successfully'
-      }
+        message: 'Availability removed successfully',
+      },
     });
 
     render(
@@ -144,7 +144,9 @@ describe('InstructorAvailability Component', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to fetch availability')).toBeInTheDocument();
+      expect(
+        screen.getByText('Failed to fetch availability')
+      ).toBeInTheDocument();
     });
   });
-}); 
+});

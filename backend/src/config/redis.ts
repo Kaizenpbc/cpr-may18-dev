@@ -27,7 +27,7 @@ class RedisManager {
       retryAttempts: parseInt(process.env.REDIS_RETRY_ATTEMPTS || '3'),
       retryDelay: parseInt(process.env.REDIS_RETRY_DELAY || '1000'),
       connectTimeout: parseInt(process.env.REDIS_CONNECT_TIMEOUT || '3000'),
-      enabled: process.env.REDIS_ENABLED !== 'false'
+      enabled: process.env.REDIS_ENABLED !== 'false',
     };
   }
 
@@ -45,22 +45,26 @@ class RedisManager {
 
     try {
       console.log('🔴 [REDIS] Attempting to connect to Redis...');
-      console.log(`🔴 [REDIS] Configuration: ${this.config.host}:${this.config.port} (DB: ${this.config.db})`);
+      console.log(
+        `🔴 [REDIS] Configuration: ${this.config.host}:${this.config.port} (DB: ${this.config.db})`
+      );
 
       this.client = createClient({
         url: `redis://${this.config.password ? ':' + this.config.password + '@' : ''}${this.config.host}:${this.config.port}/${this.config.db}`,
         socket: {
           connectTimeout: this.config.connectTimeout,
-          reconnectStrategy: (retries) => {
+          reconnectStrategy: retries => {
             if (retries >= this.config.retryAttempts) {
               console.error('❌ [REDIS] Max reconnection attempts reached');
               return false;
             }
             const delay = Math.min(retries * this.config.retryDelay, 5000);
-            console.log(`🔄 [REDIS] Reconnecting in ${delay}ms (attempt ${retries + 1}/${this.config.retryAttempts})`);
+            console.log(
+              `🔄 [REDIS] Reconnecting in ${delay}ms (attempt ${retries + 1}/${this.config.retryAttempts})`
+            );
             return delay;
-          }
-        }
+          },
+        },
       });
 
       // Event listeners
@@ -74,7 +78,7 @@ class RedisManager {
         console.log('✅ [REDIS] Redis client ready for operations');
       });
 
-      this.client.on('error', (error) => {
+      this.client.on('error', error => {
         console.error('❌ [REDIS] Redis connection error:', error.message);
         this.isConnected = false;
       });
@@ -90,13 +94,15 @@ class RedisManager {
       });
 
       await this.client.connect();
-      
+
       // Test the connection
       await this.client.ping();
       console.log('✅ [REDIS] Connection established and tested successfully');
-
     } catch (error) {
-      console.error('❌ [REDIS] Failed to connect to Redis:', error instanceof Error ? error.message : 'Unknown error');
+      console.error(
+        '❌ [REDIS] Failed to connect to Redis:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
       this.isConnected = false;
       this.client = null;
       throw error;
@@ -129,7 +135,11 @@ class RedisManager {
     return this.config.enabled && this.isConnected && this.client !== null;
   }
 
-  async healthCheck(): Promise<{ status: string; latency?: number; error?: string }> {
+  async healthCheck(): Promise<{
+    status: string;
+    latency?: number;
+    error?: string;
+  }> {
     try {
       if (!this.config.enabled) {
         return { status: 'disabled', error: 'Redis disabled in configuration' };
@@ -145,17 +155,23 @@ class RedisManager {
 
       return { status: 'healthy', latency };
     } catch (error) {
-      return { 
-        status: 'error', 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      return {
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
 
   // Session-specific operations with fallbacks
-  async setSession(sessionId: string, sessionData: any, expireInSeconds: number = 3600): Promise<void> {
+  async setSession(
+    sessionId: string,
+    sessionData: any,
+    expireInSeconds: number = 3600
+  ): Promise<void> {
     if (!this.isReady()) {
-      console.log('🔴 [REDIS SESSION] Redis not available, session storage skipped');
+      console.log(
+        '🔴 [REDIS SESSION] Redis not available, session storage skipped'
+      );
       return; // Graceful fallback
     }
 
@@ -164,11 +180,17 @@ class RedisManager {
       const serializedData = JSON.stringify({
         ...sessionData,
         lastAccess: new Date().toISOString(),
-        createdAt: sessionData.createdAt || new Date().toISOString()
+        createdAt: sessionData.createdAt || new Date().toISOString(),
       });
 
-      await client.setEx(`session:${sessionId}`, expireInSeconds, serializedData);
-      console.log(`🔴 [REDIS SESSION] Session ${sessionId} stored (expires in ${expireInSeconds}s)`);
+      await client.setEx(
+        `session:${sessionId}`,
+        expireInSeconds,
+        serializedData
+      );
+      console.log(
+        `🔴 [REDIS SESSION] Session ${sessionId} stored (expires in ${expireInSeconds}s)`
+      );
     } catch (error) {
       console.error('❌ [REDIS SESSION] Failed to store session:', error);
       // Don't throw - graceful degradation
@@ -177,16 +199,20 @@ class RedisManager {
 
   async getSession(sessionId: string): Promise<any | null> {
     if (!this.isReady()) {
-      console.log('🔴 [REDIS SESSION] Redis not available, session retrieval skipped');
+      console.log(
+        '🔴 [REDIS SESSION] Redis not available, session retrieval skipped'
+      );
       return null; // Graceful fallback
     }
 
     try {
       const client = this.getClient();
       const sessionData = await client.get(`session:${sessionId}`);
-      
+
       if (!sessionData) {
-        console.log(`🔴 [REDIS SESSION] Session ${sessionId} not found or expired`);
+        console.log(
+          `🔴 [REDIS SESSION] Session ${sessionId} not found or expired`
+        );
         return null;
       }
 
@@ -201,19 +227,25 @@ class RedisManager {
 
   async deleteSession(sessionId: string): Promise<boolean> {
     if (!this.isReady()) {
-      console.log('🔴 [REDIS SESSION] Redis not available, session deletion skipped');
+      console.log(
+        '🔴 [REDIS SESSION] Redis not available, session deletion skipped'
+      );
       return true; // Pretend success for graceful fallback
     }
 
     try {
       const client = this.getClient();
       const result = await client.del(`session:${sessionId}`);
-      
+
       if (result > 0) {
-        console.log(`🔴 [REDIS SESSION] Session ${sessionId} deleted successfully`);
+        console.log(
+          `🔴 [REDIS SESSION] Session ${sessionId} deleted successfully`
+        );
         return true;
       } else {
-        console.log(`🔴 [REDIS SESSION] Session ${sessionId} not found for deletion`);
+        console.log(
+          `🔴 [REDIS SESSION] Session ${sessionId} not found for deletion`
+        );
         return false;
       }
     } catch (error) {
@@ -222,21 +254,33 @@ class RedisManager {
     }
   }
 
-  async extendSession(sessionId: string, expireInSeconds: number = 3600): Promise<boolean> {
+  async extendSession(
+    sessionId: string,
+    expireInSeconds: number = 3600
+  ): Promise<boolean> {
     if (!this.isReady()) {
-      console.log('🔴 [REDIS SESSION] Redis not available, session extension skipped');
+      console.log(
+        '🔴 [REDIS SESSION] Redis not available, session extension skipped'
+      );
       return true; // Pretend success for graceful fallback
     }
 
     try {
       const client = this.getClient();
-      const result = await client.expire(`session:${sessionId}`, expireInSeconds);
-      
+      const result = await client.expire(
+        `session:${sessionId}`,
+        expireInSeconds
+      );
+
       if (result) {
-        console.log(`🔴 [REDIS SESSION] Session ${sessionId} extended by ${expireInSeconds}s`);
+        console.log(
+          `🔴 [REDIS SESSION] Session ${sessionId} extended by ${expireInSeconds}s`
+        );
         return true;
       } else {
-        console.log(`🔴 [REDIS SESSION] Session ${sessionId} not found for extension`);
+        console.log(
+          `🔴 [REDIS SESSION] Session ${sessionId} not found for extension`
+        );
         return false;
       }
     } catch (error) {
@@ -247,7 +291,9 @@ class RedisManager {
 
   async getAllUserSessions(userId: string): Promise<string[]> {
     if (!this.isReady()) {
-      console.log('🔴 [REDIS SESSION] Redis not available, returning empty sessions list');
+      console.log(
+        '🔴 [REDIS SESSION] Redis not available, returning empty sessions list'
+      );
       return []; // Graceful fallback
     }
 
@@ -266,7 +312,9 @@ class RedisManager {
         }
       }
 
-      console.log(`🔴 [REDIS SESSION] Found ${userSessions.length} sessions for user ${userId}`);
+      console.log(
+        `🔴 [REDIS SESSION] Found ${userSessions.length} sessions for user ${userId}`
+      );
       return userSessions;
     } catch (error) {
       console.error('❌ [REDIS SESSION] Failed to get user sessions:', error);
@@ -276,14 +324,16 @@ class RedisManager {
 
   async invalidateAllUserSessions(userId: string): Promise<number> {
     if (!this.isReady()) {
-      console.log('🔴 [REDIS SESSION] Redis not available, session invalidation skipped');
+      console.log(
+        '🔴 [REDIS SESSION] Redis not available, session invalidation skipped'
+      );
       return 0; // Graceful fallback
     }
 
     try {
       const userSessions = await this.getAllUserSessions(userId);
       const client = this.getClient();
-      
+
       if (userSessions.length === 0) {
         console.log(`🔴 [REDIS SESSION] No sessions found for user ${userId}`);
         return 0;
@@ -291,11 +341,16 @@ class RedisManager {
 
       const sessionKeys = userSessions.map(sessionId => `session:${sessionId}`);
       const deletedCount = await client.del(sessionKeys);
-      
-      console.log(`🔴 [REDIS SESSION] Invalidated ${deletedCount} sessions for user ${userId}`);
+
+      console.log(
+        `🔴 [REDIS SESSION] Invalidated ${deletedCount} sessions for user ${userId}`
+      );
       return deletedCount;
     } catch (error) {
-      console.error('❌ [REDIS SESSION] Failed to invalidate user sessions:', error);
+      console.error(
+        '❌ [REDIS SESSION] Failed to invalidate user sessions:',
+        error
+      );
       return 0;
     }
   }
@@ -337,7 +392,7 @@ class RedisManager {
       return {
         totalSessions: keys.length,
         activeUsers,
-        avgSessionAge
+        avgSessionAge,
       };
     } catch (error) {
       console.error('❌ [REDIS SESSION] Failed to get session stats:', error);
@@ -358,7 +413,7 @@ class RedisManager {
 
       for (const key of keys) {
         const ttl = await client.ttl(key);
-        
+
         // If TTL is -1, the key exists but has no expiration
         // If TTL is -2, the key doesn't exist (expired)
         if (ttl === -2) {
@@ -367,12 +422,17 @@ class RedisManager {
       }
 
       if (cleanedCount > 0) {
-        console.log(`🧹 [REDIS CLEANUP] Cleaned up ${cleanedCount} expired session keys`);
+        console.log(
+          `🧹 [REDIS CLEANUP] Cleaned up ${cleanedCount} expired session keys`
+        );
       }
 
       return cleanedCount;
     } catch (error) {
-      console.error('❌ [REDIS CLEANUP] Failed to cleanup expired sessions:', error);
+      console.error(
+        '❌ [REDIS CLEANUP] Failed to cleanup expired sessions:',
+        error
+      );
       return 0;
     }
   }
@@ -386,7 +446,9 @@ export async function ensureRedisConnection(): Promise<void> {
   try {
     await redisManager.connect();
   } catch (error) {
-    console.log('⚠️ [REDIS] Redis connection failed, application will continue with JWT-only authentication');
+    console.log(
+      '⚠️ [REDIS] Redis connection failed, application will continue with JWT-only authentication'
+    );
     throw error;
   }
 }
@@ -395,4 +457,4 @@ export async function closeRedisConnection(): Promise<void> {
   await redisManager.disconnect();
 }
 
-export default redisManager; 
+export default redisManager;

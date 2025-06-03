@@ -1,4 +1,4 @@
-import { api } from './api.ts';
+import { api } from './api';
 import { tokenService } from './tokenService';
 
 // Add request deduplication for auth checks
@@ -21,10 +21,16 @@ export const authService = {
     try {
       // Trim whitespace from username to prevent authentication issues
       const trimmedUsername = username.trim();
-      console.log('[Debug] authService - Attempting login for user:', trimmedUsername);
-      const response = await api.post('/api/v1/auth/login', { username: trimmedUsername, password });
+      console.log(
+        '[Debug] authService - Attempting login for user:',
+        trimmedUsername
+      );
+      const response = await api.post('/api/v1/auth/login', {
+        username: trimmedUsername,
+        password,
+      });
       const { accessToken, refreshToken, user } = response.data.data;
-      
+
       // Store the tokens
       if (accessToken) {
         console.log('[Debug] authService - Received access token, storing');
@@ -37,7 +43,7 @@ export const authService = {
         console.log('[Debug] authService - Received refresh token, storing');
         tokenService.setRefreshToken(refreshToken);
       }
-      
+
       return { user, accessToken, refreshToken };
     } catch (error) {
       console.error('[Debug] authService - Login error:', error);
@@ -61,7 +67,7 @@ export const authService = {
         password,
       });
       const { accessToken, refreshToken, user } = response.data.data;
-      
+
       // Store the tokens
       if (accessToken) {
         tokenService.setAccessToken(accessToken);
@@ -72,7 +78,7 @@ export const authService = {
       if (refreshToken) {
         tokenService.setRefreshToken(refreshToken);
       }
-      
+
       return { user, accessToken, refreshToken };
     } catch (error) {
       throw error;
@@ -107,7 +113,9 @@ export const authService = {
   async checkAuth() {
     // Return existing promise if one is already in progress
     if (authCheckPromise) {
-      console.log('[Debug] authService - Returning existing auth check promise');
+      console.log(
+        '[Debug] authService - Returning existing auth check promise'
+      );
       return authCheckPromise;
     }
 
@@ -120,38 +128,58 @@ export const authService = {
 
       // Ensure token is set in headers
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
+
       console.log('[Debug] authService - Checking authentication with backend');
-      
+
       // Create and cache the promise
-      authCheckPromise = api.get('/api/v1/auth/me').then(response => {
-        // Backend returns { success: true, data: { user: {...} } }
-        const userData = response.data.data.user;
-        console.log('[Debug] authService - Authentication check successful for user:', userData.username);
-        authCheckPromise = null; // Clear the promise cache
-        return userData;
-      }).catch(error => {
-        console.error('[Debug] authService - Authentication check failed:', error.response?.status, error.message);
-        
-        // Only clear tokens if we get a 401 (unauthorized) or 403 (forbidden)
-        // Other errors (network issues, server errors) should not clear valid tokens
-        if (error.response?.status === 401 || error.response?.status === 403) {
-          console.log('[Debug] authService - Clearing tokens due to authentication failure');
-          tokenService.clearTokens();
-          delete api.defaults.headers.common['Authorization'];
-        } else {
-          console.log('[Debug] authService - Network/server error, keeping tokens');
-          // Don't clear tokens for network errors - user might just be offline
-        }
-        
-        authCheckPromise = null; // Clear the promise cache
-        return null;
-      });
-      
+      authCheckPromise = api
+        .get('/api/v1/auth/me')
+        .then(response => {
+          // Backend returns { success: true, data: { user: {...} } }
+          const userData = response.data.data.user;
+          console.log(
+            '[Debug] authService - Authentication check successful for user:',
+            userData.username
+          );
+          authCheckPromise = null; // Clear the promise cache
+          return userData;
+        })
+        .catch(error => {
+          console.error(
+            '[Debug] authService - Authentication check failed:',
+            error.response?.status,
+            error.message
+          );
+
+          // Only clear tokens if we get a 401 (unauthorized) or 403 (forbidden)
+          // Other errors (network issues, server errors) should not clear valid tokens
+          if (
+            error.response?.status === 401 ||
+            error.response?.status === 403
+          ) {
+            console.log(
+              '[Debug] authService - Clearing tokens due to authentication failure'
+            );
+            tokenService.clearTokens();
+            delete api.defaults.headers.common['Authorization'];
+          } else {
+            console.log(
+              '[Debug] authService - Network/server error, keeping tokens'
+            );
+            // Don't clear tokens for network errors - user might just be offline
+          }
+
+          authCheckPromise = null; // Clear the promise cache
+          return null;
+        });
+
       return authCheckPromise;
     } catch (error: any) {
       authCheckPromise = null; // Clear the promise cache on any error
-      console.error('[Debug] authService - Unexpected error in checkAuth:', error);
+      console.error(
+        '[Debug] authService - Unexpected error in checkAuth:',
+        error
+      );
       return null;
     }
   },
@@ -171,5 +199,5 @@ export const authService = {
   isAuthenticated() {
     const token = this.getAccessToken();
     return !!token;
-  }
-}; 
+  },
+};

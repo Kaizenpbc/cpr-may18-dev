@@ -16,7 +16,7 @@ export const cacheMiddleware = (options: CacheOptions = {}) => {
     ttl = 300, // 5 minutes default
     keyGenerator,
     skipCache,
-    varyBy = []
+    varyBy = [],
   } = options;
 
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -37,11 +37,16 @@ export const cacheMiddleware = (options: CacheOptions = {}) => {
     } else {
       // Default key generation
       const baseKey = `api:${req.originalUrl}`;
-      const varyParts = varyBy.map(header => {
-        const value = req.headers[header.toLowerCase()] || req.params[header] || req.query[header];
-        return `${header}:${value}`;
-      }).join('|');
-      
+      const varyParts = varyBy
+        .map(header => {
+          const value =
+            req.headers[header.toLowerCase()] ||
+            req.params[header] ||
+            req.query[header];
+          return `${header}:${value}`;
+        })
+        .join('|');
+
       cacheKey = varyParts ? `${baseKey}|${varyParts}` : baseKey;
     }
 
@@ -52,15 +57,15 @@ export const cacheMiddleware = (options: CacheOptions = {}) => {
         const client = cacheService['redisManager']?.getClient();
         if (client) {
           const cached = await client.get(cacheKey);
-          
+
           if (cached) {
             console.log(`🚀 [CACHE HIT] ${cacheKey}`);
             const cachedData = JSON.parse(cached);
-            
+
             // Set cache headers
             res.setHeader('X-Cache', 'HIT');
             res.setHeader('X-Cache-Key', cacheKey);
-            
+
             return res.json(cachedData);
           }
         }
@@ -73,20 +78,23 @@ export const cacheMiddleware = (options: CacheOptions = {}) => {
 
       // Override res.json to cache the response
       const originalJson = res.json.bind(res);
-      res.json = function(body: any) {
+      res.json = function (body: any) {
         // Cache successful responses
-        if (res.statusCode >= 200 && res.statusCode < 300 && process.env.REDIS_ENABLED === 'true') {
+        if (
+          res.statusCode >= 200 &&
+          res.statusCode < 300 &&
+          process.env.REDIS_ENABLED === 'true'
+        ) {
           // Cache in background (don't wait)
           cacheResponse(cacheKey, body, ttl).catch(error => {
             console.warn(`⚠️ [CACHE] Failed to cache ${cacheKey}:`, error);
           });
         }
-        
+
         return originalJson(body);
       };
 
       next();
-
     } catch (error) {
       console.warn(`⚠️ [CACHE MIDDLEWARE] Error for ${cacheKey}:`, error);
       // Continue without caching on error
@@ -98,7 +106,11 @@ export const cacheMiddleware = (options: CacheOptions = {}) => {
 /**
  * Cache API response in background
  */
-async function cacheResponse(key: string, data: any, ttl: number): Promise<void> {
+async function cacheResponse(
+  key: string,
+  data: any,
+  ttl: number
+): Promise<void> {
   try {
     const client = cacheService['redisManager']?.getClient();
     if (client) {
@@ -115,62 +127,68 @@ async function cacheResponse(key: string, data: any, ttl: number): Promise<void>
  */
 export const cacheConfigs = {
   // Reference data - cache for 1 hour
-  referenceData: (ttl = 3600) => cacheMiddleware({
-    ttl,
-    keyGenerator: (req) => `ref:${req.path}`,
-  }),
+  referenceData: (ttl = 3600) =>
+    cacheMiddleware({
+      ttl,
+      keyGenerator: req => `ref:${req.path}`,
+    }),
 
   // User-specific data - cache for 15 minutes, vary by user
-  userData: (ttl = 900) => cacheMiddleware({
-    ttl,
-    keyGenerator: (req) => {
-      const user = (req as any).user;
-      return `user:${user?.id || 'anon'}:${req.path}`;
-    },
-    skipCache: (req) => !(req as any).user, // Skip if no user
-  }),
+  userData: (ttl = 900) =>
+    cacheMiddleware({
+      ttl,
+      keyGenerator: req => {
+        const user = (req as any).user;
+        return `user:${user?.id || 'anon'}:${req.path}`;
+      },
+      skipCache: req => !(req as any).user, // Skip if no user
+    }),
 
   // Organization-specific data - cache for 30 minutes
-  orgData: (ttl = 1800) => cacheMiddleware({
-    ttl,
-    keyGenerator: (req) => {
-      const user = (req as any).user;
-      return `org:${user?.organizationId || 'none'}:${req.path}`;
-    },
-    varyBy: ['role'],
-  }),
+  orgData: (ttl = 1800) =>
+    cacheMiddleware({
+      ttl,
+      keyGenerator: req => {
+        const user = (req as any).user;
+        return `org:${user?.organizationId || 'none'}:${req.path}`;
+      },
+      varyBy: ['role'],
+    }),
 
   // Dashboard data - cache for 5 minutes
-  dashboard: (ttl = 300) => cacheMiddleware({
-    ttl,
-    keyGenerator: (req) => {
-      const user = (req as any).user;
-      return `dashboard:${user?.role}:${user?.organizationId || 'none'}`;
-    },
-  }),
+  dashboard: (ttl = 300) =>
+    cacheMiddleware({
+      ttl,
+      keyGenerator: req => {
+        const user = (req as any).user;
+        return `dashboard:${user?.role}:${user?.organizationId || 'none'}`;
+      },
+    }),
 
   // Public API - cache for 10 minutes
-  publicApi: (ttl = 600) => cacheMiddleware({
-    ttl,
-    keyGenerator: (req) => `public:${req.path}:${JSON.stringify(req.query)}`,
-  }),
+  publicApi: (ttl = 600) =>
+    cacheMiddleware({
+      ttl,
+      keyGenerator: req => `public:${req.path}:${JSON.stringify(req.query)}`,
+    }),
 };
 
 /**
  * Middleware to invalidate cache on data modifications
  */
-export const cacheInvalidation = (patterns: string[] | ((req: Request) => string[])) => {
+export const cacheInvalidation = (
+  patterns: string[] | ((req: Request) => string[])
+) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     // Store original end function
     const originalEnd = res.end.bind(res);
-    
-    res.end = function(chunk?: any, encoding?: any) {
+
+    res.end = function (chunk?: any, encoding?: any) {
       // Only invalidate on successful modifications (2xx status codes)
       if (res.statusCode >= 200 && res.statusCode < 300) {
         // Get patterns to invalidate
-        const invalidationPatterns = typeof patterns === 'function' 
-          ? patterns(req) 
-          : patterns;
+        const invalidationPatterns =
+          typeof patterns === 'function' ? patterns(req) : patterns;
 
         // Invalidate in background
         Promise.all(
@@ -179,7 +197,7 @@ export const cacheInvalidation = (patterns: string[] | ((req: Request) => string
           console.warn('⚠️ [CACHE INVALIDATION] Error:', error);
         });
       }
-      
+
       return originalEnd(chunk, encoding);
     };
 
@@ -193,22 +211,26 @@ export const cacheInvalidation = (patterns: string[] | ((req: Request) => string
 export const invalidationPatterns = {
   // Invalidate all course types cache
   courseTypes: ['course_types', 'api:/api/v1/course-types*'],
-  
+
   // Invalidate all organizations cache
-  organizations: ['organizations', 'org:*', 'api:/api/v1/accounting/organizations*'],
-  
+  organizations: [
+    'organizations',
+    'org:*',
+    'api:/api/v1/accounting/organizations*',
+  ],
+
   // Invalidate user-specific cache
   userData: (userId: string) => [`user:${userId}:*`, `user:username:*`],
-  
+
   // Invalidate organization-specific cache
   orgData: (orgId: string) => [`org:${orgId}:*`, `organization:${orgId}`],
-  
+
   // Invalidate dashboard cache
   dashboard: ['dashboard:*'],
-  
+
   // Invalidate course pricing cache
-  coursePricing: (orgId?: string) => 
+  coursePricing: (orgId?: string) =>
     orgId ? [`course_pricing:${orgId}`] : ['course_pricing:*'],
 };
 
-export default cacheMiddleware; 
+export default cacheMiddleware;

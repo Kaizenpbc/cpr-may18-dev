@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getHeaders, getAuthHeader, getCSRFToken, verifyToken, checkBackendHealth } from '../config';
+import {
+  getHeaders,
+  getAuthHeader,
+  getCSRFToken,
+  verifyToken,
+  checkBackendHealth,
+} from '../config';
 import api from '../api';
 import authService from '../../services/authService';
 
@@ -125,13 +131,18 @@ describe('API Configuration', () => {
     it('adds auth header to requests when token exists', () => {
       const mockToken = 'test-token';
       localStorage.setItem('authToken', mockToken);
-      (authService.getAuthHeader as any).mockReturnValue({ Authorization: `Bearer ${mockToken}` });
+      (authService.getAuthHeader as any).mockReturnValue({
+        Authorization: `Bearer ${mockToken}`,
+      });
 
       const config = { headers: {} };
       const interceptor = api.interceptors.request.use.mock.calls[0][0];
       const result = interceptor(config);
 
-      expect(result.headers).toHaveProperty('Authorization', `Bearer ${mockToken}`);
+      expect(result.headers).toHaveProperty(
+        'Authorization',
+        `Bearer ${mockToken}`
+      );
     });
 
     it('handles 401 unauthorized responses', () => {
@@ -159,4 +170,4 @@ describe('API Configuration', () => {
       expect(authService.logout).toHaveBeenCalled();
     });
   });
-}); 
+});

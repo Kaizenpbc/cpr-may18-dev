@@ -2,7 +2,7 @@
  * @fileoverview Analytics Service for Instructor Portal
  * Provides comprehensive tracking of user interactions, performance metrics, and errors
  * Supports multiple analytics providers and includes development/production modes
- * 
+ *
  * @author CPR Training Portal Team
  * @version 1.0.0
  */
@@ -42,20 +42,20 @@ interface PerformanceMetric {
 /**
  * Analytics Service class for tracking user interactions and performance
  * Provides a unified interface for multiple analytics providers
- * 
+ *
  * @class AnalyticsService
- * 
+ *
  * @example
  * ```typescript
  * import analytics from './services/analytics';
- * 
+ *
  * // Set user
  * analytics.setUser(123, { role: 'instructor' });
- * 
+ *
  * // Track events
  * analytics.track('button_clicked', { button: 'save' });
  * analytics.trackPageView('dashboard');
- * 
+ *
  * // Track errors
  * analytics.trackError(new Error('Something went wrong'), 'component_name');
  * ```
@@ -77,9 +77,10 @@ class AnalyticsService {
    * Automatically initializes if enabled
    */
   constructor() {
-    this.isEnabled = import.meta.env.PROD || import.meta.env.VITE_ANALYTICS_ENABLED === 'true';
+    this.isEnabled =
+      import.meta.env.PROD || import.meta.env.VITE_ANALYTICS_ENABLED === 'true';
     this.sessionId = this.generateSessionId();
-    
+
     if (this.isEnabled) {
       this.initialize();
     }
@@ -87,7 +88,7 @@ class AnalyticsService {
 
   /**
    * Generates a unique session identifier
-   * 
+   *
    * @private
    * @returns {string} Unique session ID
    */
@@ -98,21 +99,21 @@ class AnalyticsService {
   /**
    * Initializes the analytics service
    * Sets up tracking providers and processes queued events
-   * 
+   *
    * @private
    */
   private initialize() {
     // Initialize analytics (Google Analytics, Mixpanel, etc.)
     console.log('[Analytics] Service initialized', {
       sessionId: this.sessionId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-    
+
     // Track page load performance
     this.trackPageLoad();
-    
+
     this.isInitialized = true;
-    
+
     // Process queued events
     this.processQueue();
   }
@@ -120,24 +121,24 @@ class AnalyticsService {
   /**
    * Sets the current user for analytics tracking
    * Associates all future events with this user
-   * 
+   *
    * @param {string | number} userId - Unique identifier for the user
    * @param {Record<string, any>} [properties] - Additional user properties
-   * 
+   *
    * @example
    * ```typescript
-   * analytics.setUser(123, { 
-   *   role: 'instructor', 
-   *   email: 'instructor@example.com' 
+   * analytics.setUser(123, {
+   *   role: 'instructor',
+   *   email: 'instructor@example.com'
    * });
    * ```
    */
   setUser(userId: string | number, properties?: Record<string, any>) {
     this.userId = userId;
-    
+
     if (this.isEnabled) {
       console.log('[Analytics] User identified:', { userId, properties });
-      
+
       // TODO: Integrate with actual analytics service
       // gtag('config', 'GA_MEASUREMENT_ID', { user_id: userId });
       // mixpanel.identify(userId);
@@ -146,10 +147,10 @@ class AnalyticsService {
 
   /**
    * Tracks a custom event with optional properties
-   * 
+   *
    * @param {string} event - Name of the event to track
    * @param {Record<string, any>} [properties] - Additional event properties
-   * 
+   *
    * @example
    * ```typescript
    * analytics.track('class_completed', {
@@ -167,11 +168,11 @@ class AnalyticsService {
         sessionId: this.sessionId,
         url: window.location.href,
         userAgent: navigator.userAgent,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
       userId: this.userId || undefined,
       sessionId: this.sessionId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     if (!this.isInitialized) {
@@ -181,7 +182,7 @@ class AnalyticsService {
 
     if (this.isEnabled) {
       console.log('[Analytics] Event tracked:', analyticsEvent);
-      
+
       // TODO: Send to actual analytics service
       // gtag('event', event, properties);
       // mixpanel.track(event, properties);
@@ -194,7 +195,7 @@ class AnalyticsService {
   trackPageView(page: string, properties?: Record<string, any>) {
     this.track('page_view', {
       page,
-      ...properties
+      ...properties,
     });
   }
 
@@ -205,7 +206,7 @@ class AnalyticsService {
     this.track('instructor_action', {
       action,
       portal: 'instructor',
-      ...properties
+      ...properties,
     });
   }
 
@@ -216,31 +217,39 @@ class AnalyticsService {
     this.track('organization_action', {
       action,
       portal: 'organization',
-      ...properties
+      ...properties,
     });
   }
 
   /**
    * Track class management actions
    */
-  trackClassAction(action: string, classId?: number, properties?: Record<string, any>) {
+  trackClassAction(
+    action: string,
+    classId?: number,
+    properties?: Record<string, any>
+  ) {
     this.track('class_action', {
       action,
       classId,
       portal: 'instructor',
-      ...properties
+      ...properties,
     });
   }
 
   /**
    * Track availability management
    */
-  trackAvailabilityAction(action: string, date?: string, properties?: Record<string, any>) {
+  trackAvailabilityAction(
+    action: string,
+    date?: string,
+    properties?: Record<string, any>
+  ) {
     this.track('availability_action', {
       action,
       date,
       portal: 'instructor',
-      ...properties
+      ...properties,
     });
   }
 
@@ -253,7 +262,7 @@ class AnalyticsService {
       stack: error.stack,
       context,
       portal: 'instructor',
-      ...properties
+      ...properties,
     });
   }
 
@@ -263,7 +272,7 @@ class AnalyticsService {
   trackPerformance(metric: PerformanceMetric) {
     if (this.isEnabled) {
       console.log('[Analytics] Performance metric:', metric);
-      
+
       // TODO: Send to performance monitoring service
       // Sentry.addBreadcrumb({ message: `Performance: ${metric.name}`, data: metric });
     }
@@ -274,18 +283,22 @@ class AnalyticsService {
    */
   private trackPageLoad() {
     if (typeof window !== 'undefined' && window.performance) {
-      const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
-      
+      const navigation = performance.getEntriesByType(
+        'navigation'
+      )[0] as PerformanceNavigationTiming;
+
       if (navigation) {
         this.trackPerformance({
           name: 'page_load_time',
           value: navigation.loadEventEnd - navigation.loadEventStart,
           timestamp: new Date().toISOString(),
           metadata: {
-            domContentLoaded: navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
+            domContentLoaded:
+              navigation.domContentLoadedEventEnd -
+              navigation.domContentLoadedEventStart,
             firstPaint: navigation.loadEventStart - navigation.fetchStart,
-            portal: 'instructor'
-          }
+            portal: 'instructor',
+          },
         });
       }
     }
@@ -301,8 +314,8 @@ class AnalyticsService {
       timestamp: new Date().toISOString(),
       metadata: {
         component: componentName,
-        portal: 'instructor'
-      }
+        portal: 'instructor',
+      },
     });
   }
 
@@ -332,4 +345,4 @@ class AnalyticsService {
 // Create singleton instance
 const analytics = new AnalyticsService();
 
-export default analytics; 
+export default analytics;

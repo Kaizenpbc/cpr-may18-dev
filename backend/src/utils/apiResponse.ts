@@ -19,7 +19,10 @@ export interface ApiResponse<T = any> {
 }
 
 export class ApiResponseBuilder {
-  static success<T>(data: T, meta?: Omit<ApiResponse['meta'], 'timestamp'>): ApiResponse<T> {
+  static success<T>(
+    data: T,
+    meta?: Omit<ApiResponse['meta'], 'timestamp'>
+  ): ApiResponse<T> {
     return {
       success: true,
       data,
@@ -69,4 +72,4 @@ export class ApiResponseBuilder {
       },
     };
   }
-} 
+}

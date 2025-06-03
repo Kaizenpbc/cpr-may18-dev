@@ -197,4 +197,4 @@ describe('Sessions Component', () => {
       });
     });
   });
-}); 
+});

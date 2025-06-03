@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react';
 import {
   Box,
   Card,
@@ -8,60 +8,60 @@ import {
   Typography,
   CircularProgress,
   Grid,
-} from '@mui/material'
-import axios from 'axios'
-import { useAuth } from '../contexts/AuthContext'
+} from '@mui/material';
+import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ProfileData {
-  firstName: string
-  lastName: string
-  email: string
-  phone: string
-  role: string
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  role: string;
 }
 
 export default function Profile() {
-  const { user } = useAuth()
-  const [profile, setProfile] = useState<ProfileData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [isEditing, setIsEditing] = useState(false)
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<ProfileData>({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
     role: '',
-  })
+  });
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await axios.get('/api/instructor/profile')
-        setProfile(response.data)
-        setFormData(response.data)
+        const response = await axios.get('/api/instructor/profile');
+        setProfile(response.data);
+        setFormData(response.data);
       } catch (err) {
-        setError('Failed to load profile information')
-        console.error('Error fetching profile:', err)
+        setError('Failed to load profile information');
+        console.error('Error fetching profile:', err);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchProfile()
-  }, [])
+    fetchProfile();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     try {
-      const response = await axios.put('/api/instructor/profile', formData)
-      setProfile(response.data)
-      setIsEditing(false)
+      const response = await axios.put('/api/instructor/profile', formData);
+      setProfile(response.data);
+      setIsEditing(false);
     } catch (err) {
-      setError('Failed to update profile')
-      console.error('Error updating profile:', err)
+      setError('Failed to update profile');
+      console.error('Error updating profile:', err);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -75,20 +75,20 @@ export default function Profile() {
       >
         <CircularProgress />
       </Box>
-    )
+    );
   }
 
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
-        <Typography color="error">{error}</Typography>
+        <Typography color='error'>{error}</Typography>
       </Box>
-    )
+    );
   }
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
+      <Typography variant='h4' gutterBottom>
         Profile
       </Typography>
       <Card>
@@ -99,9 +99,9 @@ export default function Profile() {
                 <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
-                    label="First Name"
+                    label='First Name'
                     value={formData.firstName}
-                    onChange={(e) =>
+                    onChange={e =>
                       setFormData({ ...formData, firstName: e.target.value })
                     }
                   />
@@ -109,9 +109,9 @@ export default function Profile() {
                 <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
-                    label="Last Name"
+                    label='Last Name'
                     value={formData.lastName}
-                    onChange={(e) =>
+                    onChange={e =>
                       setFormData({ ...formData, lastName: e.target.value })
                     }
                   />
@@ -119,10 +119,10 @@ export default function Profile() {
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Email"
-                    type="email"
+                    label='Email'
+                    type='email'
                     value={formData.email}
-                    onChange={(e) =>
+                    onChange={e =>
                       setFormData({ ...formData, email: e.target.value })
                     }
                   />
@@ -130,27 +130,23 @@ export default function Profile() {
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Phone"
+                    label='Phone'
                     value={formData.phone}
-                    onChange={(e) =>
+                    onChange={e =>
                       setFormData({ ...formData, phone: e.target.value })
                     }
                   />
                 </Grid>
                 <Grid item xs={12}>
                   <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      type="submit"
-                    >
+                    <Button variant='contained' color='primary' type='submit'>
                       Save
                     </Button>
                     <Button
-                      variant="outlined"
+                      variant='outlined'
                       onClick={() => {
-                        setIsEditing(false)
-                        setFormData(profile!)
+                        setIsEditing(false);
+                        setFormData(profile!);
                       }}
                     >
                       Cancel
@@ -163,39 +159,39 @@ export default function Profile() {
             <>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="subtitle2" color="textSecondary">
+                  <Typography variant='subtitle2' color='textSecondary'>
                     First Name
                   </Typography>
-                  <Typography variant="body1">{profile?.firstName}</Typography>
+                  <Typography variant='body1'>{profile?.firstName}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="subtitle2" color="textSecondary">
+                  <Typography variant='subtitle2' color='textSecondary'>
                     Last Name
                   </Typography>
-                  <Typography variant="body1">{profile?.lastName}</Typography>
+                  <Typography variant='body1'>{profile?.lastName}</Typography>
                 </Grid>
                 <Grid item xs={12}>
-                  <Typography variant="subtitle2" color="textSecondary">
+                  <Typography variant='subtitle2' color='textSecondary'>
                     Email
                   </Typography>
-                  <Typography variant="body1">{profile?.email}</Typography>
+                  <Typography variant='body1'>{profile?.email}</Typography>
                 </Grid>
                 <Grid item xs={12}>
-                  <Typography variant="subtitle2" color="textSecondary">
+                  <Typography variant='subtitle2' color='textSecondary'>
                     Phone
                   </Typography>
-                  <Typography variant="body1">{profile?.phone}</Typography>
+                  <Typography variant='body1'>{profile?.phone}</Typography>
                 </Grid>
                 <Grid item xs={12}>
-                  <Typography variant="subtitle2" color="textSecondary">
+                  <Typography variant='subtitle2' color='textSecondary'>
                     Role
                   </Typography>
-                  <Typography variant="body1">{profile?.role}</Typography>
+                  <Typography variant='body1'>{profile?.role}</Typography>
                 </Grid>
                 <Grid item xs={12}>
                   <Button
-                    variant="contained"
-                    color="primary"
+                    variant='contained'
+                    color='primary'
                     onClick={() => setIsEditing(true)}
                   >
                     Edit Profile
@@ -207,5 +203,5 @@ export default function Profile() {
         </CardContent>
       </Card>
     </Box>
-  )
-} 
+  );
+}

@@ -32,7 +32,7 @@ async function testEmailService() {
       location: '123 Main St',
       organization: 'Test Organization',
       courseType: 'Basic CPR',
-      students: 10
+      students: 10,
     };
     await emailService.sendClassScheduledNotification(testEmail, classDetails);
 
@@ -47,4 +47,4 @@ async function testEmailService() {
 }
 
 // Run the test
-testEmailService(); 
+testEmailService();

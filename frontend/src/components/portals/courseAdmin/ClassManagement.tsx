@@ -22,10 +22,18 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+} from '@mui/icons-material';
 import { api } from '../../../services/api';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { LocalizationProvider, DatePicker, TimePicker } from '@mui/x-date-pickers';
+import {
+  LocalizationProvider,
+  DatePicker,
+  TimePicker,
+} from '@mui/x-date-pickers';
 
 interface Course {
   id: number;
@@ -191,7 +199,7 @@ const ClassManagement: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this class?')) return;
-    
+
     try {
       await api.delete(`/api/v1/classes/${id}`);
       setSuccess('Class deleted successfully');
@@ -204,21 +212,32 @@ const ClassManagement: React.FC = () => {
   return (
     <Box>
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert severity='error' sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
       {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+        <Alert
+          severity='success'
+          sx={{ mb: 2 }}
+          onClose={() => setSuccess(null)}
+        >
           {success}
         </Alert>
       )}
 
-      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6">Classes</Typography>
+      <Box
+        sx={{
+          mb: 2,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <Typography variant='h6'>Classes</Typography>
         <Button
-          variant="contained"
-          color="primary"
+          variant='contained'
+          color='primary'
           startIcon={<AddIcon />}
           onClick={() => handleOpen()}
         >
@@ -240,19 +259,27 @@ const ClassManagement: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {classes.map((classItem) => (
+            {classes.map(classItem => (
               <TableRow key={classItem.id}>
                 <TableCell>{classItem.course.name}</TableCell>
                 <TableCell>{classItem.instructor.username}</TableCell>
-                <TableCell>{new Date(classItem.date).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  {new Date(classItem.date).toLocaleDateString()}
+                </TableCell>
                 <TableCell>{classItem.start_time}</TableCell>
                 <TableCell>{classItem.location}</TableCell>
                 <TableCell>{classItem.capacity}</TableCell>
                 <TableCell>
-                  <IconButton onClick={() => handleOpen(classItem)} color="primary">
+                  <IconButton
+                    onClick={() => handleOpen(classItem)}
+                    color='primary'
+                  >
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => handleDelete(classItem.id)} color="error">
+                  <IconButton
+                    onClick={() => handleDelete(classItem.id)}
+                    color='error'
+                  >
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>
@@ -262,18 +289,20 @@ const ClassManagement: React.FC = () => {
         </Table>
       </TableContainer>
 
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingClass ? 'Edit Class' : 'Schedule New Class'}</DialogTitle>
+      <Dialog open={open} onClose={handleClose} maxWidth='sm' fullWidth>
+        <DialogTitle>
+          {editingClass ? 'Edit Class' : 'Schedule New Class'}
+        </DialogTitle>
         <DialogContent>
-          <FormControl fullWidth margin="dense">
+          <FormControl fullWidth margin='dense'>
             <InputLabel>Course</InputLabel>
             <Select
-              name="course_id"
+              name='course_id'
               value={formData.course_id}
               onChange={handleSelectChange}
-              label="Course"
+              label='Course'
             >
-              {courses.map((course) => (
+              {courses.map(course => (
                 <MenuItem key={course.id} value={course.id}>
                   {course.name}
                 </MenuItem>
@@ -281,15 +310,15 @@ const ClassManagement: React.FC = () => {
             </Select>
           </FormControl>
 
-          <FormControl fullWidth margin="dense">
+          <FormControl fullWidth margin='dense'>
             <InputLabel>Instructor</InputLabel>
             <Select
-              name="instructor_id"
+              name='instructor_id'
               value={formData.instructor_id}
               onChange={handleSelectChange}
-              label="Instructor"
+              label='Instructor'
             >
-              {instructors.map((instructor) => (
+              {instructors.map(instructor => (
                 <MenuItem key={instructor.id} value={instructor.id}>
                   {instructor.username}
                 </MenuItem>
@@ -300,7 +329,7 @@ const ClassManagement: React.FC = () => {
           <LocalizationProvider dateAdapter={AdapterDateFns}>
             <Box sx={{ mt: 2 }}>
               <DatePicker
-                label="Date"
+                label='Date'
                 value={formData.date}
                 onChange={handleDateChange}
                 sx={{ width: '100%' }}
@@ -308,7 +337,7 @@ const ClassManagement: React.FC = () => {
             </Box>
             <Box sx={{ mt: 2 }}>
               <TimePicker
-                label="Start Time"
+                label='Start Time'
                 value={formData.start_time}
                 onChange={handleTimeChange}
                 sx={{ width: '100%' }}
@@ -317,20 +346,20 @@ const ClassManagement: React.FC = () => {
           </LocalizationProvider>
 
           <TextField
-            margin="dense"
-            name="location"
-            label="Location"
-            type="text"
+            margin='dense'
+            name='location'
+            label='Location'
+            type='text'
             fullWidth
             value={formData.location}
             onChange={handleInputChange}
           />
 
           <TextField
-            margin="dense"
-            name="capacity"
-            label="Capacity"
-            type="number"
+            margin='dense'
+            name='capacity'
+            label='Capacity'
+            type='number'
             fullWidth
             value={formData.capacity}
             onChange={handleInputChange}
@@ -338,7 +367,7 @@ const ClassManagement: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit} color="primary">
+          <Button onClick={handleSubmit} color='primary'>
             {editingClass ? 'Update' : 'Schedule'}
           </Button>
         </DialogActions>
@@ -347,4 +376,4 @@ const ClassManagement: React.FC = () => {
   );
 };
 
-export default ClassManagement; 
+export default ClassManagement;

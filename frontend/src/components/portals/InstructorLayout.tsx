@@ -19,7 +19,7 @@ import {
   useMediaQuery,
   Menu,
   MenuItem,
-  SwipeableDrawer
+  SwipeableDrawer,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -32,7 +32,7 @@ import {
   Logout as LogoutIcon,
   Refresh as RefreshIcon,
   Menu as MenuIcon,
-  MoreVert as MoreVertIcon
+  MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -52,10 +52,10 @@ interface InstructorLayoutProps {
   onRefresh?: () => void;
 }
 
-const InstructorLayout: React.FC<InstructorLayoutProps> = ({ 
-  children, 
+const InstructorLayout: React.FC<InstructorLayoutProps> = ({
+  children,
   currentView,
-  onRefresh 
+  onRefresh,
 }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -65,12 +65,46 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
   const [moreAnchorEl, setMoreAnchorEl] = useState<null | HTMLElement>(null);
 
   const navItems: NavItem[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon />, path: '/instructor/dashboard', showInBottomNav: true },
-    { id: 'availability', label: 'Availability', icon: <CalendarIcon />, path: '/instructor/availability', showInBottomNav: true },
-    { id: 'classes', label: 'Classes', icon: <ClassIcon />, path: '/instructor/classes', showInBottomNav: true },
-    { id: 'attendance', label: 'Attendance', icon: <AttendanceIcon />, path: '/instructor/attendance', showInBottomNav: true },
-    { id: 'archive', label: 'Archive', icon: <ArchiveIcon />, path: '/instructor/archive' },
-    { id: 'profile', label: 'Profile', icon: <ProfileIcon />, path: '/instructor/profile' }
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      icon: <DashboardIcon />,
+      path: '/instructor/dashboard',
+      showInBottomNav: true,
+    },
+    {
+      id: 'availability',
+      label: 'Availability',
+      icon: <CalendarIcon />,
+      path: '/instructor/availability',
+      showInBottomNav: true,
+    },
+    {
+      id: 'classes',
+      label: 'Classes',
+      icon: <ClassIcon />,
+      path: '/instructor/classes',
+      showInBottomNav: true,
+    },
+    {
+      id: 'attendance',
+      label: 'Attendance',
+      icon: <AttendanceIcon />,
+      path: '/instructor/attendance',
+      showInBottomNav: true,
+    },
+    {
+      id: 'archive',
+      label: 'Archive',
+      icon: <ArchiveIcon />,
+      path: '/instructor/archive',
+    },
+    {
+      id: 'profile',
+      label: 'Profile',
+      icon: <ProfileIcon />,
+      path: '/instructor/profile',
+    },
   ];
 
   const handleNavigation = (path: string) => {
@@ -101,21 +135,25 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
     <Box>
       <Toolbar />
       <List>
-        {navItems.map((item) => (
+        {navItems.map(item => (
           <ListItem
             key={item.id}
-            component="div"
+            component='div'
             onClick={() => handleNavigation(item.path)}
             selected={currentView === item.id}
             sx={{
               cursor: 'pointer',
-              backgroundColor: currentView === item.id ? 'primary.light' : 'transparent',
-              color: currentView === item.id ? 'primary.contrastText' : 'inherit',
+              backgroundColor:
+                currentView === item.id ? 'primary.light' : 'transparent',
+              color:
+                currentView === item.id ? 'primary.contrastText' : 'inherit',
               '&:hover': {
-                backgroundColor: currentView === item.id ? 'primary.main' : 'action.hover',
+                backgroundColor:
+                  currentView === item.id ? 'primary.main' : 'action.hover',
               },
               '& .MuiListItemIcon-root': {
-                color: currentView === item.id ? 'primary.contrastText' : 'inherit',
+                color:
+                  currentView === item.id ? 'primary.contrastText' : 'inherit',
               },
             }}
           >
@@ -129,27 +167,31 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
 
       <List>
         <ListItem
-          component="div"
+          component='div'
           onClick={handlePasswordReset}
           sx={{
             cursor: 'pointer',
-            '&:hover': { backgroundColor: 'action.hover' }
+            '&:hover': { backgroundColor: 'action.hover' },
           }}
         >
-          <ListItemIcon><PasswordIcon /></ListItemIcon>
-          <ListItemText primary="Reset Password" />
+          <ListItemIcon>
+            <PasswordIcon />
+          </ListItemIcon>
+          <ListItemText primary='Reset Password' />
         </ListItem>
 
         <ListItem
-          component="div"
+          component='div'
           onClick={handleLogout}
           sx={{
             cursor: 'pointer',
-            '&:hover': { backgroundColor: 'action.hover' }
+            '&:hover': { backgroundColor: 'action.hover' },
           }}
         >
-          <ListItemIcon><LogoutIcon /></ListItemIcon>
-          <ListItemText primary="Logout" />
+          <ListItemIcon>
+            <LogoutIcon />
+          </ListItemIcon>
+          <ListItemText primary='Logout' />
         </ListItem>
       </List>
     </Box>
@@ -159,44 +201,47 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {/* App Bar */}
       <AppBar
-        position="fixed"
+        position='fixed'
         sx={{
-          zIndex: (theme) => theme.zIndex.drawer + 1,
+          zIndex: theme => theme.zIndex.drawer + 1,
           ...(isMobile && {
             boxShadow: 'none',
             background: theme.palette.background.default,
             color: theme.palette.text.primary,
-          })
+          }),
         }}
       >
         <Toolbar>
           {isMobile && (
             <IconButton
-              color="inherit"
-              edge="start"
+              color='inherit'
+              edge='start'
               onClick={() => setMobileOpen(!mobileOpen)}
               sx={{ mr: 2 }}
             >
               <MenuIcon />
             </IconButton>
           )}
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            🏥 {isMobile ? currentView.charAt(0).toUpperCase() + currentView.slice(1) : 'Instructor Portal'}
+          <Typography variant='h6' component='div' sx={{ flexGrow: 1 }}>
+            🏥{' '}
+            {isMobile
+              ? currentView.charAt(0).toUpperCase() + currentView.slice(1)
+              : 'Instructor Portal'}
           </Typography>
           {!isMobile && (
-            <Typography variant="body1" sx={{ mr: 2 }}>
+            <Typography variant='body1' sx={{ mr: 2 }}>
               Welcome, {user?.username || 'Instructor'}
             </Typography>
           )}
           {onRefresh && (
-            <Tooltip title="Refresh data">
-              <IconButton color="inherit" onClick={onRefresh} size="small">
+            <Tooltip title='Refresh data'>
+              <IconButton color='inherit' onClick={onRefresh} size='small'>
                 <RefreshIcon />
               </IconButton>
             </Tooltip>
           )}
           {isMobile && (
-            <IconButton color="inherit" onClick={handleMoreClick}>
+            <IconButton color='inherit' onClick={handleMoreClick}>
               <MoreVertIcon />
             </IconButton>
           )}
@@ -219,13 +264,13 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
       >
         <MenuItem onClick={handlePasswordReset}>
           <ListItemIcon>
-            <PasswordIcon fontSize="small" />
+            <PasswordIcon fontSize='small' />
           </ListItemIcon>
           Reset Password
         </MenuItem>
         <MenuItem onClick={handleLogout}>
           <ListItemIcon>
-            <LogoutIcon fontSize="small" />
+            <LogoutIcon fontSize='small' />
           </ListItemIcon>
           Logout
         </MenuItem>
@@ -234,7 +279,7 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
       {/* Navigation Drawer - Desktop */}
       {!isMobile && (
         <Drawer
-          variant="permanent"
+          variant='permanent'
           sx={{
             width: DRAWER_WIDTH,
             flexShrink: 0,
@@ -251,8 +296,8 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
       {/* Navigation Drawer - Mobile */}
       {isMobile && (
         <SwipeableDrawer
-          variant="temporary"
-          anchor="left"
+          variant='temporary'
+          anchor='left'
           open={mobileOpen}
           onOpen={() => setMobileOpen(true)}
           onClose={() => setMobileOpen(false)}
@@ -272,19 +317,21 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
 
       {/* Main Content */}
       <Box
-        component="main"
+        component='main'
         sx={{
           flexGrow: 1,
           bgcolor: 'background.default',
           p: 3,
           width: '100%',
           mb: isMobile ? 7 : 0, // Add margin for bottom navigation
-          ...(isMobile ? {
-            pt: 8, // Reduced padding for mobile
-          } : {
-            ml: `${DRAWER_WIDTH}px`,
-            pt: 8,
-          }),
+          ...(isMobile
+            ? {
+                pt: 8, // Reduced padding for mobile
+              }
+            : {
+                ml: `${DRAWER_WIDTH}px`,
+                pt: 8,
+              }),
         }}
       >
         {children}
@@ -313,7 +360,7 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
         >
           {navItems
             .filter(item => item.showInBottomNav)
-            .map((item) => (
+            .map(item => (
               <BottomNavigationAction
                 key={item.id}
                 label={item.label}
@@ -327,4 +374,4 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
   );
 };
 
-export default InstructorLayout; 
+export default InstructorLayout;

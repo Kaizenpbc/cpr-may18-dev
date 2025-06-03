@@ -20,7 +20,9 @@ describe('NotFound Component', () => {
 
   it('renders error description', () => {
     renderNotFound();
-    expect(screen.getByText(/the page you are looking for might have been removed/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/the page you are looking for might have been removed/i)
+    ).toBeInTheDocument();
   });
 
   it('renders back to home button', () => {
@@ -43,4 +45,4 @@ describe('NotFound Component', () => {
       marginTop: '8rem',
     });
   });
-}); 
+});

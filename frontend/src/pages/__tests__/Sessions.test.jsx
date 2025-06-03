@@ -81,8 +81,12 @@ describe('Sessions Component', () => {
       renderSessions();
 
       await waitFor(() => {
-        expect(screen.getByText('Basic Life Support (BLS)')).toBeInTheDocument();
-        expect(screen.getByText('Advanced Cardiac Life Support (ACLS)')).toBeInTheDocument();
+        expect(
+          screen.getByText('Basic Life Support (BLS)')
+        ).toBeInTheDocument();
+        expect(
+          screen.getByText('Advanced Cardiac Life Support (ACLS)')
+        ).toBeInTheDocument();
       });
     });
   });
@@ -116,16 +120,24 @@ describe('Sessions Component', () => {
       renderSessions();
 
       await waitFor(() => {
-        expect(screen.getByText('Basic Life Support (BLS)')).toBeInTheDocument();
-        expect(screen.getByText('Advanced Cardiac Life Support (ACLS)')).toBeInTheDocument();
+        expect(
+          screen.getByText('Basic Life Support (BLS)')
+        ).toBeInTheDocument();
+        expect(
+          screen.getByText('Advanced Cardiac Life Support (ACLS)')
+        ).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByLabelText('Filter by course'));
       fireEvent.click(screen.getByText('Basic Life Support (BLS)'));
 
       await waitFor(() => {
-        expect(screen.getByText('Basic Life Support (BLS)')).toBeInTheDocument();
-        expect(screen.queryByText('Advanced Cardiac Life Support (ACLS)')).not.toBeInTheDocument();
+        expect(
+          screen.getByText('Basic Life Support (BLS)')
+        ).toBeInTheDocument();
+        expect(
+          screen.queryByText('Advanced Cardiac Life Support (ACLS)')
+        ).not.toBeInTheDocument();
       });
     });
 
@@ -174,7 +186,9 @@ describe('Sessions Component', () => {
       renderSessions();
 
       await waitFor(() => {
-        expect(screen.getByText('Basic Life Support (BLS)')).toBeInTheDocument();
+        expect(
+          screen.getByText('Basic Life Support (BLS)')
+        ).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByText('Basic Life Support (BLS)'));
@@ -182,7 +196,9 @@ describe('Sessions Component', () => {
       await waitFor(() => {
         expect(screen.getByText('Session Details')).toBeInTheDocument();
         expect(screen.getByText('Instructor: John Doe')).toBeInTheDocument();
-        expect(screen.getByText('Location: Training Center A')).toBeInTheDocument();
+        expect(
+          screen.getByText('Location: Training Center A')
+        ).toBeInTheDocument();
         expect(screen.getByText('Date: May 20, 2024')).toBeInTheDocument();
         expect(screen.getByText('Time: 9:00 AM - 1:00 PM')).toBeInTheDocument();
         expect(screen.getByText('Capacity: 8/12')).toBeInTheDocument();
@@ -195,14 +211,18 @@ describe('Sessions Component', () => {
       renderSessions();
 
       await waitFor(() => {
-        expect(screen.getByText('Basic Life Support (BLS)')).toBeInTheDocument();
+        expect(
+          screen.getByText('Basic Life Support (BLS)')
+        ).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByText('Book Now'));
 
       await waitFor(() => {
         expect(api.post).toHaveBeenCalledWith('/bookings', { sessionId: 1 });
-        expect(screen.getByText('Successfully booked session')).toBeInTheDocument();
+        expect(
+          screen.getByText('Successfully booked session')
+        ).toBeInTheDocument();
       });
     });
 
@@ -212,7 +232,9 @@ describe('Sessions Component', () => {
       renderSessions();
 
       await waitFor(() => {
-        expect(screen.getByText('Basic Life Support (BLS)')).toBeInTheDocument();
+        expect(
+          screen.getByText('Basic Life Support (BLS)')
+        ).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByText('Book Now'));
@@ -255,7 +277,9 @@ describe('Sessions Component', () => {
       renderSessions();
 
       await waitFor(() => {
-        expect(screen.getByText('Basic Life Support (BLS)')).toBeInTheDocument();
+        expect(
+          screen.getByText('Basic Life Support (BLS)')
+        ).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByLabelText('View as calendar'));
@@ -280,4 +304,4 @@ describe('Sessions Component', () => {
       });
     });
   });
-}); 
+});

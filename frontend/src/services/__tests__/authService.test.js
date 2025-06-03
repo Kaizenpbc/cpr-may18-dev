@@ -26,16 +26,23 @@ describe('authService', () => {
 
     it('handles login error', async () => {
       const errorMessage = 'Invalid credentials';
-      axios.post.mockRejectedValue({ response: { data: { message: errorMessage } } });
+      axios.post.mockRejectedValue({
+        response: { data: { message: errorMessage } },
+      });
 
-      await expect(authService.login('wronguser', 'wrongpass')).rejects.toThrow(errorMessage);
+      await expect(authService.login('wronguser', 'wrongpass')).rejects.toThrow(
+        errorMessage
+      );
       expect(localStorage.getItem('user')).toBeNull();
     });
   });
 
   describe('logout', () => {
     it('clears user data from localStorage', () => {
-      localStorage.setItem('user', JSON.stringify({ id: 1, username: 'testuser' }));
+      localStorage.setItem(
+        'user',
+        JSON.stringify({ id: 1, username: 'testuser' })
+      );
       authService.logout();
       expect(localStorage.getItem('user')).toBeNull();
     });
@@ -61,7 +68,9 @@ describe('authService', () => {
     it('returns auth header when user is stored', () => {
       const mockUser = { id: 1, username: 'testuser', token: 'test-token' };
       localStorage.setItem('user', JSON.stringify(mockUser));
-      expect(authService.getAuthHeader()).toEqual({ Authorization: 'Bearer test-token' });
+      expect(authService.getAuthHeader()).toEqual({
+        Authorization: 'Bearer test-token',
+      });
     });
   });
 
@@ -71,13 +80,19 @@ describe('authService', () => {
     });
 
     it('returns false when user has no token', () => {
-      localStorage.setItem('user', JSON.stringify({ id: 1, username: 'testuser' }));
+      localStorage.setItem(
+        'user',
+        JSON.stringify({ id: 1, username: 'testuser' })
+      );
       expect(authService.isAuthenticated()).toBe(false);
     });
 
     it('returns true when user has token', () => {
-      localStorage.setItem('user', JSON.stringify({ id: 1, username: 'testuser', token: 'test-token' }));
+      localStorage.setItem(
+        'user',
+        JSON.stringify({ id: 1, username: 'testuser', token: 'test-token' })
+      );
       expect(authService.isAuthenticated()).toBe(true);
     });
   });
-}); 
+});

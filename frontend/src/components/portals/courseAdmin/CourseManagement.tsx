@@ -18,7 +18,11 @@ import {
   Typography,
   Alert,
 } from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+} from '@mui/icons-material';
 import { api } from '../../../services/api';
 
 interface Course {
@@ -109,7 +113,7 @@ const CourseManagement: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this course?')) return;
-    
+
     try {
       await api.delete(`/api/v1/courses/${id}`);
       setSuccess('Course deleted successfully');
@@ -122,21 +126,32 @@ const CourseManagement: React.FC = () => {
   return (
     <Box>
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert severity='error' sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
       {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+        <Alert
+          severity='success'
+          sx={{ mb: 2 }}
+          onClose={() => setSuccess(null)}
+        >
           {success}
         </Alert>
       )}
 
-      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6">Courses</Typography>
+      <Box
+        sx={{
+          mb: 2,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <Typography variant='h6'>Courses</Typography>
         <Button
-          variant="contained"
-          color="primary"
+          variant='contained'
+          color='primary'
           startIcon={<AddIcon />}
           onClick={() => handleOpen()}
         >
@@ -155,16 +170,22 @@ const CourseManagement: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {courses.map((course) => (
+            {courses.map(course => (
               <TableRow key={course.id}>
                 <TableCell>{course.name}</TableCell>
                 <TableCell>{course.description}</TableCell>
                 <TableCell>{course.duration_minutes}</TableCell>
                 <TableCell>
-                  <IconButton onClick={() => handleOpen(course)} color="primary">
+                  <IconButton
+                    onClick={() => handleOpen(course)}
+                    color='primary'
+                  >
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => handleDelete(course.id)} color="error">
+                  <IconButton
+                    onClick={() => handleDelete(course.id)}
+                    color='error'
+                  >
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>
@@ -175,23 +196,25 @@ const CourseManagement: React.FC = () => {
       </TableContainer>
 
       <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>{editingCourse ? 'Edit Course' : 'Add Course'}</DialogTitle>
+        <DialogTitle>
+          {editingCourse ? 'Edit Course' : 'Add Course'}
+        </DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
-            margin="dense"
-            name="name"
-            label="Course Name"
-            type="text"
+            margin='dense'
+            name='name'
+            label='Course Name'
+            type='text'
             fullWidth
             value={formData.name}
             onChange={handleInputChange}
           />
           <TextField
-            margin="dense"
-            name="description"
-            label="Description"
-            type="text"
+            margin='dense'
+            name='description'
+            label='Description'
+            type='text'
             fullWidth
             multiline
             rows={4}
@@ -199,10 +222,10 @@ const CourseManagement: React.FC = () => {
             onChange={handleInputChange}
           />
           <TextField
-            margin="dense"
-            name="duration_minutes"
-            label="Duration (minutes)"
-            type="number"
+            margin='dense'
+            name='duration_minutes'
+            label='Duration (minutes)'
+            type='number'
             fullWidth
             value={formData.duration_minutes}
             onChange={handleInputChange}
@@ -210,7 +233,7 @@ const CourseManagement: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit} color="primary">
+          <Button onClick={handleSubmit} color='primary'>
             {editingCourse ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
@@ -219,4 +242,4 @@ const CourseManagement: React.FC = () => {
   );
 };
 
-export default CourseManagement; 
+export default CourseManagement;

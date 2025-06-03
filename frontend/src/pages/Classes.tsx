@@ -31,7 +31,9 @@ const Classes: React.FC = () => {
     queryKey: ['classes'],
     queryFn: async () => {
       try {
-        const response = await api.get<ApiResponse<Class[]>>('/instructor/classes');
+        const response = await api.get<ApiResponse<Class[]>>(
+          '/instructor/classes'
+        );
         return response.data;
       } catch (error) {
         if (error.response?.status === 401) {
@@ -40,7 +42,7 @@ const Classes: React.FC = () => {
         }
         throw error;
       }
-    }
+    },
   });
 
   const handleOpen = (classItem: Class) => {
@@ -55,7 +57,12 @@ const Classes: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+      <Box
+        display='flex'
+        justifyContent='center'
+        alignItems='center'
+        minHeight='60vh'
+      >
         <CircularProgress />
       </Box>
     );
@@ -63,10 +70,15 @@ const Classes: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">My Classes</Typography>
+      <Box
+        display='flex'
+        justifyContent='space-between'
+        alignItems='center'
+        mb={3}
+      >
+        <Typography variant='h4'>My Classes</Typography>
         <Button
-          variant="contained"
+          variant='contained'
           startIcon={<AddIcon />}
           onClick={() => handleOpen({} as Class)}
         >
@@ -79,24 +91,28 @@ const Classes: React.FC = () => {
           <Grid item xs={12} sm={6} md={4} key={classItem.id}>
             <Card>
               <CardContent>
-                <Typography variant="h6" gutterBottom>
+                <Typography variant='h6' gutterBottom>
                   Class {classItem.id}
                 </Typography>
-                <Typography color="text.secondary" gutterBottom>
+                <Typography color='text.secondary' gutterBottom>
                   Date: {new Date(classItem.date).toLocaleDateString()}
                 </Typography>
-                <Typography variant="body2">
+                <Typography variant='body2'>
                   Time: {classItem.startTime} - {classItem.endTime}
                 </Typography>
-                <Typography variant="body2">
+                <Typography variant='body2'>
                   Status: {classItem.status}
                 </Typography>
               </CardContent>
               <CardActions>
-                <Button size="small" color="primary" onClick={() => handleOpen(classItem)}>
+                <Button
+                  size='small'
+                  color='primary'
+                  onClick={() => handleOpen(classItem)}
+                >
                   View Details
                 </Button>
-                <Button size="small" color="primary" onClick={() => {}}>
+                <Button size='small' color='primary' onClick={() => {}}>
                   Take Attendance
                 </Button>
               </CardActions>
@@ -110,48 +126,48 @@ const Classes: React.FC = () => {
           {selectedClass?.id ? 'Edit Class' : 'Add New Class'}
         </DialogTitle>
         <DialogContent>
-          <Box component="form" sx={{ mt: 2 }}>
+          <Box component='form' sx={{ mt: 2 }}>
             <TextField
               fullWidth
-              label="Type"
-              margin="normal"
+              label='Type'
+              margin='normal'
               value={selectedClass?.type || ''}
             />
             <TextField
               fullWidth
-              label="Date"
-              margin="normal"
-              type="date"
+              label='Date'
+              margin='normal'
+              type='date'
               value={selectedClass?.date || ''}
               InputLabelProps={{ shrink: true }}
             />
             <TextField
               fullWidth
-              label="Start Time"
-              margin="normal"
-              type="time"
+              label='Start Time'
+              margin='normal'
+              type='time'
               value={selectedClass?.startTime || ''}
               InputLabelProps={{ shrink: true }}
             />
             <TextField
               fullWidth
-              label="End Time"
-              margin="normal"
-              type="time"
+              label='End Time'
+              margin='normal'
+              type='time'
               value={selectedClass?.endTime || ''}
               InputLabelProps={{ shrink: true }}
             />
             <TextField
               fullWidth
-              label="Status"
-              margin="normal"
+              label='Status'
+              margin='normal'
               value={selectedClass?.status || ''}
             />
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button variant="contained" onClick={handleClose}>
+          <Button variant='contained' onClick={handleClose}>
             {selectedClass?.id ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
@@ -160,4 +176,4 @@ const Classes: React.FC = () => {
   );
 };
 
-export default Classes; 
+export default Classes;

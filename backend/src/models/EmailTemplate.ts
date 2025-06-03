@@ -19,7 +19,10 @@ export interface EmailTemplate {
   deletedAt?: Date;
 }
 
-export type EmailTemplateInput = Omit<EmailTemplate, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'> & {
+export type EmailTemplateInput = Omit<
+  EmailTemplate,
+  'id' | 'createdAt' | 'updatedAt' | 'deletedAt'
+> & {
   category: string;
   subCategory?: string;
   createdBy?: number;
@@ -32,10 +35,18 @@ export type EmailTemplatePartialInput = Partial<EmailTemplateInput> & {
 };
 
 export class EmailTemplateService {
-  static async getAll(category?: string | string[], isActive?: boolean, search?: string): Promise<EmailTemplate[]> {
+  static async getAll(
+    category?: string | string[],
+    isActive?: boolean,
+    search?: string
+  ): Promise<EmailTemplate[]> {
     try {
-      console.log('[EmailTemplateService.getAll] Called with params:', { category, isActive, search });
-      
+      console.log('[EmailTemplateService.getAll] Called with params:', {
+        category,
+        isActive,
+        search,
+      });
+
       const params: any[] = [];
       let query = `
         SELECT 
@@ -56,7 +67,7 @@ export class EmailTemplateService {
         FROM email_templates
         WHERE deleted_at IS NULL
       `;
-      
+
       if (category) {
         if (Array.isArray(category)) {
           params.push(category);
@@ -66,12 +77,12 @@ export class EmailTemplateService {
           query += ` AND category = $${params.length}`;
         }
       }
-      
+
       if (isActive !== undefined) {
         params.push(isActive);
         query += ` AND is_active = $${params.length}`;
       }
-      
+
       if (search) {
         params.push(`%${search}%`);
         query += `
@@ -82,23 +93,34 @@ export class EmailTemplateService {
           )
         `;
       }
-      
+
       query += ' ORDER BY category, sub_category, name ASC';
-      
+
       console.log('[EmailTemplateService.getAll] Final query:', query);
       console.log('[EmailTemplateService.getAll] Query params:', params);
-      
+
       const result = await pool.query(query, params);
-      
-      console.log('[EmailTemplateService.getAll] Query returned', result.rows.length, 'rows');
+
+      console.log(
+        '[EmailTemplateService.getAll] Query returned',
+        result.rows.length,
+        'rows'
+      );
       if (result.rows.length > 0) {
-        console.log('[EmailTemplateService.getAll] First row sample:', result.rows[0]);
+        console.log(
+          '[EmailTemplateService.getAll] First row sample:',
+          result.rows[0]
+        );
       }
-      
+
       return result.rows;
     } catch (error) {
       console.error('[EmailTemplateService.getAll] Error:', error);
-      throw new AppError(500, 'DATABASE_ERROR', 'Failed to fetch email templates');
+      throw new AppError(
+        500,
+        'DATABASE_ERROR',
+        'Failed to fetch email templates'
+      );
     }
   }
 
@@ -128,17 +150,22 @@ export class EmailTemplateService {
       );
       return result.rows[0] || null;
     } catch (error) {
-      throw new AppError(500, 'DATABASE_ERROR', 'Failed to fetch email template');
+      throw new AppError(
+        500,
+        'DATABASE_ERROR',
+        'Failed to fetch email template'
+      );
     }
   }
 
   static async create(template: EmailTemplateInput): Promise<EmailTemplate> {
     const client = await pool.connect();
-    
+
     try {
       await client.query('BEGIN');
-      
-      const result = await client.query(`
+
+      const result = await client.query(
+        `
         INSERT INTO email_templates (
           name, 
           key,
@@ -167,19 +194,21 @@ export class EmailTemplateService {
           created_by as "createdBy",
           last_modified_by as "lastModifiedBy",
           deleted_at as "deletedAt"
-      `, [
-        template.name,
-        template.key,
-        template.category,
-        template.subCategory || null,
-        template.subject,
-        template.body,
-        template.isActive,
-        template.isSystem || false,
-        template.createdBy,
-        template.lastModifiedBy
-      ]);
-      
+      `,
+        [
+          template.name,
+          template.key,
+          template.category,
+          template.subCategory || null,
+          template.subject,
+          template.body,
+          template.isActive,
+          template.isSystem || false,
+          template.createdBy,
+          template.lastModifiedBy,
+        ]
+      );
+
       await client.query('COMMIT');
       return result.rows[0];
     } catch (error: any) {
@@ -189,32 +218,39 @@ export class EmailTemplateService {
         message: error.message,
         code: error.code,
         detail: error.detail,
-        constraint: error.constraint
+        constraint: error.constraint,
       });
-      throw new AppError(500, 'DATABASE_ERROR', `Failed to create email template: ${error.message}`);
+      throw new AppError(
+        500,
+        'DATABASE_ERROR',
+        `Failed to create email template: ${error.message}`
+      );
     } finally {
       client.release();
     }
   }
 
-  static async update(id: number, template: EmailTemplatePartialInput): Promise<EmailTemplate> {
+  static async update(
+    id: number,
+    template: EmailTemplatePartialInput
+  ): Promise<EmailTemplate> {
     const client = await pool.connect();
-    
+
     try {
       await client.query('BEGIN');
-      
+
       // First get the existing template
       const existing = await client.query(
         'SELECT * FROM email_templates WHERE id = $1 AND deleted_at IS NULL',
         [id]
       );
-      
+
       if (existing.rows.length === 0) {
         throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Template not found');
       }
-      
+
       const existingTemplate = existing.rows[0];
-      
+
       // Merge provided fields with existing data
       const updateData = {
         name: template.name ?? existingTemplate.name,
@@ -224,10 +260,12 @@ export class EmailTemplateService {
         subject: template.subject ?? existingTemplate.subject,
         body: template.body ?? existingTemplate.body,
         isActive: template.isActive ?? existingTemplate.is_active,
-        lastModifiedBy: template.lastModifiedBy ?? existingTemplate.last_modified_by
+        lastModifiedBy:
+          template.lastModifiedBy ?? existingTemplate.last_modified_by,
       };
-      
-      const result = await client.query(`
+
+      const result = await client.query(
+        `
         UPDATE email_templates
         SET 
           name = $1,
@@ -256,29 +294,37 @@ export class EmailTemplateService {
           last_modified_by as "lastModifiedBy",
           deleted_at as "deletedAt"
       `,
-      [
-        updateData.name,
-        updateData.key,
-        updateData.category,
-        updateData.subCategory || null,
-        updateData.subject,
-        updateData.body,
-        updateData.isActive,
-        updateData.lastModifiedBy,
-        id
-      ]
-    );
-      
+        [
+          updateData.name,
+          updateData.key,
+          updateData.category,
+          updateData.subCategory || null,
+          updateData.subject,
+          updateData.body,
+          updateData.isActive,
+          updateData.lastModifiedBy,
+          id,
+        ]
+      );
+
       if (result.rows.length === 0) {
-        throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Template not found or could not be updated');
+        throw new AppError(
+          404,
+          'RESOURCE_NOT_FOUND',
+          'Template not found or could not be updated'
+        );
       }
-      
+
       await client.query('COMMIT');
       return result.rows[0];
     } catch (error) {
       await client.query('ROLLBACK');
       console.error('Error updating email template:', error);
-      throw new AppError(500, 'DATABASE_ERROR', 'Failed to update email template');
+      throw new AppError(
+        500,
+        'DATABASE_ERROR',
+        'Failed to update email template'
+      );
     } finally {
       client.release();
     }
@@ -287,28 +333,38 @@ export class EmailTemplateService {
   static async delete(id: number): Promise<void> {
     try {
       const client = await pool.connect();
-      
+
       try {
         await client.query('BEGIN');
-        
+
         await client.query(
           'UPDATE email_templates SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1',
           [id]
         );
-        
+
         await client.query('COMMIT');
       } catch (error) {
         await client.query('ROLLBACK');
-        throw new AppError(500, 'DATABASE_ERROR', 'Failed to delete email template');
+        throw new AppError(
+          500,
+          'DATABASE_ERROR',
+          'Failed to delete email template'
+        );
       } finally {
         client.release();
       }
     } catch (error) {
-      throw new AppError(500, 'DATABASE_ERROR', 'Failed to delete email template');
+      throw new AppError(
+        500,
+        'DATABASE_ERROR',
+        'Failed to delete email template'
+      );
     }
   }
 
-  static async getTemplateByEvent(eventTrigger: string): Promise<EmailTemplate | null> {
+  static async getTemplateByEvent(
+    eventTrigger: string
+  ): Promise<EmailTemplate | null> {
     try {
       const result = await pool.query(
         `
@@ -334,15 +390,29 @@ export class EmailTemplateService {
       );
       return result.rows[0] || null;
     } catch (error) {
-      throw new AppError(500, 'DATABASE_ERROR', 'Failed to fetch template by event');
+      throw new AppError(
+        500,
+        'DATABASE_ERROR',
+        'Failed to fetch template by event'
+      );
     }
   }
 
-  static async renderTemplate(template: EmailTemplate, variables: Record<string, string>): Promise<string> {
+  static async renderTemplate(
+    template: EmailTemplate,
+    variables: Record<string, string>
+  ): Promise<string> {
     try {
-      return template.body.replace(/{{\s*(.*?)\s*}}/g, (match, key) => variables[key] || '');
+      return template.body.replace(
+        /{{\s*(.*?)\s*}}/g,
+        (match, key) => variables[key] || ''
+      );
     } catch (error) {
-      throw new AppError(500, 'TEMPLATE_RENDER_ERROR', 'Failed to render email template');
+      throw new AppError(
+        500,
+        'TEMPLATE_RENDER_ERROR',
+        'Failed to render email template'
+      );
     }
   }
 }

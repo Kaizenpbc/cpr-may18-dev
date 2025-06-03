@@ -19,7 +19,9 @@ describe('NotFound Component', () => {
 
   it('renders error description', () => {
     renderNotFound();
-    const description = screen.getByText(/The page you are looking for might have been removed/i);
+    const description = screen.getByText(
+      /The page you are looking for might have been removed/i
+    );
     expect(description).toBeInTheDocument();
   });
 
@@ -38,7 +40,9 @@ describe('NotFound Component', () => {
 
   it('renders with correct styling', () => {
     renderNotFound();
-    const container = screen.getByRole('heading', { name: /404/i }).closest('div');
+    const container = screen
+      .getByRole('heading', { name: /404/i })
+      .closest('div');
     expect(container).toHaveClass('MuiContainer-root');
   });
-}); 
+});

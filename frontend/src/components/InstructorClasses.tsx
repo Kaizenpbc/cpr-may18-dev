@@ -12,7 +12,7 @@ import {
   TableHead,
   TableRow,
   Alert,
-  CircularProgress
+  CircularProgress,
 } from '@mui/material';
 import { format } from 'date-fns';
 import { Course, ApiResponse, PaginatedResponse } from '../types/instructor';
@@ -21,7 +21,9 @@ interface InstructorClassesProps {
   completed?: boolean;
 }
 
-const InstructorClasses: React.FC<InstructorClassesProps> = ({ completed = false }) => {
+const InstructorClasses: React.FC<InstructorClassesProps> = ({
+  completed = false,
+}) => {
   const [classes, setClasses] = useState<Course[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,9 +32,13 @@ const InstructorClasses: React.FC<InstructorClassesProps> = ({ completed = false
   useEffect(() => {
     const fetchClasses = async (): Promise<void> => {
       try {
-        const endpoint = completed ? '/api/v1/instructor/classes/completed' : '/api/v1/instructor/classes';
-        const response = await api.get<ApiResponse<Course[]> | PaginatedResponse<Course>>(endpoint);
-        
+        const endpoint = completed
+          ? '/api/v1/instructor/classes/completed'
+          : '/api/v1/instructor/classes';
+        const response = await api.get<
+          ApiResponse<Course[]> | PaginatedResponse<Course>
+        >(endpoint);
+
         if (response.data.success) {
           // Handle both regular response and paginated response
           const classData = 'data' in response.data ? response.data.data : [];
@@ -59,13 +65,15 @@ const InstructorClasses: React.FC<InstructorClassesProps> = ({ completed = false
   }
 
   if (error) {
-    return <Alert severity="error">{error}</Alert>;
+    return <Alert severity='error'>{error}</Alert>;
   }
 
   if (classes.length === 0) {
     return (
       <Container>
-        <Typography variant="h6">No classes {completed ? 'completed' : 'scheduled'}</Typography>
+        <Typography variant='h6'>
+          No classes {completed ? 'completed' : 'scheduled'}
+        </Typography>
       </Container>
     );
   }
@@ -84,7 +92,7 @@ const InstructorClasses: React.FC<InstructorClassesProps> = ({ completed = false
             </TableRow>
           </TableHead>
           <TableBody>
-            {classes.map((classItem) => (
+            {classes.map(classItem => (
               <TableRow key={classItem.id || classItem.course_id}>
                 <TableCell>
                   {format(new Date(classItem.start_date), 'MMM dd, yyyy')}
@@ -104,4 +112,4 @@ const InstructorClasses: React.FC<InstructorClassesProps> = ({ completed = false
   );
 };
 
-export default InstructorClasses; 
+export default InstructorClasses;

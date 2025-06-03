@@ -39,4 +39,4 @@ global.IntersectionObserver = IntersectionObserver;
 // Reset all mocks before each test
 beforeEach(() => {
   vi.clearAllMocks();
-}); 
+});

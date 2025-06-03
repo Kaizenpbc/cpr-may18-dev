@@ -35,7 +35,7 @@ const EMAIL_TEMPLATES = {
         </div>
         <p style="color: #6c757d; font-size: 0.9em;">This is an automated message, please do not reply.</p>
       </div>
-    `
+    `,
   }),
 
   CLASS_SCHEDULED: (classDetails: any) => ({
@@ -55,7 +55,7 @@ const EMAIL_TEMPLATES = {
         <p>Please review these details in your instructor portal.</p>
         <p style="color: #6c757d; font-size: 0.9em;">This is an automated message, please do not reply.</p>
       </div>
-    `
+    `,
   }),
 
   CLASS_REMINDER: (classDetails: any) => ({
@@ -77,7 +77,7 @@ const EMAIL_TEMPLATES = {
         </div>
         <p style="color: #6c757d; font-size: 0.9em;">This is an automated message, please do not reply.</p>
       </div>
-    `
+    `,
   }),
 
   COURSE_ASSIGNED_INSTRUCTOR: (courseDetails: any) => ({
@@ -99,7 +99,7 @@ const EMAIL_TEMPLATES = {
         </div>
         <p style="color: #6c757d; font-size: 0.9em;">This is an automated message, please do not reply.</p>
       </div>
-    `
+    `,
   }),
 
   COURSE_SCHEDULED_ORGANIZATION: (courseDetails: any) => ({
@@ -119,8 +119,8 @@ const EMAIL_TEMPLATES = {
         <p>You can view the full details and manage your courses through your organization portal.</p>
         <p style="color: #6c757d; font-size: 0.9em;">This is an automated message, please do not reply.</p>
       </div>
-    `
-  })
+    `,
+  }),
 };
 
 class EmailService {
@@ -135,8 +135,8 @@ class EmailService {
       secure: process.env.SMTP_SECURE === 'true',
       auth: {
         user: process.env.SMTP_USER || '',
-        pass: process.env.SMTP_PASS || ''
-      }
+        pass: process.env.SMTP_PASS || '',
+      },
     });
   }
 
@@ -150,10 +150,12 @@ class EmailService {
   private async sendEmail(to: string, subject: string, html: string) {
     try {
       const mailOptions = {
-        from: process.env.SMTP_FROM || '"CPR Training System" <noreply@cprtraining.com>',
+        from:
+          process.env.SMTP_FROM ||
+          '"CPR Training System" <noreply@cprtraining.com>',
         to,
         subject,
-        html
+        html,
       };
 
       const info = await this.transporter.sendMail(mailOptions);
@@ -180,13 +182,20 @@ class EmailService {
     return this.sendEmail(email, template.subject, template.html);
   }
 
-  async sendCourseAssignedNotification(instructorEmail: string, courseDetails: any) {
+  async sendCourseAssignedNotification(
+    instructorEmail: string,
+    courseDetails: any
+  ) {
     const template = EMAIL_TEMPLATES.COURSE_ASSIGNED_INSTRUCTOR(courseDetails);
     return this.sendEmail(instructorEmail, template.subject, template.html);
   }
 
-  async sendCourseScheduledToOrganization(organizationEmail: string, courseDetails: any) {
-    const template = EMAIL_TEMPLATES.COURSE_SCHEDULED_ORGANIZATION(courseDetails);
+  async sendCourseScheduledToOrganization(
+    organizationEmail: string,
+    courseDetails: any
+  ) {
+    const template =
+      EMAIL_TEMPLATES.COURSE_SCHEDULED_ORGANIZATION(courseDetails);
     return this.sendEmail(organizationEmail, template.subject, template.html);
   }
 
@@ -201,7 +210,10 @@ class EmailService {
     }
   }
 
-  public async sendInvoiceReminder(data: InvoiceReminderData, recipientEmail: string): Promise<boolean> {
+  public async sendInvoiceReminder(
+    data: InvoiceReminderData,
+    recipientEmail: string
+  ): Promise<boolean> {
     try {
       await this.transporter.verify();
       if (!this.transporter) {
@@ -209,7 +221,7 @@ class EmailService {
       }
 
       const subject = `Payment Reminder: Invoice ${data.invoiceNumber} Due in ${data.daysUntilDue} Days`;
-      
+
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -291,25 +303,33 @@ This is an automated reminder. For questions, please contact our accounting depa
       `;
 
       const mailOptions = {
-        from: process.env.EMAIL_FROM || '"CPR Training System" <noreply@cprtraining.com>',
+        from:
+          process.env.EMAIL_FROM ||
+          '"CPR Training System" <noreply@cprtraining.com>',
         to: recipientEmail,
         subject: subject,
         text: textContent,
-        html: htmlContent
+        html: htmlContent,
       };
 
       const info = await this.transporter.sendMail(mailOptions);
-      
+
       console.log(`📧 [EMAIL] Reminder sent successfully to ${recipientEmail}`);
       console.log(`📧 [EMAIL] Message ID: ${info.messageId}`);
-      
+
       // If using test account, log the preview URL
       if (!process.env.EMAIL_USER) {
-        console.log(`📧 [EMAIL] Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
+        console.log(
+          `📧 [EMAIL] Preview URL: ${nodemailer.getTestMessageUrl(info)}`
+        );
       }
 
       // Log the email send event
-      await this.logEmailSent(data.invoiceId, recipientEmail, data.daysUntilDue);
+      await this.logEmailSent(
+        data.invoiceId,
+        recipientEmail,
+        data.daysUntilDue
+      );
 
       return true;
     } catch (error) {
@@ -318,7 +338,11 @@ This is an automated reminder. For questions, please contact our accounting depa
     }
   }
 
-  private async logEmailSent(invoiceId: number, recipientEmail: string, daysBeforeDue: number): Promise<void> {
+  private async logEmailSent(
+    invoiceId: number,
+    recipientEmail: string,
+    daysBeforeDue: number
+  ): Promise<void> {
     try {
       // First, ensure the email_reminders table exists
       await pool.query(`
@@ -334,26 +358,35 @@ This is an automated reminder. For questions, please contact our accounting depa
       `);
 
       // Log the email
-      await pool.query(`
+      await pool.query(
+        `
         INSERT INTO email_reminders (invoice_id, recipient_email, reminder_type, days_before_due)
         VALUES ($1, $2, 'invoice_due', $3)
         ON CONFLICT (invoice_id, days_before_due) DO UPDATE
         SET sent_at = CURRENT_TIMESTAMP
-      `, [invoiceId, recipientEmail, daysBeforeDue]);
+      `,
+        [invoiceId, recipientEmail, daysBeforeDue]
+      );
     } catch (error) {
       console.error('❌ [EMAIL] Error logging email:', error);
     }
   }
 
-  public async hasReminderBeenSent(invoiceId: number, daysBeforeDue: number): Promise<boolean> {
+  public async hasReminderBeenSent(
+    invoiceId: number,
+    daysBeforeDue: number
+  ): Promise<boolean> {
     try {
-      const result = await pool.query(`
+      const result = await pool.query(
+        `
         SELECT COUNT(*) as count
         FROM email_reminders
         WHERE invoice_id = $1 
         AND days_before_due = $2
         AND sent_at > CURRENT_TIMESTAMP - INTERVAL '24 hours'
-      `, [invoiceId, daysBeforeDue]);
+      `,
+        [invoiceId, daysBeforeDue]
+      );
 
       return parseInt(result.rows[0].count) > 0;
     } catch (error) {
@@ -364,4 +397,4 @@ This is an automated reminder. For questions, please contact our accounting depa
 }
 
 // Export the singleton instance
-export const emailService = EmailService.getInstance(); 
+export const emailService = EmailService.getInstance();

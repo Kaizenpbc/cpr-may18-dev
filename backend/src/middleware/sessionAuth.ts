@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { extractTokenFromHeader, verifyAccessToken, TokenPayload } from '../utils/jwtUtils';
+import {
+  extractTokenFromHeader,
+  verifyAccessToken,
+  TokenPayload,
+} from '../utils/jwtUtils';
 import { validateUserSession, SessionData } from '../services/sessionManager';
 import { AppError, errorCodes } from '../utils/errorHandler';
 import { redisManager } from '../config/redis';
@@ -39,7 +43,7 @@ export const authenticateSession = (options: AuthOptions = {}) => {
       // Extract basic request information
       const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
       const userAgent = req.headers['user-agent'] || 'unknown';
-      
+
       req.ipAddress = ipAddress;
       req.userAgent = userAgent;
 
@@ -47,7 +51,11 @@ export const authenticateSession = (options: AuthOptions = {}) => {
       const token = extractTokenFromHeader(req);
       if (!token) {
         console.log('🔐 [SESSION AUTH] No token provided');
-        throw new AppError(401, errorCodes.AUTH_TOKEN_MISSING, 'Authentication token required');
+        throw new AppError(
+          401,
+          errorCodes.AUTH_TOKEN_MISSING,
+          'Authentication token required'
+        );
       }
 
       let decoded: TokenPayload;
@@ -55,25 +63,37 @@ export const authenticateSession = (options: AuthOptions = {}) => {
         decoded = verifyAccessToken(token);
       } catch (error) {
         console.log('🔐 [SESSION AUTH] Token verification failed:', error);
-        throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'Invalid authentication token');
+        throw new AppError(
+          401,
+          errorCodes.AUTH_TOKEN_INVALID,
+          'Invalid authentication token'
+        );
       }
 
       req.user = {
         userId: decoded.userId,
         username: decoded.username,
         role: decoded.role,
-        organizationId: decoded.organizationId
+        organizationId: decoded.organizationId,
       };
-      console.log(`🔐 [SESSION AUTH] Token verified for user: ${decoded.username} (${decoded.role})`);
+      console.log(
+        `🔐 [SESSION AUTH] Token verified for user: ${decoded.username} (${decoded.role})`
+      );
 
       // Session validation (if enabled and session ID is present)
       if (options.requireSession !== false && decoded.sessionId) {
         try {
           if (!redisManager.isReady()) {
-            console.error('❌ [SESSION AUTH] Redis not connected, falling back to JWT-only auth');
+            console.error(
+              '❌ [SESSION AUTH] Redis not connected, falling back to JWT-only auth'
+            );
             // Fall back to JWT-only authentication
             if (options.requireSession === true) {
-              throw new AppError(503, 'SESSION_UNAVAILABLE', 'Session service unavailable');
+              throw new AppError(
+                503,
+                'SESSION_UNAVAILABLE',
+                'Session service unavailable'
+              );
             }
           } else {
             // Validate session with security checks
@@ -84,34 +104,69 @@ export const authenticateSession = (options: AuthOptions = {}) => {
             );
 
             if (!sessionData) {
-              console.error(`🔐 [SESSION AUTH] Session validation failed for session: ${decoded.sessionId}`);
-              throw new AppError(401, errorCodes.AUTH_SESSION_INVALID, 'Session expired or invalid');
+              console.error(
+                `🔐 [SESSION AUTH] Session validation failed for session: ${decoded.sessionId}`
+              );
+              throw new AppError(
+                401,
+                errorCodes.AUTH_SESSION_INVALID,
+                'Session expired or invalid'
+              );
             }
 
             req.sessionData = sessionData;
-            console.log(`🔐 [SESSION AUTH] Session validated: ${decoded.sessionId} (security: ${sessionData.securityLevel})`);
+            console.log(
+              `🔐 [SESSION AUTH] Session validated: ${decoded.sessionId} (security: ${sessionData.securityLevel})`
+            );
 
             // Additional security checks
-            if (options.checkIPBinding !== false && sessionData.ipAddress !== ipAddress) {
-              console.error(`🚨 [SESSION AUTH] IP address mismatch: session=${sessionData.ipAddress}, request=${ipAddress}`);
-              throw new AppError(401, 'AUTH_IP_MISMATCH', 'Session IP address validation failed');
+            if (
+              options.checkIPBinding !== false &&
+              sessionData.ipAddress !== ipAddress
+            ) {
+              console.error(
+                `🚨 [SESSION AUTH] IP address mismatch: session=${sessionData.ipAddress}, request=${ipAddress}`
+              );
+              throw new AppError(
+                401,
+                'AUTH_IP_MISMATCH',
+                'Session IP address validation failed'
+              );
             }
 
-            if (options.checkUserAgentBinding !== false && sessionData.userAgent !== userAgent) {
+            if (
+              options.checkUserAgentBinding !== false &&
+              sessionData.userAgent !== userAgent
+            ) {
               // Perform lenient user agent checking
-              const sessionFingerprint = extractUserAgentFingerprint(sessionData.userAgent);
+              const sessionFingerprint = extractUserAgentFingerprint(
+                sessionData.userAgent
+              );
               const requestFingerprint = extractUserAgentFingerprint(userAgent);
-              
+
               if (sessionFingerprint !== requestFingerprint) {
                 console.error(`🚨 [SESSION AUTH] User agent mismatch detected`);
-                throw new AppError(401, 'AUTH_USER_AGENT_MISMATCH', 'Session user agent validation failed');
+                throw new AppError(
+                  401,
+                  'AUTH_USER_AGENT_MISMATCH',
+                  'Session user agent validation failed'
+                );
               }
             }
 
             // Check if session is active
-            if (options.requireActiveSession !== false && !sessionData.isActive) {
-              console.error(`🔐 [SESSION AUTH] Session ${decoded.sessionId} is inactive`);
-              throw new AppError(401, errorCodes.AUTH_SESSION_INVALID, 'Session is inactive');
+            if (
+              options.requireActiveSession !== false &&
+              !sessionData.isActive
+            ) {
+              console.error(
+                `🔐 [SESSION AUTH] Session ${decoded.sessionId} is inactive`
+              );
+              throw new AppError(
+                401,
+                errorCodes.AUTH_SESSION_INVALID,
+                'Session is inactive'
+              );
             }
           }
         } catch (error) {
@@ -119,45 +174,64 @@ export const authenticateSession = (options: AuthOptions = {}) => {
             throw error;
           }
           console.error('❌ [SESSION AUTH] Session validation error:', error);
-          
+
           // If session validation fails but requireSession is not strictly true, fall back to JWT
           if (options.requireSession !== true) {
-            console.log('🔐 [SESSION AUTH] Falling back to JWT-only authentication');
+            console.log(
+              '🔐 [SESSION AUTH] Falling back to JWT-only authentication'
+            );
           } else {
-            throw new AppError(503, 'SESSION_ERROR', 'Session validation failed');
+            throw new AppError(
+              503,
+              'SESSION_ERROR',
+              'Session validation failed'
+            );
           }
         }
       } else if (options.requireSession === true) {
-        console.error('🔐 [SESSION AUTH] Session required but no session ID in token');
-        throw new AppError(401, errorCodes.AUTH_SESSION_REQUIRED, 'Valid session required');
+        console.error(
+          '🔐 [SESSION AUTH] Session required but no session ID in token'
+        );
+        throw new AppError(
+          401,
+          errorCodes.AUTH_SESSION_REQUIRED,
+          'Valid session required'
+        );
       }
 
       // Role-based authorization
       if (options.allowedRoles && options.allowedRoles.length > 0) {
         if (!decoded.role || !options.allowedRoles.includes(decoded.role)) {
-          console.error(`🔐 [SESSION AUTH] Role authorization failed: user has ${decoded.role}, required: ${options.allowedRoles.join(', ')}`);
-          throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Insufficient permissions');
+          console.error(
+            `🔐 [SESSION AUTH] Role authorization failed: user has ${decoded.role}, required: ${options.allowedRoles.join(', ')}`
+          );
+          throw new AppError(
+            403,
+            errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+            'Insufficient permissions'
+          );
         }
       }
 
-      console.log(`✅ [SESSION AUTH] Authentication successful for ${decoded.username}`);
+      console.log(
+        `✅ [SESSION AUTH] Authentication successful for ${decoded.username}`
+      );
       next();
-
     } catch (error) {
       console.error('❌ [SESSION AUTH] Authentication failed:', error);
-      
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json({
           error: error.message,
           code: error.code,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
       return res.status(500).json({
         error: 'Internal authentication error',
         code: 'AUTH_INTERNAL_ERROR',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -172,7 +246,7 @@ export const authenticate = authenticateSession({
   requireSession: false,
   requireActiveSession: true,
   checkIPBinding: false,
-  checkUserAgentBinding: false
+  checkUserAgentBinding: false,
 });
 
 // High security authentication (JWT + required session + IP/UA binding)
@@ -180,7 +254,7 @@ export const authenticateSecure = authenticateSession({
   requireSession: true,
   requireActiveSession: true,
   checkIPBinding: true,
-  checkUserAgentBinding: true
+  checkUserAgentBinding: true,
 });
 
 // Role-based authentication middleware
@@ -188,7 +262,7 @@ export const requireRole = (roles: string | string[]) => {
   const allowedRoles = Array.isArray(roles) ? roles : [roles];
   return authenticateSession({
     requireSession: false,
-    allowedRoles
+    allowedRoles,
   });
 };
 
@@ -200,7 +274,7 @@ export const requireRoleSecure = (roles: string | string[]) => {
     requireActiveSession: true,
     checkIPBinding: true,
     checkUserAgentBinding: true,
-    allowedRoles
+    allowedRoles,
   });
 };
 
@@ -210,7 +284,7 @@ export const requireAdmin = authenticateSession({
   requireActiveSession: true,
   checkIPBinding: true,
   checkUserAgentBinding: true,
-  allowedRoles: ['admin', 'system_admin']
+  allowedRoles: ['admin', 'system_admin'],
 });
 
 // Accounting-only authentication (high security)
@@ -219,7 +293,7 @@ export const requireAccounting = authenticateSession({
   requireActiveSession: true,
   checkIPBinding: true,
   checkUserAgentBinding: false, // More lenient for accounting staff
-  allowedRoles: ['accounting', 'admin', 'system_admin']
+  allowedRoles: ['accounting', 'admin', 'system_admin'],
 });
 
 /**
@@ -228,30 +302,44 @@ export const requireAccounting = authenticateSession({
 function extractUserAgentFingerprint(userAgent: string): string {
   const browserMatch = userAgent.match(/(Chrome|Firefox|Safari|Edge)\/(\d+)/);
   const osMatch = userAgent.match(/(Windows|Mac|Linux|Android|iOS)/);
-  
+
   return `${browserMatch ? browserMatch[1] + browserMatch[2] : 'unknown'}-${osMatch ? osMatch[1] : 'unknown'}`;
 }
 
 /**
  * Middleware to check session health and extend if needed
  */
-export const maintainSession = async (req: Request, res: Response, next: NextFunction) => {
+export const maintainSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     if (req.sessionData && req.sessionData.sessionId) {
       // Check if session needs extension (within 5 minutes of expiry)
-      const sessionAge = Date.now() - new Date(req.sessionData.createdAt).getTime();
+      const sessionAge =
+        Date.now() - new Date(req.sessionData.createdAt).getTime();
       const sessionExpiry = getSessionExpiry(req.sessionData.securityLevel);
       const timeToExpiry = sessionExpiry * 1000 - sessionAge;
 
-      if (timeToExpiry < 300000) { // Less than 5 minutes
-        console.log(`🔐 [SESSION MAINTENANCE] Extending session ${req.sessionData.sessionId}`);
-        await redisManager.extendSession(req.sessionData.sessionId, sessionExpiry);
+      if (timeToExpiry < 300000) {
+        // Less than 5 minutes
+        console.log(
+          `🔐 [SESSION MAINTENANCE] Extending session ${req.sessionData.sessionId}`
+        );
+        await redisManager.extendSession(
+          req.sessionData.sessionId,
+          sessionExpiry
+        );
       }
     }
 
     next();
   } catch (error) {
-    console.error('❌ [SESSION MAINTENANCE] Failed to maintain session:', error);
+    console.error(
+      '❌ [SESSION MAINTENANCE] Failed to maintain session:',
+      error
+    );
     // Don't fail the request, just log the error
     next();
   }
@@ -260,9 +348,13 @@ export const maintainSession = async (req: Request, res: Response, next: NextFun
 /**
  * Helper function to get session expiry based on security level
  */
-function getSessionExpiry(securityLevel: 'standard' | 'high' | 'critical'): number {
-  const refreshTokenExpiry = parseInt(process.env.REFRESH_TOKEN_EXPIRY || '604800'); // 7 days
-  
+function getSessionExpiry(
+  securityLevel: 'standard' | 'high' | 'critical'
+): number {
+  const refreshTokenExpiry = parseInt(
+    process.env.REFRESH_TOKEN_EXPIRY || '604800'
+  ); // 7 days
+
   switch (securityLevel) {
     case 'critical':
       return Math.min(refreshTokenExpiry, 3600); // Max 1 hour for critical
@@ -272,4 +364,4 @@ function getSessionExpiry(securityLevel: 'standard' | 'high' | 'critical'): numb
     default:
       return refreshTokenExpiry; // Full expiry for standard
   }
-} 
+}

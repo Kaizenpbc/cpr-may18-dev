@@ -52,7 +52,9 @@ type SortOrder = 'asc' | 'desc';
 
 const Attendance: React.FC = () => {
   const [open, setOpen] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(
+    null
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('date');
@@ -73,7 +75,7 @@ const Attendance: React.FC = () => {
         }
         throw error;
       }
-    }
+    },
   });
 
   const handleOpen = (record: AttendanceRecord) => {
@@ -114,19 +116,20 @@ const Attendance: React.FC = () => {
     if (!records) return [];
 
     let filtered = records.filter((record: AttendanceRecord) => {
-      const matchesSearch = 
+      const matchesSearch =
         record.className.toLowerCase().includes(searchQuery.toLowerCase()) ||
         record.instructor.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
-      
+
+      const matchesStatus =
+        statusFilter === 'all' || record.status === statusFilter;
+
       return matchesSearch && matchesStatus;
     });
 
     return filtered.sort((a: AttendanceRecord, b: AttendanceRecord) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
-      
+
       if (sortOrder === 'asc') {
         return aValue > bValue ? 1 : -1;
       } else {
@@ -137,7 +140,12 @@ const Attendance: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+      <Box
+        display='flex'
+        justifyContent='center'
+        alignItems='center'
+        minHeight='60vh'
+      >
         <CircularProgress />
       </Box>
     );
@@ -145,18 +153,18 @@ const Attendance: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
+      <Typography variant='h4' gutterBottom>
         Attendance Records
       </Typography>
 
-      <Box display="flex" gap={2} mb={3} flexWrap="wrap">
+      <Box display='flex' gap={2} mb={3} flexWrap='wrap'>
         <MuiTextField
-          placeholder="Search records..."
+          placeholder='Search records...'
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={e => setSearchQuery(e.target.value)}
           InputProps={{
             startAdornment: (
-              <InputAdornment position="start">
+              <InputAdornment position='start'>
                 <SearchIcon />
               </InputAdornment>
             ),
@@ -167,25 +175,27 @@ const Attendance: React.FC = () => {
           <InputLabel>Status</InputLabel>
           <Select
             value={statusFilter}
-            label="Status"
-            onChange={(e) => setStatusFilter(e.target.value)}
+            label='Status'
+            onChange={e => setStatusFilter(e.target.value)}
           >
-            <MenuItem value="all">All</MenuItem>
-            <MenuItem value="present">Present</MenuItem>
-            <MenuItem value="absent">Absent</MenuItem>
-            <MenuItem value="late">Late</MenuItem>
-            <MenuItem value="excused">Excused</MenuItem>
+            <MenuItem value='all'>All</MenuItem>
+            <MenuItem value='present'>Present</MenuItem>
+            <MenuItem value='absent'>Absent</MenuItem>
+            <MenuItem value='late'>Late</MenuItem>
+            <MenuItem value='excused'>Excused</MenuItem>
           </Select>
         </FormControl>
-        
-        <Tooltip title="Sort by Date">
+
+        <Tooltip title='Sort by Date'>
           <IconButton onClick={() => handleSort('date')}>
             <SortIcon color={sortField === 'date' ? 'primary' : 'inherit'} />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Sort by Class">
+        <Tooltip title='Sort by Class'>
           <IconButton onClick={() => handleSort('className')}>
-            <SortIcon color={sortField === 'className' ? 'primary' : 'inherit'} />
+            <SortIcon
+              color={sortField === 'className' ? 'primary' : 'inherit'}
+            />
           </IconButton>
         </Tooltip>
       </Box>
@@ -195,34 +205,40 @@ const Attendance: React.FC = () => {
           <Grid item xs={12} sm={6} md={4} key={record.id}>
             <Card>
               <CardContent>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                  <Typography variant="h6">
-                    {record.className}
-                  </Typography>
+                <Box
+                  display='flex'
+                  justifyContent='space-between'
+                  alignItems='center'
+                  mb={2}
+                >
+                  <Typography variant='h6'>{record.className}</Typography>
                   <Chip
                     label={record.status}
                     color={getStatusColor(record.status)}
-                    size="small"
+                    size='small'
                   />
                 </Box>
-                <Typography color="text.secondary" gutterBottom>
-                  <EventIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                <Typography color='text.secondary' gutterBottom>
+                  <EventIcon
+                    fontSize='small'
+                    sx={{ mr: 1, verticalAlign: 'middle' }}
+                  />
                   {new Date(record.date).toLocaleDateString()}
                 </Typography>
-                <Typography variant="body2" gutterBottom>
+                <Typography variant='body2' gutterBottom>
                   Time: {record.startTime} - {record.endTime}
                 </Typography>
-                <Typography variant="body2" gutterBottom>
+                <Typography variant='body2' gutterBottom>
                   Instructor: {record.instructor}
                 </Typography>
                 {record.notes && (
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant='body2' color='text.secondary'>
                     Notes: {record.notes}
                   </Typography>
                 )}
               </CardContent>
               <CardActions>
-                <Button size="small" onClick={() => handleOpen(record)}>
+                <Button size='small' onClick={() => handleOpen(record)}>
                   Edit Record
                 </Button>
               </CardActions>
@@ -236,53 +252,50 @@ const Attendance: React.FC = () => {
           {selectedRecord?.id ? 'Edit Attendance Record' : 'Add New Record'}
         </DialogTitle>
         <DialogContent>
-          <Box component="form" sx={{ mt: 2 }}>
+          <Box component='form' sx={{ mt: 2 }}>
             <TextField
               fullWidth
-              label="Class"
-              margin="normal"
+              label='Class'
+              margin='normal'
               value={selectedRecord?.className || ''}
             />
             <TextField
               fullWidth
-              label="Date"
-              margin="normal"
-              type="date"
+              label='Date'
+              margin='normal'
+              type='date'
               value={selectedRecord?.date || ''}
               InputLabelProps={{ shrink: true }}
             />
             <TextField
               fullWidth
-              label="Start Time"
-              margin="normal"
-              type="time"
+              label='Start Time'
+              margin='normal'
+              type='time'
               value={selectedRecord?.startTime || ''}
               InputLabelProps={{ shrink: true }}
             />
             <TextField
               fullWidth
-              label="End Time"
-              margin="normal"
-              type="time"
+              label='End Time'
+              margin='normal'
+              type='time'
               value={selectedRecord?.endTime || ''}
               InputLabelProps={{ shrink: true }}
             />
-            <FormControl fullWidth margin="normal">
+            <FormControl fullWidth margin='normal'>
               <InputLabel>Status</InputLabel>
-              <Select
-                value={selectedRecord?.status || ''}
-                label="Status"
-              >
-                <MenuItem value="present">Present</MenuItem>
-                <MenuItem value="absent">Absent</MenuItem>
-                <MenuItem value="late">Late</MenuItem>
-                <MenuItem value="excused">Excused</MenuItem>
+              <Select value={selectedRecord?.status || ''} label='Status'>
+                <MenuItem value='present'>Present</MenuItem>
+                <MenuItem value='absent'>Absent</MenuItem>
+                <MenuItem value='late'>Late</MenuItem>
+                <MenuItem value='excused'>Excused</MenuItem>
               </Select>
             </FormControl>
             <TextField
               fullWidth
-              label="Notes"
-              margin="normal"
+              label='Notes'
+              margin='normal'
               multiline
               rows={3}
               value={selectedRecord?.notes || ''}
@@ -291,7 +304,7 @@ const Attendance: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button variant="contained" onClick={handleClose}>
+          <Button variant='contained' onClick={handleClose}>
             {selectedRecord?.id ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
@@ -300,4 +313,4 @@ const Attendance: React.FC = () => {
   );
 };
 
-export default Attendance; 
+export default Attendance;

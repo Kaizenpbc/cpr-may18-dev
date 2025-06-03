@@ -1,6 +1,9 @@
 import React from 'react';
 import { Box, CircularProgress, Typography, Chip } from '@mui/material';
-import { Cached as CachedIcon, Refresh as RefreshIcon } from '@mui/icons-material';
+import {
+  Cached as CachedIcon,
+  Refresh as RefreshIcon,
+} from '@mui/icons-material';
 
 interface LoadingIndicatorProps {
   isLoading?: boolean;
@@ -15,20 +18,34 @@ const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   isFetching = false,
   isStale = false,
   message = 'Loading...',
-  size = 'medium'
+  size = 'medium',
 }) => {
   const getSize = () => {
     switch (size) {
-      case 'small': return 20;
-      case 'large': return 60;
-      default: return 40;
+      case 'small':
+        return 20;
+      case 'large':
+        return 60;
+      default:
+        return 40;
     }
   };
 
   const getStatus = () => {
-    if (isLoading) return { text: 'Loading fresh data...', color: 'primary', icon: <RefreshIcon /> };
-    if (isFetching) return { text: 'Updating...', color: 'secondary', icon: <CachedIcon /> };
-    if (isStale) return { text: 'Data may be outdated', color: 'warning', icon: <CachedIcon /> };
+    if (isLoading)
+      return {
+        text: 'Loading fresh data...',
+        color: 'primary',
+        icon: <RefreshIcon />,
+      };
+    if (isFetching)
+      return { text: 'Updating...', color: 'secondary', icon: <CachedIcon /> };
+    if (isStale)
+      return {
+        text: 'Data may be outdated',
+        color: 'warning',
+        icon: <CachedIcon />,
+      };
     return null;
   };
 
@@ -39,34 +56,34 @@ const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   }
 
   return (
-    <Box 
-      sx={{ 
-        display: 'flex', 
+    <Box
+      sx={{
+        display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center', 
+        alignItems: 'center',
         gap: 1,
-        p: 2 
+        p: 2,
       }}
     >
       {(isLoading || isFetching) && (
-        <CircularProgress 
-          size={getSize()} 
-          color={status?.color as any || 'primary'}
+        <CircularProgress
+          size={getSize()}
+          color={(status?.color as any) || 'primary'}
         />
       )}
-      
+
       {status && (
         <Chip
           icon={status.icon}
           label={status.text}
           color={status.color as any}
           variant={isStale ? 'outlined' : 'filled'}
-          size="small"
+          size='small'
         />
       )}
-      
+
       {message && (
-        <Typography variant="body2" color="text.secondary" align="center">
+        <Typography variant='body2' color='text.secondary' align='center'>
           {message}
         </Typography>
       )}
@@ -74,4 +91,4 @@ const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   );
 };
 
-export default LoadingIndicator; 
+export default LoadingIndicator;

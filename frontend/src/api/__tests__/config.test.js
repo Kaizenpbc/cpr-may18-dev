@@ -1,5 +1,13 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { api, WS_URL, getHeaders, getAuthHeader, getCSRFToken, verifyToken, checkBackendHealth } from '../config';
+import {
+  api,
+  WS_URL,
+  getHeaders,
+  getAuthHeader,
+  getCSRFToken,
+  verifyToken,
+  checkBackendHealth,
+} from '../config';
 import authService from '../../services/authService';
 
 // Mock authService
@@ -41,7 +49,7 @@ describe('API Configuration', () => {
       expect(headers).toEqual({
         'Content-Type': 'application/json',
         'X-XSRF-TOKEN': 'test-csrf-token',
-        'Authorization': 'Bearer test-token'
+        Authorization: 'Bearer test-token',
       });
     });
 
@@ -52,7 +60,7 @@ describe('API Configuration', () => {
       const headers = getHeaders();
       expect(headers).toEqual({
         'Content-Type': 'application/json',
-        'X-XSRF-TOKEN': 'test-csrf-token'
+        'X-XSRF-TOKEN': 'test-csrf-token',
       });
     });
   });
@@ -90,30 +98,30 @@ describe('API Configuration', () => {
       const mockResponse = {
         data: {
           valid: true,
-          user: { id: 1, username: 'testuser' }
-        }
+          user: { id: 1, username: 'testuser' },
+        },
       };
       api.get.mockResolvedValue(mockResponse);
 
       const result = await verifyToken();
       expect(result).toEqual({
         valid: true,
-        user: { id: 1, username: 'testuser' }
+        user: { id: 1, username: 'testuser' },
       });
     });
 
     it('returns invalid response when token is invalid', async () => {
       const mockError = {
         response: {
-          data: { message: 'Invalid token' }
-        }
+          data: { message: 'Invalid token' },
+        },
       };
       api.get.mockRejectedValue(mockError);
 
       const result = await verifyToken();
       expect(result).toEqual({
         valid: false,
-        error: 'Invalid token'
+        error: 'Invalid token',
       });
     });
   });
@@ -121,14 +129,14 @@ describe('API Configuration', () => {
   describe('checkBackendHealth', () => {
     it('returns healthy status when backend is up', async () => {
       const mockResponse = {
-        data: { status: 'ok' }
+        data: { status: 'ok' },
       };
       api.get.mockResolvedValue(mockResponse);
 
       const result = await checkBackendHealth();
       expect(result).toEqual({
         status: 'healthy',
-        data: { status: 'ok' }
+        data: { status: 'ok' },
       });
     });
 
@@ -139,7 +147,7 @@ describe('API Configuration', () => {
       const result = await checkBackendHealth();
       expect(result).toEqual({
         status: 'unhealthy',
-        error: 'Connection refused'
+        error: 'Connection refused',
       });
     });
   });
@@ -150,7 +158,7 @@ describe('API Configuration', () => {
       localStorage.getItem.mockReturnValue(mockToken);
 
       const config = {
-        headers: {}
+        headers: {},
       };
 
       const result = api.interceptors.request.handlers[0].fulfilled(config);
@@ -160,12 +168,13 @@ describe('API Configuration', () => {
     it('handles 401 unauthorized responses', async () => {
       const error = {
         response: {
-          status: 401
-        }
+          status: 401,
+        },
       };
 
-      await expect(api.interceptors.response.handlers[0].rejected(error))
-        .rejects.toEqual(error);
+      await expect(
+        api.interceptors.response.handlers[0].rejected(error)
+      ).rejects.toEqual(error);
       expect(authService.logout).toHaveBeenCalled();
       expect(localStorage.removeItem).toHaveBeenCalledWith('token');
       expect(localStorage.removeItem).toHaveBeenCalledWith('user');
@@ -174,18 +183,19 @@ describe('API Configuration', () => {
     it('handles network errors', async () => {
       const error = {
         code: 'ERR_NETWORK',
-        message: 'Network Error'
+        message: 'Network Error',
       };
 
       const dispatchEventSpy = vi.spyOn(window, 'dispatchEvent');
-      await expect(api.interceptors.response.handlers[0].rejected(error))
-        .rejects.toEqual(error);
-      
+      await expect(
+        api.interceptors.response.handlers[0].rejected(error)
+      ).rejects.toEqual(error);
+
       expect(dispatchEventSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'backend-connection-error'
+          type: 'backend-connection-error',
         })
       );
     });
   });
-}); 
+});

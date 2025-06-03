@@ -10,7 +10,7 @@ import {
   Chip,
   Divider,
   LinearProgress,
-  Collapse
+  Collapse,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -19,7 +19,7 @@ import {
   ExpandLess as ExpandLessIcon,
   WifiOff as OfflineIcon,
   Warning as WarningIcon,
-  Error as ErrorIcon
+  Error as ErrorIcon,
 } from '@mui/icons-material';
 import logger from '../../utils/logger';
 import analytics from '../../services/analytics';
@@ -28,7 +28,14 @@ import analytics from '../../services/analytics';
  * Enhanced error types for better categorization
  */
 interface EnhancedError {
-  type: 'network' | 'chunk' | 'auth' | 'permission' | 'validation' | 'runtime' | 'unknown';
+  type:
+    | 'network'
+    | 'chunk'
+    | 'auth'
+    | 'permission'
+    | 'validation'
+    | 'runtime'
+    | 'unknown';
   severity: 'low' | 'medium' | 'high' | 'critical';
   userMessage: string;
   suggestion: string;
@@ -94,7 +101,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       retryCount: 0,
       isRetrying: false,
       showDetails: false,
-      isOnline: navigator.onLine
+      isOnline: navigator.onLine,
     };
   }
 
@@ -134,85 +141,98 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     const componentStack = errorInfo.componentStack?.toLowerCase() || '';
 
     // Network-related errors
-    if (errorMessage.includes('network') || 
-        errorMessage.includes('fetch') || 
-        errorMessage.includes('connection') ||
-        !navigator.onLine) {
+    if (
+      errorMessage.includes('network') ||
+      errorMessage.includes('fetch') ||
+      errorMessage.includes('connection') ||
+      !navigator.onLine
+    ) {
       return {
         type: 'network',
         severity: 'medium',
         userMessage: 'Connection Problem',
         suggestion: 'Check your internet connection and try again',
         isRetryable: true,
-        maxRetries: 3
+        maxRetries: 3,
       };
     }
 
     // Chunk loading errors (common in React apps)
-    if (errorMessage.includes('chunk') || 
-        errorMessage.includes('loading') ||
-        errorMessage.includes('import')) {
+    if (
+      errorMessage.includes('chunk') ||
+      errorMessage.includes('loading') ||
+      errorMessage.includes('import')
+    ) {
       return {
         type: 'chunk',
         severity: 'medium',
         userMessage: 'Loading Error',
         suggestion: 'The application is updating. Please refresh the page',
         isRetryable: true,
-        maxRetries: 2
+        maxRetries: 2,
       };
     }
 
     // Authentication errors
-    if (errorMessage.includes('auth') || 
-        errorMessage.includes('token') ||
-        errorMessage.includes('unauthorized')) {
+    if (
+      errorMessage.includes('auth') ||
+      errorMessage.includes('token') ||
+      errorMessage.includes('unauthorized')
+    ) {
       return {
         type: 'auth',
         severity: 'high',
         userMessage: 'Authentication Error',
         suggestion: 'Please log in again to continue',
-        isRetryable: false
+        isRetryable: false,
       };
     }
 
     // Permission errors
-    if (errorMessage.includes('permission') || 
-        errorMessage.includes('forbidden') ||
-        errorMessage.includes('access denied')) {
+    if (
+      errorMessage.includes('permission') ||
+      errorMessage.includes('forbidden') ||
+      errorMessage.includes('access denied')
+    ) {
       return {
         type: 'permission',
         severity: 'high',
         userMessage: 'Access Denied',
-        suggestion: 'You don\'t have permission to access this feature',
-        isRetryable: false
+        suggestion: "You don't have permission to access this feature",
+        isRetryable: false,
       };
     }
 
     // Validation errors
-    if (errorMessage.includes('validation') || 
-        errorMessage.includes('invalid') ||
-        errorMessage.includes('required')) {
+    if (
+      errorMessage.includes('validation') ||
+      errorMessage.includes('invalid') ||
+      errorMessage.includes('required')
+    ) {
       return {
         type: 'validation',
         severity: 'low',
         userMessage: 'Invalid Data',
         suggestion: 'Please check your input and try again',
         isRetryable: true,
-        maxRetries: 1
+        maxRetries: 1,
       };
     }
 
     // Runtime errors
-    if (errorMessage.includes('undefined') || 
-        errorMessage.includes('null') ||
-        errorMessage.includes('cannot read property')) {
+    if (
+      errorMessage.includes('undefined') ||
+      errorMessage.includes('null') ||
+      errorMessage.includes('cannot read property')
+    ) {
       return {
         type: 'runtime',
         severity: 'high',
         userMessage: 'Application Error',
-        suggestion: 'An unexpected error occurred. Please try refreshing the page',
+        suggestion:
+          'An unexpected error occurred. Please try refreshing the page',
         isRetryable: true,
-        maxRetries: 2
+        maxRetries: 2,
       };
     }
 
@@ -221,9 +241,10 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       type: 'unknown',
       severity: 'critical',
       userMessage: 'Unexpected Error',
-      suggestion: 'Something went wrong. Please contact support if this continues',
+      suggestion:
+        'Something went wrong. Please contact support if this continues',
       isRetryable: true,
-      maxRetries: 1
+      maxRetries: 1,
     };
   }
 
@@ -232,10 +253,13 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
    */
   private getErrorIcon(type: string) {
     switch (type) {
-      case 'network': return <OfflineIcon />;
-      case 'auth': 
-      case 'permission': return <WarningIcon />;
-      default: return <ErrorIcon />;
+      case 'network':
+        return <OfflineIcon />;
+      case 'auth':
+      case 'permission':
+        return <WarningIcon />;
+      default:
+        return <ErrorIcon />;
     }
   }
 
@@ -244,22 +268,25 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
    */
   private getErrorColor(severity: string): 'error' | 'warning' | 'info' {
     switch (severity) {
-      case 'low': return 'info';
-      case 'medium': return 'warning';
-      default: return 'error';
+      case 'low':
+        return 'info';
+      case 'medium':
+        return 'warning';
+      default:
+        return 'error';
     }
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return {
       hasError: true,
-      error
+      error,
     };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const enhancedError = this.categorizeError(error, errorInfo);
-    
+
     // Enhanced logging
     const errorDetails = {
       message: error.message,
@@ -271,7 +298,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
       url: window.location.href,
-      isOnline: navigator.onLine
+      isOnline: navigator.onLine,
     };
 
     logger.error('[ErrorBoundary] Component error caught:', errorDetails);
@@ -280,7 +307,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     this.setState({
       error,
       errorInfo,
-      enhancedError
+      enhancedError,
     });
 
     // Call custom error handler
@@ -288,17 +315,20 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       this.props.onError(error, errorInfo);
     }
 
-         // Track error in analytics
-     logger.error('[ErrorBoundary] Analytics tracking:', {
-       type: enhancedError.type,
-       severity: enhancedError.severity,
-       context: this.props.context || 'error_boundary',
-       componentStack: errorInfo.componentStack,
-       retryable: enhancedError.isRetryable
-     });
+    // Track error in analytics
+    logger.error('[ErrorBoundary] Analytics tracking:', {
+      type: enhancedError.type,
+      severity: enhancedError.severity,
+      context: this.props.context || 'error_boundary',
+      componentStack: errorInfo.componentStack,
+      retryable: enhancedError.isRetryable,
+    });
 
     // Auto-retry for certain error types
-    if (enhancedError.isRetryable && this.state.retryCount < (enhancedError.maxRetries || 1)) {
+    if (
+      enhancedError.isRetryable &&
+      this.state.retryCount < (enhancedError.maxRetries || 1)
+    ) {
       this.scheduleRetry();
     }
   }
@@ -308,9 +338,9 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
    */
   private scheduleRetry = () => {
     const delay = Math.min(1000 * Math.pow(2, this.state.retryCount), 10000); // Max 10 seconds
-    
+
     this.setState({ isRetrying: true });
-    
+
     this.retryTimer = setTimeout(() => {
       this.handleRetry();
     }, delay);
@@ -331,13 +361,13 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       errorInfo: null,
       enhancedError: null,
       retryCount: prevState.retryCount + 1,
-      isRetrying: false
+      isRetrying: false,
     }));
 
     // Track retry attempt
     analytics.trackInstructorAction('error_boundary_retry', {
       retryCount: this.state.retryCount + 1,
-      errorType: this.state.enhancedError?.type
+      errorType: this.state.enhancedError?.type,
     });
   };
 
@@ -346,7 +376,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
    */
   handleReload = () => {
     analytics.trackInstructorAction('error_boundary_reload', {
-      errorType: this.state.enhancedError?.type
+      errorType: this.state.enhancedError?.type,
     });
     window.location.reload();
   };
@@ -356,7 +386,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
    */
   toggleDetails = () => {
     this.setState(prevState => ({
-      showDetails: !prevState.showDetails
+      showDetails: !prevState.showDetails,
     }));
   };
 
@@ -368,15 +398,16 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       }
 
       const { enhancedError, isRetrying, showDetails, isOnline } = this.state;
-      const canRetry = enhancedError.isRetryable && 
-                      this.state.retryCount < (enhancedError.maxRetries || 1);
+      const canRetry =
+        enhancedError.isRetryable &&
+        this.state.retryCount < (enhancedError.maxRetries || 1);
 
       return (
-        <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Container maxWidth='md' sx={{ mt: 4 }}>
           <Paper elevation={3} sx={{ p: 4 }}>
             {/* Network status indicator */}
             {!isOnline && (
-              <Alert severity="warning" sx={{ mb: 2 }}>
+              <Alert severity='warning' sx={{ mb: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <OfflineIcon />
                   You're currently offline
@@ -385,8 +416,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             )}
 
             {/* Main error alert */}
-            <Alert 
-              severity={this.getErrorColor(enhancedError.severity)} 
+            <Alert
+              severity={this.getErrorColor(enhancedError.severity)}
               sx={{ mb: 3 }}
             >
               <AlertTitle>
@@ -395,29 +426,29 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                   {enhancedError.userMessage}
                 </Box>
               </AlertTitle>
-              
-              <Typography variant="body1" sx={{ mb: 2 }}>
+
+              <Typography variant='body1' sx={{ mb: 2 }}>
                 {enhancedError.suggestion}
               </Typography>
 
               {/* Error metadata */}
               <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-                <Chip 
-                  label={`Type: ${enhancedError.type}`} 
-                  size="small" 
-                  variant="outlined" 
+                <Chip
+                  label={`Type: ${enhancedError.type}`}
+                  size='small'
+                  variant='outlined'
                 />
-                <Chip 
-                  label={`Severity: ${enhancedError.severity}`} 
-                  size="small" 
-                  variant="outlined"
+                <Chip
+                  label={`Severity: ${enhancedError.severity}`}
+                  size='small'
+                  variant='outlined'
                   color={this.getErrorColor(enhancedError.severity)}
                 />
                 {this.state.retryCount > 0 && (
-                  <Chip 
-                    label={`Retries: ${this.state.retryCount}`} 
-                    size="small" 
-                    variant="outlined" 
+                  <Chip
+                    label={`Retries: ${this.state.retryCount}`}
+                    size='small'
+                    variant='outlined'
                   />
                 )}
               </Box>
@@ -425,7 +456,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
               {/* Retry progress */}
               {isRetrying && (
                 <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
+                  <Typography variant='body2' sx={{ mb: 1 }}>
                     Retrying automatically...
                   </Typography>
                   <LinearProgress />
@@ -434,21 +465,23 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             </Alert>
 
             {/* Action buttons */}
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mb: 3 }}>
+            <Box
+              sx={{ display: 'flex', gap: 2, justifyContent: 'center', mb: 3 }}
+            >
               {canRetry && !isRetrying && (
                 <Button
-                  variant="contained"
-                  color="primary"
+                  variant='contained'
+                  color='primary'
                   startIcon={<RefreshIcon />}
                   onClick={this.handleRetry}
                 >
                   Try Again
                 </Button>
               )}
-              
+
               <Button
-                variant="outlined"
-                color="secondary"
+                variant='outlined'
+                color='secondary'
                 onClick={this.handleReload}
               >
                 Reload Page
@@ -456,51 +489,72 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             </Box>
 
             {/* Error details (development or when requested) */}
-            {(import.meta.env.DEV || this.props.showDetails) && this.state.error && (
-              <>
-                <Divider sx={{ mb: 2 }} />
-                <Button
-                  onClick={this.toggleDetails}
-                  startIcon={showDetails ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                  size="small"
-                >
-                  {showDetails ? 'Hide' : 'Show'} Technical Details
-                </Button>
-                
-                <Collapse in={showDetails}>
-                  <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-                    <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-                      Error Details:
-                    </Typography>
-                    <Typography variant="body2" component="pre" sx={{ 
-                      fontSize: '0.75rem', 
-                      overflow: 'auto',
-                      maxHeight: '200px',
-                      mb: 2
-                    }}>
-                      {this.state.error.message}
-                      {'\n\n'}
-                      {this.state.error.stack}
-                    </Typography>
-                    
-                    {this.state.errorInfo && (
-                      <>
-                        <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-                          Component Stack:
-                        </Typography>
-                        <Typography variant="body2" component="pre" sx={{ 
-                          fontSize: '0.75rem', 
+            {(import.meta.env.DEV || this.props.showDetails) &&
+              this.state.error && (
+                <>
+                  <Divider sx={{ mb: 2 }} />
+                  <Button
+                    onClick={this.toggleDetails}
+                    startIcon={
+                      showDetails ? <ExpandLessIcon /> : <ExpandMoreIcon />
+                    }
+                    size='small'
+                  >
+                    {showDetails ? 'Hide' : 'Show'} Technical Details
+                  </Button>
+
+                  <Collapse in={showDetails}>
+                    <Box
+                      sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}
+                    >
+                      <Typography
+                        variant='subtitle2'
+                        fontWeight='bold'
+                        sx={{ mb: 1 }}
+                      >
+                        Error Details:
+                      </Typography>
+                      <Typography
+                        variant='body2'
+                        component='pre'
+                        sx={{
+                          fontSize: '0.75rem',
                           overflow: 'auto',
-                          maxHeight: '150px'
-                        }}>
-                          {this.state.errorInfo.componentStack}
-                        </Typography>
-                      </>
-                    )}
-                  </Box>
-                </Collapse>
-              </>
-            )}
+                          maxHeight: '200px',
+                          mb: 2,
+                        }}
+                      >
+                        {this.state.error.message}
+                        {'\n\n'}
+                        {this.state.error.stack}
+                      </Typography>
+
+                      {this.state.errorInfo && (
+                        <>
+                          <Typography
+                            variant='subtitle2'
+                            fontWeight='bold'
+                            sx={{ mb: 1 }}
+                          >
+                            Component Stack:
+                          </Typography>
+                          <Typography
+                            variant='body2'
+                            component='pre'
+                            sx={{
+                              fontSize: '0.75rem',
+                              overflow: 'auto',
+                              maxHeight: '150px',
+                            }}
+                          >
+                            {this.state.errorInfo.componentStack}
+                          </Typography>
+                        </>
+                      )}
+                    </Box>
+                  </Collapse>
+                </>
+              )}
           </Paper>
         </Container>
       );
@@ -511,4 +565,4 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 }
 
 export { ErrorBoundary };
-export default ErrorBoundary; 
+export default ErrorBoundary;

@@ -13,7 +13,7 @@ import {
   ListItemIcon,
   Button,
   Divider,
-  Tooltip
+  Tooltip,
 } from '@mui/material';
 import {
   Wifi as WifiIcon,
@@ -27,7 +27,7 @@ import {
   CloudDone as SyncedIcon,
   Info as InfoIcon,
   Refresh as RefreshIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
 } from '@mui/icons-material';
 import { useNetwork } from '../../contexts/NetworkContext';
 
@@ -40,7 +40,7 @@ interface NetworkStatusIndicatorProps {
 const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
   position = 'top-right',
   showDetails = true,
-  compact = false
+  compact = false,
 }) => {
   const {
     isOnline,
@@ -51,7 +51,7 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
     isProcessingQueue,
     processQueue,
     clearQueue,
-    getNetworkAdvice
+    getNetworkAdvice,
   } = useNetwork();
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -68,12 +68,18 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
   // Get appropriate icon for connection quality
   const getQualityIcon = () => {
     switch (connectionQuality) {
-      case 'excellent': return <ExcellentIcon />;
-      case 'good': return <GoodIcon />;
-      case 'fair': return <FairIcon />;
-      case 'poor': return <PoorIcon />;
-      case 'offline': return <WifiOffIcon />;
-      default: return <WifiIcon />;
+      case 'excellent':
+        return <ExcellentIcon />;
+      case 'good':
+        return <GoodIcon />;
+      case 'fair':
+        return <FairIcon />;
+      case 'poor':
+        return <PoorIcon />;
+      case 'offline':
+        return <WifiOffIcon />;
+      default:
+        return <WifiIcon />;
     }
   };
 
@@ -81,11 +87,15 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
   const getQualityColor = (): 'success' | 'warning' | 'error' | 'default' => {
     switch (connectionQuality) {
       case 'excellent':
-      case 'good': return 'success';
-      case 'fair': return 'warning';
+      case 'good':
+        return 'success';
+      case 'fair':
+        return 'warning';
       case 'poor':
-      case 'offline': return 'error';
-      default: return 'default';
+      case 'offline':
+        return 'error';
+      default:
+        return 'default';
     }
   };
 
@@ -93,7 +103,9 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
   const getStatusText = () => {
     if (!isOnline) return 'Offline';
     if (isSlowConnection) return 'Slow';
-    return connectionQuality.charAt(0).toUpperCase() + connectionQuality.slice(1);
+    return (
+      connectionQuality.charAt(0).toUpperCase() + connectionQuality.slice(1)
+    );
   };
 
   // Position styles
@@ -101,15 +113,20 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
     const base = {
       position: 'fixed' as const,
       zIndex: 1300,
-      m: 2
+      m: 2,
     };
 
     switch (position) {
-      case 'top-right': return { ...base, top: 0, right: 0 };
-      case 'top-left': return { ...base, top: 0, left: 0 };
-      case 'bottom-right': return { ...base, bottom: 0, right: 0 };
-      case 'bottom-left': return { ...base, bottom: 0, left: 0 };
-      default: return { ...base, top: 0, right: 0 };
+      case 'top-right':
+        return { ...base, top: 0, right: 0 };
+      case 'top-left':
+        return { ...base, top: 0, left: 0 };
+      case 'bottom-right':
+        return { ...base, bottom: 0, right: 0 };
+      case 'bottom-left':
+        return { ...base, bottom: 0, left: 0 };
+      default:
+        return { ...base, top: 0, right: 0 };
     }
   };
 
@@ -120,7 +137,7 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
           icon={getQualityIcon()}
           label={getStatusText()}
           color={getQualityColor()}
-          size="small"
+          size='small'
           variant={isOnline ? 'filled' : 'outlined'}
           sx={getPositionStyles()}
         />
@@ -131,17 +148,17 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
   return (
     <>
       <Box sx={getPositionStyles()}>
-        <Tooltip title="Network Status">
+        <Tooltip title='Network Status'>
           <IconButton
             onClick={handleClick}
-            size="small"
+            size='small'
             sx={{
               bgcolor: 'background.paper',
               boxShadow: 2,
               '&:hover': {
                 bgcolor: 'background.paper',
-                boxShadow: 4
-              }
+                boxShadow: 4,
+              },
             }}
           >
             {getQualityIcon()}
@@ -159,7 +176,7 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
                   fontSize: '0.75rem',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
                 }}
               >
                 {queuedRequests.length}
@@ -186,19 +203,17 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
           {/* Network Status Header */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             {getQualityIcon()}
-            <Typography variant="h6">
-              Network Status
-            </Typography>
+            <Typography variant='h6'>Network Status</Typography>
             <Chip
               label={getStatusText()}
               color={getQualityColor()}
-              size="small"
+              size='small'
             />
           </Box>
 
           {/* Network Advice */}
-          <Alert 
-            severity={isOnline ? 'info' : 'warning'} 
+          <Alert
+            severity={isOnline ? 'info' : 'warning'}
             icon={<InfoIcon />}
             sx={{ mb: 2 }}
           >
@@ -208,26 +223,26 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
           {/* Detailed Network Info */}
           {showDetails && (
             <Box sx={{ mb: 2 }}>
-              <Typography variant="subtitle2" gutterBottom>
+              <Typography variant='subtitle2' gutterBottom>
                 Connection Details:
               </Typography>
               <List dense>
                 <ListItem>
                   <ListItemText
-                    primary="Status"
+                    primary='Status'
                     secondary={isOnline ? 'Online' : 'Offline'}
                   />
                 </ListItem>
                 <ListItem>
                   <ListItemText
-                    primary="Quality"
+                    primary='Quality'
                     secondary={connectionQuality}
                   />
                 </ListItem>
                 {networkStatus.effectiveType !== 'unknown' && (
                   <ListItem>
                     <ListItemText
-                      primary="Connection Type"
+                      primary='Connection Type'
                       secondary={networkStatus.effectiveType.toUpperCase()}
                     />
                   </ListItem>
@@ -235,7 +250,7 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
                 {networkStatus.downlink > 0 && (
                   <ListItem>
                     <ListItemText
-                      primary="Download Speed"
+                      primary='Download Speed'
                       secondary={`${networkStatus.downlink} Mbps`}
                     />
                   </ListItem>
@@ -243,7 +258,7 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
                 {networkStatus.rtt > 0 && (
                   <ListItem>
                     <ListItemText
-                      primary="Latency"
+                      primary='Latency'
                       secondary={`${networkStatus.rtt} ms`}
                     />
                   </ListItem>
@@ -257,16 +272,18 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
             <>
               <Divider sx={{ mb: 2 }} />
               <Box sx={{ mb: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Box
+                  sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}
+                >
                   <QueueIcon />
-                  <Typography variant="subtitle2">
+                  <Typography variant='subtitle2'>
                     Offline Queue ({queuedRequests.length})
                   </Typography>
                 </Box>
 
                 {isProcessingQueue && (
                   <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
+                    <Typography variant='body2' sx={{ mb: 1 }}>
                       Syncing queued requests...
                     </Typography>
                     <LinearProgress />
@@ -274,15 +291,19 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
                 )}
 
                 <List dense sx={{ maxHeight: 150, overflow: 'auto' }}>
-                  {queuedRequests.slice(0, 5).map((request) => (
+                  {queuedRequests.slice(0, 5).map(request => (
                     <ListItem key={request.id}>
                       <ListItemIcon>
-                        {request.retryCount > 0 ? <RefreshIcon /> : <CloudQueue />}
+                        {request.retryCount > 0 ? (
+                          <RefreshIcon />
+                        ) : (
+                          <CloudQueue />
+                        )}
                       </ListItemIcon>
                       <ListItemText
                         primary={`${request.method} ${request.url.split('/').pop()}`}
                         secondary={
-                          request.retryCount > 0 
+                          request.retryCount > 0
                             ? `Retried ${request.retryCount} times`
                             : new Date(request.timestamp).toLocaleTimeString()
                         }
@@ -301,21 +322,21 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
 
                 <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
                   <Button
-                    size="small"
+                    size='small'
                     startIcon={<SyncIcon />}
                     onClick={processQueue}
                     disabled={!isOnline || isProcessingQueue}
-                    variant="outlined"
+                    variant='outlined'
                   >
                     Sync Now
                   </Button>
                   <Button
-                    size="small"
+                    size='small'
                     startIcon={<ClearIcon />}
                     onClick={clearQueue}
                     disabled={isProcessingQueue}
-                    color="error"
-                    variant="outlined"
+                    color='error'
+                    variant='outlined'
                   >
                     Clear
                   </Button>
@@ -326,7 +347,7 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
 
           {/* Success Message */}
           {isOnline && queuedRequests.length === 0 && (
-            <Alert severity="success" icon={<SyncedIcon />}>
+            <Alert severity='success' icon={<SyncedIcon />}>
               All data is synced
             </Alert>
           )}
@@ -336,4 +357,4 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
   );
 };
 
-export default NetworkStatusIndicator; 
+export default NetworkStatusIndicator;

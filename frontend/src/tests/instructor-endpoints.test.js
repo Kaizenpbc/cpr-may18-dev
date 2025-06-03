@@ -10,7 +10,7 @@ const InstructorEndpointTests = () => {
 
   const testEndpoints = async () => {
     const testResults = {};
-    
+
     try {
       // Test 1: Login
       console.log('Testing login...');
@@ -18,7 +18,7 @@ const InstructorEndpointTests = () => {
       testResults.login = {
         success: true,
         message: 'Login successful',
-        data: loginResponse
+        data: loginResponse,
       };
 
       // Test 2: Get Profile
@@ -27,7 +27,7 @@ const InstructorEndpointTests = () => {
       testResults.profile = {
         success: true,
         message: 'Profile retrieved successfully',
-        data: profileResponse.data
+        data: profileResponse.data,
       };
 
       // Test 3: Get Classes
@@ -36,58 +36,69 @@ const InstructorEndpointTests = () => {
       testResults.classes = {
         success: true,
         message: 'Classes retrieved successfully',
-        data: classesResponse.data
+        data: classesResponse.data,
       };
 
       // Test 4: Get Completed Classes
       console.log('Testing get completed classes...');
-      const completedResponse = await api.get('/api/instructor/completed-classes');
+      const completedResponse = await api.get(
+        '/api/instructor/completed-classes'
+      );
       testResults.completedClasses = {
         success: true,
         message: 'Completed classes retrieved successfully',
-        data: completedResponse.data
+        data: completedResponse.data,
       };
 
       // Test 5: Get Availability
       console.log('Testing get availability...');
-      const availabilityResponse = await api.get('/api/instructor/availability');
+      const availabilityResponse = await api.get(
+        '/api/instructor/availability'
+      );
       testResults.availability = {
         success: true,
         message: 'Availability retrieved successfully',
-        data: availabilityResponse.data
+        data: availabilityResponse.data,
       };
 
       // Test 6: Update Availability
       console.log('Testing update availability...');
-      const updateAvailabilityResponse = await api.put('/api/instructor/availability', {
-        dates: ['2024-05-10', '2024-05-11']
-      });
+      const updateAvailabilityResponse = await api.put(
+        '/api/instructor/availability',
+        {
+          dates: ['2024-05-10', '2024-05-11'],
+        }
+      );
       testResults.updateAvailability = {
         success: true,
         message: 'Availability updated successfully',
-        data: updateAvailabilityResponse.data
+        data: updateAvailabilityResponse.data,
       };
 
       // Test 7: Delete Availability
       console.log('Testing delete availability...');
-      const deleteAvailabilityResponse = await api.delete('/api/instructor/availability/2024-05-10');
+      const deleteAvailabilityResponse = await api.delete(
+        '/api/instructor/availability/2024-05-10'
+      );
       testResults.deleteAvailability = {
         success: true,
         message: 'Availability deleted successfully',
-        data: deleteAvailabilityResponse.data
+        data: deleteAvailabilityResponse.data,
       };
 
       // Test 8: Update Attendance
       console.log('Testing update attendance...');
-      const updateAttendanceResponse = await api.put('/api/instructor/students/1/attendance', {
-        attended: true
-      });
+      const updateAttendanceResponse = await api.put(
+        '/api/instructor/students/1/attendance',
+        {
+          attended: true,
+        }
+      );
       testResults.updateAttendance = {
         success: true,
         message: 'Attendance updated successfully',
-        data: updateAttendanceResponse.data
+        data: updateAttendanceResponse.data,
       };
-
     } catch (err) {
       console.error('Error testing endpoints:', err);
       setError(err.message);
@@ -108,7 +119,14 @@ const InstructorEndpointTests = () => {
     <div style={{ padding: '20px' }}>
       <h1>Instructor Endpoint Tests</h1>
       {Object.entries(results).map(([endpoint, result]) => (
-        <div key={endpoint} style={{ marginBottom: '20px', padding: '10px', border: '1px solid #ccc' }}>
+        <div
+          key={endpoint}
+          style={{
+            marginBottom: '20px',
+            padding: '10px',
+            border: '1px solid #ccc',
+          }}
+        >
           <h3>{endpoint}</h3>
           <p>Status: {result.success ? '✅ Success' : '❌ Failed'}</p>
           <p>Message: {result.message}</p>
@@ -119,4 +137,4 @@ const InstructorEndpointTests = () => {
   );
 };
 
-export default InstructorEndpointTests; 
+export default InstructorEndpointTests;

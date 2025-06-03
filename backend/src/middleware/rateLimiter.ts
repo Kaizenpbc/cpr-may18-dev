@@ -19,8 +19,8 @@ export const apiLimiter = rateLimit({
     error: {
       code: 'RATE_LIMIT_EXCEEDED',
       message: 'Too many requests from this IP, please try again later.',
-      retryAfter: '15 minutes'
-    }
+      retryAfter: '15 minutes',
+    },
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -31,8 +31,8 @@ export const apiLimiter = rateLimit({
       error: {
         code: 'RATE_LIMIT_EXCEEDED',
         message: 'Too many requests from this IP, please try again later.',
-        retryAfter: '15 minutes'
-      }
+        retryAfter: '15 minutes',
+      },
     });
   },
 });
@@ -45,8 +45,8 @@ export const authLimiter = rateLimit({
     error: {
       code: 'AUTH_RATE_LIMIT_EXCEEDED',
       message: 'Too many authentication attempts, please try again later.',
-      retryAfter: '1 hour'
-    }
+      retryAfter: '1 hour',
+    },
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -57,8 +57,8 @@ export const authLimiter = rateLimit({
       error: {
         code: 'AUTH_RATE_LIMIT_EXCEEDED',
         message: 'Too many authentication attempts, please try again later.',
-        retryAfter: '1 hour'
-      }
+        retryAfter: '1 hour',
+      },
     });
   },
 });
@@ -71,8 +71,8 @@ export const registerLimiter = rateLimit({
     error: {
       code: 'REGISTER_RATE_LIMIT_EXCEEDED',
       message: 'Too many registration attempts, please try again later.',
-      retryAfter: '24 hours'
-    }
+      retryAfter: '24 hours',
+    },
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -83,14 +83,18 @@ export const registerLimiter = rateLimit({
       error: {
         code: 'REGISTER_RATE_LIMIT_EXCEEDED',
         message: 'Too many registration attempts, please try again later.',
-        retryAfter: '24 hours'
-      }
+        retryAfter: '24 hours',
+      },
     });
   },
 });
 
 // Custom rate limiter for specific routes
-export const createCustomLimiter = (windowMs: number, max: number, limitType: string = 'CUSTOM') => {
+export const createCustomLimiter = (
+  windowMs: number,
+  max: number,
+  limitType: string = 'CUSTOM'
+) => {
   return rateLimit({
     windowMs,
     max,
@@ -98,8 +102,8 @@ export const createCustomLimiter = (windowMs: number, max: number, limitType: st
       error: {
         code: 'RATE_LIMIT_EXCEEDED',
         message: 'Too many requests, please try again later.',
-        retryAfter: `${Math.round(windowMs / 60000)} minutes`
-      }
+        retryAfter: `${Math.round(windowMs / 60000)} minutes`,
+      },
     },
     standardHeaders: true,
     legacyHeaders: false,
@@ -110,9 +114,9 @@ export const createCustomLimiter = (windowMs: number, max: number, limitType: st
         error: {
           code: 'RATE_LIMIT_EXCEEDED',
           message: 'Too many requests, please try again later.',
-          retryAfter: `${Math.round(windowMs / 60000)} minutes`
-        }
+          retryAfter: `${Math.round(windowMs / 60000)} minutes`,
+        },
       });
     },
   });
-}; 
+};

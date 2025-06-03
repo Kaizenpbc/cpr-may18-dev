@@ -15,13 +15,13 @@ jest.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({
     isAuthenticated: true,
     token: 'mock-token',
-    user: { role: 'Instructor' }
-  })
+    user: { role: 'Instructor' },
+  }),
 }));
 
 // Mock date-fns
 jest.mock('date-fns', () => ({
-  format: jest.fn((date) => 'May 15, 2025')
+  format: jest.fn(date => 'May 15, 2025'),
 }));
 
 describe('InstructorClasses Component', () => {
@@ -33,20 +33,22 @@ describe('InstructorClasses Component', () => {
     axios.get.mockResolvedValueOnce({
       data: {
         success: true,
-        classes: [{
-          course_id: 1,
-          system_date: '2025-05-07T19:49:59.976Z',
-          course_number: '20250501-SEN-FACA',
-          date_requested: '2025-05-01T04:00:00.000Z',
-          date_scheduled: '2025-05-15T04:00:00.000Z',
-          location: 'Room 101',
-          status: 'Scheduled',
-          course_type_name: 'First Aid',
-          organization_name: 'Test Org',
-          students_registered: 10,
-          students_attendance: 0
-        }]
-      }
+        classes: [
+          {
+            course_id: 1,
+            system_date: '2025-05-07T19:49:59.976Z',
+            course_number: '20250501-SEN-FACA',
+            date_requested: '2025-05-01T04:00:00.000Z',
+            date_scheduled: '2025-05-15T04:00:00.000Z',
+            location: 'Room 101',
+            status: 'Scheduled',
+            course_type_name: 'First Aid',
+            organization_name: 'Test Org',
+            students_registered: 10,
+            students_attendance: 0,
+          },
+        ],
+      },
     });
 
     render(
@@ -75,18 +77,20 @@ describe('InstructorClasses Component', () => {
     axios.get.mockResolvedValueOnce({
       data: {
         success: true,
-        courses: [{
-          course_id: 2,
-          course_number: '20250401-SEN-FACA',
-          date_scheduled: '2025-04-15T04:00:00.000Z',
-          location: 'Room 102',
-          status: 'Completed',
-          course_type_name: 'First Aid',
-          organization_name: 'Test Org',
-          students_registered: 10,
-          students_attendance: 8
-        }]
-      }
+        courses: [
+          {
+            course_id: 2,
+            course_number: '20250401-SEN-FACA',
+            date_scheduled: '2025-04-15T04:00:00.000Z',
+            location: 'Room 102',
+            status: 'Completed',
+            course_type_name: 'First Aid',
+            organization_name: 'Test Org',
+            students_registered: 10,
+            students_attendance: 8,
+          },
+        ],
+      },
     });
 
     render(
@@ -130,8 +134,8 @@ describe('InstructorClasses Component', () => {
     axios.get.mockResolvedValueOnce({
       data: {
         success: true,
-        classes: []
-      }
+        classes: [],
+      },
     });
 
     render(
@@ -146,4 +150,4 @@ describe('InstructorClasses Component', () => {
       expect(screen.getByText('No classes scheduled')).toBeInTheDocument();
     });
   });
-}); 
+});

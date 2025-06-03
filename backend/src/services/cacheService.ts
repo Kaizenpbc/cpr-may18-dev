@@ -27,18 +27,22 @@ class CacheService {
    * Generic cache method with Redis fallback
    */
   private async cache<T>(
-    key: string, 
-    fetcher: () => Promise<T>, 
+    key: string,
+    fetcher: () => Promise<T>,
     options: CacheOptions = {}
   ): Promise<T> {
-    const { ttl = this.DEFAULT_TTL, useDatabase = true, forceRefresh = false } = options;
+    const {
+      ttl = this.DEFAULT_TTL,
+      useDatabase = true,
+      forceRefresh = false,
+    } = options;
 
     // If force refresh, skip cache lookup
     if (!forceRefresh && this.isRedisEnabled) {
       try {
         const client = redisManager.getClient();
         const cached = await client.get(key);
-        
+
         if (cached) {
           console.log(`🚀 [CACHE HIT] ${key}`);
           return JSON.parse(cached);
@@ -118,7 +122,10 @@ class CacheService {
   /**
    * Cache user data by username
    */
-  async getUserByUsername(username: string, forceRefresh = false): Promise<any> {
+  async getUserByUsername(
+    username: string,
+    forceRefresh = false
+  ): Promise<any> {
     return this.cache(
       `user:username:${username}`,
       async () => {
@@ -135,7 +142,10 @@ class CacheService {
   /**
    * Cache organization data by ID
    */
-  async getOrganization(orgId: string | number, forceRefresh = false): Promise<any> {
+  async getOrganization(
+    orgId: string | number,
+    forceRefresh = false
+  ): Promise<any> {
     return this.cache(
       `organization:${orgId}`,
       async () => {
@@ -166,17 +176,23 @@ class CacheService {
   /**
    * Cache course pricing for organization
    */
-  async getCoursePricing(orgId: string | number, forceRefresh = false): Promise<any[]> {
+  async getCoursePricing(
+    orgId: string | number,
+    forceRefresh = false
+  ): Promise<any[]> {
     return this.cache(
       `course_pricing:${orgId}`,
       async () => {
-        const result = await pool.query(`
+        const result = await pool.query(
+          `
           SELECT cp.*, ct.name as course_name, ct.description
           FROM course_pricing cp
           JOIN class_types ct ON cp.course_type_id = ct.id
           WHERE cp.organization_id = $1 AND cp.is_active = true
           ORDER BY ct.name
-        `, [orgId]);
+        `,
+          [orgId]
+        );
         return result.rows;
       },
       { ttl: 1800, forceRefresh } // 30 minutes TTL
@@ -186,9 +202,13 @@ class CacheService {
   /**
    * Cache dashboard data (computed data)
    */
-  async getDashboardStats(role: string, orgId?: string | number, forceRefresh = false): Promise<any> {
+  async getDashboardStats(
+    role: string,
+    orgId?: string | number,
+    forceRefresh = false
+  ): Promise<any> {
     const cacheKey = orgId ? `dashboard:${role}:${orgId}` : `dashboard:${role}`;
-    
+
     return this.cache(
       cacheKey,
       async () => {
@@ -197,7 +217,7 @@ class CacheService {
           'SELECT COUNT(*) as count FROM course_requests WHERE status = $1',
           ['pending']
         );
-        
+
         const completedThisMonth = await pool.query(`
           SELECT COUNT(*) as count FROM course_requests 
           WHERE status = 'completed' 
@@ -208,7 +228,7 @@ class CacheService {
         return {
           pendingCourses: parseInt(pendingCourses.rows[0]?.count || 0),
           completedThisMonth: parseInt(completedThisMonth.rows[0]?.count || 0),
-          lastUpdated: new Date().toISOString()
+          lastUpdated: new Date().toISOString(),
         };
       },
       { ttl: 300, forceRefresh } // 5 minutes TTL for dashboard
@@ -223,13 +243,15 @@ class CacheService {
 
     try {
       const client = redisManager.getClient();
-      
+
       if (pattern.includes('*')) {
         // Pattern-based deletion
         const keys = await client.keys(pattern);
         if (keys.length > 0) {
           await client.del(...keys);
-          console.log(`🗑️ [CACHE] Invalidated ${keys.length} keys matching ${pattern}`);
+          console.log(
+            `🗑️ [CACHE] Invalidated ${keys.length} keys matching ${pattern}`
+          );
         }
       } else {
         // Single key deletion
@@ -268,12 +290,12 @@ class CacheService {
       const client = redisManager.getClient();
       const info = await client.info('memory');
       const keyspace = await client.info('keyspace');
-      
+
       return {
         enabled: true,
         memory: info,
         keyspace: keyspace,
-        isConnected: client.isReady
+        isConnected: client.isReady,
       };
     } catch (error) {
       return { enabled: true, error: error.message };
@@ -283,4 +305,4 @@ class CacheService {
 
 // Export singleton instance
 export const cacheService = CacheService.getInstance();
-export default cacheService; 
+export default cacheService;

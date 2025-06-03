@@ -1,5 +1,10 @@
 import React, { useState } from 'react';
-import { Outlet, useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
+import {
+  Outlet,
+  useNavigate,
+  useLocation,
+  Link as RouterLink,
+} from 'react-router-dom';
 import {
   AppBar,
   Box,
@@ -55,7 +60,11 @@ const Layout: React.FC = () => {
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-    { text: 'Schedule Availability', icon: <CalendarIcon />, path: '/instructor/availability' },
+    {
+      text: 'Schedule Availability',
+      icon: <CalendarIcon />,
+      path: '/instructor/availability',
+    },
     { text: 'My Schedule', icon: <ClassIcon />, path: '/schedule' },
     { text: 'Attendance', icon: <AttendanceIcon />, path: '/attendance' },
   ];
@@ -63,13 +72,13 @@ const Layout: React.FC = () => {
   const drawer = (
     <div>
       <Toolbar>
-        <Typography variant="h6" noWrap component="div">
+        <Typography variant='h6' noWrap component='div'>
           CPR Training
         </Typography>
       </Toolbar>
       <Divider />
       <List>
-        {menuItems.map((item) => (
+        {menuItems.map(item => (
           <ListItemButton
             key={item.text}
             selected={location.pathname === item.path}
@@ -86,27 +95,33 @@ const Layout: React.FC = () => {
               },
             }}
           >
-            <ListItemIcon 
-              sx={{ 
-                color: location.pathname === item.path ? theme.palette.primary.main : 'inherit'
+            <ListItemIcon
+              sx={{
+                color:
+                  location.pathname === item.path
+                    ? theme.palette.primary.main
+                    : 'inherit',
               }}
             >
               {item.icon}
             </ListItemIcon>
-            <ListItemText 
+            <ListItemText
               primary={item.text}
-              sx={{ 
-                color: location.pathname === item.path ? theme.palette.primary.main : 'inherit'
+              sx={{
+                color:
+                  location.pathname === item.path
+                    ? theme.palette.primary.main
+                    : 'inherit',
               }}
             />
           </ListItemButton>
         ))}
         {user?.role === 'admin' && (
-          <ListItem button component={RouterLink} to="/admin">
+          <ListItem button component={RouterLink} to='/admin'>
             <ListItemIcon>
               <AdminIcon />
             </ListItemIcon>
-            <ListItemText primary="Course Admin" />
+            <ListItemText primary='Course Admin' />
           </ListItem>
         )}
       </List>
@@ -116,7 +131,7 @@ const Layout: React.FC = () => {
           <ListItemIcon>
             <LogoutIcon />
           </ListItemIcon>
-          <ListItemText primary="Logout" />
+          <ListItemText primary='Logout' />
         </ListItem>
       </List>
     </div>
@@ -126,7 +141,7 @@ const Layout: React.FC = () => {
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
       <AppBar
-        position="fixed"
+        position='fixed'
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
@@ -134,24 +149,24 @@ const Layout: React.FC = () => {
       >
         <Toolbar>
           <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
+            color='inherit'
+            aria-label='open drawer'
+            edge='start'
             onClick={handleDrawerToggle}
             sx={{ mr: 2, display: { sm: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+          <Typography variant='h6' noWrap component='div' sx={{ flexGrow: 1 }}>
             {user?.full_name || 'Welcome'}
           </Typography>
-          <Button color="inherit" onClick={handleLogout}>
+          <Button color='inherit' onClick={handleLogout}>
             Logout
           </Button>
         </Toolbar>
       </AppBar>
       <Box
-        component="nav"
+        component='nav'
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
       >
         <Drawer
@@ -172,7 +187,7 @@ const Layout: React.FC = () => {
         </Drawer>
       </Box>
       <Box
-        component="main"
+        component='main'
         sx={{
           flexGrow: 1,
           p: 3,
@@ -186,4 +201,4 @@ const Layout: React.FC = () => {
   );
 };
 
-export default Layout; 
+export default Layout;

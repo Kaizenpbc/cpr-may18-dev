@@ -35,67 +35,91 @@ function App() {
         <SnackbarProvider>
           <ToastContainer />
           <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              
-              {/* Role-specific portal routes - these allow direct URL access and refresh */}
-              <Route path="/instructor/*" element={
-                <PrivateRoute requiredRole="instructor">
+            {/* Public routes */}
+            <Route path='/login' element={<Login />} />
+            <Route path='/forgot-password' element={<ForgotPassword />} />
+            <Route path='/reset-password' element={<ResetPassword />} />
+
+            {/* Role-specific portal routes - these allow direct URL access and refresh */}
+            <Route
+              path='/instructor/*'
+              element={
+                <PrivateRoute requiredRole='instructor'>
                   <InstructorPortal />
                 </PrivateRoute>
-              } />
-              
-              <Route path="/organization/*" element={
-                <PrivateRoute requiredRole="organization">
+              }
+            />
+
+            <Route
+              path='/organization/*'
+              element={
+                <PrivateRoute requiredRole='organization'>
                   <OrganizationPortal />
                 </PrivateRoute>
-              } />
-              
-              <Route path="/admin/*" element={
-                <PrivateRoute requiredRole="admin">
+              }
+            />
+
+            <Route
+              path='/admin/*'
+              element={
+                <PrivateRoute requiredRole='admin'>
                   <CourseAdminPortal />
                 </PrivateRoute>
-              } />
-              
-              <Route path="/accounting/*" element={
-                <PrivateRoute requiredRole="accountant">
+              }
+            />
+
+            <Route
+              path='/accounting/*'
+              element={
+                <PrivateRoute requiredRole='accountant'>
                   <AccountingPortal />
                 </PrivateRoute>
-              } />
-              
-              <Route path="/superadmin/*" element={
-                <PrivateRoute requiredRole="superadmin">
+              }
+            />
+
+            <Route
+              path='/superadmin/*'
+              element={
+                <PrivateRoute requiredRole='superadmin'>
                   <SuperAdminPortal />
                 </PrivateRoute>
-              } />
+              }
+            />
 
-              <Route path="/sysadmin/*" element={
-                <PrivateRoute requiredRole="sysadmin">
+            <Route
+              path='/sysadmin/*'
+              element={
+                <PrivateRoute requiredRole='sysadmin'>
                   <SystemAdminPortal />
                 </PrivateRoute>
-              } />
+              }
+            />
 
-              {/* Main protected route - redirects to role-based portal */}
-              <Route path="/" element={
+            {/* Main protected route - redirects to role-based portal */}
+            <Route
+              path='/'
+              element={
                 <PrivateRoute>
                   <RoleBasedRouter />
                 </PrivateRoute>
-              } />
+              }
+            />
 
-              {/* Legacy routes for backward compatibility */}
-              <Route path="/dashboard" element={
+            {/* Legacy routes for backward compatibility */}
+            <Route
+              path='/dashboard'
+              element={
                 <PrivateRoute>
                   <RoleBasedRouter />
                 </PrivateRoute>
-              } />
-              
-              {/* Fallback for unknown routes */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </SnackbarProvider>
-        </ErrorBoundary>
+              }
+            />
+
+            {/* Fallback for unknown routes */}
+            <Route path='*' element={<NotFound />} />
+          </Routes>
+        </SnackbarProvider>
+      </ErrorBoundary>
     );
   } catch (error) {
     console.error('[TRACE] App.tsx - Error during render:', error);

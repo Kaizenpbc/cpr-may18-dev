@@ -16,7 +16,7 @@ import {
   ListItem,
   ListItemText,
   ListItemSecondaryAction,
-  Avatar
+  Avatar,
 } from '@mui/material';
 import {
   CalendarToday as CalendarIcon,
@@ -29,7 +29,7 @@ import {
   ArrowForward as ArrowForwardIcon,
   LocationOn as LocationIcon,
   Group as GroupIcon,
-  AccessTime as TimeIcon
+  AccessTime as TimeIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -45,13 +45,15 @@ interface InstructorDashboardProps {
 const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
   scheduledClasses = [],
   availableDates = new Set(),
-  completedClasses = []
+  completedClasses = [],
 }) => {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  
-  const upcomingClasses = scheduledClasses.filter(cls => !cls.completed).slice(0, 3);
+
+  const upcomingClasses = scheduledClasses
+    .filter(cls => !cls.completed)
+    .slice(0, 3);
   const recentCompleted = completedClasses.slice(0, 3);
 
   // Get tomorrow's date
@@ -77,8 +79,8 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
     if (tomorrowClasses.length === 0) {
       alert('No classes scheduled for tomorrow');
     } else {
-      navigate('/instructor/classes', { 
-        state: { filterDate: getTomorrowDate().toISOString() } 
+      navigate('/instructor/classes', {
+        state: { filterDate: getTomorrowDate().toISOString() },
       });
     }
   };
@@ -86,8 +88,8 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
   const handleUpdateAvailability = () => {
     const nextWeek = new Date();
     nextWeek.setDate(nextWeek.getDate() + 7);
-    navigate('/instructor/availability', { 
-      state: { focusWeek: nextWeek.toISOString() } 
+    navigate('/instructor/availability', {
+      state: { focusWeek: nextWeek.toISOString() },
     });
   };
 
@@ -113,12 +115,12 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({
           startDate: startOfWeek.toISOString(),
-          endDate: endOfWeek.toISOString()
-        })
+          endDate: endOfWeek.toISOString(),
+        }),
       });
 
       if (response.ok) {
@@ -143,35 +145,37 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
   const StatCard = ({ icon, title, value, color }: any) => (
     <Card sx={{ height: '100%' }}>
       <CardContent>
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center',
-          mb: 1,
-          minHeight: isMobile ? 48 : 'auto' // Larger touch target on mobile
-        }}>
-          {React.cloneElement(icon, { 
-            sx: { 
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            mb: 1,
+            minHeight: isMobile ? 48 : 'auto', // Larger touch target on mobile
+          }}
+        >
+          {React.cloneElement(icon, {
+            sx: {
               mr: 1,
               fontSize: isMobile ? 32 : 24,
-              color: `${color}.main`
-            }
+              color: `${color}.main`,
+            },
           })}
-          <Typography 
-            variant={isMobile ? "body1" : "h6"}
-            sx={{ 
+          <Typography
+            variant={isMobile ? 'body1' : 'h6'}
+            sx={{
               flexGrow: 1,
-              fontSize: isMobile ? '1rem' : 'inherit'
+              fontSize: isMobile ? '1rem' : 'inherit',
             }}
           >
             {title}
           </Typography>
         </Box>
-        <Typography 
-          variant={isMobile ? "h4" : "h3"} 
+        <Typography
+          variant={isMobile ? 'h4' : 'h3'}
           color={`${color}.main`}
-          sx={{ 
+          sx={{
             textAlign: isMobile ? 'right' : 'left',
-            fontSize: isMobile ? '2rem' : 'inherit'
+            fontSize: isMobile ? '2rem' : 'inherit',
           }}
         >
           {value}
@@ -181,70 +185,76 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
   );
 
   const ClassCard = ({ cls, isCompleted = false }: any) => (
-    <Card 
-      sx={{ 
+    <Card
+      sx={{
         mb: 2,
-        '&:active': isMobile ? {
-          transform: 'scale(0.98)',
-          transition: 'transform 0.1s'
-        } : {}
+        '&:active': isMobile
+          ? {
+              transform: 'scale(0.98)',
+              transition: 'transform 0.1s',
+            }
+          : {},
       }}
     >
       <CardContent>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
-          <Avatar 
-            sx={{ 
+          <Avatar
+            sx={{
               bgcolor: isCompleted ? 'success.main' : 'primary.main',
-              mr: 2
+              mr: 2,
             }}
           >
             {isCompleted ? <AssignmentIcon /> : <ClassIcon />}
           </Avatar>
           <Box sx={{ flexGrow: 1 }}>
-            <Typography variant="subtitle1" fontWeight="bold">
+            <Typography variant='subtitle1' fontWeight='bold'>
               {cls.coursetypename}
             </Typography>
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center',
-              color: 'text.secondary',
-              mt: 0.5
-            }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                color: 'text.secondary',
+                mt: 0.5,
+              }}
+            >
               <LocationIcon sx={{ fontSize: '1rem', mr: 0.5 }} />
-              <Typography variant="body2">
+              <Typography variant='body2'>
                 {cls.organizationname} - {cls.location}
               </Typography>
             </Box>
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center',
-              color: 'text.secondary',
-              mt: 0.5
-            }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                color: 'text.secondary',
+                mt: 0.5,
+              }}
+            >
               <TimeIcon sx={{ fontSize: '1rem', mr: 0.5 }} />
-              <Typography variant="body2">
+              <Typography variant='body2'>
                 {new Date(cls.datescheduled).toLocaleDateString()}
               </Typography>
             </Box>
           </Box>
           {!isCompleted && (
             <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
-              <GroupIcon sx={{ fontSize: '1rem', mr: 0.5, color: 'primary.main' }} />
-              <Typography 
-                variant="body2" 
-                color="primary"
-                fontWeight="bold"
-              >
+              <GroupIcon
+                sx={{ fontSize: '1rem', mr: 0.5, color: 'primary.main' }}
+              />
+              <Typography variant='body2' color='primary' fontWeight='bold'>
                 {cls.studentcount || 0}
               </Typography>
             </Box>
           )}
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-          <Chip 
-            label={isCompleted ? "Completed" : `${cls.studentcount || 0} students`}
-            size="small"
-            color={isCompleted ? "success" : "primary"}
+          <Chip
+            label={
+              isCompleted ? 'Completed' : `${cls.studentcount || 0} students`
+            }
+            size='small'
+            color={isCompleted ? 'success' : 'primary'}
           />
         </Box>
       </CardContent>
@@ -253,36 +263,27 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
 
   return (
     <Box sx={{ p: isMobile ? 2 : 3 }}>
-      <Typography 
-        variant={isMobile ? "h5" : "h4"} 
-        gutterBottom
-        sx={{ mb: 3 }}
-      >
+      <Typography variant={isMobile ? 'h5' : 'h4'} gutterBottom sx={{ mb: 3 }}>
         Instructor Dashboard
       </Typography>
-      
+
       {/* Quick Actions Widget */}
-      <Card 
-        sx={{ 
-          mb: 4, 
+      <Card
+        sx={{
+          mb: 4,
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          borderRadius: isMobile ? 2 : 3
+          borderRadius: isMobile ? 2 : 3,
         }}
       >
         <CardContent>
-          <Typography 
-            variant="h6" 
-            color="white" 
-            gutterBottom
-            sx={{ mb: 3 }}
-          >
+          <Typography variant='h6' color='white' gutterBottom sx={{ mb: 3 }}>
             ⚡ Quick Actions
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={4}>
               <Button
                 fullWidth
-                variant="contained"
+                variant='contained'
                 startIcon={<ScheduleIcon />}
                 onClick={handleViewTomorrowSchedule}
                 sx={{
@@ -292,21 +293,23 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                   '&:hover': {
                     backgroundColor: 'white',
                   },
-                  '&:active': isMobile ? {
-                    transform: 'scale(0.98)'
-                  } : {}
+                  '&:active': isMobile
+                    ? {
+                        transform: 'scale(0.98)',
+                      }
+                    : {},
                 }}
               >
                 Tomorrow's Schedule
                 {getTomorrowClasses().length > 0 && (
-                  <Chip 
-                    label={getTomorrowClasses().length} 
-                    size="small" 
-                    sx={{ 
+                  <Chip
+                    label={getTomorrowClasses().length}
+                    size='small'
+                    sx={{
                       ml: 1,
                       backgroundColor: '#667eea',
                       color: 'white',
-                      height: isMobile ? 24 : 20
+                      height: isMobile ? 24 : 20,
                     }}
                   />
                 )}
@@ -315,7 +318,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
             <Grid item xs={12} sm={4}>
               <Button
                 fullWidth
-                variant="contained"
+                variant='contained'
                 startIcon={<EventAvailableIcon />}
                 onClick={handleUpdateAvailability}
                 sx={{
@@ -325,9 +328,11 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                   '&:hover': {
                     backgroundColor: 'white',
                   },
-                  '&:active': isMobile ? {
-                    transform: 'scale(0.98)'
-                  } : {}
+                  '&:active': isMobile
+                    ? {
+                        transform: 'scale(0.98)',
+                      }
+                    : {},
                 }}
               >
                 Update Next Week
@@ -336,7 +341,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
             <Grid item xs={12} sm={4}>
               <Button
                 fullWidth
-                variant="contained"
+                variant='contained'
                 startIcon={<DownloadIcon />}
                 onClick={handleDownloadWeekSchedule}
                 sx={{
@@ -346,9 +351,11 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                   '&:hover': {
                     backgroundColor: 'white',
                   },
-                  '&:active': isMobile ? {
-                    transform: 'scale(0.98)'
-                  } : {}
+                  '&:active': isMobile
+                    ? {
+                        transform: 'scale(0.98)',
+                      }
+                    : {},
                 }}
               >
                 Download Week PDF
@@ -357,39 +364,42 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
           </Grid>
         </CardContent>
       </Card>
-      
+
       {/* Stats Cards */}
       <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: 4 }}>
         <Grid item xs={6} md={3}>
           <StatCard
             icon={<ClassIcon />}
-            title="Scheduled"
+            title='Scheduled'
             value={scheduledClasses.filter(cls => !cls.completed).length}
-            color="primary"
+            color='primary'
           />
         </Grid>
         <Grid item xs={6} md={3}>
           <StatCard
             icon={<CalendarIcon />}
-            title="Available"
+            title='Available'
             value={availableDates.size}
-            color="success"
+            color='success'
           />
         </Grid>
         <Grid item xs={6} md={3}>
           <StatCard
             icon={<AssignmentIcon />}
-            title="Completed"
+            title='Completed'
             value={completedClasses.length}
-            color="info"
+            color='info'
           />
         </Grid>
         <Grid item xs={6} md={3}>
           <StatCard
             icon={<PeopleIcon />}
-            title="Students"
-            value={scheduledClasses.reduce((total, cls) => total + (cls.studentcount || 0), 0)}
-            color="warning"
+            title='Students'
+            value={scheduledClasses.reduce(
+              (total, cls) => total + (cls.studentcount || 0),
+              0
+            )}
+            color='warning'
           />
         </Grid>
       </Grid>
@@ -397,17 +407,13 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
       {/* Classes Lists */}
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <Paper 
-            sx={{ 
+          <Paper
+            sx={{
               p: isMobile ? 2 : 3,
-              height: '100%'
+              height: '100%',
             }}
           >
-            <Typography 
-              variant="h6" 
-              gutterBottom
-              sx={{ mb: 2 }}
-            >
+            <Typography variant='h6' gutterBottom sx={{ mb: 2 }}>
               Upcoming Classes
             </Typography>
             {upcomingClasses.length > 0 ? (
@@ -415,12 +421,12 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                 <ClassCard key={index} cls={cls} />
               ))
             ) : (
-              <Typography 
-                variant="body2" 
-                color="text.secondary"
-                sx={{ 
+              <Typography
+                variant='body2'
+                color='text.secondary'
+                sx={{
                   textAlign: 'center',
-                  py: 4
+                  py: 4,
                 }}
               >
                 No upcoming classes scheduled
@@ -430,17 +436,13 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Paper 
-            sx={{ 
+          <Paper
+            sx={{
               p: isMobile ? 2 : 3,
-              height: '100%'
+              height: '100%',
             }}
           >
-            <Typography 
-              variant="h6" 
-              gutterBottom
-              sx={{ mb: 2 }}
-            >
+            <Typography variant='h6' gutterBottom sx={{ mb: 2 }}>
               Recent Completed
             </Typography>
             {recentCompleted.length > 0 ? (
@@ -448,12 +450,12 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                 <ClassCard key={index} cls={cls} isCompleted />
               ))
             ) : (
-              <Typography 
-                variant="body2" 
-                color="text.secondary"
-                sx={{ 
+              <Typography
+                variant='body2'
+                color='text.secondary'
+                sx={{
                   textAlign: 'center',
-                  py: 4
+                  py: 4,
                 }}
               >
                 No completed classes yet
@@ -466,4 +468,4 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
   );
 };
 
-export default InstructorDashboard; 
+export default InstructorDashboard;

@@ -6,7 +6,11 @@ import { AppError, errorCodes } from '../../utils/errorHandler';
 import bcrypt from 'bcryptjs';
 import { pool } from '../../config/database';
 import { generateTokens } from '../../utils/jwtUtils';
-import { authenticateToken, requireRole, authorizeRoles } from '../../middleware/authMiddleware';
+import {
+  authenticateToken,
+  requireRole,
+  authorizeRoles,
+} from '../../middleware/authMiddleware';
 import { PDFService } from '../../services/pdfService';
 import { emailService } from '../../services/emailService';
 import emailTemplatesRouter from './emailTemplates';
@@ -17,19 +21,26 @@ const router = Router();
 console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
 
 // Get available instructors for a specific date (needs to be before auth middleware)
-router.get('/instructors/available/:date', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { date } = req.params;
-    
-    if (!date) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Date parameter is required');
-    }
+router.get(
+  '/instructors/available/:date',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { date } = req.params;
 
-    console.log('[Available Instructors] Checking for date:', date);
+      if (!date) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Date parameter is required'
+        );
+      }
 
-    // Simple query: Get all instructors who have marked themselves available for this date
-    const result = await pool.query(
-      `SELECT DISTINCT
+      console.log('[Available Instructors] Checking for date:', date);
+
+      // Simple query: Get all instructors who have marked themselves available for this date
+      const result = await pool.query(
+        `SELECT DISTINCT
         u.id, 
         u.username as instructor_name, 
         u.email,
@@ -43,18 +54,28 @@ router.get('/instructors/available/:date', authenticateToken, asyncHandler(async
        WHERE u.role = 'instructor' 
          AND u.status = 'active'
        ORDER BY u.username`,
-      [date]
-    );
-    
-    console.log('[Available Instructors] Found:', result.rows.length, 'instructors for date:', date);
-    console.log('[Available Instructors] Results:', result.rows);
-    
-    return res.json(ApiResponseBuilder.success(result.rows));
-  } catch (error: any) {
-    console.error('Error fetching available instructors:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch available instructors');
-  }
-}));
+        [date]
+      );
+
+      console.log(
+        '[Available Instructors] Found:',
+        result.rows.length,
+        'instructors for date:',
+        date
+      );
+      console.log('[Available Instructors] Results:', result.rows);
+
+      return res.json(ApiResponseBuilder.success(result.rows));
+    } catch (error: any) {
+      console.error('Error fetching available instructors:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch available instructors'
+      );
+    }
+  })
+);
 
 // Protected routes
 router.use('/dashboard', authenticateToken);
@@ -63,21 +84,22 @@ router.use('/courses', authenticateToken);
 router.use('/instructors', authenticateToken);
 
 // Example route with error handling
-router.get('/users', asyncHandler(async (_req: Request, res: Response) => {
-  // TODO: Implement actual user fetching
-  res.json({
-    success: true,
-    data: {
-      users: [
-        { id: 1, username: 'testuser' }
-      ]
-    },
-    meta: {
-      timestamp: new Date().toISOString(),
-      version: '1.0.0'
-    }
-  });
-}));
+router.get(
+  '/users',
+  asyncHandler(async (_req: Request, res: Response) => {
+    // TODO: Implement actual user fetching
+    res.json({
+      success: true,
+      data: {
+        users: [{ id: 1, username: 'testuser' }],
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        version: '1.0.0',
+      },
+    });
+  })
+);
 
 // Example route with error throwing
 router.get(
@@ -106,87 +128,101 @@ router.get(
 );
 
 // Certifications routes
-router.get('/certifications', asyncHandler(async (req: Request, res: Response) => {
-  console.log('[Debug] Getting certifications with cache');
-  
-  try {
-    // Use cached certifications
-    const certifications = await cacheService.getCertifications();
-    
-    res.json({
-      success: true,
-      data: certifications,
-      cached: true
-    });
-  } catch (error) {
-    console.error('Error fetching certifications:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch certifications'
-    });
-  }
-}));
+router.get(
+  '/certifications',
+  asyncHandler(async (req: Request, res: Response) => {
+    console.log('[Debug] Getting certifications with cache');
 
-router.get('/certifications/:id', asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  
-  try {
-    // Get all certifications from cache, then filter
-    const certifications = await cacheService.getCertifications();
-    const certification = certifications.find(cert => cert.id.toString() === id);
-    
-    if (!certification) {
-      return res.status(404).json({
+    try {
+      // Use cached certifications
+      const certifications = await cacheService.getCertifications();
+
+      res.json({
+        success: true,
+        data: certifications,
+        cached: true,
+      });
+    } catch (error) {
+      console.error('Error fetching certifications:', error);
+      res.status(500).json({
         success: false,
-        message: 'Certification not found'
+        message: 'Failed to fetch certifications',
       });
     }
-    
-    res.json({
-      success: true,
-      data: certification,
-      cached: true
-    });
-  } catch (error) {
-    console.error('Error fetching certification:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch certification'
-    });
-  }
-}));
+  })
+);
+
+router.get(
+  '/certifications/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    try {
+      // Get all certifications from cache, then filter
+      const certifications = await cacheService.getCertifications();
+      const certification = certifications.find(
+        cert => cert.id.toString() === id
+      );
+
+      if (!certification) {
+        return res.status(404).json({
+          success: false,
+          message: 'Certification not found',
+        });
+      }
+
+      res.json({
+        success: true,
+        data: certification,
+        cached: true,
+      });
+    } catch (error) {
+      console.error('Error fetching certification:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch certification',
+      });
+    }
+  })
+);
 
 // Dashboard route
-router.get('/dashboard', asyncHandler(async (req: Request, res: Response) => {
-  console.log('[Debug] Getting dashboard data with cache');
-  
-  try {
-    const user = (req as any).user;
-    
-    // Use cached dashboard stats
-    const dashboardStats = await cacheService.getDashboardStats(
-      user.role, 
-      user.organizationId
-    );
-    
-    res.json({
-      success: true,
-      data: dashboardStats,
-      cached: true
-    });
-  } catch (error) {
-    console.error('Error fetching dashboard data:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch dashboard data'
-    });
-  }
-}));
+router.get(
+  '/dashboard',
+  asyncHandler(async (req: Request, res: Response) => {
+    console.log('[Debug] Getting dashboard data with cache');
+
+    try {
+      const user = (req as any).user;
+
+      // Use cached dashboard stats
+      const dashboardStats = await cacheService.getDashboardStats(
+        user.role,
+        user.organizationId
+      );
+
+      res.json({
+        success: true,
+        data: dashboardStats,
+        cached: true,
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch dashboard data',
+      });
+    }
+  })
+);
 
 // Schedule route
-router.get('/schedule', authenticateToken, asyncHandler(async (_req: Request, res: Response) => {
-  try {
-    const result = await pool.query(`
+router.get(
+  '/schedule',
+  authenticateToken,
+  asyncHandler(async (_req: Request, res: Response) => {
+    try {
+      const result = await pool.query(`
       SELECT 
         c.id,
         c.date,
@@ -208,92 +244,139 @@ router.get('/schedule', authenticateToken, asyncHandler(async (_req: Request, re
       ORDER BY c.date ASC, c.start_time ASC
     `);
 
-    const schedule = result.rows.map(row => ({
-      id: row.id,
-      date: row.date,
-      startTime: row.start_time,
-      endTime: row.end_time,
-      location: row.location,
-      status: row.status,
-      maxStudents: row.max_students,
-      currentStudents: parseInt(row.enrolled_students),
-      type: row.type,
-      instructorName: row.instructor_name
-    }));
+      const schedule = result.rows.map(row => ({
+        id: row.id,
+        date: row.date,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        location: row.location,
+        status: row.status,
+        maxStudents: row.max_students,
+        currentStudents: parseInt(row.enrolled_students),
+        type: row.type,
+        instructorName: row.instructor_name,
+      }));
 
-    return res.json(ApiResponseBuilder.success(schedule));
-  } catch (error) {
-    console.error('Error fetching schedule:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch schedule');
-  }
-}));
+      return res.json(ApiResponseBuilder.success(schedule));
+    } catch (error) {
+      console.error('Error fetching schedule:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch schedule'
+      );
+    }
+  })
+);
 
 // Course types endpoint - Use caching
-router.get('/course-types', asyncHandler(async (req: Request, res: Response) => {
-  console.log('[Debug] Getting course types with cache');
-  
-  try {
-    // Use cached course types
-    const courseTypes = await cacheService.getCourseTypes();
-    
-    res.json({
-      success: true,
-      data: courseTypes,
-      cached: true
-    });
-  } catch (error) {
-    console.error('Error fetching course types:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch course types'
-    });
-  }
-}));
+router.get(
+  '/course-types',
+  asyncHandler(async (req: Request, res: Response) => {
+    console.log('[Debug] Getting course types with cache');
+
+    try {
+      // Use cached course types
+      const courseTypes = await cacheService.getCourseTypes();
+
+      res.json({
+        success: true,
+        data: courseTypes,
+        cached: true,
+      });
+    } catch (error) {
+      console.error('Error fetching course types:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch course types',
+      });
+    }
+  })
+);
 
 // Organization course request endpoints
-router.post('/organization/course-request', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { scheduledDate, location, courseTypeId, registeredStudents, notes } = req.body;
-    const organizationId = req.user?.organizationId;
+router.post(
+  '/organization/course-request',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const {
+        scheduledDate,
+        location,
+        courseTypeId,
+        registeredStudents,
+        notes,
+      } = req.body;
+      const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'User must be associated with an organization');
-    }
+      if (!organizationId) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'User must be associated with an organization'
+        );
+      }
 
-    if (!scheduledDate || !location || !courseTypeId || registeredStudents === undefined) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Missing required fields');
-    }
+      if (
+        !scheduledDate ||
+        !location ||
+        !courseTypeId ||
+        registeredStudents === undefined
+      ) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Missing required fields'
+        );
+      }
 
-    const result = await pool.query(
-      `INSERT INTO course_requests 
+      const result = await pool.query(
+        `INSERT INTO course_requests 
        (organization_id, course_type_id, date_requested, scheduled_date, location, registered_students, notes, status) 
        VALUES ($1, $2, CURRENT_DATE, $3, $4, $5, $6, 'pending') 
        RETURNING *`,
-      [organizationId, courseTypeId, scheduledDate, location, registeredStudents, notes]
-    );
+        [
+          organizationId,
+          courseTypeId,
+          scheduledDate,
+          location,
+          registeredStudents,
+          notes,
+        ]
+      );
 
-    return res.json({
-      success: true,
-      message: 'Course request submitted successfully! Status: Pending',
-      course: result.rows[0]
-    });
-  } catch (error: any) {
-    console.error('Error creating course request:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to create course request');
-  }
-}));
+      return res.json({
+        success: true,
+        message: 'Course request submitted successfully! Status: Pending',
+        course: result.rows[0],
+      });
+    } catch (error: any) {
+      console.error('Error creating course request:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to create course request'
+      );
+    }
+  })
+);
 
 // Get organization's courses
-router.get('/organization/courses', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const organizationId = req.user?.organizationId;
+router.get(
+  '/organization/courses',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'User must be associated with an organization');
-    }
+      if (!organizationId) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'User must be associated with an organization'
+        );
+      }
 
-    const result = await pool.query(
-      `SELECT 
+      const result = await pool.query(
+        `SELECT 
         cr.id,
         cr.date_requested,
         cr.scheduled_date,
@@ -324,36 +407,51 @@ router.get('/organization/courses', asyncHandler(async (req: Request, res: Respo
        ) cs ON cr.id = cs.course_request_id
        WHERE cr.organization_id = $1
        ORDER BY cr.created_at DESC`,
-      [organizationId]
-    );
+        [organizationId]
+      );
 
-    // Update registered_students with actual count if students have been uploaded
-    const courses = result.rows.map(row => ({
-      ...row,
-      registered_students: row.actual_students > 0 ? row.actual_students : row.registered_students
-    }));
+      // Update registered_students with actual count if students have been uploaded
+      const courses = result.rows.map(row => ({
+        ...row,
+        registered_students:
+          row.actual_students > 0
+            ? row.actual_students
+            : row.registered_students,
+      }));
 
-    return res.json(ApiResponseBuilder.success(courses));
-  } catch (error: any) {
-    console.error('Error fetching organization courses:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch courses');
-  }
-}));
+      return res.json(ApiResponseBuilder.success(courses));
+    } catch (error: any) {
+      console.error('Error fetching organization courses:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch courses'
+      );
+    }
+  })
+);
 
 // Organization Analytics Endpoints
 
 // Course Request Analytics
-router.get('/organization/analytics/course-requests', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const organizationId = req.user?.organizationId;
-    const { timeframe = '12' } = req.query; // Default to 12 months
+router.get(
+  '/organization/analytics/course-requests',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const organizationId = req.user?.organizationId;
+      const { timeframe = '12' } = req.query; // Default to 12 months
 
-    if (!organizationId) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'User must be associated with an organization');
-    }
+      if (!organizationId) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'User must be associated with an organization'
+        );
+      }
 
-    // Request Volume Trends (Monthly)
-    const volumeTrends = await pool.query(`
+      // Request Volume Trends (Monthly)
+      const volumeTrends = await pool.query(
+        `
       WITH monthly_data AS (
         SELECT 
           TO_CHAR(DATE_TRUNC('month', generate_series(
@@ -376,10 +474,13 @@ router.get('/organization/analytics/course-requests', asyncHandler(async (req: R
         AND cr.organization_id = $1
       GROUP BY md.month, md.month_label
       ORDER BY md.month
-    `, [organizationId]);
+    `,
+        [organizationId]
+      );
 
-    // Course Type Preferences
-    const courseTypePreferences = await pool.query(`
+      // Course Type Preferences
+      const courseTypePreferences = await pool.query(
+        `
       SELECT 
         ct.name as course_type,
         COUNT(cr.id) as request_count,
@@ -390,10 +491,13 @@ router.get('/organization/analytics/course-requests', asyncHandler(async (req: R
         AND cr.created_at >= CURRENT_DATE - INTERVAL '${timeframe} months'
       GROUP BY ct.name
       ORDER BY request_count DESC
-    `, [organizationId]);
+    `,
+        [organizationId]
+      );
 
-    // Seasonal Patterns (by month of year)
-    const seasonalPatterns = await pool.query(`
+      // Seasonal Patterns (by month of year)
+      const seasonalPatterns = await pool.query(
+        `
       SELECT 
         EXTRACT(MONTH FROM cr.scheduled_date) as month_number,
         TO_CHAR(DATE_TRUNC('month', cr.scheduled_date), 'Month') as month_name,
@@ -405,10 +509,13 @@ router.get('/organization/analytics/course-requests', asyncHandler(async (req: R
         AND cr.scheduled_date IS NOT NULL
       GROUP BY EXTRACT(MONTH FROM cr.scheduled_date), TO_CHAR(DATE_TRUNC('month', cr.scheduled_date), 'Month')
       ORDER BY month_number
-    `, [organizationId]);
+    `,
+        [organizationId]
+      );
 
-    // Lead Time Analysis
-    const leadTimeAnalysis = await pool.query(`
+      // Lead Time Analysis
+      const leadTimeAnalysis = await pool.query(
+        `
       SELECT 
         CASE 
           WHEN EXTRACT(DAY FROM (cr.scheduled_date - cr.created_at::date)) <= 7 THEN '0-7 days'
@@ -440,33 +547,49 @@ router.get('/organization/analytics/course-requests', asyncHandler(async (req: R
           WHEN lead_time_range = '31-60 days' THEN 4
           ELSE 5
         END
-    `, [organizationId]);
+    `,
+        [organizationId]
+      );
 
-    return res.json(ApiResponseBuilder.success({
-      volumeTrends: volumeTrends.rows,
-      courseTypePreferences: courseTypePreferences.rows,
-      seasonalPatterns: seasonalPatterns.rows,
-      leadTimeAnalysis: leadTimeAnalysis.rows,
-      timeframe: `${timeframe} months`
-    }));
-  } catch (error: any) {
-    console.error('Error fetching course request analytics:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch course request analytics');
-  }
-}));
+      return res.json(
+        ApiResponseBuilder.success({
+          volumeTrends: volumeTrends.rows,
+          courseTypePreferences: courseTypePreferences.rows,
+          seasonalPatterns: seasonalPatterns.rows,
+          leadTimeAnalysis: leadTimeAnalysis.rows,
+          timeframe: `${timeframe} months`,
+        })
+      );
+    } catch (error: any) {
+      console.error('Error fetching course request analytics:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch course request analytics'
+      );
+    }
+  })
+);
 
 // Student Participation Analytics
-router.get('/organization/analytics/student-participation', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const organizationId = req.user?.organizationId;
-    const { timeframe = '12' } = req.query; // Default to 12 months
+router.get(
+  '/organization/analytics/student-participation',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const organizationId = req.user?.organizationId;
+      const { timeframe = '12' } = req.query; // Default to 12 months
 
-    if (!organizationId) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'User must be associated with an organization');
-    }
+      if (!organizationId) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'User must be associated with an organization'
+        );
+      }
 
-    // Attendance Rates
-    const attendanceRates = await pool.query(`
+      // Attendance Rates
+      const attendanceRates = await pool.query(
+        `
       SELECT 
         ct.name as course_type,
         COUNT(cs.id) as total_registered,
@@ -484,10 +607,13 @@ router.get('/organization/analytics/student-participation', asyncHandler(async (
         AND cr.status = 'completed'
       GROUP BY ct.name
       ORDER BY attendance_rate DESC
-    `, [organizationId]);
+    `,
+        [organizationId]
+      );
 
-    // No-Show Patterns (Monthly trends)
-    const noShowPatterns = await pool.query(`
+      // No-Show Patterns (Monthly trends)
+      const noShowPatterns = await pool.query(
+        `
       WITH monthly_attendance AS (
         SELECT 
           TO_CHAR(DATE_TRUNC('month', cr.completed_at), 'YYYY-MM') as month,
@@ -516,10 +642,13 @@ router.get('/organization/analytics/student-participation', asyncHandler(async (
       FROM monthly_attendance
       WHERE month IS NOT NULL
       ORDER BY month
-    `, [organizationId]);
+    `,
+        [organizationId]
+      );
 
-    // Class Size Optimization
-    const classSizeOptimization = await pool.query(`
+      // Class Size Optimization
+      const classSizeOptimization = await pool.query(
+        `
       SELECT 
         cr.registered_students as requested_size,
         COUNT(cs.id) as actual_registered,
@@ -537,10 +666,13 @@ router.get('/organization/analytics/student-participation', asyncHandler(async (
         AND cr.status = 'completed'
       GROUP BY cr.registered_students
       ORDER BY cr.registered_students
-    `, [organizationId]);
+    `,
+        [organizationId]
+      );
 
-    // Completion Rates by Course Type
-    const completionRates = await pool.query(`
+      // Completion Rates by Course Type
+      const completionRates = await pool.query(
+        `
       SELECT 
         ct.name as course_type,
         COUNT(CASE WHEN cr.status = 'completed' THEN 1 END) as completed_courses,
@@ -566,10 +698,13 @@ router.get('/organization/analytics/student-participation', asyncHandler(async (
         AND cr.created_at >= CURRENT_DATE - INTERVAL '${timeframe} months'
       GROUP BY ct.name
       ORDER BY completion_rate DESC
-    `, [organizationId]);
+    `,
+        [organizationId]
+      );
 
-    // Overall Summary Stats
-    const summaryStats = await pool.query(`
+      // Overall Summary Stats
+      const summaryStats = await pool.query(
+        `
       SELECT 
         COUNT(DISTINCT cr.id) as total_courses_requested,
         COUNT(CASE WHEN cr.status = 'completed' THEN 1 END) as total_courses_completed,
@@ -592,27 +727,38 @@ router.get('/organization/analytics/student-participation', asyncHandler(async (
       ) cs ON cr.id = cs.course_request_id
       WHERE cr.organization_id = $1
         AND cr.created_at >= CURRENT_DATE - INTERVAL '${timeframe} months'
-    `, [organizationId]);
+    `,
+        [organizationId]
+      );
 
-    return res.json(ApiResponseBuilder.success({
-      attendanceRates: attendanceRates.rows,
-      noShowPatterns: noShowPatterns.rows,
-      classSizeOptimization: classSizeOptimization.rows,
-      completionRates: completionRates.rows,
-      summaryStats: summaryStats.rows[0],
-      timeframe: `${timeframe} months`
-    }));
-  } catch (error: any) {
-    console.error('Error fetching student participation analytics:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch student participation analytics');
-  }
-}));
+      return res.json(
+        ApiResponseBuilder.success({
+          attendanceRates: attendanceRates.rows,
+          noShowPatterns: noShowPatterns.rows,
+          classSizeOptimization: classSizeOptimization.rows,
+          completionRates: completionRates.rows,
+          summaryStats: summaryStats.rows[0],
+          timeframe: `${timeframe} months`,
+        })
+      );
+    } catch (error: any) {
+      console.error('Error fetching student participation analytics:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch student participation analytics'
+      );
+    }
+  })
+);
 
 // Course admin endpoints for managing course requests
-router.get('/courses/pending', asyncHandler(async (_req: Request, res: Response) => {
-  try {
-    const result = await pool.query(
-      `SELECT 
+router.get(
+  '/courses/pending',
+  asyncHandler(async (_req: Request, res: Response) => {
+    try {
+      const result = await pool.query(
+        `SELECT 
         cr.id,
         cr.date_requested,
         cr.scheduled_date,
@@ -630,20 +776,27 @@ router.get('/courses/pending', asyncHandler(async (_req: Request, res: Response)
        LEFT JOIN users u ON cr.instructor_id = u.id
        WHERE cr.status = 'pending'
        ORDER BY cr.created_at ASC`
-    );
+      );
 
-    return res.json(ApiResponseBuilder.success(result.rows));
-  } catch (error: any) {
-    console.error('Error fetching pending courses:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch pending courses');
-  }
-}));
+      return res.json(ApiResponseBuilder.success(result.rows));
+    } catch (error: any) {
+      console.error('Error fetching pending courses:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch pending courses'
+      );
+    }
+  })
+);
 
 // Get confirmed courses
-router.get('/courses/confirmed', asyncHandler(async (_req: Request, res: Response) => {
-  try {
-    const result = await pool.query(
-      `SELECT 
+router.get(
+  '/courses/confirmed',
+  asyncHandler(async (_req: Request, res: Response) => {
+    try {
+      const result = await pool.query(
+        `SELECT 
         cr.id,
         cr.date_requested,
         cr.scheduled_date,
@@ -674,26 +827,36 @@ router.get('/courses/confirmed', asyncHandler(async (_req: Request, res: Respons
        ) cs ON cr.id = cs.course_request_id
        WHERE cr.status = 'confirmed'
        ORDER BY cr.confirmed_date ASC, cr.confirmed_start_time ASC`
-    );
+      );
 
-    // Update registered_students with actual count if students have been uploaded
-    const courses = result.rows.map(row => ({
-      ...row,
-      registered_students: row.actual_students > 0 ? row.actual_students : row.registered_students
-    }));
+      // Update registered_students with actual count if students have been uploaded
+      const courses = result.rows.map(row => ({
+        ...row,
+        registered_students:
+          row.actual_students > 0
+            ? row.actual_students
+            : row.registered_students,
+      }));
 
-    return res.json(ApiResponseBuilder.success(courses));
-  } catch (error: any) {
-    console.error('Error fetching confirmed courses:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch confirmed courses');
-  }
-}));
+      return res.json(ApiResponseBuilder.success(courses));
+    } catch (error: any) {
+      console.error('Error fetching confirmed courses:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch confirmed courses'
+      );
+    }
+  })
+);
 
 // Get completed courses
-router.get('/courses/completed', asyncHandler(async (_req: Request, res: Response) => {
-  try {
-    const result = await pool.query(
-      `SELECT 
+router.get(
+  '/courses/completed',
+  asyncHandler(async (_req: Request, res: Response) => {
+    try {
+      const result = await pool.query(
+        `SELECT 
         cr.id,
         cr.date_requested,
         cr.scheduled_date,
@@ -727,39 +890,53 @@ router.get('/courses/completed', asyncHandler(async (_req: Request, res: Respons
        ) cs ON cr.id = cs.course_request_id
        WHERE cr.status = 'completed'
        ORDER BY cr.completed_at DESC`
-    );
+      );
 
-    // Update registered_students with actual count if students have been uploaded
-    const courses = result.rows.map(row => ({
-      ...row,
-      registered_students: row.actual_students > 0 ? row.actual_students : row.registered_students
-    }));
+      // Update registered_students with actual count if students have been uploaded
+      const courses = result.rows.map(row => ({
+        ...row,
+        registered_students:
+          row.actual_students > 0
+            ? row.actual_students
+            : row.registered_students,
+      }));
 
-    return res.json(ApiResponseBuilder.success(courses));
-  } catch (error: any) {
-    console.error('Error fetching completed courses:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch completed courses');
-  }
-}));
+      return res.json(ApiResponseBuilder.success(courses));
+    } catch (error: any) {
+      console.error('Error fetching completed courses:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch completed courses'
+      );
+    }
+  })
+);
 
 // Cancel a course request
-router.put('/courses/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { reason } = req.body;
-
-    if (!reason?.trim()) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Cancellation reason is required');
-    }
-
-    const client = await pool.connect();
-    
+router.put(
+  '/courses/:id/cancel',
+  asyncHandler(async (req: Request, res: Response) => {
     try {
-      await client.query('BEGIN');
+      const { id } = req.params;
+      const { reason } = req.body;
 
-      // Update course request status to cancelled and add reason to notes
-      const courseUpdateResult = await client.query(
-        `UPDATE course_requests 
+      if (!reason?.trim()) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Cancellation reason is required'
+        );
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query('BEGIN');
+
+        // Update course request status to cancelled and add reason to notes
+        const courseUpdateResult = await client.query(
+          `UPDATE course_requests 
          SET status = 'cancelled', 
              notes = CASE 
                WHEN notes IS NULL OR notes = '' THEN $2
@@ -768,136 +945,156 @@ router.put('/courses/:id/cancel', asyncHandler(async (req: Request, res: Respons
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1 
          RETURNING *`,
-        [id, reason]
-      );
-
-      if (courseUpdateResult.rows.length === 0) {
-        throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Course request not found');
-      }
-
-      const courseRequest = courseUpdateResult.rows[0];
-
-      // If instructor was assigned, remove the corresponding class and restore availability
-      if (courseRequest.instructor_id && courseRequest.confirmed_date) {
-        // Remove the class from instructor's schedule
-        await client.query(
-          `DELETE FROM classes 
-           WHERE instructor_id = $1 AND date = $2`,
-          [courseRequest.instructor_id, courseRequest.confirmed_date]
+          [id, reason]
         );
 
-        // Restore instructor availability for that date
-        await client.query(
-          `INSERT INTO instructor_availability (instructor_id, date, status)
+        if (courseUpdateResult.rows.length === 0) {
+          throw new AppError(
+            404,
+            errorCodes.RESOURCE_NOT_FOUND,
+            'Course request not found'
+          );
+        }
+
+        const courseRequest = courseUpdateResult.rows[0];
+
+        // If instructor was assigned, remove the corresponding class and restore availability
+        if (courseRequest.instructor_id && courseRequest.confirmed_date) {
+          // Remove the class from instructor's schedule
+          await client.query(
+            `DELETE FROM classes 
+           WHERE instructor_id = $1 AND date = $2`,
+            [courseRequest.instructor_id, courseRequest.confirmed_date]
+          );
+
+          // Restore instructor availability for that date
+          await client.query(
+            `INSERT INTO instructor_availability (instructor_id, date, status)
            VALUES ($1, $2, 'available')
            ON CONFLICT (instructor_id, date) DO UPDATE SET status = 'available'`,
-          [courseRequest.instructor_id, courseRequest.confirmed_date]
+            [courseRequest.instructor_id, courseRequest.confirmed_date]
+          );
+        }
+
+        await client.query('COMMIT');
+
+        return res.json({
+          success: true,
+          message: 'Course cancelled successfully',
+          course: courseRequest,
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    } catch (error: any) {
+      console.error('Error cancelling course:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to cancel course'
+      );
+    }
+  })
+);
+
+// Update course schedule (reschedule)
+router.put(
+  '/courses/:id/schedule',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { scheduledDate, startTime, endTime, instructorId } = req.body;
+
+      if (!scheduledDate) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Scheduled date is required'
         );
       }
 
-      await client.query('COMMIT');
+      const client = await pool.connect();
 
-      return res.json({
-        success: true,
-        message: 'Course cancelled successfully',
-        course: courseRequest
-      });
+      try {
+        await client.query('BEGIN');
 
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+        // Get current course data
+        const currentCourseResult = await client.query(
+          'SELECT * FROM course_requests WHERE id = $1',
+          [id]
+        );
 
-  } catch (error: any) {
-    console.error('Error cancelling course:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to cancel course');
-  }
-}));
+        if (currentCourseResult.rows.length === 0) {
+          throw new AppError(
+            404,
+            errorCodes.RESOURCE_NOT_FOUND,
+            'Course request not found'
+          );
+        }
 
-// Update course schedule (reschedule)
-router.put('/courses/:id/schedule', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { scheduledDate, startTime, endTime, instructorId } = req.body;
+        const currentCourse = currentCourseResult.rows[0];
 
-    if (!scheduledDate) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Scheduled date is required');
-    }
+        // Update course request with new schedule and optionally new instructor
+        const updateFields = [
+          'confirmed_date = $2',
+          'updated_at = CURRENT_TIMESTAMP',
+        ];
+        const updateValues = [id, scheduledDate];
+        let paramIndex = 3;
 
-    const client = await pool.connect();
-    
-    try {
-      await client.query('BEGIN');
+        if (startTime) {
+          updateFields.push(`confirmed_start_time = $${paramIndex}`);
+          updateValues.push(startTime);
+          paramIndex++;
+        }
 
-      // Get current course data
-      const currentCourseResult = await client.query(
-        'SELECT * FROM course_requests WHERE id = $1',
-        [id]
-      );
+        if (endTime) {
+          updateFields.push(`confirmed_end_time = $${paramIndex}`);
+          updateValues.push(endTime);
+          paramIndex++;
+        }
 
-      if (currentCourseResult.rows.length === 0) {
-        throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Course request not found');
-      }
+        if (instructorId && instructorId !== currentCourse.instructor_id) {
+          updateFields.push(`instructor_id = $${paramIndex}`);
+          updateValues.push(instructorId);
+          paramIndex++;
+        }
 
-      const currentCourse = currentCourseResult.rows[0];
-
-      // Update course request with new schedule and optionally new instructor
-      const updateFields = ['confirmed_date = $2', 'updated_at = CURRENT_TIMESTAMP'];
-      const updateValues = [id, scheduledDate];
-      let paramIndex = 3;
-
-      if (startTime) {
-        updateFields.push(`confirmed_start_time = $${paramIndex}`);
-        updateValues.push(startTime);
-        paramIndex++;
-      }
-
-      if (endTime) {
-        updateFields.push(`confirmed_end_time = $${paramIndex}`);
-        updateValues.push(endTime);
-        paramIndex++;
-      }
-
-      if (instructorId && instructorId !== currentCourse.instructor_id) {
-        updateFields.push(`instructor_id = $${paramIndex}`);
-        updateValues.push(instructorId);
-        paramIndex++;
-      }
-
-      const courseUpdateResult = await client.query(
-        `UPDATE course_requests 
+        const courseUpdateResult = await client.query(
+          `UPDATE course_requests 
          SET ${updateFields.join(', ')}
          WHERE id = $1 
          RETURNING *`,
-        updateValues
-      );
-
-      const updatedCourse = courseUpdateResult.rows[0];
-
-      // If instructor changed or schedule changed, update classes table
-      if (currentCourse.instructor_id) {
-        // Remove old class entry
-        await client.query(
-          `DELETE FROM classes 
-           WHERE instructor_id = $1 AND date = $2`,
-          [currentCourse.instructor_id, currentCourse.confirmed_date]
+          updateValues
         );
 
-        // Restore old instructor's availability
-        await client.query(
-          `INSERT INTO instructor_availability (instructor_id, date, status)
+        const updatedCourse = courseUpdateResult.rows[0];
+
+        // If instructor changed or schedule changed, update classes table
+        if (currentCourse.instructor_id) {
+          // Remove old class entry
+          await client.query(
+            `DELETE FROM classes 
+           WHERE instructor_id = $1 AND date = $2`,
+            [currentCourse.instructor_id, currentCourse.confirmed_date]
+          );
+
+          // Restore old instructor's availability
+          await client.query(
+            `INSERT INTO instructor_availability (instructor_id, date, status)
            VALUES ($1, $2, 'available')
            ON CONFLICT (instructor_id, date) DO UPDATE SET status = 'available'`,
-          [currentCourse.instructor_id, currentCourse.confirmed_date]
-        );
-      }
+            [currentCourse.instructor_id, currentCourse.confirmed_date]
+          );
+        }
 
-      // Create new class entry for the updated course
-      if (updatedCourse.instructor_id) {
-        await client.query(
-          `INSERT INTO classes (
+        // Create new class entry for the updated course
+        if (updatedCourse.instructor_id) {
+          await client.query(
+            `INSERT INTO classes (
             instructor_id, 
             type_id, 
             date, 
@@ -910,77 +1107,90 @@ router.put('/courses/:id/schedule', asyncHandler(async (req: Request, res: Respo
             created_at,
             updated_at
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, 0, 'scheduled', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-          [
-            updatedCourse.instructor_id,
-            updatedCourse.course_type_id,
-            updatedCourse.confirmed_date,
-            updatedCourse.confirmed_start_time || startTime,
-            updatedCourse.confirmed_end_time || endTime,
-            updatedCourse.location,
-            updatedCourse.registered_students
-          ]
-        );
+            [
+              updatedCourse.instructor_id,
+              updatedCourse.course_type_id,
+              updatedCourse.confirmed_date,
+              updatedCourse.confirmed_start_time || startTime,
+              updatedCourse.confirmed_end_time || endTime,
+              updatedCourse.location,
+              updatedCourse.registered_students,
+            ]
+          );
 
-        // Remove instructor's availability for the new scheduled date
-        await client.query(
-          `DELETE FROM instructor_availability 
+          // Remove instructor's availability for the new scheduled date
+          await client.query(
+            `DELETE FROM instructor_availability 
            WHERE instructor_id = $1 AND date = $2`,
-          [updatedCourse.instructor_id, updatedCourse.confirmed_date]
-        );
+            [updatedCourse.instructor_id, updatedCourse.confirmed_date]
+          );
+        }
+
+        await client.query('COMMIT');
+
+        return res.json({
+          success: true,
+          message: 'Course schedule updated successfully',
+          course: updatedCourse,
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
       }
-
-      await client.query('COMMIT');
-
-      return res.json({
-        success: true,
-        message: 'Course schedule updated successfully',
-        course: updatedCourse
-      });
-
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
+    } catch (error: any) {
+      console.error('Error updating course schedule:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to update course schedule'
+      );
     }
-
-  } catch (error: any) {
-    console.error('Error updating course schedule:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to update course schedule');
-  }
-}));
+  })
+);
 
 // Assign instructor to course request
-router.put('/courses/:id/assign-instructor', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { instructorId, startTime, endTime } = req.body;
-
-    if (!instructorId) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor ID is required');
-    }
-
-    // Start a transaction to ensure both operations succeed or fail together
-    const client = await pool.connect();
-    
+router.put(
+  '/courses/:id/assign-instructor',
+  asyncHandler(async (req: Request, res: Response) => {
     try {
-      await client.query('BEGIN');
+      const { id } = req.params;
+      const { instructorId, startTime, endTime } = req.body;
 
-      // Get instructor details
-      const instructorResult = await client.query(
-        'SELECT email, username as instructor_name FROM users WHERE id = $1',
-        [instructorId]
-      );
-
-      if (instructorResult.rows.length === 0) {
-        throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Instructor not found');
+      if (!instructorId) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Instructor ID is required'
+        );
       }
 
-      const instructor = instructorResult.rows[0];
+      // Start a transaction to ensure both operations succeed or fail together
+      const client = await pool.connect();
 
-      // Update course request with instructor and mark as confirmed
-      const courseUpdateResult = await client.query(
-        `UPDATE course_requests 
+      try {
+        await client.query('BEGIN');
+
+        // Get instructor details
+        const instructorResult = await client.query(
+          'SELECT email, username as instructor_name FROM users WHERE id = $1',
+          [instructorId]
+        );
+
+        if (instructorResult.rows.length === 0) {
+          throw new AppError(
+            404,
+            errorCodes.RESOURCE_NOT_FOUND,
+            'Instructor not found'
+          );
+        }
+
+        const instructor = instructorResult.rows[0];
+
+        // Update course request with instructor and mark as confirmed
+        const courseUpdateResult = await client.query(
+          `UPDATE course_requests 
          SET instructor_id = $1, 
              status = 'confirmed', 
              confirmed_date = CURRENT_DATE,
@@ -991,26 +1201,30 @@ router.put('/courses/:id/assign-instructor', asyncHandler(async (req: Request, r
          RETURNING *, 
            (SELECT name FROM organizations WHERE id = organization_id) as organization_name,
            (SELECT name FROM class_types WHERE id = course_type_id) as course_type_name`,
-        [instructorId, startTime, endTime, id]
-      );
+          [instructorId, startTime, endTime, id]
+        );
 
-      if (courseUpdateResult.rows.length === 0) {
-        throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Course request not found');
-      }
+        if (courseUpdateResult.rows.length === 0) {
+          throw new AppError(
+            404,
+            errorCodes.RESOURCE_NOT_FOUND,
+            'Course request not found'
+          );
+        }
 
-      const courseRequest = courseUpdateResult.rows[0];
+        const courseRequest = courseUpdateResult.rows[0];
 
-      // Get organization email
-      const orgResult = await client.query(
-        'SELECT contact_email FROM organizations WHERE id = $1',
-        [courseRequest.organization_id]
-      );
+        // Get organization email
+        const orgResult = await client.query(
+          'SELECT contact_email FROM organizations WHERE id = $1',
+          [courseRequest.organization_id]
+        );
 
-      const organizationEmail = orgResult.rows[0]?.contact_email;
+        const organizationEmail = orgResult.rows[0]?.contact_email;
 
-      // Create corresponding entry in classes table
-      const classInsertResult = await client.query(
-        `INSERT INTO classes (
+        // Create corresponding entry in classes table
+        const classInsertResult = await client.query(
+          `INSERT INTO classes (
           instructor_id, 
           type_id, 
           date, 
@@ -1024,64 +1238,72 @@ router.put('/courses/:id/assign-instructor', asyncHandler(async (req: Request, r
           updated_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, 0, 'scheduled', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING *`,
-        [
-          instructorId,
-          courseRequest.course_type_id,
-          courseRequest.scheduled_date,
-          startTime,
-          endTime,
-          courseRequest.location,
-          courseRequest.registered_students
-        ]
-      );
+          [
+            instructorId,
+            courseRequest.course_type_id,
+            courseRequest.scheduled_date,
+            startTime,
+            endTime,
+            courseRequest.location,
+            courseRequest.registered_students,
+          ]
+        );
 
-      await client.query('COMMIT');
+        await client.query('COMMIT');
 
-      // Send email notifications
-      const emailDetails = {
-        courseType: courseRequest.course_type_name,
-        date: courseRequest.scheduled_date,
-        startTime: startTime,
-        endTime: endTime,
-        location: courseRequest.location,
-        organization: courseRequest.organization_name,
-        students: courseRequest.registered_students,
-        instructorName: instructor.instructor_name
-      };
+        // Send email notifications
+        const emailDetails = {
+          courseType: courseRequest.course_type_name,
+          date: courseRequest.scheduled_date,
+          startTime: startTime,
+          endTime: endTime,
+          location: courseRequest.location,
+          organization: courseRequest.organization_name,
+          students: courseRequest.registered_students,
+          instructorName: instructor.instructor_name,
+        };
 
-      // Send email to instructor
-      await emailService.sendCourseAssignedNotification(instructor.email, emailDetails);
+        // Send email to instructor
+        await emailService.sendCourseAssignedNotification(
+          instructor.email,
+          emailDetails
+        );
 
-      // Send email to organization if email is available
-      if (organizationEmail) {
-        await emailService.sendCourseScheduledToOrganization(organizationEmail, emailDetails);
+        // Send email to organization if email is available
+        if (organizationEmail) {
+          await emailService.sendCourseScheduledToOrganization(
+            organizationEmail,
+            emailDetails
+          );
+        }
+
+        return res.json({
+          success: true,
+          message:
+            'Instructor assigned successfully! Course status updated to Confirmed and added to instructor schedule.',
+          course: courseRequest,
+          class: classInsertResult.rows[0],
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
       }
-
-      return res.json({
-        success: true,
-        message: 'Instructor assigned successfully! Course status updated to Confirmed and added to instructor schedule.',
-        course: courseRequest,
-        class: classInsertResult.rows[0]
-      });
-
     } catch (error) {
-      await client.query('ROLLBACK');
+      console.error('Error assigning instructor:', error);
       throw error;
-    } finally {
-      client.release();
     }
-
-  } catch (error) {
-    console.error('Error assigning instructor:', error);
-    throw error;
-  }
-}));
+  })
+);
 
 // Get all instructors for assignment
-router.get('/instructors', asyncHandler(async (_req: Request, res: Response) => {
-  try {
-    const result = await pool.query(
-      `SELECT 
+router.get(
+  '/instructors',
+  asyncHandler(async (_req: Request, res: Response) => {
+    try {
+      const result = await pool.query(
+        `SELECT 
         u.id, 
         u.username as instructor_name, 
         u.email,
@@ -1109,41 +1331,54 @@ router.get('/instructors', asyncHandler(async (_req: Request, res: Response) => 
        LEFT JOIN class_types ct ON cr.course_type_id = ct.id
        WHERE u.role = 'instructor' 
        ORDER BY u.username, ia.date`
-    );
-    return res.json(ApiResponseBuilder.success(result.rows));
-  } catch (error: any) {
-    console.error('Error fetching instructors:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch instructors');
-  }
-}));
-
-
+      );
+      return res.json(ApiResponseBuilder.success(result.rows));
+    } catch (error: any) {
+      console.error('Error fetching instructors:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch instructors'
+      );
+    }
+  })
+);
 
 // Student Management Endpoints
 
 // Get students for a specific course (for organizations)
-router.get('/organization/courses/:courseId/students', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { courseId } = req.params;
-    const organizationId = req.user?.organizationId;
+router.get(
+  '/organization/courses/:courseId/students',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { courseId } = req.params;
+      const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'User must be associated with an organization');
-    }
+      if (!organizationId) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'User must be associated with an organization'
+        );
+      }
 
-    // Verify the course belongs to this organization
-    const courseCheck = await pool.query(
-      'SELECT id FROM course_requests WHERE id = $1 AND organization_id = $2',
-      [courseId, organizationId]
-    );
+      // Verify the course belongs to this organization
+      const courseCheck = await pool.query(
+        'SELECT id FROM course_requests WHERE id = $1 AND organization_id = $2',
+        [courseId, organizationId]
+      );
 
-    if (courseCheck.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Course not found or not authorized');
-    }
+      if (courseCheck.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Course not found or not authorized'
+        );
+      }
 
-    // Get students for this course with attendance information
-    const result = await pool.query(
-      `SELECT 
+      // Get students for this course with attendance information
+      const result = await pool.query(
+        `SELECT 
         s.id,
         s.course_request_id,
         s.first_name,
@@ -1155,163 +1390,206 @@ router.get('/organization/courses/:courseId/students', asyncHandler(async (req: 
        FROM course_students s
        WHERE s.course_request_id = $1
        ORDER BY s.last_name, s.first_name`,
-      [courseId]
-    );
-
-    return res.json(ApiResponseBuilder.success(result.rows));
-  } catch (error: any) {
-    console.error('Error fetching course students:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch course students');
-  }
-}));
-
-// Upload students for a specific course (for organizations)
-router.post('/organization/courses/:courseId/students', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { courseId } = req.params;
-    const { students } = req.body;
-    const organizationId = req.user?.organizationId;
-
-    if (!organizationId) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'User must be associated with an organization');
-    }
-
-    if (!students || !Array.isArray(students) || students.length === 0) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Students array is required and must not be empty');
-    }
-
-    // Verify the course belongs to this organization
-    const courseCheck = await pool.query(
-      'SELECT id FROM course_requests WHERE id = $1 AND organization_id = $2',
-      [courseId, organizationId]
-    );
-
-    if (courseCheck.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Course not found or not authorized');
-    }
-
-    const client = await pool.connect();
-    
-    try {
-      await client.query('BEGIN');
-
-      // First, delete existing students for this course (replace operation)
-      await client.query(
-        'DELETE FROM course_students WHERE course_request_id = $1',
         [courseId]
       );
 
-      // Insert new students
-      let insertedCount = 0;
-      for (const student of students) {
-        const { firstName, lastName, email } = student;
-        
-        if (!firstName || !lastName) {
-          continue; // Skip invalid entries
-        }
+      return res.json(ApiResponseBuilder.success(result.rows));
+    } catch (error: any) {
+      console.error('Error fetching course students:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch course students'
+      );
+    }
+  })
+);
 
-        await client.query(
-          `INSERT INTO course_students (course_request_id, first_name, last_name, email)
-           VALUES ($1, $2, $3, $4)`,
-          [courseId, firstName.trim(), lastName.trim(), email?.trim() || null]
+// Upload students for a specific course (for organizations)
+router.post(
+  '/organization/courses/:courseId/students',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { courseId } = req.params;
+      const { students } = req.body;
+      const organizationId = req.user?.organizationId;
+
+      if (!organizationId) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'User must be associated with an organization'
         );
-        insertedCount++;
       }
 
-      await client.query('COMMIT');
+      if (!students || !Array.isArray(students) || students.length === 0) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Students array is required and must not be empty'
+        );
+      }
 
-      return res.json({
-        success: true,
-        message: `Successfully uploaded ${insertedCount} students to the course.`,
-        data: { studentsUploaded: insertedCount }
-      });
+      // Verify the course belongs to this organization
+      const courseCheck = await pool.query(
+        'SELECT id FROM course_requests WHERE id = $1 AND organization_id = $2',
+        [courseId, organizationId]
+      );
 
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
+      if (courseCheck.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Course not found or not authorized'
+        );
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query('BEGIN');
+
+        // First, delete existing students for this course (replace operation)
+        await client.query(
+          'DELETE FROM course_students WHERE course_request_id = $1',
+          [courseId]
+        );
+
+        // Insert new students
+        let insertedCount = 0;
+        for (const student of students) {
+          const { firstName, lastName, email } = student;
+
+          if (!firstName || !lastName) {
+            continue; // Skip invalid entries
+          }
+
+          await client.query(
+            `INSERT INTO course_students (course_request_id, first_name, last_name, email)
+           VALUES ($1, $2, $3, $4)`,
+            [courseId, firstName.trim(), lastName.trim(), email?.trim() || null]
+          );
+          insertedCount++;
+        }
+
+        await client.query('COMMIT');
+
+        return res.json({
+          success: true,
+          message: `Successfully uploaded ${insertedCount} students to the course.`,
+          data: { studentsUploaded: insertedCount },
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    } catch (error: any) {
+      console.error('Error uploading course students:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to upload course students'
+      );
     }
-
-  } catch (error: any) {
-    console.error('Error uploading course students:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to upload course students');
-  }
-}));
+  })
+);
 
 // Admin endpoints to view specific instructor data
-router.get('/instructors/:id/schedule', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const result = await pool.query(
-      `SELECT c.id, c.date::text, c.start_time::text, c.end_time::text, c.status, c.location, 
+router.get(
+  '/instructors/:id/schedule',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const result = await pool.query(
+        `SELECT c.id, c.date::text, c.start_time::text, c.end_time::text, c.status, c.location, 
               ct.name as type, c.max_students, c.current_students 
        FROM classes c 
        LEFT JOIN class_types ct ON c.type_id = ct.id 
        WHERE c.instructor_id = $1 AND c.date >= CURRENT_DATE 
        ORDER BY c.date, c.start_time`,
-      [id]
-    );
-    
-    const schedule = result.rows.map(row => ({
-      id: row.id.toString(),
-      type: row.type || 'CPR Class',
-      date: row.date.split('T')[0],
-      time: row.start_time ? row.start_time.slice(0, 5) : '09:00',
-      location: row.location || 'TBD',
-      max_students: row.max_students || 10,
-      current_students: row.current_students || 0,
-      status: row.status || 'scheduled'
-    }));
+        [id]
+      );
 
-    return res.json(ApiResponseBuilder.success(schedule));
-  } catch (error: any) {
-    console.error('Error fetching instructor schedule:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch instructor schedule');
-  }
-}));
+      const schedule = result.rows.map(row => ({
+        id: row.id.toString(),
+        type: row.type || 'CPR Class',
+        date: row.date.split('T')[0],
+        time: row.start_time ? row.start_time.slice(0, 5) : '09:00',
+        location: row.location || 'TBD',
+        max_students: row.max_students || 10,
+        current_students: row.current_students || 0,
+        status: row.status || 'scheduled',
+      }));
 
-router.get('/instructors/:id/availability', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const result = await pool.query(
-      'SELECT id, instructor_id, date::text, status, created_at, updated_at FROM instructor_availability WHERE instructor_id = $1 AND date >= CURRENT_DATE ORDER BY date',
-      [id]
-    );
-    
-    const availability = result.rows.map(row => ({
-      id: row.id.toString(),
-      instructor_id: row.instructor_id.toString(),
-      date: row.date.split('T')[0],
-      status: row.status || 'available'
-    }));
+      return res.json(ApiResponseBuilder.success(schedule));
+    } catch (error: any) {
+      console.error('Error fetching instructor schedule:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch instructor schedule'
+      );
+    }
+  })
+);
 
-    return res.json(ApiResponseBuilder.success(availability));
-  } catch (error: any) {
-    console.error('Error fetching instructor availability:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch instructor availability');
-  }
-}));
+router.get(
+  '/instructors/:id/availability',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const result = await pool.query(
+        'SELECT id, instructor_id, date::text, status, created_at, updated_at FROM instructor_availability WHERE instructor_id = $1 AND date >= CURRENT_DATE ORDER BY date',
+        [id]
+      );
+
+      const availability = result.rows.map(row => ({
+        id: row.id.toString(),
+        instructor_id: row.instructor_id.toString(),
+        date: row.date.split('T')[0],
+        status: row.status || 'available',
+      }));
+
+      return res.json(ApiResponseBuilder.success(availability));
+    } catch (error: any) {
+      console.error('Error fetching instructor availability:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch instructor availability'
+      );
+    }
+  })
+);
 
 // Get instructor statistics for dashboard
-router.get('/admin/instructor-stats', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { month } = req.query; // Format: YYYY-MM
-    
-    // If month is provided, filter by that month, otherwise get all-time stats
-    let dateFilter = '';
-    let params: any[] = [];
-    
-    if (month) {
-      const startDate = `${month}-01`;
-      const endDate = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth() + 1, 0)
-        .toISOString().split('T')[0];
-      dateFilter = `AND (cr.confirmed_date IS NULL OR (cr.confirmed_date >= $1 AND cr.confirmed_date <= $2))`;
-      params = [startDate, endDate];
-    }
+router.get(
+  '/admin/instructor-stats',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { month } = req.query; // Format: YYYY-MM
 
-    const result = await pool.query(
-      `SELECT 
+      // If month is provided, filter by that month, otherwise get all-time stats
+      let dateFilter = '';
+      let params: any[] = [];
+
+      if (month) {
+        const startDate = `${month}-01`;
+        const endDate = new Date(
+          new Date(startDate).getFullYear(),
+          new Date(startDate).getMonth() + 1,
+          0
+        )
+          .toISOString()
+          .split('T')[0];
+        dateFilter = `AND (cr.confirmed_date IS NULL OR (cr.confirmed_date >= $1 AND cr.confirmed_date <= $2))`;
+        params = [startDate, endDate];
+      }
+
+      const result = await pool.query(
+        `SELECT 
         u.id as instructor_id,
         u.username as instructor_name,
         u.email,
@@ -1335,33 +1613,49 @@ router.get('/admin/instructor-stats', asyncHandler(async (req: Request, res: Res
        WHERE u.role = 'instructor'
        GROUP BY u.id, u.username, u.email
        ORDER BY u.username`,
-      params
-    );
-    
-    return res.json(ApiResponseBuilder.success(result.rows));
-  } catch (error: any) {
-    console.error('Error fetching instructor statistics:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch instructor statistics');
-  }
-}));
+        params
+      );
+
+      return res.json(ApiResponseBuilder.success(result.rows));
+    } catch (error: any) {
+      console.error('Error fetching instructor statistics:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch instructor statistics'
+      );
+    }
+  })
+);
 
 // Generate weekly schedule PDF for instructor
-router.post('/instructor/schedule/weekly-pdf', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { startDate, endDate } = req.body;
-    const instructorId = req.user?.userId;
+router.post(
+  '/instructor/schedule/weekly-pdf',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { startDate, endDate } = req.body;
+      const instructorId = req.user?.userId;
 
-    if (!instructorId) {
-      throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'Instructor ID not found');
-    }
+      if (!instructorId) {
+        throw new AppError(
+          401,
+          errorCodes.AUTH_TOKEN_INVALID,
+          'Instructor ID not found'
+        );
+      }
 
-    if (!startDate || !endDate) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Start date and end date are required');
-    }
+      if (!startDate || !endDate) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Start date and end date are required'
+        );
+      }
 
-    // Fetch instructor's classes for the week
-    const classesResult = await pool.query(
-      `SELECT 
+      // Fetch instructor's classes for the week
+      const classesResult = await pool.query(
+        `SELECT 
         cr.id,
         cr.confirmed_date::text as date,
         cr.confirmed_start_time::text as start_time,
@@ -1379,20 +1673,20 @@ router.post('/instructor/schedule/weekly-pdf', authenticateToken, asyncHandler(a
       AND cr.confirmed_date <= $3::date
       AND cr.status IN ('confirmed', 'completed')
       ORDER BY cr.confirmed_date, cr.confirmed_start_time`,
-      [instructorId, startDate, endDate]
-    );
+        [instructorId, startDate, endDate]
+      );
 
-    // Get instructor details
-    const instructorResult = await pool.query(
-      'SELECT username, email FROM users WHERE id = $1',
-      [instructorId]
-    );
+      // Get instructor details
+      const instructorResult = await pool.query(
+        'SELECT username, email FROM users WHERE id = $1',
+        [instructorId]
+      );
 
-    const instructor = instructorResult.rows[0];
-    const classes = classesResult.rows;
+      const instructor = instructorResult.rows[0];
+      const classes = classesResult.rows;
 
-    // Generate HTML for PDF
-    const html = `
+      // Generate HTML for PDF
+      const html = `
       <!DOCTYPE html>
       <html>
       <head>
@@ -1464,7 +1758,9 @@ router.post('/instructor/schedule/weekly-pdf', authenticateToken, asyncHandler(a
           <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
         </div>
 
-        ${classes.length > 0 ? `
+        ${
+          classes.length > 0
+            ? `
           <table class="schedule-table">
             <thead>
               <tr>
@@ -1478,14 +1774,21 @@ router.post('/instructor/schedule/weekly-pdf', authenticateToken, asyncHandler(a
               </tr>
             </thead>
             <tbody>
-              ${classes.map(cls => {
-                const date = new Date(cls.date);
-                const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-                const formattedDate = date.toLocaleDateString();
-                const startTime = cls.start_time ? cls.start_time.slice(0, 5) : 'TBD';
-                const endTime = cls.end_time ? cls.end_time.slice(0, 5) : 'TBD';
-                
-                return `
+              ${classes
+                .map(cls => {
+                  const date = new Date(cls.date);
+                  const dayName = date.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                  });
+                  const formattedDate = date.toLocaleDateString();
+                  const startTime = cls.start_time
+                    ? cls.start_time.slice(0, 5)
+                    : 'TBD';
+                  const endTime = cls.end_time
+                    ? cls.end_time.slice(0, 5)
+                    : 'TBD';
+
+                  return `
                   <tr>
                     <td><strong>${dayName}</strong><br>${formattedDate}</td>
                     <td>${startTime} - ${endTime}</td>
@@ -1496,14 +1799,17 @@ router.post('/instructor/schedule/weekly-pdf', authenticateToken, asyncHandler(a
                     <td>${cls.organization_phone || 'N/A'}</td>
                   </tr>
                 `;
-              }).join('')}
+                })
+                .join('')}
             </tbody>
           </table>
-        ` : `
+        `
+            : `
           <div class="no-classes">
             <p>No classes scheduled for this week.</p>
           </div>
-        `}
+        `
+        }
 
         <div class="footer">
           <p>CPR Training System - Instructor Portal</p>
@@ -1513,118 +1819,152 @@ router.post('/instructor/schedule/weekly-pdf', authenticateToken, asyncHandler(a
       </html>
     `;
 
-    // Use puppeteer to generate PDF
-    const puppeteer = require('puppeteer');
-    const browser = await puppeteer.launch({ 
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    const page = await browser.newPage();
-    await page.setContent(html);
-    const pdfBuffer = await page.pdf({ 
-      format: 'A4',
-      printBackground: true,
-      margin: {
-        top: '20mm',
-        right: '20mm',
-        bottom: '20mm',
-        left: '20mm'
-      }
-    });
-    await browser.close();
+      // Use puppeteer to generate PDF
+      const puppeteer = require('puppeteer');
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+      const page = await browser.newPage();
+      await page.setContent(html);
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '20mm',
+          right: '20mm',
+          bottom: '20mm',
+          left: '20mm',
+        },
+      });
+      await browser.close();
 
-    // Send PDF as response
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="weekly-schedule-${startDate}.pdf"`);
-    res.send(pdfBuffer);
-
-  } catch (error: any) {
-    console.error('Error generating weekly schedule PDF:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to generate PDF');
-  }
-}));
+      // Send PDF as response
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="weekly-schedule-${startDate}.pdf"`
+      );
+      res.send(pdfBuffer);
+    } catch (error: any) {
+      console.error('Error generating weekly schedule PDF:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to generate PDF'
+      );
+    }
+  })
+);
 
 // Delete instructor availability for a specific date (admin only)
-router.delete('/instructors/:instructorId/availability/:date', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { instructorId, date } = req.params;
-    
-    if (!instructorId || !date) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor ID and date are required');
-    }
-
-    const client = await pool.connect();
+router.delete(
+  '/instructors/:instructorId/availability/:date',
+  asyncHandler(async (req: Request, res: Response) => {
     try {
-      await client.query('BEGIN');
+      const { instructorId, date } = req.params;
 
-      // First, check if there are any confirmed courses for this instructor on this date
-      const confirmedCoursesCheck = await client.query(
-        `SELECT id FROM course_requests 
+      if (!instructorId || !date) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Instructor ID and date are required'
+        );
+      }
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        // First, check if there are any confirmed courses for this instructor on this date
+        const confirmedCoursesCheck = await client.query(
+          `SELECT id FROM course_requests 
          WHERE instructor_id = $1 
          AND confirmed_date::date = $2::date 
          AND status = 'confirmed'`,
-        [instructorId, date]
-      );
+          [instructorId, date]
+        );
 
-      if (confirmedCoursesCheck.rows.length > 0) {
-        throw new AppError(400, errorCodes.VALIDATION_ERROR, 
-          'Cannot remove availability: Instructor has confirmed courses on this date. Please reassign or cancel the courses first.');
-      }
+        if (confirmedCoursesCheck.rows.length > 0) {
+          throw new AppError(
+            400,
+            errorCodes.VALIDATION_ERROR,
+            'Cannot remove availability: Instructor has confirmed courses on this date. Please reassign or cancel the courses first.'
+          );
+        }
 
-      // Delete from instructor_availability
-      const deleteAvailabilityResult = await client.query(
-        'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date::date = $2::date RETURNING *',
-        [instructorId, date]
-      );
+        // Delete from instructor_availability
+        const deleteAvailabilityResult = await client.query(
+          'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date::date = $2::date RETURNING *',
+          [instructorId, date]
+        );
 
-      // Also delete any scheduled (not confirmed) classes for this date
-      const deleteClassesResult = await client.query(
-        `DELETE FROM classes 
+        // Also delete any scheduled (not confirmed) classes for this date
+        const deleteClassesResult = await client.query(
+          `DELETE FROM classes 
          WHERE instructor_id = $1 
          AND date::date = $2::date 
          AND status = 'scheduled'
          RETURNING *`,
-        [instructorId, date]
+          [instructorId, date]
+        );
+
+        await client.query('COMMIT');
+
+        return res.json(
+          ApiResponseBuilder.success({
+            message: 'Availability removed successfully',
+            deletedAvailability: deleteAvailabilityResult.rows.length,
+            deletedClasses: deleteClassesResult.rows.length,
+          })
+        );
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    } catch (error: any) {
+      console.error('Error removing instructor availability:', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to remove instructor availability'
       );
-
-      await client.query('COMMIT');
-
-      return res.json(ApiResponseBuilder.success({
-        message: 'Availability removed successfully',
-        deletedAvailability: deleteAvailabilityResult.rows.length,
-        deletedClasses: deleteClassesResult.rows.length
-      }));
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
     }
-  } catch (error: any) {
-    console.error('Error removing instructor availability:', error);
-    if (error instanceof AppError) {
-      throw error;
-    }
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to remove instructor availability');
-  }
-}));
+  })
+);
 
 // Get dashboard summary for the month
-router.get('/admin/dashboard-summary', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { month } = req.query; // Format: YYYY-MM
-    
-    if (!month) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Month parameter is required (format: YYYY-MM)');
-    }
+router.get(
+  '/admin/dashboard-summary',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { month } = req.query; // Format: YYYY-MM
 
-    // Parse the month to get start and end dates
-    const startDate = `${month}-01`;
-    const endDate = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth() + 1, 0)
-      .toISOString().split('T')[0];
+      if (!month) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Month parameter is required (format: YYYY-MM)'
+        );
+      }
 
-    const summaryResult = await pool.query(
-      `SELECT 
+      // Parse the month to get start and end dates
+      const startDate = `${month}-01`;
+      const endDate = new Date(
+        new Date(startDate).getFullYear(),
+        new Date(startDate).getMonth() + 1,
+        0
+      )
+        .toISOString()
+        .split('T')[0];
+
+      const summaryResult = await pool.query(
+        `SELECT 
         COUNT(DISTINCT u.id) as total_instructors,
         COUNT(cr.id) as total_courses_this_month,
         COUNT(CASE WHEN cr.status = 'completed' THEN 1 END) as total_completed_this_month,
@@ -1638,58 +1978,64 @@ router.get('/admin/dashboard-summary', asyncHandler(async (req: Request, res: Re
         AND cr.confirmed_date >= $1 
         AND cr.confirmed_date <= $2
       WHERE u.role = 'instructor'`,
-      [startDate, endDate]
-    );
+        [startDate, endDate]
+      );
 
+      res.json({
+        success: true,
+        data: summaryResult.rows[0],
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard summary:', error);
+      throw error;
+    }
+  })
+);
+
+router.get(
+  '/admin/logs',
+  asyncHandler(async (req: Request, res: Response) => {
+    // Implementation of getting logs
+    // This is a placeholder and should be replaced with the actual implementation
     res.json({
       success: true,
-      data: summaryResult.rows[0]
+      data: [],
     });
-  } catch (error) {
-    console.error('Error fetching dashboard summary:', error);
-    throw error;
-  }
-}));
-
-router.get('/admin/logs', asyncHandler(async (req: Request, res: Response) => {
-  // Implementation of getting logs
-  // This is a placeholder and should be replaced with the actual implementation
-  res.json({
-    success: true,
-    data: []
-  });
-}));
+  })
+);
 
 // Accounting Portal Endpoints
 
 // Get accounting dashboard data
-router.get('/accounting/dashboard', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    // Monthly Revenue
-    const monthlyRevenue = await pool.query(`
+router.get(
+  '/accounting/dashboard',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      // Monthly Revenue
+      const monthlyRevenue = await pool.query(`
       SELECT COALESCE(SUM(p.amount), 0) as total_revenue
       FROM payments p
       WHERE EXTRACT(MONTH FROM p.payment_date) = EXTRACT(MONTH FROM CURRENT_DATE)
       AND EXTRACT(YEAR FROM p.payment_date) = EXTRACT(YEAR FROM CURRENT_DATE)
     `);
 
-    // Outstanding Invoices
-    const outstandingInvoices = await pool.query(`
+      // Outstanding Invoices
+      const outstandingInvoices = await pool.query(`
       SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total_amount
       FROM invoices
       WHERE status = 'pending'
     `);
 
-    // Payments This Month
-    const paymentsThisMonth = await pool.query(`
+      // Payments This Month
+      const paymentsThisMonth = await pool.query(`
       SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total_amount
       FROM payments
       WHERE EXTRACT(MONTH FROM payment_date) = EXTRACT(MONTH FROM CURRENT_DATE)
       AND EXTRACT(YEAR FROM payment_date) = EXTRACT(YEAR FROM CURRENT_DATE)
     `);
 
-    // Completed Courses This Month (for instructor payments)
-    const completedCoursesThisMonth = await pool.query(`
+      // Completed Courses This Month (for instructor payments)
+      const completedCoursesThisMonth = await pool.query(`
       SELECT COUNT(*) as completed_courses
       FROM course_requests
       WHERE status = 'completed'
@@ -1697,188 +2043,240 @@ router.get('/accounting/dashboard', asyncHandler(async (req: Request, res: Respo
       AND EXTRACT(YEAR FROM completed_at) = EXTRACT(YEAR FROM CURRENT_DATE)
     `);
 
-    const dashboardData = {
-      monthlyRevenue: Number(monthlyRevenue.rows[0]?.total_revenue || 0),
-      outstandingInvoices: {
-        count: parseInt(outstandingInvoices.rows[0]?.count || 0),
-        amount: Number(outstandingInvoices.rows[0]?.total_amount || 0)
-      },
-      paymentsThisMonth: {
-        count: parseInt(paymentsThisMonth.rows[0]?.count || 0),
-        amount: Number(paymentsThisMonth.rows[0]?.total_amount || 0)
-      },
-      completedCoursesThisMonth: parseInt(completedCoursesThisMonth.rows[0]?.completed_courses || 0)
-    };
+      const dashboardData = {
+        monthlyRevenue: Number(monthlyRevenue.rows[0]?.total_revenue || 0),
+        outstandingInvoices: {
+          count: parseInt(outstandingInvoices.rows[0]?.count || 0),
+          amount: Number(outstandingInvoices.rows[0]?.total_amount || 0),
+        },
+        paymentsThisMonth: {
+          count: parseInt(paymentsThisMonth.rows[0]?.count || 0),
+          amount: Number(paymentsThisMonth.rows[0]?.total_amount || 0),
+        },
+        completedCoursesThisMonth: parseInt(
+          completedCoursesThisMonth.rows[0]?.completed_courses || 0
+        ),
+      };
 
-    res.json({
-      success: true,
-      data: dashboardData
-    });
-  } catch (error) {
-    console.error('Error fetching accounting dashboard:', error);
-    throw error;
-  }
-}));
+      res.json({
+        success: true,
+        data: dashboardData,
+      });
+    } catch (error) {
+      console.error('Error fetching accounting dashboard:', error);
+      throw error;
+    }
+  })
+);
 
 // Get course pricing for all organizations
-router.get('/accounting/course-pricing', asyncHandler(async (req: Request, res: Response) => {
-  console.log('[Debug] Getting course pricing with cache');
-  
-  try {
-    const user = (req as any).user;
-    
-    if (user.role === 'accountant' || user.role === 'admin') {
-      // For accountants/admins, get all organizations
-      const organizations = await cacheService.getOrganizations();
-      const coursePricingPromises = organizations.map(org => 
-        cacheService.getCoursePricing(org.id)
-      );
-      
-      const allPricing = await Promise.all(coursePricingPromises);
-      const flatPricing = allPricing.flat();
-      
-      res.json({
-        success: true,
-        data: flatPricing,
-        cached: true
-      });
-    } else if (user.organizationId) {
-      // For organization users, get only their pricing
-      const pricing = await cacheService.getCoursePricing(user.organizationId);
-      
-      res.json({
-        success: true,
-        data: pricing,
-        cached: true
-      });
-    } else {
-      res.status(403).json({
+router.get(
+  '/accounting/course-pricing',
+  asyncHandler(async (req: Request, res: Response) => {
+    console.log('[Debug] Getting course pricing with cache');
+
+    try {
+      const user = (req as any).user;
+
+      if (user.role === 'accountant' || user.role === 'admin') {
+        // For accountants/admins, get all organizations
+        const organizations = await cacheService.getOrganizations();
+        const coursePricingPromises = organizations.map(org =>
+          cacheService.getCoursePricing(org.id)
+        );
+
+        const allPricing = await Promise.all(coursePricingPromises);
+        const flatPricing = allPricing.flat();
+
+        res.json({
+          success: true,
+          data: flatPricing,
+          cached: true,
+        });
+      } else if (user.organizationId) {
+        // For organization users, get only their pricing
+        const pricing = await cacheService.getCoursePricing(
+          user.organizationId
+        );
+
+        res.json({
+          success: true,
+          data: pricing,
+          cached: true,
+        });
+      } else {
+        res.status(403).json({
+          success: false,
+          message: 'Access denied',
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching course pricing:', error);
+      res.status(500).json({
         success: false,
-        message: 'Access denied'
+        message: 'Failed to fetch course pricing',
       });
     }
-  } catch (error) {
-    console.error('Error fetching course pricing:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch course pricing'
-    });
-  }
-}));
+  })
+);
 
 // Update course pricing
-router.put('/accounting/course-pricing/:id', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { price_per_student } = req.body;
+router.put(
+  '/accounting/course-pricing/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { price_per_student } = req.body;
 
-    if (!price_per_student || price_per_student <= 0) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Valid price per student is required');
-    }
+      if (!price_per_student || price_per_student <= 0) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Valid price per student is required'
+        );
+      }
 
-    const result = await pool.query(`
+      const result = await pool.query(
+        `
       UPDATE course_pricing 
       SET price_per_student = $1, updated_at = CURRENT_TIMESTAMP
       WHERE id = $2 AND is_active = true
       RETURNING *
-    `, [price_per_student, id]);
+    `,
+        [price_per_student, id]
+      );
 
-    if (result.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Course pricing record not found');
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Course pricing record not found'
+        );
+      }
+
+      res.json({
+        success: true,
+        message: 'Course pricing updated successfully',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error updating course pricing:', error);
+      throw error;
     }
-
-    res.json({
-      success: true,
-      message: 'Course pricing updated successfully',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error updating course pricing:', error);
-    throw error;
-  }
-}));
+  })
+);
 
 // Get organizations list for pricing setup
-router.get('/accounting/organizations', asyncHandler(async (req: Request, res: Response) => {
-  console.log('[Debug] Getting organizations with cache');
-  
-  try {
-    // Use cached organizations
-    const organizations = await cacheService.getOrganizations();
-    
-    res.json({
-      success: true,
-      data: organizations,
-      cached: true
-    });
-  } catch (error) {
-    console.error('Error fetching organizations:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch organizations'
-    });
-  }
-}));
+router.get(
+  '/accounting/organizations',
+  asyncHandler(async (req: Request, res: Response) => {
+    console.log('[Debug] Getting organizations with cache');
+
+    try {
+      // Use cached organizations
+      const organizations = await cacheService.getOrganizations();
+
+      res.json({
+        success: true,
+        data: organizations,
+        cached: true,
+      });
+    } catch (error) {
+      console.error('Error fetching organizations:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch organizations',
+      });
+    }
+  })
+);
 
 // Get course types for pricing setup
-router.get('/accounting/course-types', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const result = await pool.query(`
+router.get(
+  '/accounting/course-types',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const result = await pool.query(`
       SELECT id, name, description, duration_minutes
       FROM class_types
       ORDER BY name
     `);
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error: any) {
-    console.error('Error fetching course types:', error);
-    throw error;
-  }
-}));
+      res.json({
+        success: true,
+        data: result.rows,
+      });
+    } catch (error: any) {
+      console.error('Error fetching course types:', error);
+      throw error;
+    }
+  })
+);
 
 // Create new course pricing
-router.post('/accounting/course-pricing', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { organization_id, course_type_id, price_per_student } = req.body;
+router.post(
+  '/accounting/course-pricing',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { organization_id, course_type_id, price_per_student } = req.body;
 
-    if (!organization_id || !course_type_id || !price_per_student || price_per_student <= 0) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'All fields are required and price must be greater than 0');
-    }
+      if (
+        !organization_id ||
+        !course_type_id ||
+        !price_per_student ||
+        price_per_student <= 0
+      ) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'All fields are required and price must be greater than 0'
+        );
+      }
 
-    // Check if pricing already exists for this combination
-    const existingResult = await pool.query(`
+      // Check if pricing already exists for this combination
+      const existingResult = await pool.query(
+        `
       SELECT id FROM course_pricing
       WHERE organization_id = $1 AND course_type_id = $2 AND is_active = true
-    `, [organization_id, course_type_id]);
+    `,
+        [organization_id, course_type_id]
+      );
 
-    if (existingResult.rows.length > 0) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Pricing already exists for this organization/course type combination');
-    }
+      if (existingResult.rows.length > 0) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Pricing already exists for this organization/course type combination'
+        );
+      }
 
-    const result = await pool.query(`
+      const result = await pool.query(
+        `
       INSERT INTO course_pricing (organization_id, course_type_id, price_per_student, effective_date, is_active)
       VALUES ($1, $2, $3, CURRENT_DATE, true)
       RETURNING *
-    `, [organization_id, course_type_id, price_per_student]);
+    `,
+        [organization_id, course_type_id, price_per_student]
+      );
 
-    res.json({
-      success: true,
-      message: 'Course pricing created successfully',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error creating course pricing:', error);
-    throw error;
-  }
-}));
+      res.json({
+        success: true,
+        message: 'Course pricing created successfully',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error creating course pricing:', error);
+      throw error;
+    }
+  })
+);
 
 // Get billing queue (completed courses ready for invoicing)
-router.get('/accounting/billing-queue', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const result = await pool.query(`
+router.get(
+  '/accounting/billing-queue',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const result = await pool.query(`
       SELECT 
         cr.id as course_id,
         cr.organization_id,
@@ -1904,32 +2302,40 @@ router.get('/accounting/billing-queue', asyncHandler(async (req: Request, res: R
       ORDER BY cr.ready_for_billing_at DESC
     `);
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error) {
-    console.error('Error fetching billing queue:', error);
-    throw error;
-  }
-}));
+      res.json({
+        success: true,
+        data: result.rows,
+      });
+    } catch (error) {
+      console.error('Error fetching billing queue:', error);
+      throw error;
+    }
+  })
+);
 
 // Create invoice from completed course
-router.post('/accounting/invoices', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { courseId } = req.body;
-
-    if (!courseId) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Course ID is required');
-    }
-
-    const client = await pool.connect();
-    
+router.post(
+  '/accounting/invoices',
+  asyncHandler(async (req: Request, res: Response) => {
     try {
-      await client.query('BEGIN');
+      const { courseId } = req.body;
 
-      // Get course details
-      const courseResult = await client.query(`
+      if (!courseId) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Course ID is required'
+        );
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query('BEGIN');
+
+        // Get course details
+        const courseResult = await client.query(
+          `
         SELECT 
           cr.id,
           cr.organization_id,
@@ -1945,20 +2351,27 @@ router.post('/accounting/invoices', asyncHandler(async (req: Request, res: Respo
         JOIN class_types ct ON cr.course_type_id = ct.id
         LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
         WHERE cr.id = $1 AND cr.status = 'completed'
-      `, [courseId]);
+      `,
+          [courseId]
+        );
 
-      if (courseResult.rows.length === 0) {
-        throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Course not found or not completed');
-      }
+        if (courseResult.rows.length === 0) {
+          throw new AppError(
+            404,
+            errorCodes.RESOURCE_NOT_FOUND,
+            'Course not found or not completed'
+          );
+        }
 
-      const course = courseResult.rows[0];
-      const totalAmount = course.students_attended * course.rate_per_student;
+        const course = courseResult.rows[0];
+        const totalAmount = course.students_attended * course.rate_per_student;
 
-      // Generate invoice number
-      const invoiceNumber = `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+        // Generate invoice number
+        const invoiceNumber = `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
-      // Create invoice
-      const invoiceResult = await client.query(`
+        // Create invoice
+        const invoiceResult = await client.query(
+          `
         INSERT INTO invoices (
           invoice_number,
           organization_id,
@@ -1972,76 +2385,92 @@ router.post('/accounting/invoices', asyncHandler(async (req: Request, res: Respo
         )
         VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, 'pending', CURRENT_DATE + INTERVAL '30 days', FALSE)
         RETURNING *
-      `, [
-        invoiceNumber,
-        course.organization_id,
-        courseId,
-        totalAmount,
-        course.students_attended
-      ]);
+      `,
+          [
+            invoiceNumber,
+            course.organization_id,
+            courseId,
+            totalAmount,
+            course.students_attended,
+          ]
+        );
 
-      // Mark the course as invoiced
-      await client.query(`
+        // Mark the course as invoiced
+        await client.query(
+          `
         UPDATE course_requests 
         SET invoiced = TRUE, invoiced_at = CURRENT_TIMESTAMP
         WHERE id = $1
-      `, [courseId]);
+      `,
+          [courseId]
+        );
 
-      await client.query('COMMIT');
+        await client.query('COMMIT');
 
-      res.json({
-        success: true,
-        message: 'Invoice created successfully',
-        data: invoiceResult.rows[0]
-      });
-
+        res.json({
+          success: true,
+          message: 'Invoice created successfully',
+          data: invoiceResult.rows[0],
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
     } catch (error) {
-      await client.query('ROLLBACK');
+      console.error('Error creating invoice:', error);
       throw error;
-    } finally {
-      client.release();
     }
-
-  } catch (error) {
-    console.error('Error creating invoice:', error);
-    throw error;
-  }
-}));
+  })
+);
 
 // Post invoice to organization (make it visible in their Bills Payable)
-router.put('/accounting/invoices/:id/post-to-org', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
+router.put(
+  '/accounting/invoices/:id/post-to-org',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
 
-    // Update invoice to mark it as posted to organization
-    const result = await pool.query(`
+      // Update invoice to mark it as posted to organization
+      const result = await pool.query(
+        `
       UPDATE invoices 
       SET posted_to_org = TRUE,
           posted_to_org_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = $1 AND posted_to_org = FALSE
       RETURNING *
-    `, [id]);
+    `,
+        [id]
+      );
 
-    if (result.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found or already posted to organization');
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Invoice not found or already posted to organization'
+        );
+      }
+
+      res.json({
+        success: true,
+        message: 'Invoice posted to organization successfully',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error posting invoice to organization:', error);
+      throw error;
     }
-
-    res.json({
-      success: true,
-      message: 'Invoice posted to organization successfully',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error posting invoice to organization:', error);
-    throw error;
-  }
-}));
+  })
+);
 
 // Get all invoices
-router.get('/accounting/invoices', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const result = await pool.query(`
+router.get(
+  '/accounting/invoices',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const result = await pool.query(`
       SELECT 
         i.id as invoiceid,
         i.invoice_number as invoicenumber,
@@ -2082,22 +2511,26 @@ router.get('/accounting/invoices', asyncHandler(async (req: Request, res: Respon
       ORDER BY i.created_at DESC
     `);
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error) {
-    console.error('Error fetching invoices:', error);
-    throw error;
-  }
-}));
+      res.json({
+        success: true,
+        data: result.rows,
+      });
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      throw error;
+    }
+  })
+);
 
 // Get specific invoice details
-router.get('/accounting/invoices/:id', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
+router.get(
+  '/accounting/invoices/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
 
-    const result = await pool.query(`
+      const result = await pool.query(
+        `
       SELECT 
         i.*,
         o.name as organization_name,
@@ -2110,29 +2543,39 @@ router.get('/accounting/invoices/:id', asyncHandler(async (req: Request, res: Re
       FROM invoices i
       JOIN organizations o ON i.organization_id = o.id
       WHERE i.id = $1
-    `, [id]);
+    `,
+        [id]
+      );
 
-    if (result.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found');
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Invoice not found'
+        );
+      }
+
+      res.json({
+        success: true,
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error fetching invoice details:', error);
+      throw error;
     }
-
-    res.json({
-      success: true,
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error fetching invoice details:', error);
-    throw error;
-  }
-}));
+  })
+);
 
 // Update invoice
-router.put('/accounting/invoices/:id', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { amount, due_date, status, notes } = req.body;
+router.put(
+  '/accounting/invoices/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { amount, due_date, status, notes } = req.body;
 
-    const result = await pool.query(`
+      const result = await pool.query(
+        `
       UPDATE invoices 
       SET amount = COALESCE($1, amount),
           due_date = COALESCE($2, due_date),
@@ -2141,56 +2584,69 @@ router.put('/accounting/invoices/:id', asyncHandler(async (req: Request, res: Re
           updated_at = CURRENT_TIMESTAMP
       WHERE id = $5
       RETURNING *
-    `, [amount, due_date, status, notes, id]);
+    `,
+        [amount, due_date, status, notes, id]
+      );
 
-    if (result.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found');
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Invoice not found'
+        );
+      }
+
+      res.json({
+        success: true,
+        message: 'Invoice updated successfully',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error updating invoice:', error);
+      throw error;
     }
-
-    res.json({
-      success: true,
-      message: 'Invoice updated successfully',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error updating invoice:', error);
-    throw error;
-  }
-}));
+  })
+);
 
 // Send invoice email
-router.post('/accounting/invoices/:id/email', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
+router.post(
+  '/accounting/invoices/:id/email',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
 
-    // Update email sent timestamp
-    // TODO: Add email_sent_at column to database
-    // await pool.query(`
-    //   UPDATE invoices 
-    //   SET email_sent_at = CURRENT_TIMESTAMP
-    //   WHERE id = $1
-    // `, [id]);
+      // Update email sent timestamp
+      // TODO: Add email_sent_at column to database
+      // await pool.query(`
+      //   UPDATE invoices
+      //   SET email_sent_at = CURRENT_TIMESTAMP
+      //   WHERE id = $1
+      // `, [id]);
 
-    // Here you would integrate with your email service
-    // For now, we'll just simulate success
-    
-    res.json({
-      success: true,
-      message: 'Invoice email sent successfully',
-      previewUrl: `http://localhost:3001/api/v1/accounting/invoices/${id}/preview` // For testing
-    });
-  } catch (error) {
-    console.error('Error sending invoice email:', error);
-    throw error;
-  }
-}));
+      // Here you would integrate with your email service
+      // For now, we'll just simulate success
+
+      res.json({
+        success: true,
+        message: 'Invoice email sent successfully',
+        previewUrl: `http://localhost:3001/api/v1/accounting/invoices/${id}/preview`, // For testing
+      });
+    } catch (error) {
+      console.error('Error sending invoice email:', error);
+      throw error;
+    }
+  })
+);
 
 // Get invoice payments
-router.get('/accounting/invoices/:id/payments', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
+router.get(
+  '/accounting/invoices/:id/payments',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
 
-    const result = await pool.query(`
+      const result = await pool.query(
+        `
       SELECT 
         p.id,
         p.invoice_id,
@@ -2203,82 +2659,115 @@ router.get('/accounting/invoices/:id/payments', asyncHandler(async (req: Request
       FROM payments p
       WHERE p.invoice_id = $1
       ORDER BY p.payment_date DESC
-    `, [id]);
-
-    res.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error) {
-    console.error('Error fetching invoice payments:', error);
-    throw error;
-  }
-}));
-
-// Record payment for invoice
-router.post('/accounting/invoices/:id/payments', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { amount_paid, payment_date, payment_method, reference_number, notes } = req.body;
-
-    if (!amount_paid || amount_paid <= 0) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Valid payment amount is required');
-    }
-
-    const client = await pool.connect();
-    
-    try {
-      await client.query('BEGIN');
-
-      // Record the payment
-      const paymentResult = await client.query(`
-        INSERT INTO payments (invoice_id, amount, payment_date, payment_method, reference_number, notes)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING *
-      `, [id, amount_paid, payment_date || new Date(), payment_method, reference_number, notes]);
-
-      // Update invoice status if fully paid
-      const invoiceResult = await client.query(`
-        SELECT amount, (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE invoice_id = $1) as total_paid
-        FROM invoices WHERE id = $1
-      `, [id]);
-
-      const invoice = invoiceResult.rows[0];
-      if (invoice && invoice.total_paid >= invoice.amount) {
-        await client.query(`
-          UPDATE invoices SET status = 'paid' WHERE id = $1
-        `, [id]);
-      }
-
-      await client.query('COMMIT');
+    `,
+        [id]
+      );
 
       res.json({
         success: true,
-        message: 'Payment recorded successfully',
-        data: paymentResult.rows[0]
+        data: result.rows,
       });
-
     } catch (error) {
-      await client.query('ROLLBACK');
+      console.error('Error fetching invoice payments:', error);
       throw error;
-    } finally {
-      client.release();
     }
+  })
+);
 
-  } catch (error) {
-    console.error('Error recording payment:', error);
-    throw error;
-  }
-}));
+// Record payment for invoice
+router.post(
+  '/accounting/invoices/:id/payments',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const {
+        amount_paid,
+        payment_date,
+        payment_method,
+        reference_number,
+        notes,
+      } = req.body;
+
+      if (!amount_paid || amount_paid <= 0) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Valid payment amount is required'
+        );
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query('BEGIN');
+
+        // Record the payment
+        const paymentResult = await client.query(
+          `
+        INSERT INTO payments (invoice_id, amount, payment_date, payment_method, reference_number, notes)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *
+      `,
+          [
+            id,
+            amount_paid,
+            payment_date || new Date(),
+            payment_method,
+            reference_number,
+            notes,
+          ]
+        );
+
+        // Update invoice status if fully paid
+        const invoiceResult = await client.query(
+          `
+        SELECT amount, (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE invoice_id = $1) as total_paid
+        FROM invoices WHERE id = $1
+      `,
+          [id]
+        );
+
+        const invoice = invoiceResult.rows[0];
+        if (invoice && invoice.total_paid >= invoice.amount) {
+          await client.query(
+            `
+          UPDATE invoices SET status = 'paid' WHERE id = $1
+        `,
+            [id]
+          );
+        }
+
+        await client.query('COMMIT');
+
+        res.json({
+          success: true,
+          message: 'Payment recorded successfully',
+          data: paymentResult.rows[0],
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Error recording payment:', error);
+      throw error;
+    }
+  })
+);
 
 // Generate PDF for invoice
-router.get('/accounting/invoices/:id/pdf', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    console.log(`[PDF] Generating PDF for invoice ${id}`);
+router.get(
+  '/accounting/invoices/:id/pdf',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      console.log(`[PDF] Generating PDF for invoice ${id}`);
 
-    // Get invoice details
-    const result = await pool.query(`
+      // Get invoice details
+      const result = await pool.query(
+        `
       SELECT 
         i.id as invoice_id,
         i.invoice_number,
@@ -2300,40 +2789,57 @@ router.get('/accounting/invoices/:id/pdf', asyncHandler(async (req: Request, res
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
       WHERE i.id = $1
-    `, [id]);
+    `,
+        [id]
+      );
 
-    if (result.rows.length === 0) {
-      console.log(`[PDF] Invoice ${id} not found`);
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found');
+      if (result.rows.length === 0) {
+        console.log(`[PDF] Invoice ${id} not found`);
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Invoice not found'
+        );
+      }
+
+      const invoice = result.rows[0];
+      console.log(`[PDF] Generating PDF for invoice ${invoice.invoice_number}`);
+
+      const pdfBuffer = await PDFService.generateInvoicePDF(invoice);
+      console.log(
+        `[PDF] PDF generated successfully, size: ${pdfBuffer.length} bytes`
+      );
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="Invoice-${invoice.invoice_number}.pdf"`
+      );
+      res.setHeader('Content-Length', pdfBuffer.length.toString());
+      res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader(
+        'Access-Control-Expose-Headers',
+        'Content-Disposition, Content-Length, Content-Type'
+      );
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      throw error;
     }
-
-    const invoice = result.rows[0];
-    console.log(`[PDF] Generating PDF for invoice ${invoice.invoice_number}`);
-    
-    const pdfBuffer = await PDFService.generateInvoicePDF(invoice);
-    console.log(`[PDF] PDF generated successfully, size: ${pdfBuffer.length} bytes`);
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoice_number}.pdf"`);
-    res.setHeader('Content-Length', pdfBuffer.length.toString());
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length, Content-Type');
-    res.send(pdfBuffer);
-
-  } catch (error) {
-    console.error('Error generating PDF:', error);
-    throw error;
-  }
-}));
+  })
+);
 
 // Preview invoice HTML
-router.get('/accounting/invoices/:id/preview', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
+router.get(
+  '/accounting/invoices/:id/preview',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
 
-    // Get invoice details
-    const result = await pool.query(`
+      // Get invoice details
+      const result = await pool.query(
+        `
       SELECT 
         i.id as invoice_id,
         i.invoice_number,
@@ -2355,34 +2861,47 @@ router.get('/accounting/invoices/:id/preview', asyncHandler(async (req: Request,
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
       WHERE i.id = $1
-    `, [id]);
+    `,
+        [id]
+      );
 
-    if (result.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found');
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Invoice not found'
+        );
+      }
+
+      const invoice = result.rows[0];
+      const html = PDFService.getInvoicePreviewHTML(invoice);
+
+      res.setHeader('Content-Type', 'text/html');
+      res.send(html);
+    } catch (error) {
+      console.error('Error generating preview:', error);
+      throw error;
     }
-
-    const invoice = result.rows[0];
-    const html = PDFService.getInvoicePreviewHTML(invoice);
-
-    res.setHeader('Content-Type', 'text/html');
-    res.send(html);
-
-  } catch (error) {
-    console.error('Error generating preview:', error);
-    throw error;
-  }
-}));
+  })
+);
 
 // Revenue report endpoint
-router.get('/accounting/reports/revenue', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { year } = req.query;
+router.get(
+  '/accounting/reports/revenue',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { year } = req.query;
 
-    if (!year) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Year parameter is required');
-    }
+      if (!year) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Year parameter is required'
+        );
+      }
 
-    const result = await pool.query(`
+      const result = await pool.query(
+        `
       WITH monthly_data AS (
         SELECT 
           TO_CHAR(DATE_TRUNC('month', generate_series(
@@ -2417,76 +2936,101 @@ router.get('/accounting/reports/revenue', asyncHandler(async (req: Request, res:
       LEFT JOIN invoices_by_month ibm ON md.month = ibm.month
       LEFT JOIN payments_by_month pbm ON md.month = pbm.month
       ORDER BY md.month
-    `, [year]);
+    `,
+        [year]
+      );
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error) {
-    console.error('Error generating revenue report:', error);
-    throw error;
-  }
-}));
+      res.json({
+        success: true,
+        data: result.rows,
+      });
+    } catch (error) {
+      console.error('Error generating revenue report:', error);
+      throw error;
+    }
+  })
+);
 
 // Manual trigger for overdue invoices update (for testing/admin use)
-router.post('/accounting/trigger-overdue-update', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const user = (req as any).user;
-    
-    // Only allow accountant or admin roles
-    if (user.role !== 'accountant' && user.role !== 'admin') {
-      throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Accountant or admin role required.');
+router.post(
+  '/accounting/trigger-overdue-update',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+
+      // Only allow accountant or admin roles
+      if (user.role !== 'accountant' && user.role !== 'admin') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Accountant or admin role required.'
+        );
+      }
+
+      // Import and trigger the scheduled job
+      const { ScheduledJobsService } = await import(
+        '../../services/scheduledJobs'
+      );
+      const scheduledJobs = ScheduledJobsService.getInstance();
+      await scheduledJobs.triggerOverdueUpdate();
+
+      res.json({
+        success: true,
+        message: 'Overdue invoices update triggered successfully',
+      });
+    } catch (error) {
+      console.error('Error triggering overdue update:', error);
+      throw error;
     }
-
-    // Import and trigger the scheduled job
-    const { ScheduledJobsService } = await import('../../services/scheduledJobs');
-    const scheduledJobs = ScheduledJobsService.getInstance();
-    await scheduledJobs.triggerOverdueUpdate();
-
-    res.json({
-      success: true,
-      message: 'Overdue invoices update triggered successfully'
-    });
-  } catch (error) {
-    console.error('Error triggering overdue update:', error);
-    throw error;
-  }
-}));
+  })
+);
 
 // Manual trigger for email reminders (for testing/admin use)
-router.post('/accounting/trigger-email-reminders', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const user = (req as any).user;
-    
-    // Only allow accountant or admin roles
-    if (user.role !== 'accountant' && user.role !== 'admin') {
-      throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Accountant or admin role required.');
+router.post(
+  '/accounting/trigger-email-reminders',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+
+      // Only allow accountant or admin roles
+      if (user.role !== 'accountant' && user.role !== 'admin') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Accountant or admin role required.'
+        );
+      }
+
+      // Import and trigger the email reminders
+      const { ScheduledJobsService } = await import(
+        '../../services/scheduledJobs'
+      );
+      const scheduledJobs = ScheduledJobsService.getInstance();
+      await scheduledJobs.triggerEmailReminders();
+
+      res.json({
+        success: true,
+        message: 'Email reminders triggered successfully',
+      });
+    } catch (error) {
+      console.error('Error triggering email reminders:', error);
+      throw error;
     }
-
-    // Import and trigger the email reminders
-    const { ScheduledJobsService } = await import('../../services/scheduledJobs');
-    const scheduledJobs = ScheduledJobsService.getInstance();
-    await scheduledJobs.triggerEmailReminders();
-
-    res.json({
-      success: true,
-      message: 'Email reminders triggered successfully'
-    });
-  } catch (error) {
-    console.error('Error triggering email reminders:', error);
-    throw error;
-  }
-}));
+  })
+);
 
 // ===========================
 // SYSTEM ADMINISTRATION ENDPOINTS
 // ===========================
 
 // Course Definition Management
-router.get('/sysadmin/courses', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const result = await pool.query(`
+router.get(
+  '/sysadmin/courses',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const result = await pool.query(`
       SELECT 
         id,
         name,
@@ -2506,38 +3050,46 @@ router.get('/sysadmin/courses', asyncHandler(async (req: Request, res: Response)
       ORDER BY name
     `);
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error) {
-    console.error('Error fetching courses:', error);
-    throw error;
-  }
-}));
-
-router.post('/sysadmin/courses', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const {
-      name,
-      description,
-      duration_hours,
-      duration_minutes,
-      prerequisites,
-      certification_type,
-      validity_period_months,
-      course_category,
-      regulatory_compliance
-    } = req.body;
-
-    if (!name) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Course name is required');
+      res.json({
+        success: true,
+        data: result.rows,
+      });
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+      throw error;
     }
+  })
+);
 
-    // Generate course code from first 3 letters of name
-    const courseCode = name.substring(0, 3).toUpperCase();
+router.post(
+  '/sysadmin/courses',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const {
+        name,
+        description,
+        duration_hours,
+        duration_minutes,
+        prerequisites,
+        certification_type,
+        validity_period_months,
+        course_category,
+        regulatory_compliance,
+      } = req.body;
 
-    const result = await pool.query(`
+      if (!name) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Course name is required'
+        );
+      }
+
+      // Generate course code from first 3 letters of name
+      const courseCode = name.substring(0, 3).toUpperCase();
+
+      const result = await pool.query(
+        `
       INSERT INTO class_types (
         name, description, course_code, duration_hours, duration_minutes,
         prerequisites, certification_type, validity_period_months,
@@ -2545,43 +3097,56 @@ router.post('/sysadmin/courses', asyncHandler(async (req: Request, res: Response
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true)
       RETURNING *
-    `, [
-      name, description, courseCode, duration_hours, duration_minutes,
-      prerequisites, certification_type, validity_period_months,
-      course_category, regulatory_compliance
-    ]);
+    `,
+        [
+          name,
+          description,
+          courseCode,
+          duration_hours,
+          duration_minutes,
+          prerequisites,
+          certification_type,
+          validity_period_months,
+          course_category,
+          regulatory_compliance,
+        ]
+      );
 
-    res.json({
-      success: true,
-      message: 'Course created successfully',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error creating course:', error);
-    throw error;
-  }
-}));
+      res.json({
+        success: true,
+        message: 'Course created successfully',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error creating course:', error);
+      throw error;
+    }
+  })
+);
 
-router.put('/sysadmin/courses/:id', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const {
-      name,
-      description,
-      duration_hours,
-      duration_minutes,
-      prerequisites,
-      certification_type,
-      validity_period_months,
-      course_category,
-      regulatory_compliance,
-      is_active
-    } = req.body;
+router.put(
+  '/sysadmin/courses/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const {
+        name,
+        description,
+        duration_hours,
+        duration_minutes,
+        prerequisites,
+        certification_type,
+        validity_period_months,
+        course_category,
+        regulatory_compliance,
+        is_active,
+      } = req.body;
 
-    // Generate course code from first 3 letters of name if name is updated
-    const courseCode = name ? name.substring(0, 3).toUpperCase() : undefined;
+      // Generate course code from first 3 letters of name if name is updated
+      const courseCode = name ? name.substring(0, 3).toUpperCase() : undefined;
 
-    const result = await pool.query(`
+      const result = await pool.query(
+        `
       UPDATE class_types
       SET 
         name = COALESCE($1, name),
@@ -2598,57 +3163,85 @@ router.put('/sysadmin/courses/:id', asyncHandler(async (req: Request, res: Respo
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $12
       RETURNING *
-    `, [
-      name, description, courseCode, duration_hours, duration_minutes,
-      prerequisites, certification_type, validity_period_months,
-      course_category, regulatory_compliance, is_active, id
-    ]);
+    `,
+        [
+          name,
+          description,
+          courseCode,
+          duration_hours,
+          duration_minutes,
+          prerequisites,
+          certification_type,
+          validity_period_months,
+          course_category,
+          regulatory_compliance,
+          is_active,
+          id,
+        ]
+      );
 
-    if (result.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Course not found');
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Course not found'
+        );
+      }
+
+      res.json({
+        success: true,
+        message: 'Course updated successfully',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error updating course:', error);
+      throw error;
     }
+  })
+);
 
-    res.json({
-      success: true,
-      message: 'Course updated successfully',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error updating course:', error);
-    throw error;
-  }
-}));
+router.delete(
+  '/sysadmin/courses/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
 
-router.delete('/sysadmin/courses/:id', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const result = await pool.query(`
+      const result = await pool.query(
+        `
       UPDATE class_types
       SET is_active = false, updated_at = CURRENT_TIMESTAMP
       WHERE id = $1
       RETURNING *
-    `, [id]);
+    `,
+        [id]
+      );
 
-    if (result.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Course not found');
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Course not found'
+        );
+      }
+
+      res.json({
+        success: true,
+        message: 'Course deactivated successfully',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error deactivating course:', error);
+      throw error;
     }
-
-    res.json({
-      success: true,
-      message: 'Course deactivated successfully',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error deactivating course:', error);
-    throw error;
-  }
-}));
+  })
+);
 
 // User Management
-router.get('/sysadmin/users', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const result = await pool.query(`
+router.get(
+  '/sysadmin/users',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const result = await pool.query(`
       SELECT 
         u.id,
         u.username,
@@ -2671,119 +3264,174 @@ router.get('/sysadmin/users', asyncHandler(async (req: Request, res: Response) =
       ORDER BY u.created_at DESC
     `);
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    throw error;
-  }
-}));
-
-router.post('/sysadmin/users', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const {
-      username,
-      email,
-      password,
-      first_name,
-      last_name,
-      full_name,
-      role,
-      mobile,
-      organization_id,
-      date_onboarded,
-      user_comments
-    } = req.body;
-
-    if (!username || !email || !password || !role) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Username, email, password, and role are required');
+      res.json({
+        success: true,
+        data: result.rows,
+      });
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      throw error;
     }
+  })
+);
 
-    // Check if username already exists
-    const existingUsername = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
-    if (existingUsername.rows.length > 0) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Username already exists. Please choose a different username.');
-    }
+router.post(
+  '/sysadmin/users',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const {
+        username,
+        email,
+        password,
+        first_name,
+        last_name,
+        full_name,
+        role,
+        mobile,
+        organization_id,
+        date_onboarded,
+        user_comments,
+      } = req.body;
 
-    // Check if email already exists
-    const existingEmail = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existingEmail.rows.length > 0) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Email address already exists. Please use a different email address.');
-    }
+      if (!username || !email || !password || !role) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Username, email, password, and role are required'
+        );
+      }
 
-    const bcrypt = require('bcryptjs');
-    const passwordHash = bcrypt.hashSync(password, 10);
-    const displayName = full_name || `${first_name || ''} ${last_name || ''}`.trim();
+      // Check if username already exists
+      const existingUsername = await pool.query(
+        'SELECT id FROM users WHERE username = $1',
+        [username]
+      );
+      if (existingUsername.rows.length > 0) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Username already exists. Please choose a different username.'
+        );
+      }
 
-    const result = await pool.query(`
+      // Check if email already exists
+      const existingEmail = await pool.query(
+        'SELECT id FROM users WHERE email = $1',
+        [email]
+      );
+      if (existingEmail.rows.length > 0) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Email address already exists. Please use a different email address.'
+        );
+      }
+
+      const bcrypt = require('bcryptjs');
+      const passwordHash = bcrypt.hashSync(password, 10);
+      const displayName =
+        full_name || `${first_name || ''} ${last_name || ''}`.trim();
+
+      const result = await pool.query(
+        `
       INSERT INTO users (
         username, email, password_hash, full_name, first_name, last_name,
         role, mobile, organization_id, date_onboarded, user_comments, status
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active')
       RETURNING id, username, email, full_name, first_name, last_name, role, mobile, organization_id, date_onboarded, user_comments, status
-    `, [
-      username, email, passwordHash, displayName, first_name, last_name,
-      role, mobile, organization_id, date_onboarded, user_comments
-    ]);
+    `,
+        [
+          username,
+          email,
+          passwordHash,
+          displayName,
+          first_name,
+          last_name,
+          role,
+          mobile,
+          organization_id,
+          date_onboarded,
+          user_comments,
+        ]
+      );
 
-    res.json({
-      success: true,
-      message: 'User created successfully',
-      data: result.rows[0]
-    });
-  } catch (error: any) {
-    console.error('Error creating user:', error);
-    
-    // Handle specific database constraint violations
-    if (error.code === '23505') { // Unique constraint violation
-      if (error.constraint === 'users_email_key') {
-        throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Email address already exists. Please use a different email address.');
-      } else if (error.constraint === 'users_username_key') {
-        throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Username already exists. Please choose a different username.');
+      res.json({
+        success: true,
+        message: 'User created successfully',
+        data: result.rows[0],
+      });
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+
+      // Handle specific database constraint violations
+      if (error.code === '23505') {
+        // Unique constraint violation
+        if (error.constraint === 'users_email_key') {
+          throw new AppError(
+            400,
+            errorCodes.VALIDATION_ERROR,
+            'Email address already exists. Please use a different email address.'
+          );
+        } else if (error.constraint === 'users_username_key') {
+          throw new AppError(
+            400,
+            errorCodes.VALIDATION_ERROR,
+            'Username already exists. Please choose a different username.'
+          );
+        }
       }
+
+      // Re-throw AppErrors as-is
+      if (error instanceof AppError) {
+        throw error;
+      }
+
+      // Generic error for unexpected issues
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to create user'
+      );
     }
-    
-    // Re-throw AppErrors as-is
-    if (error instanceof AppError) {
-      throw error;
-    }
-    
-    // Generic error for unexpected issues
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to create user');
-  }
-}));
+  })
+);
 
-router.put('/sysadmin/users/:id', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const {
-      username,
-      email,
-      password,
-      first_name,
-      last_name,
-      full_name,
-      role,
-      mobile,
-      organization_id,
-      date_onboarded,
-      date_offboarded,
-      user_comments,
-      status
-    } = req.body;
+router.put(
+  '/sysadmin/users/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const {
+        username,
+        email,
+        password,
+        first_name,
+        last_name,
+        full_name,
+        role,
+        mobile,
+        organization_id,
+        date_onboarded,
+        date_offboarded,
+        user_comments,
+        status,
+      } = req.body;
 
-    let passwordHash = undefined;
-    if (password) {
-      const bcrypt = require('bcryptjs');
-      passwordHash = bcrypt.hashSync(password, 10);
-    }
+      let passwordHash = undefined;
+      if (password) {
+        const bcrypt = require('bcryptjs');
+        passwordHash = bcrypt.hashSync(password, 10);
+      }
 
-    const displayName = full_name || (first_name || last_name ? `${first_name || ''} ${last_name || ''}`.trim() : undefined);
+      const displayName =
+        full_name ||
+        (first_name || last_name
+          ? `${first_name || ''} ${last_name || ''}`.trim()
+          : undefined);
 
-    const result = await pool.query(`
+      const result = await pool.query(
+        `
       UPDATE users
       SET 
         username = COALESCE($1, username),
@@ -2802,57 +3450,87 @@ router.put('/sysadmin/users/:id', asyncHandler(async (req: Request, res: Respons
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $14
       RETURNING id, username, email, full_name, first_name, last_name, role, mobile, organization_id, date_onboarded, date_offboarded, user_comments, status
-    `, [
-      username, email, passwordHash, displayName, first_name, last_name,
-      role, mobile, organization_id, date_onboarded, date_offboarded,
-      user_comments, status, id
-    ]);
+    `,
+        [
+          username,
+          email,
+          passwordHash,
+          displayName,
+          first_name,
+          last_name,
+          role,
+          mobile,
+          organization_id,
+          date_onboarded,
+          date_offboarded,
+          user_comments,
+          status,
+          id,
+        ]
+      );
 
-    if (result.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'User not found');
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'User not found'
+        );
+      }
+
+      res.json({
+        success: true,
+        message: 'User updated successfully',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
     }
+  })
+);
 
-    res.json({
-      success: true,
-      message: 'User updated successfully',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error updating user:', error);
-    throw error;
-  }
-}));
+router.delete(
+  '/sysadmin/users/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
 
-router.delete('/sysadmin/users/:id', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const result = await pool.query(`
+      const result = await pool.query(
+        `
       UPDATE users
       SET status = 'inactive', date_offboarded = CURRENT_DATE, updated_at = CURRENT_TIMESTAMP
       WHERE id = $1
       RETURNING id, username, email, status
-    `, [id]);
+    `,
+        [id]
+      );
 
-    if (result.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'User not found');
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'User not found'
+        );
+      }
+
+      res.json({
+        success: true,
+        message: 'User deactivated successfully',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error deactivating user:', error);
+      throw error;
     }
-
-    res.json({
-      success: true,
-      message: 'User deactivated successfully',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error deactivating user:', error);
-    throw error;
-  }
-}));
+  })
+);
 
 // Vendor Management
-router.get('/sysadmin/vendors', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const result = await pool.query(`
+router.get(
+  '/sysadmin/vendors',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const result = await pool.query(`
       SELECT 
         id,
         vendor_name,
@@ -2881,45 +3559,53 @@ router.get('/sysadmin/vendors', asyncHandler(async (req: Request, res: Response)
       ORDER BY vendor_name
     `);
 
-    res.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error) {
-    console.error('Error fetching vendors:', error);
-    throw error;
-  }
-}));
-
-router.post('/sysadmin/vendors', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const {
-      vendor_name,
-      contact_first_name,
-      contact_last_name,
-      email,
-      mobile,
-      phone,
-      address_street,
-      address_city,
-      address_province,
-      address_postal_code,
-      vendor_type,
-      services,
-      contract_start_date,
-      contract_end_date,
-      performance_rating,
-      insurance_expiry,
-      certification_status,
-      billing_contact_email,
-      comments
-    } = req.body;
-
-    if (!vendor_name) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Vendor name is required');
+      res.json({
+        success: true,
+        data: result.rows,
+      });
+    } catch (error) {
+      console.error('Error fetching vendors:', error);
+      throw error;
     }
+  })
+);
 
-    const result = await pool.query(`
+router.post(
+  '/sysadmin/vendors',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const {
+        vendor_name,
+        contact_first_name,
+        contact_last_name,
+        email,
+        mobile,
+        phone,
+        address_street,
+        address_city,
+        address_province,
+        address_postal_code,
+        vendor_type,
+        services,
+        contract_start_date,
+        contract_end_date,
+        performance_rating,
+        insurance_expiry,
+        certification_status,
+        billing_contact_email,
+        comments,
+      } = req.body;
+
+      if (!vendor_name) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Vendor name is required'
+        );
+      }
+
+      const result = await pool.query(
+        `
       INSERT INTO vendors (
         vendor_name, contact_first_name, contact_last_name, email, mobile, phone,
         address_street, address_city, address_province, address_postal_code,
@@ -2929,52 +3615,72 @@ router.post('/sysadmin/vendors', asyncHandler(async (req: Request, res: Response
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 'active')
       RETURNING *
-    `, [
-      vendor_name, contact_first_name, contact_last_name, email, mobile, phone,
-      address_street, address_city, address_province, address_postal_code,
-      vendor_type, services, contract_start_date, contract_end_date,
-      performance_rating, insurance_expiry, certification_status,
-      billing_contact_email, comments
-    ]);
+    `,
+        [
+          vendor_name,
+          contact_first_name,
+          contact_last_name,
+          email,
+          mobile,
+          phone,
+          address_street,
+          address_city,
+          address_province,
+          address_postal_code,
+          vendor_type,
+          services,
+          contract_start_date,
+          contract_end_date,
+          performance_rating,
+          insurance_expiry,
+          certification_status,
+          billing_contact_email,
+          comments,
+        ]
+      );
 
-    res.json({
-      success: true,
-      message: 'Vendor created successfully',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error creating vendor:', error);
-    throw error;
-  }
-}));
+      res.json({
+        success: true,
+        message: 'Vendor created successfully',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error creating vendor:', error);
+      throw error;
+    }
+  })
+);
 
-router.put('/sysadmin/vendors/:id', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const {
-      vendor_name,
-      contact_first_name,
-      contact_last_name,
-      email,
-      mobile,
-      phone,
-      address_street,
-      address_city,
-      address_province,
-      address_postal_code,
-      vendor_type,
-      services,
-      contract_start_date,
-      contract_end_date,
-      performance_rating,
-      insurance_expiry,
-      certification_status,
-      billing_contact_email,
-      status,
-      comments
-    } = req.body;
+router.put(
+  '/sysadmin/vendors/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const {
+        vendor_name,
+        contact_first_name,
+        contact_last_name,
+        email,
+        mobile,
+        phone,
+        address_street,
+        address_city,
+        address_province,
+        address_postal_code,
+        vendor_type,
+        services,
+        contract_start_date,
+        contract_end_date,
+        performance_rating,
+        insurance_expiry,
+        certification_status,
+        billing_contact_email,
+        status,
+        comments,
+      } = req.body;
 
-    const result = await pool.query(`
+      const result = await pool.query(
+        `
       UPDATE vendors
       SET 
         vendor_name = COALESCE($1, vendor_name),
@@ -3000,73 +3706,116 @@ router.put('/sysadmin/vendors/:id', asyncHandler(async (req: Request, res: Respo
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $21
       RETURNING *
-    `, [
-      vendor_name, contact_first_name, contact_last_name, email, mobile, phone,
-      address_street, address_city, address_province, address_postal_code,
-      vendor_type, services, contract_start_date, contract_end_date,
-      performance_rating, insurance_expiry, certification_status,
-      billing_contact_email, status, comments, id
-    ]);
+    `,
+        [
+          vendor_name,
+          contact_first_name,
+          contact_last_name,
+          email,
+          mobile,
+          phone,
+          address_street,
+          address_city,
+          address_province,
+          address_postal_code,
+          vendor_type,
+          services,
+          contract_start_date,
+          contract_end_date,
+          performance_rating,
+          insurance_expiry,
+          certification_status,
+          billing_contact_email,
+          status,
+          comments,
+          id,
+        ]
+      );
 
-    if (result.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Vendor not found');
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Vendor not found'
+        );
+      }
+
+      res.json({
+        success: true,
+        message: 'Vendor updated successfully',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error updating vendor:', error);
+      throw error;
     }
+  })
+);
 
-    res.json({
-      success: true,
-      message: 'Vendor updated successfully',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error updating vendor:', error);
-    throw error;
-  }
-}));
+router.delete(
+  '/sysadmin/vendors/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
 
-router.delete('/sysadmin/vendors/:id', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const result = await pool.query(`
+      const result = await pool.query(
+        `
       UPDATE vendors
       SET status = 'inactive', updated_at = CURRENT_TIMESTAMP
       WHERE id = $1
       RETURNING *
-    `, [id]);
+    `,
+        [id]
+      );
 
-    if (result.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Vendor not found');
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Vendor not found'
+        );
+      }
+
+      res.json({
+        success: true,
+        message: 'Vendor deactivated successfully',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error deactivating vendor:', error);
+      throw error;
     }
-
-    res.json({
-      success: true,
-      message: 'Vendor deactivated successfully',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error deactivating vendor:', error);
-    throw error;
-  }
-}));
+  })
+);
 
 // System Administration Dashboard
-router.get('/sysadmin/dashboard', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    // Get total counts
-    const userCount = await pool.query('SELECT COUNT(*) as count FROM users WHERE status = \'active\'');
-    const organizationCount = await pool.query('SELECT COUNT(*) as count FROM organizations');
-    const courseCount = await pool.query('SELECT COUNT(*) as count FROM class_types WHERE is_active = true');
-    const vendorCount = await pool.query('SELECT COUNT(*) as count FROM vendors WHERE status = \'active\'');
-    
-    // Get recent activity
-    const recentUsers = await pool.query(`
+router.get(
+  '/sysadmin/dashboard',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      // Get total counts
+      const userCount = await pool.query(
+        "SELECT COUNT(*) as count FROM users WHERE status = 'active'"
+      );
+      const organizationCount = await pool.query(
+        'SELECT COUNT(*) as count FROM organizations'
+      );
+      const courseCount = await pool.query(
+        'SELECT COUNT(*) as count FROM class_types WHERE is_active = true'
+      );
+      const vendorCount = await pool.query(
+        "SELECT COUNT(*) as count FROM vendors WHERE status = 'active'"
+      );
+
+      // Get recent activity
+      const recentUsers = await pool.query(`
       SELECT username, role, created_at 
       FROM users 
       ORDER BY created_at DESC 
       LIMIT 5
     `);
-    
-    const recentCourses = await pool.query(`
+
+      const recentCourses = await pool.query(`
       SELECT name, course_code, created_at 
       FROM class_types 
       WHERE is_active = true 
@@ -3074,34 +3823,37 @@ router.get('/sysadmin/dashboard', asyncHandler(async (req: Request, res: Respons
       LIMIT 5
     `);
 
-    const dashboardData = {
-      summary: {
-        totalUsers: parseInt(userCount.rows[0].count),
-        totalOrganizations: parseInt(organizationCount.rows[0].count),
-        totalCourses: parseInt(courseCount.rows[0].count),
-        totalVendors: parseInt(vendorCount.rows[0].count)
-      },
-      recentActivity: {
-        users: recentUsers.rows,
-        courses: recentCourses.rows
-      }
-    };
+      const dashboardData = {
+        summary: {
+          totalUsers: parseInt(userCount.rows[0].count),
+          totalOrganizations: parseInt(organizationCount.rows[0].count),
+          totalCourses: parseInt(courseCount.rows[0].count),
+          totalVendors: parseInt(vendorCount.rows[0].count),
+        },
+        recentActivity: {
+          users: recentUsers.rows,
+          courses: recentCourses.rows,
+        },
+      };
 
-    res.json({
-      success: true,
-      data: dashboardData
-    });
-  } catch (error) {
-    console.error('Error fetching system admin dashboard:', error);
-    throw error;
-  }
-}));
+      res.json({
+        success: true,
+        data: dashboardData,
+      });
+    } catch (error) {
+      console.error('Error fetching system admin dashboard:', error);
+      throw error;
+    }
+  })
+);
 
 // Organization Management
-router.get('/sysadmin/organizations', asyncHandler(async (req: Request, res: Response) => {
-  console.log('[Debug] Getting all organizations for sysadmin');
-  
-  const query = `
+router.get(
+  '/sysadmin/organizations',
+  asyncHandler(async (req: Request, res: Response) => {
+    console.log('[Debug] Getting all organizations for sysadmin');
+
+    const query = `
     SELECT 
       o.id,
       o.name as organization_name,
@@ -3126,33 +3878,36 @@ router.get('/sysadmin/organizations', asyncHandler(async (req: Request, res: Res
              o.contact_email, o.contact_phone, o.organization_comments
     ORDER BY o.name
   `;
-  
-  const result = await pool.query(query);
-  
-  res.json({
-    success: true,
-    data: result.rows
-  });
-}));
 
-router.post('/sysadmin/organizations', asyncHandler(async (req: Request, res: Response) => {
-  console.log('[Debug] Creating new organization:', req.body);
-  
-  const {
-    name,
-    address,
-    city,
-    province,
-    postal_code,
-    country,
-    contact_person,
-    contact_position,
-    contact_email,
-    contact_phone,
-    organization_comments
-  } = req.body;
-  
-  const query = `
+    const result = await pool.query(query);
+
+    res.json({
+      success: true,
+      data: result.rows,
+    });
+  })
+);
+
+router.post(
+  '/sysadmin/organizations',
+  asyncHandler(async (req: Request, res: Response) => {
+    console.log('[Debug] Creating new organization:', req.body);
+
+    const {
+      name,
+      address,
+      city,
+      province,
+      postal_code,
+      country,
+      contact_person,
+      contact_position,
+      contact_email,
+      contact_phone,
+      organization_comments,
+    } = req.body;
+
+    const query = `
     INSERT INTO organizations (
       name,
       address,
@@ -3169,49 +3924,52 @@ router.post('/sysadmin/organizations', asyncHandler(async (req: Request, res: Re
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP)
     RETURNING *
   `;
-  
-  const values = [
-    name,
-    address || '',
-    city || '',
-    province || '',
-    postal_code || '',
-    country || 'Canada',
-    contact_person,
-    contact_position,
-    contact_email,
-    contact_phone,
-    organization_comments
-  ];
-  
-  const result = await pool.query(query, values);
-  
-  res.status(201).json({
-    success: true,
-    data: result.rows[0],
-    message: 'Organization created successfully'
-  });
-}));
 
-router.put('/sysadmin/organizations/:id', asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  console.log('[Debug] Updating organization:', id, req.body);
-  
-  const {
-    name,
-    address,
-    city,
-    province,
-    postal_code,
-    country,
-    contact_person,
-    contact_position,
-    contact_email,
-    contact_phone,
-    organization_comments
-  } = req.body;
-  
-  const query = `
+    const values = [
+      name,
+      address || '',
+      city || '',
+      province || '',
+      postal_code || '',
+      country || 'Canada',
+      contact_person,
+      contact_position,
+      contact_email,
+      contact_phone,
+      organization_comments,
+    ];
+
+    const result = await pool.query(query, values);
+
+    res.status(201).json({
+      success: true,
+      data: result.rows[0],
+      message: 'Organization created successfully',
+    });
+  })
+);
+
+router.put(
+  '/sysadmin/organizations/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    console.log('[Debug] Updating organization:', id, req.body);
+
+    const {
+      name,
+      address,
+      city,
+      province,
+      postal_code,
+      country,
+      contact_person,
+      contact_position,
+      contact_email,
+      contact_phone,
+      organization_comments,
+    } = req.body;
+
+    const query = `
     UPDATE organizations
     SET 
       name = $1,
@@ -3228,44 +3986,47 @@ router.put('/sysadmin/organizations/:id', asyncHandler(async (req: Request, res:
     WHERE id = $12
     RETURNING *
   `;
-  
-  const values = [
-    name,
-    address || '',
-    city || '',
-    province || '',
-    postal_code || '',
-    country || 'Canada',
-    contact_person,
-    contact_position,
-    contact_email,
-    contact_phone,
-    organization_comments,
-    id
-  ];
-  
-  const result = await pool.query(query, values);
-  
-  if (result.rows.length === 0) {
-    return res.status(404).json({
-      success: false,
-      error: { message: 'Organization not found' }
-    });
-  }
-  
-  res.json({
-    success: true,
-    data: result.rows[0],
-    message: 'Organization updated successfully'
-  });
-}));
 
-router.delete('/sysadmin/organizations/:id', asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  console.log('[Debug] Deleting organization:', id);
-  
-  // Check for dependencies
-  const checkQuery = `
+    const values = [
+      name,
+      address || '',
+      city || '',
+      province || '',
+      postal_code || '',
+      country || 'Canada',
+      contact_person,
+      contact_position,
+      contact_email,
+      contact_phone,
+      organization_comments,
+      id,
+    ];
+
+    const result = await pool.query(query, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Organization not found' },
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0],
+      message: 'Organization updated successfully',
+    });
+  })
+);
+
+router.delete(
+  '/sysadmin/organizations/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    console.log('[Debug] Deleting organization:', id);
+
+    // Check for dependencies
+    const checkQuery = `
     SELECT 
       COUNT(DISTINCT u.id) as user_count,
       COUNT(DISTINCT cr.id) as course_count
@@ -3274,60 +4035,73 @@ router.delete('/sysadmin/organizations/:id', asyncHandler(async (req: Request, r
     LEFT JOIN course_requests cr ON cr.organization_id = o.id
     WHERE o.id = $1
   `;
-  
-  const checkResult = await pool.query(checkQuery, [id]);
-  const { user_count, course_count } = checkResult.rows[0];
-  
-  if (parseInt(user_count) > 0 || parseInt(course_count) > 0) {
-    return res.status(400).json({
-      success: false,
-      error: {
-        message: 'Cannot delete organization with associated users or courses',
-        details: `${user_count} users and ${course_count} courses are linked to this organization`
-      }
+
+    const checkResult = await pool.query(checkQuery, [id]);
+    const { user_count, course_count } = checkResult.rows[0];
+
+    if (parseInt(user_count) > 0 || parseInt(course_count) > 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message:
+            'Cannot delete organization with associated users or courses',
+          details: `${user_count} users and ${course_count} courses are linked to this organization`,
+        },
+      });
+    }
+
+    const deleteQuery = 'DELETE FROM organizations WHERE id = $1 RETURNING *';
+    const result = await pool.query(deleteQuery, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Organization not found' },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Organization deleted successfully',
     });
-  }
-  
-  const deleteQuery = 'DELETE FROM organizations WHERE id = $1 RETURNING *';
-  const result = await pool.query(deleteQuery, [id]);
-  
-  if (result.rows.length === 0) {
-    return res.status(404).json({
-      success: false,
-      error: { message: 'Organization not found' }
-    });
-  }
-  
-  res.json({
-    success: true,
-    message: 'Organization deleted successfully'
-  });
-}));
+  })
+);
 
 // Admin endpoint to get students for a specific course
-router.get('/admin/courses/:courseId/students', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { courseId } = req.params;
-    const userRole = req.user?.role;
+router.get(
+  '/admin/courses/:courseId/students',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { courseId } = req.params;
+      const userRole = req.user?.role;
 
-    // Only admin users can access this endpoint
-    if (userRole !== 'admin') {
-      throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin role required.');
-    }
+      // Only admin users can access this endpoint
+      if (userRole !== 'admin') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Admin role required.'
+        );
+      }
 
-    // Verify the course exists
-    const courseCheck = await pool.query(
-      'SELECT id FROM course_requests WHERE id = $1',
-      [courseId]
-    );
+      // Verify the course exists
+      const courseCheck = await pool.query(
+        'SELECT id FROM course_requests WHERE id = $1',
+        [courseId]
+      );
 
-    if (courseCheck.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Course not found');
-    }
+      if (courseCheck.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Course not found'
+        );
+      }
 
-    // Get students for this course with attendance information
-    const result = await pool.query(
-      `SELECT 
+      // Get students for this course with attendance information
+      const result = await pool.query(
+        `SELECT 
         s.id,
         s.course_request_id,
         s.first_name,
@@ -3339,83 +4113,120 @@ router.get('/admin/courses/:courseId/students', authenticateToken, asyncHandler(
        FROM course_students s
        WHERE s.course_request_id = $1
        ORDER BY s.last_name, s.first_name`,
-      [courseId]
-    );
+        [courseId]
+      );
 
-    return res.json(ApiResponseBuilder.success(result.rows));
-  } catch (error: any) {
-    console.error('Error fetching course students:', error);
-    if (error instanceof AppError) {
-      throw error;
+      return res.json(ApiResponseBuilder.success(result.rows));
+    } catch (error: any) {
+      console.error('Error fetching course students:', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch course students'
+      );
     }
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch course students');
-  }
-}));
+  })
+);
 
 // Mark course as ready for billing
-router.put('/courses/:courseId/ready-for-billing', asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { courseId } = req.params;
+router.put(
+  '/courses/:courseId/ready-for-billing',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { courseId } = req.params;
 
-    // First check if the course exists and is completed
-    const courseCheck = await pool.query(`
+      // First check if the course exists and is completed
+      const courseCheck = await pool.query(
+        `
       SELECT id, status FROM course_requests WHERE id = $1
-    `, [courseId]);
+    `,
+        [courseId]
+      );
 
-    if (courseCheck.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Course not found');
-    }
+      if (courseCheck.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Course not found'
+        );
+      }
 
-    if (courseCheck.rows[0].status !== 'completed') {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Only completed courses can be marked as ready for billing');
-    }
+      if (courseCheck.rows[0].status !== 'completed') {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Only completed courses can be marked as ready for billing'
+        );
+      }
 
-    // Update the course to mark it as ready for billing
-    const result = await pool.query(`
+      // Update the course to mark it as ready for billing
+      const result = await pool.query(
+        `
       UPDATE course_requests 
       SET ready_for_billing = true,
           ready_for_billing_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = $1
       RETURNING *
-    `, [courseId]);
+    `,
+        [courseId]
+      );
 
-    res.json({
-      success: true,
-      message: 'Course marked as ready for billing',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error marking course as ready for billing:', error);
-    throw error;
-  }
-}));
+      res.json({
+        success: true,
+        message: 'Course marked as ready for billing',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error marking course as ready for billing:', error);
+      throw error;
+    }
+  })
+);
 
 // Organization Bills Payable - View invoices for organization
-router.get('/organization/invoices', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const user = (req as any).user;
-    
-    if (user.role !== 'organization') {
-      throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Organization role required.');
-    }
+router.get(
+  '/organization/invoices',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
 
-    const { status, page = 1, limit = 10, sort_by = 'created_at', sort_order = 'desc' } = req.query;
-    const offset = (Number(page) - 1) * Number(limit);
+      if (user.role !== 'organization') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Organization role required.'
+        );
+      }
 
-    let whereClause = 'WHERE i.organization_id = $1 AND i.posted_to_org = TRUE';
-    const queryParams: any[] = [user.organizationId];
-    let paramCount = 1;
+      const {
+        status,
+        page = 1,
+        limit = 10,
+        sort_by = 'created_at',
+        sort_order = 'desc',
+      } = req.query;
+      const offset = (Number(page) - 1) * Number(limit);
 
-    if (status) {
-      paramCount++;
-      whereClause += ` AND i.status = $${paramCount}`;
-      queryParams.push(status);
-    }
+      let whereClause =
+        'WHERE i.organization_id = $1 AND i.posted_to_org = TRUE';
+      const queryParams: any[] = [user.organizationId];
+      let paramCount = 1;
 
-    const orderClause = `ORDER BY i.${sort_by} ${sort_order.toString().toUpperCase()}`;
+      if (status) {
+        paramCount++;
+        whereClause += ` AND i.status = $${paramCount}`;
+        queryParams.push(status);
+      }
 
-    const result = await pool.query(`
+      const orderClause = `ORDER BY i.${sort_by} ${sort_order.toString().toUpperCase()}`;
+
+      const result = await pool.query(
+        `
       SELECT 
         i.id as invoice_id,
         i.invoice_number,
@@ -3439,49 +4250,62 @@ router.get('/organization/invoices', authenticateToken, asyncHandler(async (req:
       GROUP BY i.id, cr.id, ct.id
       ${orderClause}
       LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
-    `, [...queryParams, Number(limit), offset]);
+    `,
+        [...queryParams, Number(limit), offset]
+      );
 
-    // Get total count for pagination
-    const countResult = await pool.query(`
+      // Get total count for pagination
+      const countResult = await pool.query(
+        `
       SELECT COUNT(DISTINCT i.id) as total
       FROM invoices i
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       ${whereClause}
-    `, queryParams);
+    `,
+        queryParams
+      );
 
-    const total = parseInt(countResult.rows[0].total);
-    const totalPages = Math.ceil(total / Number(limit));
+      const total = parseInt(countResult.rows[0].total);
+      const totalPages = Math.ceil(total / Number(limit));
 
-    res.json({
-      success: true,
-      data: {
-        invoices: result.rows,
-        pagination: {
-          current_page: Number(page),
-          total_pages: totalPages,
-          total_records: total,
-          per_page: Number(limit)
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('[Organization Invoices] Error:', error);
-    throw error;
-  }
-}));
+      res.json({
+        success: true,
+        data: {
+          invoices: result.rows,
+          pagination: {
+            current_page: Number(page),
+            total_pages: totalPages,
+            total_records: total,
+            per_page: Number(limit),
+          },
+        },
+      });
+    } catch (error) {
+      console.error('[Organization Invoices] Error:', error);
+      throw error;
+    }
+  })
+);
 
 // Organization Bills Payable - Get invoice details
-router.get('/organization/invoices/:id', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const user = (req as any).user;
-    const { id } = req.params;
-    
-    if (user.role !== 'organization') {
-      throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Organization role required.');
-    }
+router.get(
+  '/organization/invoices/:id',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
 
-    const result = await pool.query(`
+      if (user.role !== 'organization') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Organization role required.'
+        );
+      }
+
+      const result = await pool.query(
+        `
       SELECT 
         i.id as invoice_id,
         i.invoice_number,
@@ -3508,14 +4332,21 @@ router.get('/organization/invoices/:id', authenticateToken, asyncHandler(async (
       LEFT JOIN payments p ON i.id = p.invoice_id
       WHERE i.id = $1 AND i.organization_id = $2
       GROUP BY i.id, o.id, cr.id, ct.id
-    `, [id, user.organizationId]);
+    `,
+        [id, user.organizationId]
+      );
 
-    if (result.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found');
-    }
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Invoice not found'
+        );
+      }
 
-    // Get payment history
-    const paymentsResult = await pool.query(`
+      // Get payment history
+      const paymentsResult = await pool.query(
+        `
       SELECT 
         id,
         amount,
@@ -3527,62 +4358,83 @@ router.get('/organization/invoices/:id', authenticateToken, asyncHandler(async (
       FROM payments
       WHERE invoice_id = $1
       ORDER BY payment_date DESC
-    `, [id]);
+    `,
+        [id]
+      );
 
-    const invoice = result.rows[0];
-    invoice.payments = paymentsResult.rows;
+      const invoice = result.rows[0];
+      invoice.payments = paymentsResult.rows;
 
-    res.json({
-      success: true,
-      data: invoice
-    });
-
-  } catch (error) {
-    console.error('[Organization Invoice Details] Error:', error);
-    throw error;
-  }
-}));
+      res.json({
+        success: true,
+        data: invoice,
+      });
+    } catch (error) {
+      console.error('[Organization Invoice Details] Error:', error);
+      throw error;
+    }
+  })
+);
 
 // Organization Bills Payable - Submit payment information
-router.post('/organization/invoices/:id/payment-submission', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const user = (req as any).user;
-    const { id } = req.params;
-    const { 
-      payment_method, 
-      reference_number, 
-      payment_date, 
-      amount, 
-      notes,
-      payment_proof_url 
-    } = req.body;
-    
-    if (user.role !== 'organization') {
-      throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Organization role required.');
-    }
+router.post(
+  '/organization/invoices/:id/payment-submission',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const {
+        payment_method,
+        reference_number,
+        payment_date,
+        amount,
+        notes,
+        payment_proof_url,
+      } = req.body;
 
-    if (!amount || amount <= 0) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Valid payment amount is required');
-    }
+      if (user.role !== 'organization') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Organization role required.'
+        );
+      }
 
-    // Verify invoice belongs to organization
-    const invoiceResult = await pool.query(`
+      if (!amount || amount <= 0) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Valid payment amount is required'
+        );
+      }
+
+      // Verify invoice belongs to organization
+      const invoiceResult = await pool.query(
+        `
       SELECT id, amount, status, organization_id
       FROM invoices 
       WHERE id = $1 AND organization_id = $2
-    `, [id, user.organizationId]);
+    `,
+        [id, user.organizationId]
+      );
 
-    if (invoiceResult.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found');
-    }
+      if (invoiceResult.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Invoice not found'
+        );
+      }
 
-    const client = await pool.connect();
-    
-    try {
-      await client.query('BEGIN');
+      const client = await pool.connect();
 
-      // Record payment submission (pending verification)
-      const paymentResult = await client.query(`
+      try {
+        await client.query('BEGIN');
+
+        // Record payment submission (pending verification)
+        const paymentResult = await client.query(
+          `
         INSERT INTO payments (
           invoice_id, 
           amount, 
@@ -3595,46 +4447,66 @@ router.post('/organization/invoices/:id/payment-submission', authenticateToken, 
         )
         VALUES ($1, $2, $3, $4, $5, $6, 'pending_verification', NOW())
         RETURNING *
-      `, [id, amount, payment_date || new Date(), payment_method, reference_number, notes]);
+      `,
+          [
+            id,
+            amount,
+            payment_date || new Date(),
+            payment_method,
+            reference_number,
+            notes,
+          ]
+        );
 
-      // Update invoice status to indicate payment submitted
-      await client.query(`
+        // Update invoice status to indicate payment submitted
+        await client.query(
+          `
         UPDATE invoices 
         SET status = 'payment_submitted', updated_at = NOW()
         WHERE id = $1
-      `, [id]);
+      `,
+          [id]
+        );
 
-      await client.query('COMMIT');
+        await client.query('COMMIT');
 
-      res.json({
-        success: true,
-        message: 'Payment submission recorded successfully. It will be verified by accounting.',
-        data: paymentResult.rows[0]
-      });
-
+        res.json({
+          success: true,
+          message:
+            'Payment submission recorded successfully. It will be verified by accounting.',
+          data: paymentResult.rows[0],
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
     } catch (error) {
-      await client.query('ROLLBACK');
+      console.error('[Organization Payment Submission] Error:', error);
       throw error;
-    } finally {
-      client.release();
     }
-
-  } catch (error) {
-    console.error('[Organization Payment Submission] Error:', error);
-    throw error;
-  }
-}));
+  })
+);
 
 // Organization Bills Payable - Dashboard summary
-router.get('/organization/billing-summary', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const user = (req as any).user;
-    
-    if (user.role !== 'organization') {
-      throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Organization role required.');
-    }
+router.get(
+  '/organization/billing-summary',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
 
-    const result = await pool.query(`
+      if (user.role !== 'organization') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Organization role required.'
+        );
+      }
+
+      const result = await pool.query(
+        `
       SELECT 
         COUNT(*) as total_invoices,
         COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_invoices,
@@ -3647,10 +4519,13 @@ router.get('/organization/billing-summary', authenticateToken, asyncHandler(asyn
         COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as paid_amount
       FROM invoices
       WHERE organization_id = $1 AND posted_to_org = TRUE
-    `, [user.organizationId]);
+    `,
+        [user.organizationId]
+      );
 
-    // Get recent invoices
-    const recentResult = await pool.query(`
+      // Get recent invoices
+      const recentResult = await pool.query(
+        `
       SELECT 
         i.id as invoice_id,
         i.invoice_number,
@@ -3666,32 +4541,41 @@ router.get('/organization/billing-summary', authenticateToken, asyncHandler(asyn
       WHERE i.organization_id = $1 AND i.posted_to_org = TRUE
       ORDER BY i.created_at DESC
       LIMIT 5
-    `, [user.organizationId]);
+    `,
+        [user.organizationId]
+      );
 
-    const summary = result.rows[0];
-    summary.recent_invoices = recentResult.rows;
+      const summary = result.rows[0];
+      summary.recent_invoices = recentResult.rows;
 
-            res.json({
-          success: true,
-          data: summary
-        });
+      res.json({
+        success: true,
+        data: summary,
+      });
+    } catch (error) {
+      console.error('[Organization Billing Summary] Error:', error);
+      throw error;
+    }
+  })
+);
 
-      } catch (error) {
-        console.error('[Organization Billing Summary] Error:', error);
-        throw error;
+// Accounting - Get pending payment verifications
+router.get(
+  '/accounting/payment-verifications',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+
+      if (user.role !== 'accountant' && user.role !== 'admin') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Accountant role required.'
+        );
       }
-    }));
 
-    // Accounting - Get pending payment verifications
-    router.get('/accounting/payment-verifications', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const user = (req as any).user;
-        
-        if (user.role !== 'accountant' && user.role !== 'admin') {
-          throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Accountant role required.');
-        }
-
-        const result = await pool.query(`
+      const result = await pool.query(`
           SELECT 
             p.id as payment_id,
             p.amount,
@@ -3711,162 +4595,211 @@ router.get('/organization/billing-summary', authenticateToken, asyncHandler(asyn
           ORDER BY p.submitted_by_org_at DESC
         `);
 
-        res.json({
-          success: true,
-          data: {
-            payments: result.rows
-          }
-        });
+      res.json({
+        success: true,
+        data: {
+          payments: result.rows,
+        },
+      });
+    } catch (error) {
+      console.error('[Payment Verifications] Error:', error);
+      throw error;
+    }
+  })
+);
 
-      } catch (error) {
-        console.error('[Payment Verifications] Error:', error);
-        throw error;
+// Accounting - Verify payment (approve/reject)
+router.post(
+  '/accounting/payments/:id/verify',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const { action, notes } = req.body; // action: 'approve' or 'reject'
+
+      if (user.role !== 'accountant' && user.role !== 'admin') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Accountant role required.'
+        );
       }
-    }));
 
-    // Accounting - Verify payment (approve/reject)
-    router.post('/accounting/payments/:id/verify', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+      if (!action || !['approve', 'reject'].includes(action)) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Valid action (approve/reject) is required'
+        );
+      }
+
+      if (action === 'reject' && !notes?.trim()) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Notes are required when rejecting a payment'
+        );
+      }
+
+      const client = await pool.connect();
+
       try {
-        const user = (req as any).user;
-        const { id } = req.params;
-        const { action, notes } = req.body; // action: 'approve' or 'reject'
-        
-        if (user.role !== 'accountant' && user.role !== 'admin') {
-          throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Accountant role required.');
-        }
+        await client.query('BEGIN');
 
-        if (!action || !['approve', 'reject'].includes(action)) {
-          throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Valid action (approve/reject) is required');
-        }
-
-        if (action === 'reject' && !notes?.trim()) {
-          throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Notes are required when rejecting a payment');
-        }
-
-        const client = await pool.connect();
-        
-        try {
-          await client.query('BEGIN');
-
-          // Get payment and invoice details
-          const paymentResult = await client.query(`
+        // Get payment and invoice details
+        const paymentResult = await client.query(
+          `
             SELECT p.*, i.organization_id, i.amount as invoice_amount
             FROM payments p
             JOIN invoices i ON p.invoice_id = i.id
             WHERE p.id = $1 AND p.status = 'pending_verification'
-          `, [id]);
+          `,
+          [id]
+        );
 
-          if (paymentResult.rows.length === 0) {
-            throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Payment not found or already processed');
-          }
+        if (paymentResult.rows.length === 0) {
+          throw new AppError(
+            404,
+            errorCodes.RESOURCE_NOT_FOUND,
+            'Payment not found or already processed'
+          );
+        }
 
-          const payment = paymentResult.rows[0];
+        const payment = paymentResult.rows[0];
 
-          if (action === 'approve') {
-            // Approve payment
-            await client.query(`
+        if (action === 'approve') {
+          // Approve payment
+          await client.query(
+            `
               UPDATE payments 
               SET status = 'verified', 
                   verified_by_accounting_at = NOW(),
                   notes = COALESCE(notes, '') || CASE WHEN notes IS NOT NULL AND notes != '' THEN E'\n\n' ELSE '' END || $2
               WHERE id = $1
-            `, [id, `Verified by ${user.username}: ${notes || 'Payment approved'}`]);
+            `,
+            [id, `Verified by ${user.username}: ${notes || 'Payment approved'}`]
+          );
 
-            // Check if invoice is fully paid
-            const totalPaidResult = await client.query(`
+          // Check if invoice is fully paid
+          const totalPaidResult = await client.query(
+            `
               SELECT COALESCE(SUM(amount), 0) as total_paid
               FROM payments
               WHERE invoice_id = $1 AND status = 'verified'
-            `, [payment.invoice_id]);
+            `,
+            [payment.invoice_id]
+          );
 
-            const totalPaid = parseFloat(totalPaidResult.rows[0].total_paid);
-            const invoiceAmount = parseFloat(payment.invoice_amount);
+          const totalPaid = parseFloat(totalPaidResult.rows[0].total_paid);
+          const invoiceAmount = parseFloat(payment.invoice_amount);
 
-            // Update invoice status if fully paid
-            if (totalPaid >= invoiceAmount) {
-              await client.query(`
+          // Update invoice status if fully paid
+          if (totalPaid >= invoiceAmount) {
+            await client.query(
+              `
                 UPDATE invoices 
                 SET status = 'paid', paid_date = NOW(), updated_at = NOW()
                 WHERE id = $1
-              `, [payment.invoice_id]);
-            } else {
-              // Partially paid
-              await client.query(`
+              `,
+              [payment.invoice_id]
+            );
+          } else {
+            // Partially paid
+            await client.query(
+              `
                 UPDATE invoices 
                 SET status = 'partial_payment', updated_at = NOW()
                 WHERE id = $1
-              `, [payment.invoice_id]);
-            }
-
-          } else {
-            // Reject payment
-            await client.query(`
+              `,
+              [payment.invoice_id]
+            );
+          }
+        } else {
+          // Reject payment
+          await client.query(
+            `
               UPDATE payments 
               SET status = 'rejected',
                   verified_by_accounting_at = NOW(),
                   notes = COALESCE(notes, '') || CASE WHEN notes IS NOT NULL AND notes != '' THEN E'\n\n' ELSE '' END || $2
               WHERE id = $1
-            `, [id, `Rejected by ${user.username}: ${notes}`]);
+            `,
+            [id, `Rejected by ${user.username}: ${notes}`]
+          );
 
-            // Reset invoice status to pending
-            await client.query(`
+          // Reset invoice status to pending
+          await client.query(
+            `
               UPDATE invoices 
               SET status = 'pending', updated_at = NOW()
               WHERE id = $1
-            `, [payment.invoice_id]);
-          }
-
-          await client.query('COMMIT');
-
-          res.json({
-            success: true,
-            message: `Payment ${action}d successfully`,
-            data: {
-              action,
-              payment_id: id,
-              invoice_id: payment.invoice_id
-            }
-          });
-
-        } catch (error) {
-          await client.query('ROLLBACK');
-          throw error;
-        } finally {
-          client.release();
+            `,
+            [payment.invoice_id]
+          );
         }
 
+        await client.query('COMMIT');
+
+        res.json({
+          success: true,
+          message: `Payment ${action}d successfully`,
+          data: {
+            action,
+            payment_id: id,
+            invoice_id: payment.invoice_id,
+          },
+        });
       } catch (error) {
-        console.error('[Payment Verification] Error:', error);
+        await client.query('ROLLBACK');
         throw error;
+      } finally {
+        client.release();
       }
-    }));
+    } catch (error) {
+      console.error('[Payment Verification] Error:', error);
+      throw error;
+    }
+  })
+);
 
-    // Aging Report - Commercial Grade Implementation
-    router.get('/accounting/aging-report', authenticateToken, requireRole(['accountant', 'admin']), asyncHandler(async (req: Request, res: Response) => {
-      try {
-        const { organization_id, as_of_date } = req.query;
-        
-        // Use provided date or current date for aging calculations
-        const asOfDate = as_of_date ? new Date(as_of_date as string) : new Date();
-        
-        // Validate date
-        if (isNaN(asOfDate.getTime())) {
-          throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid as_of_date format');
-        }
+// Aging Report - Commercial Grade Implementation
+router.get(
+  '/accounting/aging-report',
+  authenticateToken,
+  requireRole(['accountant', 'admin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { organization_id, as_of_date } = req.query;
 
-        console.log('[Aging Report] Generating report as of:', asOfDate.toISOString());
+      // Use provided date or current date for aging calculations
+      const asOfDate = as_of_date ? new Date(as_of_date as string) : new Date();
 
-        // Build dynamic WHERE clause for organization filtering
-        let organizationFilter = '';
-        let queryParams: any[] = [asOfDate];
-        
-        if (organization_id) {
-          organizationFilter = 'AND i.organization_id = $2';
-          queryParams.push(parseInt(organization_id as string));
-        }
+      // Validate date
+      if (isNaN(asOfDate.getTime())) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Invalid as_of_date format'
+        );
+      }
 
-        // Get aging summary data
-        const agingSummaryQuery = `
+      console.log(
+        '[Aging Report] Generating report as of:',
+        asOfDate.toISOString()
+      );
+
+      // Build dynamic WHERE clause for organization filtering
+      let organizationFilter = '';
+      let queryParams: any[] = [asOfDate];
+
+      if (organization_id) {
+        organizationFilter = 'AND i.organization_id = $2';
+        queryParams.push(parseInt(organization_id as string));
+      }
+
+      // Get aging summary data
+      const agingSummaryQuery = `
           WITH invoice_aging AS (
             SELECT 
               i.id,
@@ -3934,8 +4867,8 @@ router.get('/organization/billing-summary', authenticateToken, asyncHandler(asyn
             END
         `;
 
-        // Get organization breakdown data
-        const organizationBreakdownQuery = `
+      // Get organization breakdown data
+      const organizationBreakdownQuery = `
           WITH invoice_aging AS (
             SELECT 
               i.organization_id,
@@ -3992,8 +4925,8 @@ router.get('/organization/billing-summary', authenticateToken, asyncHandler(asyn
           ORDER BY organization_name
         `;
 
-        // Get detailed invoice list
-        const detailQuery = `
+      // Get detailed invoice list
+      const detailQuery = `
           SELECT 
             i.id,
             i.invoice_number,
@@ -4043,122 +4976,144 @@ router.get('/organization/billing-summary', authenticateToken, asyncHandler(asyn
             i.due_date ASC
         `;
 
-        // Execute all queries
-        const [summaryResult, organizationResult, detailResult] = await Promise.all([
+      // Execute all queries
+      const [summaryResult, organizationResult, detailResult] =
+        await Promise.all([
           pool.query(agingSummaryQuery, queryParams),
           pool.query(organizationBreakdownQuery, queryParams),
-          pool.query(detailQuery, queryParams)
+          pool.query(detailQuery, queryParams),
         ]);
 
-        const summaryData = summaryResult.rows;
-        const organizationData = organizationResult.rows;
+      const summaryData = summaryResult.rows;
+      const organizationData = organizationResult.rows;
 
-        // Calculate executive summary metrics
-        const totalOutstanding = summaryData
-          .filter(row => row.aging_bucket !== 'Paid')
-          .reduce((sum, row) => sum + parseFloat(row.total_balance || 0), 0);
+      // Calculate executive summary metrics
+      const totalOutstanding = summaryData
+        .filter(row => row.aging_bucket !== 'Paid')
+        .reduce((sum, row) => sum + parseFloat(row.total_balance || 0), 0);
 
-        const totalOverdue = summaryData
-          .filter(row => !['Current', 'Paid'].includes(row.aging_bucket))
-          .reduce((sum, row) => sum + parseFloat(row.total_balance || 0), 0);
+      const totalOverdue = summaryData
+        .filter(row => !['Current', 'Paid'].includes(row.aging_bucket))
+        .reduce((sum, row) => sum + parseFloat(row.total_balance || 0), 0);
 
-        const totalInvoices = summaryData
-          .filter(row => row.aging_bucket !== 'Paid')
-          .reduce((sum, row) => sum + parseInt(row.invoice_count || 0), 0);
+      const totalInvoices = summaryData
+        .filter(row => row.aging_bucket !== 'Paid')
+        .reduce((sum, row) => sum + parseInt(row.invoice_count || 0), 0);
 
-        const overdueInvoices = summaryData
-          .filter(row => !['Current', 'Paid'].includes(row.aging_bucket))
-          .reduce((sum, row) => sum + parseInt(row.invoice_count || 0), 0);
+      const overdueInvoices = summaryData
+        .filter(row => !['Current', 'Paid'].includes(row.aging_bucket))
+        .reduce((sum, row) => sum + parseInt(row.invoice_count || 0), 0);
 
-        // Format response with commercial-grade structure
-        const response = {
-          report_metadata: {
-            generated_at: new Date().toISOString(),
-            as_of_date: asOfDate.toISOString(),
-            organization_filter: organization_id || 'All Organizations',
-            total_records: detailResult.rows.length
-          },
-          executive_summary: {
-            total_outstanding: totalOutstanding,
-            total_overdue: totalOverdue,
-            total_invoices: totalInvoices,
-            overdue_invoices: overdueInvoices,
-            overdue_percentage: totalInvoices > 0 ? ((overdueInvoices / totalInvoices) * 100).toFixed(1) : 0,
-            collection_efficiency: totalOutstanding > 0 ? (((totalOutstanding - totalOverdue) / totalOutstanding) * 100).toFixed(1) : 100
-          },
-          aging_summary: summaryData.map(row => ({
-            aging_bucket: row.aging_bucket,
-            invoice_count: parseInt(row.invoice_count || 0),
-            total_balance: parseFloat(row.total_balance || 0),
-            percentage_of_total: totalOutstanding > 0 ? ((parseFloat(row.total_balance || 0) / totalOutstanding) * 100).toFixed(1) : 0,
-            avg_days_outstanding: parseFloat(row.avg_days_outstanding || 0).toFixed(1),
-            oldest_due_date: row.oldest_due_date,
-            newest_due_date: row.newest_due_date
-          })),
-          organization_breakdown: organizationData.map(row => ({
-            organization_id: row.organization_id,
-            organization_name: row.organization_name,
-            total_invoices: parseInt(row.total_invoices || 0),
-            total_balance: parseFloat(row.total_balance || 0),
-            current_balance: parseFloat(row.current_balance || 0),
-            days_1_30: parseFloat(row.days_1_30 || 0),
-            days_31_60: parseFloat(row.days_31_60 || 0),
-            days_61_90: parseFloat(row.days_61_90 || 0),
-            days_90_plus: parseFloat(row.days_90_plus || 0),
-            risk_score: calculateRiskScore({
-              total_balance: row.total_balance,
-              days_61_90: row.days_61_90,
-              days_90_plus: row.days_90_plus
-            })
-          })),
-          invoice_details: detailResult.rows.map(row => ({
-            id: row.id,
-            invoice_number: row.invoice_number,
-            organization_id: row.organization_id,
-            organization_name: row.organization_name,
-            amount: parseFloat(row.amount),
-            balance_due: parseFloat(row.balance_due),
-            invoice_date: row.invoice_date,
-            due_date: row.due_date,
-            days_outstanding: parseInt(row.days_outstanding || 0),
-            aging_bucket: row.aging_bucket,
-            status: row.status
-          }))
-        };
-
-        console.log('[Aging Report] Generated successfully:', {
+      // Format response with commercial-grade structure
+      const response = {
+        report_metadata: {
+          generated_at: new Date().toISOString(),
+          as_of_date: asOfDate.toISOString(),
+          organization_filter: organization_id || 'All Organizations',
+          total_records: detailResult.rows.length,
+        },
+        executive_summary: {
           total_outstanding: totalOutstanding,
+          total_overdue: totalOverdue,
           total_invoices: totalInvoices,
-          organizations: organizationData.length
-        });
+          overdue_invoices: overdueInvoices,
+          overdue_percentage:
+            totalInvoices > 0
+              ? ((overdueInvoices / totalInvoices) * 100).toFixed(1)
+              : 0,
+          collection_efficiency:
+            totalOutstanding > 0
+              ? (
+                  ((totalOutstanding - totalOverdue) / totalOutstanding) *
+                  100
+                ).toFixed(1)
+              : 100,
+        },
+        aging_summary: summaryData.map(row => ({
+          aging_bucket: row.aging_bucket,
+          invoice_count: parseInt(row.invoice_count || 0),
+          total_balance: parseFloat(row.total_balance || 0),
+          percentage_of_total:
+            totalOutstanding > 0
+              ? (
+                  (parseFloat(row.total_balance || 0) / totalOutstanding) *
+                  100
+                ).toFixed(1)
+              : 0,
+          avg_days_outstanding: parseFloat(
+            row.avg_days_outstanding || 0
+          ).toFixed(1),
+          oldest_due_date: row.oldest_due_date,
+          newest_due_date: row.newest_due_date,
+        })),
+        organization_breakdown: organizationData.map(row => ({
+          organization_id: row.organization_id,
+          organization_name: row.organization_name,
+          total_invoices: parseInt(row.total_invoices || 0),
+          total_balance: parseFloat(row.total_balance || 0),
+          current_balance: parseFloat(row.current_balance || 0),
+          days_1_30: parseFloat(row.days_1_30 || 0),
+          days_31_60: parseFloat(row.days_31_60 || 0),
+          days_61_90: parseFloat(row.days_61_90 || 0),
+          days_90_plus: parseFloat(row.days_90_plus || 0),
+          risk_score: calculateRiskScore({
+            total_balance: row.total_balance,
+            days_61_90: row.days_61_90,
+            days_90_plus: row.days_90_plus,
+          }),
+        })),
+        invoice_details: detailResult.rows.map(row => ({
+          id: row.id,
+          invoice_number: row.invoice_number,
+          organization_id: row.organization_id,
+          organization_name: row.organization_name,
+          amount: parseFloat(row.amount),
+          balance_due: parseFloat(row.balance_due),
+          invoice_date: row.invoice_date,
+          due_date: row.due_date,
+          days_outstanding: parseInt(row.days_outstanding || 0),
+          aging_bucket: row.aging_bucket,
+          status: row.status,
+        })),
+      };
 
-        res.json(ApiResponseBuilder.success(response));
+      console.log('[Aging Report] Generated successfully:', {
+        total_outstanding: totalOutstanding,
+        total_invoices: totalInvoices,
+        organizations: organizationData.length,
+      });
 
-      } catch (error) {
-        console.error('[Aging Report] Error:', error);
-        throw error;
-      }
-    }));
+      res.json(ApiResponseBuilder.success(response));
+    } catch (error) {
+      console.error('[Aging Report] Error:', error);
+      throw error;
+    }
+  })
+);
 
-    // Helper function to calculate organization risk score
+// Helper function to calculate organization risk score
 function calculateRiskScore(orgData: any): string {
   const totalBalance = parseFloat(orgData.total_balance || 0);
   const days90Plus = parseFloat(orgData.newest_due_date || 0);
   const days61_90 = parseFloat(orgData.oldest_due_date || 0);
-  
+
   if (totalBalance === 0) return 'Low';
-  
+
   const overduePercentage = ((days90Plus + days61_90) / totalBalance) * 100;
-  
+
   if (overduePercentage > 50) return 'High';
   if (overduePercentage > 25) return 'Medium';
   return 'Low';
 }
 
 // Organizations endpoint for aging report filter
-router.get('/accounting/organizations', authenticateToken, requireRole(['accountant', 'admin']), asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const query = `
+router.get(
+  '/accounting/organizations',
+  authenticateToken,
+  requireRole(['accountant', 'admin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const query = `
       SELECT DISTINCT 
         o.id,
         o.name
@@ -4167,97 +5122,139 @@ router.get('/accounting/organizations', authenticateToken, requireRole(['account
       WHERE i.posted_to_org = true
       ORDER BY o.name
     `;
-    
-    const result = await pool.query(query);
-    
-    res.json(ApiResponseBuilder.success(result.rows));
-  } catch (error) {
-    console.error('[Organizations] Error:', error);
-    throw error;
-  }
-}));
+
+      const result = await pool.query(query);
+
+      res.json(ApiResponseBuilder.success(result.rows));
+    } catch (error) {
+      console.error('[Organizations] Error:', error);
+      throw error;
+    }
+  })
+);
 
 // Add availability date
-router.post('/instructor/availability', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { date } = req.body;
-    const instructorId = req.user?.userId;
-    
-    if (!instructorId) {
-      throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'Instructor ID not found');
+router.post(
+  '/instructor/availability',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { date } = req.body;
+      const instructorId = req.user?.userId;
+
+      if (!instructorId) {
+        throw new AppError(
+          401,
+          errorCodes.AUTH_TOKEN_INVALID,
+          'Instructor ID not found'
+        );
+      }
+
+      // Get instructor email
+      const instructorResult = await pool.query(
+        'SELECT email FROM users WHERE id = $1',
+        [instructorId]
+      );
+
+      if (instructorResult.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Instructor not found'
+        );
+      }
+
+      const instructorEmail = instructorResult.rows[0].email;
+
+      // Add availability
+      await pool.query(
+        'INSERT INTO instructor_availability (instructor_id, date) VALUES ($1, $2)',
+        [instructorId, date]
+      );
+
+      // Send email confirmation
+      await emailService.sendAvailabilityConfirmation(instructorEmail, date);
+
+      return res.json(
+        ApiResponseBuilder.success({
+          message: 'Availability added successfully',
+        })
+      );
+    } catch (error: any) {
+      console.error('Error adding availability:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to add availability'
+      );
     }
-
-    // Get instructor email
-    const instructorResult = await pool.query(
-      'SELECT email FROM users WHERE id = $1',
-      [instructorId]
-    );
-
-    if (instructorResult.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Instructor not found');
-    }
-
-    const instructorEmail = instructorResult.rows[0].email;
-
-    // Add availability
-    await pool.query(
-      'INSERT INTO instructor_availability (instructor_id, date) VALUES ($1, $2)',
-      [instructorId, date]
-    );
-
-    // Send email confirmation
-    await emailService.sendAvailabilityConfirmation(instructorEmail, date);
-
-    return res.json(ApiResponseBuilder.success({
-      message: 'Availability added successfully'
-    }));
-  } catch (error: any) {
-    console.error('Error adding availability:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to add availability');
-  }
-}));
+  })
+);
 
 // Remove availability date
-router.delete('/instructor/availability/:date', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { date } = req.params;
-    const instructorId = req.user?.userId;
+router.delete(
+  '/instructor/availability/:date',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { date } = req.params;
+      const instructorId = req.user?.userId;
 
-    if (!instructorId) {
-      throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'Instructor ID not found');
+      if (!instructorId) {
+        throw new AppError(
+          401,
+          errorCodes.AUTH_TOKEN_INVALID,
+          'Instructor ID not found'
+        );
+      }
+
+      // Get instructor email
+      const instructorResult = await pool.query(
+        'SELECT email FROM users WHERE id = $1',
+        [instructorId]
+      );
+
+      if (instructorResult.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Instructor not found'
+        );
+      }
+
+      const instructorEmail = instructorResult.rows[0].email;
+
+      // Remove availability
+      await pool.query(
+        'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date = $2',
+        [instructorId, date]
+      );
+
+      // Send email confirmation
+      await emailService.sendAvailabilityConfirmation(instructorEmail, date);
+
+      return res.json(
+        ApiResponseBuilder.success({
+          message: 'Availability removed successfully',
+        })
+      );
+    } catch (error: any) {
+      console.error('Error removing availability:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to remove availability'
+      );
     }
-
-    // Get instructor email
-    const instructorResult = await pool.query(
-      'SELECT email FROM users WHERE id = $1',
-      [instructorId]
-    );
-
-    if (instructorResult.rows.length === 0) {
-      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Instructor not found');
-    }
-
-    const instructorEmail = instructorResult.rows[0].email;
-
-    // Remove availability
-    await pool.query(
-      'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date = $2',
-      [instructorId, date]
-    );
-
-    // Send email confirmation
-    await emailService.sendAvailabilityConfirmation(instructorEmail, date);
-
-    return res.json(ApiResponseBuilder.success({
-      message: 'Availability removed successfully'
-    }));
-  } catch (error: any) {
-    console.error('Error removing availability:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to remove availability');
-  }
-}));
+  })
+);
 
 // Email template routes (admin only)
-router.use('/email-templates', authenticateToken, authorizeRoles(['admin', 'courseAdmin']), emailTemplatesRouter);
+router.use(
+  '/email-templates',
+  authenticateToken,
+  authorizeRoles(['admin', 'courseAdmin']),
+  emailTemplatesRouter
+);
 
-export default router; 
+export default router;

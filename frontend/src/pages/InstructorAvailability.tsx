@@ -4,13 +4,14 @@ import { Container, Typography, Box } from '@mui/material';
 
 const InstructorAvailability: React.FC = () => {
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth='lg'>
       <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
+        <Typography variant='h4' component='h1' gutterBottom>
           Manage Your Availability
         </Typography>
-        <Typography variant="body1" color="text.secondary" paragraph>
-          Use the calendar below to set your availability for teaching CPR classes.
+        <Typography variant='body1' color='text.secondary' paragraph>
+          Use the calendar below to set your availability for teaching CPR
+          classes.
         </Typography>
         <AvailabilityView />
       </Box>
@@ -18,4 +19,4 @@ const InstructorAvailability: React.FC = () => {
   );
 };
 
-export default InstructorAvailability; 
+export default InstructorAvailability;

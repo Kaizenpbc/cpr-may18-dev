@@ -43,10 +43,10 @@ try {
     console.error('Root element not found');
     throw new Error('Root element not found');
   }
-  
+
   console.log('Creating React root');
   const root = ReactDOM.createRoot(rootElement);
-  
+
   console.log('Starting render');
   root.render(
     <React.StrictMode>
@@ -57,7 +57,7 @@ try {
             <BrowserRouter
               future={{
                 v7_startTransition: true,
-                v7_relativeSplatPath: true
+                v7_relativeSplatPath: true,
               }}
             >
               <AuthProvider>
@@ -73,7 +73,7 @@ try {
       </QueryClientProvider>
     </React.StrictMode>
   );
-  
+
   console.log('Initial render complete');
 } catch (error) {
   console.error('Fatal Error', error);
@@ -83,4 +83,4 @@ try {
       <pre>${error instanceof Error ? error.message : 'Unknown error'}</pre>
     </div>
   `;
-} 
+}

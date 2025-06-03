@@ -1,125 +1,185 @@
 import React from 'react';
 import {
-    Table, TableBody, TableCell, TableContainer,
-    TableHead, TableRow, Paper, Box, Typography, 
-    Tooltip, IconButton
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Box,
+  Typography,
+  Tooltip,
+  IconButton,
 } from '@mui/material';
 import {
-    Visibility as VisibilityIcon,
-    CheckCircle as CompleteIcon
+  Visibility as VisibilityIcon,
+  CheckCircle as CompleteIcon,
 } from '@mui/icons-material';
 import { CombinedScheduleItem } from '../../../types/instructor';
 
 interface MyClassesViewProps {
-    combinedItems: CombinedScheduleItem[];
-    onAttendanceClick: (item: CombinedScheduleItem) => void;
-    onMarkCompleteClick: (item: CombinedScheduleItem) => void;
+  combinedItems: CombinedScheduleItem[];
+  onAttendanceClick: (item: CombinedScheduleItem) => void;
+  onMarkCompleteClick: (item: CombinedScheduleItem) => void;
 }
 
-const MyClassesView: React.FC<MyClassesViewProps> = ({ 
-    combinedItems, 
-    onAttendanceClick, 
-    onMarkCompleteClick 
+const MyClassesView: React.FC<MyClassesViewProps> = ({
+  combinedItems,
+  onAttendanceClick,
+  onMarkCompleteClick,
 }) => {
-    return (
-        <TableContainer component={Paper}>
-            <Typography variant="h6" sx={{ p: 2 }}>My Schedule</Typography>
-            <Table stickyHeader size="small">
-                <TableHead>
-                    <TableRow>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>Date</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>Organization</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>Location</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>Course No</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>Course Type</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }} align="center">Students R</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }} align="center">Students A</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>Notes</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>Status</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }} align="center">Actions</TableCell>
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {combinedItems.length === 0 ? (
-                        <TableRow>
-                            <TableCell colSpan={10} align="center">
-                                No schedule items found.
-                            </TableCell>
-                        </TableRow>
-                    ) : (
-                        combinedItems.map((item, index) => {
-                            const isAvailable = item.type === 'availability';
-                            const isScheduled = item.type === 'class' && item.status === 'Scheduled';
-                            const isPastDate = new Date(item.displayDate) < new Date(new Date().setHours(0, 0, 0, 0));
-                            const canMarkComplete = isScheduled && (isPastDate || new Date(item.displayDate).toDateString() === new Date().toDateString());
-                            const rowColor = index % 2 === 0 ? '#ffffff' : '#f5f5f5';
-                            
-                            return (
-                                <TableRow 
-                                    key={item.key || index}
-                                    sx={{ 
-                                        '& td': {
-                                            backgroundColor: isAvailable ? '#fff59d !important' : rowColor
-                                        },
-                                        '&:hover td': {
-                                            backgroundColor: '#e3f2fd !important'
-                                        }
-                                    }}
-                                >
-                                    <TableCell>{item.displayDate}</TableCell>
-                                    <TableCell>{item.organizationname || '-'}</TableCell>
-                                    <TableCell>{item.location || '-'}</TableCell>
-                                    <TableCell>{item.coursenumber || '-'}</TableCell>
-                                    <TableCell>{item.coursetypename || '-'}</TableCell>
-                                    <TableCell align="center">{item.studentsregistered ?? '-'}</TableCell>
-                                    <TableCell align="center">{item.studentsattendance ?? '-'}</TableCell>
-                                    <TableCell>{item.notes || '-'}</TableCell>
-                                    <TableCell sx={{ 
-                                        fontWeight: 'medium', 
-                                        color: isAvailable ? 'success.main' : 'primary.main'
-                                    }}>
-                                        {item.status}
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                                            {!isAvailable && (
-                                                <Tooltip title="View/Manage Attendance">
-                                                    <IconButton 
-                                                        size="small" 
-                                                        color="primary"
-                                                        onClick={() => onAttendanceClick(item)}
-                                                    >
-                                                        <VisibilityIcon fontSize="small"/>
-                                                    </IconButton>
-                                                </Tooltip>
-                                            )}
-                                            {canMarkComplete && (
-                                                <Tooltip title="Mark Class as Complete">
-                                                    <IconButton 
-                                                        size="small" 
-                                                        color="success"
-                                                        onClick={() => onMarkCompleteClick(item)}
-                                                        sx={{
-                                                            '&:hover': {
-                                                                backgroundColor: 'success.light',
-                                                                color: 'white'
-                                                            }
-                                                        }}
-                                                    >
-                                                        <CompleteIcon fontSize="small"/>
-                                                    </IconButton>
-                                                </Tooltip>
-                                            )}
-                                        </Box>
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })
-                    )}
-                </TableBody>
-            </Table>
-        </TableContainer>
-    );
+  return (
+    <TableContainer component={Paper}>
+      <Typography variant='h6' sx={{ p: 2 }}>
+        My Schedule
+      </Typography>
+      <Table stickyHeader size='small'>
+        <TableHead>
+          <TableRow>
+            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>
+              Date
+            </TableCell>
+            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>
+              Organization
+            </TableCell>
+            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>
+              Location
+            </TableCell>
+            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>
+              Course No
+            </TableCell>
+            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>
+              Course Type
+            </TableCell>
+            <TableCell
+              sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}
+              align='center'
+            >
+              Students R
+            </TableCell>
+            <TableCell
+              sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}
+              align='center'
+            >
+              Students A
+            </TableCell>
+            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>
+              Notes
+            </TableCell>
+            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>
+              Status
+            </TableCell>
+            <TableCell
+              sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}
+              align='center'
+            >
+              Actions
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {combinedItems.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={10} align='center'>
+                No schedule items found.
+              </TableCell>
+            </TableRow>
+          ) : (
+            combinedItems.map((item, index) => {
+              const isAvailable = item.type === 'availability';
+              const isScheduled =
+                item.type === 'class' && item.status === 'Scheduled';
+              const isPastDate =
+                new Date(item.displayDate) <
+                new Date(new Date().setHours(0, 0, 0, 0));
+              const canMarkComplete =
+                isScheduled &&
+                (isPastDate ||
+                  new Date(item.displayDate).toDateString() ===
+                    new Date().toDateString());
+              const rowColor = index % 2 === 0 ? '#ffffff' : '#f5f5f5';
+
+              return (
+                <TableRow
+                  key={item.key || index}
+                  sx={{
+                    '& td': {
+                      backgroundColor: isAvailable
+                        ? '#fff59d !important'
+                        : rowColor,
+                    },
+                    '&:hover td': {
+                      backgroundColor: '#e3f2fd !important',
+                    },
+                  }}
+                >
+                  <TableCell>{item.displayDate}</TableCell>
+                  <TableCell>{item.organizationname || '-'}</TableCell>
+                  <TableCell>{item.location || '-'}</TableCell>
+                  <TableCell>{item.coursenumber || '-'}</TableCell>
+                  <TableCell>{item.coursetypename || '-'}</TableCell>
+                  <TableCell align='center'>
+                    {item.studentsregistered ?? '-'}
+                  </TableCell>
+                  <TableCell align='center'>
+                    {item.studentsattendance ?? '-'}
+                  </TableCell>
+                  <TableCell>{item.notes || '-'}</TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 'medium',
+                      color: isAvailable ? 'success.main' : 'primary.main',
+                    }}
+                  >
+                    {item.status}
+                  </TableCell>
+                  <TableCell align='center'>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        gap: 0.5,
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {!isAvailable && (
+                        <Tooltip title='View/Manage Attendance'>
+                          <IconButton
+                            size='small'
+                            color='primary'
+                            onClick={() => onAttendanceClick(item)}
+                          >
+                            <VisibilityIcon fontSize='small' />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {canMarkComplete && (
+                        <Tooltip title='Mark Class as Complete'>
+                          <IconButton
+                            size='small'
+                            color='success'
+                            onClick={() => onMarkCompleteClick(item)}
+                            sx={{
+                              '&:hover': {
+                                backgroundColor: 'success.light',
+                                color: 'white',
+                              },
+                            }}
+                          >
+                            <CompleteIcon fontSize='small' />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              );
+            })
+          )}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
 };
 
-export default MyClassesView; 
+export default MyClassesView;

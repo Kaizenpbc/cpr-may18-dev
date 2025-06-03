@@ -20,12 +20,18 @@ describe('Logger Utility', () => {
 
     it('logs debug messages in development', () => {
       logger.debug('Test debug message');
-      expect(consoleSpy.debug).toHaveBeenCalledWith('[DEBUG]', 'Test debug message');
+      expect(consoleSpy.debug).toHaveBeenCalledWith(
+        '[DEBUG]',
+        'Test debug message'
+      );
     });
 
     it('logs info messages in development', () => {
       logger.info('Test info message');
-      expect(consoleSpy.info).toHaveBeenCalledWith('[INFO]', 'Test info message');
+      expect(consoleSpy.info).toHaveBeenCalledWith(
+        '[INFO]',
+        'Test info message'
+      );
     });
 
     it('logs multiple arguments', () => {
@@ -61,15 +67,15 @@ describe('Logger Utility', () => {
         response: {
           status: 404,
           data: { message: 'Not found' },
-          headers: { 'content-type': 'application/json' }
-        }
+          headers: { 'content-type': 'application/json' },
+        },
       };
 
       const formattedError = logger.formatError(error);
       expect(formattedError).toEqual({
         status: 404,
         data: { message: 'Not found' },
-        headers: { 'content-type': 'application/json' }
+        headers: { 'content-type': 'application/json' },
       });
     });
 
@@ -77,16 +83,16 @@ describe('Logger Utility', () => {
       const error = {
         request: {
           method: 'GET',
-          url: 'http://api.example.com'
-        }
+          url: 'http://api.example.com',
+        },
       };
 
       const formattedError = logger.formatError(error);
       expect(formattedError).toEqual({
         request: {
           method: 'GET',
-          url: 'http://api.example.com'
-        }
+          url: 'http://api.example.com',
+        },
       });
     });
 
@@ -94,7 +100,7 @@ describe('Logger Utility', () => {
       const error = new Error('Something went wrong');
       const formattedError = logger.formatError(error);
       expect(formattedError).toEqual({
-        message: 'Something went wrong'
+        message: 'Something went wrong',
       });
     });
   });
@@ -102,12 +108,18 @@ describe('Logger Utility', () => {
   describe('Warning and Error Logging', () => {
     it('logs warnings in all environments', () => {
       logger.warn('Test warning message');
-      expect(consoleSpy.warn).toHaveBeenCalledWith('[WARN]', 'Test warning message');
+      expect(consoleSpy.warn).toHaveBeenCalledWith(
+        '[WARN]',
+        'Test warning message'
+      );
     });
 
     it('logs errors in all environments', () => {
       logger.error('Test error message');
-      expect(consoleSpy.error).toHaveBeenCalledWith('[ERROR]', 'Test error message');
+      expect(consoleSpy.error).toHaveBeenCalledWith(
+        '[ERROR]',
+        'Test error message'
+      );
     });
 
     it('logs error objects with stack traces', () => {
@@ -134,7 +146,10 @@ describe('Logger Utility', () => {
 
     it('handles special characters in messages', () => {
       logger.info('Special chars: !@#$%^&*()');
-      expect(consoleSpy.info).toHaveBeenCalledWith('[INFO]', 'Special chars: !@#$%^&*()');
+      expect(consoleSpy.info).toHaveBeenCalledWith(
+        '[INFO]',
+        'Special chars: !@#$%^&*()'
+      );
     });
   });
-}); 
+});

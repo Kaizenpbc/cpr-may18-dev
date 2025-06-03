@@ -31,17 +31,28 @@ describe('Logger Utility', () => {
 
     it('logs debug messages in development', () => {
       logger.debug('Test debug message');
-      expect(consoleSpy.debug).toHaveBeenCalledWith('[DEBUG]', 'Test debug message');
+      expect(consoleSpy.debug).toHaveBeenCalledWith(
+        '[DEBUG]',
+        'Test debug message'
+      );
     });
 
     it('logs info messages in development', () => {
       logger.info('Test info message');
-      expect(consoleSpy.info).toHaveBeenCalledWith('[INFO]', 'Test info message');
+      expect(consoleSpy.info).toHaveBeenCalledWith(
+        '[INFO]',
+        'Test info message'
+      );
     });
 
     it('logs multiple arguments', () => {
       logger.info('Test message', { data: 'test' }, 123);
-      expect(consoleSpy.info).toHaveBeenCalledWith('[INFO]', 'Test message', { data: 'test' }, 123);
+      expect(consoleSpy.info).toHaveBeenCalledWith(
+        '[INFO]',
+        'Test message',
+        { data: 'test' },
+        123
+      );
     });
   });
 
@@ -64,12 +75,18 @@ describe('Logger Utility', () => {
   describe('Warning and Error Logging', () => {
     it('logs warnings in all environments', () => {
       logger.warn('Test warning message');
-      expect(consoleSpy.warn).toHaveBeenCalledWith('[WARN]', 'Test warning message');
+      expect(consoleSpy.warn).toHaveBeenCalledWith(
+        '[WARN]',
+        'Test warning message'
+      );
     });
 
     it('logs errors in all environments', () => {
       logger.error('Test error message');
-      expect(consoleSpy.error).toHaveBeenCalledWith('[ERROR]', 'Test error message');
+      expect(consoleSpy.error).toHaveBeenCalledWith(
+        '[ERROR]',
+        'Test error message'
+      );
     });
 
     it('logs error objects with stack traces', () => {
@@ -95,7 +112,11 @@ describe('Logger Utility', () => {
 
     it('handles special characters in messages', () => {
       logger.info('Special chars:', '!@#$%^&*()');
-      expect(consoleSpy.info).toHaveBeenCalledWith('[INFO]', 'Special chars:', '!@#$%^&*()');
+      expect(consoleSpy.info).toHaveBeenCalledWith(
+        '[INFO]',
+        'Special chars:',
+        '!@#$%^&*()'
+      );
     });
   });
-}); 
+});

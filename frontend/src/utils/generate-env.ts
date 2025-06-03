@@ -1,1 +1,1 @@
-import { envSchema } from "./env";
+import { envSchema } from './env';

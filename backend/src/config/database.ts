@@ -12,7 +12,7 @@ const poolConfig: PoolConfig = {
   password: process.env.DB_PASSWORD || 'gtacpr',
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'cpr_may18'
+  database: process.env.DB_NAME || 'cpr_may18',
 };
 
 // Create the connection pool
@@ -82,14 +82,18 @@ const initializeDatabase = async () => {
 
     // Create default admin user if it doesn't exist
     console.log('👤 Creating default admin user...');
-    const adminPassword = 'test123';
-    const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
-    
-    await pool.query(`
+    const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'test123';
+    const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS || '12');
+    const adminPasswordHash = await bcrypt.hash(adminPassword, saltRounds);
+
+    await pool.query(
+      `
       INSERT INTO users (username, email, password_hash, role)
       VALUES ('admin', 'admin@cpr.com', $1, 'admin')
       ON CONFLICT (username) DO NOTHING;
-    `, [adminPasswordHash]);
+    `,
+      [adminPasswordHash]
+    );
     console.log('✅ Admin user created successfully');
 
     // Create email_templates table if it doesn't exist
@@ -134,38 +138,55 @@ const initializeDatabase = async () => {
 
     // Create default instructor user if it doesn't exist
     console.log('👨‍🏫 Creating default instructor user...');
-    const instructorPassword = 'test123';
-    const instructorPasswordHash = await bcrypt.hash(instructorPassword, 10);
-    
-    await pool.query(`
+    const instructorPassword =
+      process.env.DEFAULT_INSTRUCTOR_PASSWORD || 'test123';
+    const instructorPasswordHash = await bcrypt.hash(
+      instructorPassword,
+      saltRounds
+    );
+
+    await pool.query(
+      `
       INSERT INTO users (username, email, password_hash, role)
       VALUES ('instructor', 'instructor@cpr.com', $1, 'instructor')
       ON CONFLICT (username) DO NOTHING;
-    `, [instructorPasswordHash]);
+    `,
+      [instructorPasswordHash]
+    );
     console.log('✅ Instructor user created successfully');
 
     // Create default organization user if it doesn't exist
     console.log('🏢 Creating default organization user...');
-    const orgPassword = 'test123';
-    const orgPasswordHash = await bcrypt.hash(orgPassword, 10);
-    
-    await pool.query(`
+    const orgPassword = process.env.DEFAULT_ORG_PASSWORD || 'test123';
+    const orgPasswordHash = await bcrypt.hash(orgPassword, saltRounds);
+
+    await pool.query(
+      `
       INSERT INTO users (username, email, password_hash, role, organization_id)
       VALUES ('orguser', 'org@cpr.com', $1, 'organization', 1)
       ON CONFLICT (username) DO NOTHING;
-    `, [orgPasswordHash]);
+    `,
+      [orgPasswordHash]
+    );
     console.log('✅ Organization user created successfully');
 
     // Create default accountant user if it doesn't exist
     console.log('💰 Creating default accountant user...');
-    const accountantPassword = 'test123';
-    const accountantPasswordHash = await bcrypt.hash(accountantPassword, 10);
-    
-    await pool.query(`
+    const accountantPassword =
+      process.env.DEFAULT_ACCOUNTANT_PASSWORD || 'test123';
+    const accountantPasswordHash = await bcrypt.hash(
+      accountantPassword,
+      saltRounds
+    );
+
+    await pool.query(
+      `
       INSERT INTO users (username, email, password_hash, role)
       VALUES ('accountant', 'accountant@cpr.com', $1, 'accountant')
       ON CONFLICT (username) DO NOTHING;
-    `, [accountantPasswordHash]);
+    `,
+      [accountantPasswordHash]
+    );
     console.log('✅ Accountant user created successfully');
 
     // Create class_types table if it doesn't exist
@@ -384,7 +405,9 @@ const initializeDatabase = async () => {
     `);
 
     // Add status column to instructor_availability if it doesn't exist
-    console.log('🔄 Ensuring status column exists in instructor_availability...');
+    console.log(
+      '🔄 Ensuring status column exists in instructor_availability...'
+    );
     await pool.query(`
       DO $$ 
       BEGIN 
@@ -613,7 +636,9 @@ const initializeDatabase = async () => {
     `);
     console.log('✅ Course_pricing table created successfully');
 
-    console.log('🎉 [DATABASE SUCCESS] All database tables initialized successfully!');
+    console.log(
+      '🎉 [DATABASE SUCCESS] All database tables initialized successfully!'
+    );
     console.log('📊 [DATABASE INFO] Database schema setup completed');
     console.log('✅ [DATABASE READY] Database is ready for operations');
   } catch (error) {
@@ -628,7 +653,7 @@ const initializeDatabase = async () => {
 // Custom error class for database operations
 class DatabaseError extends Error {
   originalError?: unknown;
-  
+
   constructor(message: string, originalError?: unknown) {
     super(message);
     this.name = 'DatabaseError';
@@ -686,4 +711,4 @@ export const getClient = async () => {
   return client;
 };
 
-export { pool, initializeDatabase }; 
+export { pool, initializeDatabase };

@@ -17,7 +17,7 @@ import {
   Alert,
   TextField,
   Switch,
-  FormControlLabel
+  FormControlLabel,
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -29,7 +29,7 @@ import {
   Security as SecurityIcon,
   Edit as EditIcon,
   Save as SaveIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
@@ -51,7 +51,7 @@ const InstructorProfile: React.FC = () => {
     certifications: ['CPR Instructor', 'First Aid Instructor', 'AED Certified'],
     joinDate: '2023-01-15',
     totalClasses: 45,
-    totalStudents: 320
+    totalStudents: 320,
   });
 
   const [editData, setEditData] = useState(profileData);
@@ -66,7 +66,7 @@ const InstructorProfile: React.FC = () => {
     setIsEditing(false);
     success('Profile updated successfully!', {
       title: 'Profile Saved',
-      context: 'profile_update'
+      context: 'profile_update',
     });
   };
 
@@ -78,7 +78,9 @@ const InstructorProfile: React.FC = () => {
   const handleNotificationChange = (type: 'email' | 'sms') => {
     if (type === 'email') {
       setEmailNotifications(!emailNotifications);
-      info(`Email notifications ${!emailNotifications ? 'enabled' : 'disabled'}`);
+      info(
+        `Email notifications ${!emailNotifications ? 'enabled' : 'disabled'}`
+      );
     } else {
       setSmsNotifications(!smsNotifications);
       info(`SMS notifications ${!smsNotifications ? 'enabled' : 'disabled'}`);
@@ -91,12 +93,13 @@ const InstructorProfile: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
+      <Typography variant='h4' gutterBottom>
         Instructor Profile
       </Typography>
-      
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Manage your profile information, certifications, and notification preferences.
+
+      <Typography variant='body1' color='text.secondary' sx={{ mb: 3 }}>
+        Manage your profile information, certifications, and notification
+        preferences.
       </Typography>
 
       <Grid container spacing={3}>
@@ -111,43 +114,43 @@ const InstructorProfile: React.FC = () => {
                   mx: 'auto',
                   mb: 2,
                   bgcolor: 'primary.main',
-                  fontSize: '2rem'
+                  fontSize: '2rem',
                 }}
               >
                 {getInitials(profileData.firstName, profileData.lastName)}
               </Avatar>
-              
-              <Typography variant="h5" gutterBottom>
+
+              <Typography variant='h5' gutterBottom>
                 {profileData.firstName} {profileData.lastName}
               </Typography>
-              
-              <Typography variant="body2" color="text.secondary" gutterBottom>
+
+              <Typography variant='body2' color='text.secondary' gutterBottom>
                 CPR Instructor
               </Typography>
-              
-              <Chip 
-                label="Active" 
-                color="success" 
-                size="small" 
+
+              <Chip
+                label='Active'
+                color='success'
+                size='small'
                 sx={{ mb: 2 }}
               />
-              
+
               <Divider sx={{ my: 2 }} />
-              
+
               <Grid container spacing={2} sx={{ textAlign: 'center' }}>
                 <Grid item xs={6}>
-                  <Typography variant="h6" color="primary">
+                  <Typography variant='h6' color='primary'>
                     {profileData.totalClasses}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant='caption' color='text.secondary'>
                     Classes Taught
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="h6" color="primary">
+                  <Typography variant='h6' color='primary'>
                     {profileData.totalStudents}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant='caption' color='text.secondary'>
                     Students Trained
                   </Typography>
                 </Grid>
@@ -160,15 +163,20 @@ const InstructorProfile: React.FC = () => {
         <Grid item xs={12} md={8}>
           <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6">
-                  Profile Information
-                </Typography>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  mb: 3,
+                }}
+              >
+                <Typography variant='h6'>Profile Information</Typography>
                 {!isEditing ? (
                   <Button
                     startIcon={<EditIcon />}
                     onClick={handleEdit}
-                    variant="outlined"
+                    variant='outlined'
                   >
                     Edit Profile
                   </Button>
@@ -177,15 +185,15 @@ const InstructorProfile: React.FC = () => {
                     <Button
                       startIcon={<SaveIcon />}
                       onClick={handleSave}
-                      variant="contained"
-                      color="primary"
+                      variant='contained'
+                      color='primary'
                     >
                       Save
                     </Button>
                     <Button
                       startIcon={<CancelIcon />}
                       onClick={handleCancel}
-                      variant="outlined"
+                      variant='outlined'
                     >
                       Cancel
                     </Button>
@@ -198,79 +206,101 @@ const InstructorProfile: React.FC = () => {
                   <Grid item xs={6}>
                     <TextField
                       fullWidth
-                      label="First Name"
+                      label='First Name'
                       value={editData.firstName}
-                      onChange={(e) => setEditData({ ...editData, firstName: e.target.value })}
+                      onChange={e =>
+                        setEditData({ ...editData, firstName: e.target.value })
+                      }
                     />
                   </Grid>
                   <Grid item xs={6}>
                     <TextField
                       fullWidth
-                      label="Last Name"
+                      label='Last Name'
                       value={editData.lastName}
-                      onChange={(e) => setEditData({ ...editData, lastName: e.target.value })}
+                      onChange={e =>
+                        setEditData({ ...editData, lastName: e.target.value })
+                      }
                     />
                   </Grid>
                   <Grid item xs={12}>
                     <TextField
                       fullWidth
-                      label="Email"
+                      label='Email'
                       value={editData.email}
-                      onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                      onChange={e =>
+                        setEditData({ ...editData, email: e.target.value })
+                      }
                     />
                   </Grid>
                   <Grid item xs={6}>
                     <TextField
                       fullWidth
-                      label="Phone"
+                      label='Phone'
                       value={editData.phone}
-                      onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+                      onChange={e =>
+                        setEditData({ ...editData, phone: e.target.value })
+                      }
                     />
                   </Grid>
                   <Grid item xs={6}>
                     <TextField
                       fullWidth
-                      label="Location"
+                      label='Location'
                       value={editData.location}
-                      onChange={(e) => setEditData({ ...editData, location: e.target.value })}
+                      onChange={e =>
+                        setEditData({ ...editData, location: e.target.value })
+                      }
                     />
                   </Grid>
                 </Grid>
               ) : (
                 <List>
                   <ListItem>
-                    <ListItemIcon><PersonIcon /></ListItemIcon>
-                    <ListItemText 
-                      primary="Full Name" 
-                      secondary={`${profileData.firstName} ${profileData.lastName}`} 
+                    <ListItemIcon>
+                      <PersonIcon />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary='Full Name'
+                      secondary={`${profileData.firstName} ${profileData.lastName}`}
                     />
                   </ListItem>
                   <ListItem>
-                    <ListItemIcon><EmailIcon /></ListItemIcon>
-                    <ListItemText 
-                      primary="Email" 
-                      secondary={profileData.email} 
+                    <ListItemIcon>
+                      <EmailIcon />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary='Email'
+                      secondary={profileData.email}
                     />
                   </ListItem>
                   <ListItem>
-                    <ListItemIcon><PhoneIcon /></ListItemIcon>
-                    <ListItemText 
-                      primary="Phone" 
-                      secondary={profileData.phone} 
+                    <ListItemIcon>
+                      <PhoneIcon />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary='Phone'
+                      secondary={profileData.phone}
                     />
                   </ListItem>
                   <ListItem>
-                    <ListItemIcon><LocationIcon /></ListItemIcon>
-                    <ListItemText 
-                      primary="Location" 
-                      secondary={profileData.location} 
+                    <ListItemIcon>
+                      <LocationIcon />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary='Location'
+                      secondary={profileData.location}
                     />
                   </ListItem>
                   <ListItem>
-                    <ListItemIcon><BadgeIcon /></ListItemIcon>
-                    <ListItemText 
-                      primary="Member Since" 
-                      secondary={new Date(profileData.joinDate).toLocaleDateString()} 
+                    <ListItemIcon>
+                      <BadgeIcon />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary='Member Since'
+                      secondary={new Date(
+                        profileData.joinDate
+                      ).toLocaleDateString()}
                     />
                   </ListItem>
                 </List>
@@ -283,7 +313,7 @@ const InstructorProfile: React.FC = () => {
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
+              <Typography variant='h6' gutterBottom>
                 Certifications
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -291,14 +321,14 @@ const InstructorProfile: React.FC = () => {
                   <Chip
                     key={index}
                     label={cert}
-                    color="primary"
-                    variant="outlined"
+                    color='primary'
+                    variant='outlined'
                   />
                 ))}
               </Box>
               <Button
-                variant="text"
-                size="small"
+                variant='text'
+                size='small'
                 sx={{ mt: 2 }}
                 onClick={() => info('Certification management coming soon!')}
               >
@@ -312,16 +342,20 @@ const InstructorProfile: React.FC = () => {
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography
+                variant='h6'
+                gutterBottom
+                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+              >
                 <NotificationsIcon />
                 Notification Preferences
               </Typography>
-              
+
               <List>
                 <ListItem>
-                  <ListItemText 
-                    primary="Email Notifications" 
-                    secondary="Receive updates about classes and schedule changes"
+                  <ListItemText
+                    primary='Email Notifications'
+                    secondary='Receive updates about classes and schedule changes'
                   />
                   <FormControlLabel
                     control={
@@ -330,13 +364,13 @@ const InstructorProfile: React.FC = () => {
                         onChange={() => handleNotificationChange('email')}
                       />
                     }
-                    label=""
+                    label=''
                   />
                 </ListItem>
                 <ListItem>
-                  <ListItemText 
-                    primary="SMS Notifications" 
-                    secondary="Receive urgent notifications via text message"
+                  <ListItemText
+                    primary='SMS Notifications'
+                    secondary='Receive urgent notifications via text message'
                   />
                   <FormControlLabel
                     control={
@@ -345,7 +379,7 @@ const InstructorProfile: React.FC = () => {
                         onChange={() => handleNotificationChange('sms')}
                       />
                     }
-                    label=""
+                    label=''
                   />
                 </ListItem>
               </List>
@@ -357,30 +391,39 @@ const InstructorProfile: React.FC = () => {
         <Grid item xs={12}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography
+                variant='h6'
+                gutterBottom
+                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+              >
                 <SecurityIcon />
                 Security Settings
               </Typography>
-              
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Keep your account secure by regularly updating your password and reviewing your security settings.
+
+              <Alert severity='info' sx={{ mb: 2 }}>
+                Keep your account secure by regularly updating your password and
+                reviewing your security settings.
               </Alert>
-              
+
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                 <Button
-                  variant="outlined"
-                  onClick={() => info('Password change functionality coming soon!')}
+                  variant='outlined'
+                  onClick={() =>
+                    info('Password change functionality coming soon!')
+                  }
                 >
                   Change Password
                 </Button>
                 <Button
-                  variant="outlined"
-                  onClick={() => info('Two-factor authentication setup coming soon!')}
+                  variant='outlined'
+                  onClick={() =>
+                    info('Two-factor authentication setup coming soon!')
+                  }
                 >
                   Enable 2FA
                 </Button>
                 <Button
-                  variant="outlined"
+                  variant='outlined'
                   onClick={() => info('Login history view coming soon!')}
                 >
                   View Login History
@@ -394,4 +437,4 @@ const InstructorProfile: React.FC = () => {
   );
 };
 
-export default InstructorProfile; 
+export default InstructorProfile;

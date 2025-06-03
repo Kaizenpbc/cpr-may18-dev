@@ -18,16 +18,18 @@ const RoleBasedRouter: React.FC = () => {
     if (user && !loading) {
       const roleRoutes = {
         instructor: '/instructor',
-        organization: '/organization', 
+        organization: '/organization',
         admin: '/admin',
         accountant: '/accounting',
         superadmin: '/superadmin',
-        sysadmin: '/sysadmin'
+        sysadmin: '/sysadmin',
       };
 
       const targetRoute = roleRoutes[user.role as keyof typeof roleRoutes];
       if (targetRoute) {
-        console.log(`[Debug] RoleBasedRouter - Redirecting ${user.role} to ${targetRoute}`);
+        console.log(
+          `[Debug] RoleBasedRouter - Redirecting ${user.role} to ${targetRoute}`
+        );
         navigate(targetRoute, { replace: true });
       }
     }
@@ -35,7 +37,12 @@ const RoleBasedRouter: React.FC = () => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+      <Box
+        display='flex'
+        justifyContent='center'
+        alignItems='center'
+        minHeight='60vh'
+      >
         <CircularProgress />
       </Box>
     );
@@ -45,7 +52,12 @@ const RoleBasedRouter: React.FC = () => {
     // Redirect to login page instead of just showing a message
     navigate('/login');
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+      <Box
+        display='flex'
+        justifyContent='center'
+        alignItems='center'
+        minHeight='60vh'
+      >
         <CircularProgress />
       </Box>
     );
@@ -68,8 +80,13 @@ const RoleBasedRouter: React.FC = () => {
       return <SystemAdminPortal />;
     default:
       return (
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-          <Typography variant="h6" color="error">
+        <Box
+          display='flex'
+          justifyContent='center'
+          alignItems='center'
+          minHeight='60vh'
+        >
+          <Typography variant='h6' color='error'>
             Invalid user role: {user.role}. Please contact support.
           </Typography>
         </Box>
@@ -77,4 +94,4 @@ const RoleBasedRouter: React.FC = () => {
   }
 };
 
-export default RoleBasedRouter; 
+export default RoleBasedRouter;

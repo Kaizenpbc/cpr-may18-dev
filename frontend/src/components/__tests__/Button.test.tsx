@@ -9,8 +9,8 @@ describe('Button Component', () => {
   });
 
   it('applies variant prop correctly', () => {
-    render(<Button variant="contained">Contained Button</Button>);
+    render(<Button variant='contained'>Contained Button</Button>);
     const button = screen.getByText('Contained Button');
     expect(button).toHaveClass('MuiButton-contained');
   });
-}); 
+});

@@ -10,7 +10,7 @@ import {
   Slide,
   Fade,
   CircularProgress,
-  Typography
+  Typography,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -18,7 +18,7 @@ import {
   Error as ErrorIcon,
   Warning as WarningIcon,
   Info as InfoIcon,
-  Refresh as LoadingIcon
+  Refresh as LoadingIcon,
 } from '@mui/icons-material';
 import { useToast, Toast, ToastPosition } from '../../contexts/ToastContext';
 
@@ -39,9 +39,9 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onDismiss }) => {
         const elapsed = Date.now() - startTime;
         const remaining = Math.max(0, toast.duration! - elapsed);
         const progressValue = (remaining / toast.duration!) * 100;
-        
+
         setProgress(progressValue);
-        
+
         if (remaining <= 0) {
           clearInterval(interval);
         }
@@ -62,24 +62,33 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onDismiss }) => {
   // Get appropriate severity for Alert component
   const getSeverity = (): 'success' | 'error' | 'warning' | 'info' => {
     switch (toast.type) {
-      case 'success': return 'success';
-      case 'error': return 'error';
-      case 'warning': return 'warning';
+      case 'success':
+        return 'success';
+      case 'error':
+        return 'error';
+      case 'warning':
+        return 'warning';
       case 'loading':
       case 'info':
-      default: return 'info';
+      default:
+        return 'info';
     }
   };
 
   // Get appropriate icon
   const getIcon = () => {
     switch (toast.type) {
-      case 'success': return <SuccessIcon />;
-      case 'error': return <ErrorIcon />;
-      case 'warning': return <WarningIcon />;
-      case 'loading': return <CircularProgress size={20} />;
+      case 'success':
+        return <SuccessIcon />;
+      case 'error':
+        return <ErrorIcon />;
+      case 'warning':
+        return <WarningIcon />;
+      case 'loading':
+        return <CircularProgress size={20} />;
       case 'info':
-      default: return <InfoIcon />;
+      default:
+        return <InfoIcon />;
     }
   };
 
@@ -90,12 +99,12 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onDismiss }) => {
         return {
           border: '2px solid',
           borderColor: 'error.main',
-          boxShadow: '0 0 10px rgba(244, 67, 54, 0.3)'
+          boxShadow: '0 0 10px rgba(244, 67, 54, 0.3)',
         };
       case 'high':
         return {
           border: '1px solid',
-          borderColor: 'warning.main'
+          borderColor: 'warning.main',
         };
       default:
         return {};
@@ -103,7 +112,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onDismiss }) => {
   };
 
   return (
-    <Slide direction="left" in={isVisible} timeout={300}>
+    <Slide direction='left' in={isVisible} timeout={300}>
       <Box sx={{ mb: 1 }}>
         <Alert
           severity={getSeverity()}
@@ -113,17 +122,17 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onDismiss }) => {
             maxWidth: 500,
             ...getPriorityStyles(),
             '& .MuiAlert-message': {
-              width: '100%'
-            }
+              width: '100%',
+            },
           }}
           action={
             toast.dismissible && (
               <IconButton
-                size="small"
+                size='small'
                 onClick={handleDismiss}
                 sx={{ color: 'inherit' }}
               >
-                <CloseIcon fontSize="small" />
+                <CloseIcon fontSize='small' />
               </IconButton>
             )
           }
@@ -133,23 +142,24 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onDismiss }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {toast.title}
                 {toast.priority === 'critical' && (
-                  <Typography variant="caption" sx={{ 
-                    bgcolor: 'error.main', 
-                    color: 'error.contrastText',
-                    px: 1,
-                    borderRadius: 1,
-                    fontSize: '0.7rem'
-                  }}>
+                  <Typography
+                    variant='caption'
+                    sx={{
+                      bgcolor: 'error.main',
+                      color: 'error.contrastText',
+                      px: 1,
+                      borderRadius: 1,
+                      fontSize: '0.7rem',
+                    }}
+                  >
                     CRITICAL
                   </Typography>
                 )}
               </Box>
             </AlertTitle>
           )}
-          
-          <Typography variant="body2">
-            {toast.message}
-          </Typography>
+
+          <Typography variant='body2'>{toast.message}</Typography>
 
           {/* Actions */}
           {toast.actions && toast.actions.length > 0 && (
@@ -157,7 +167,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onDismiss }) => {
               {toast.actions.map((action, index) => (
                 <Button
                   key={index}
-                  size="small"
+                  size='small'
                   variant={action.variant || 'outlined'}
                   color={action.color || 'primary'}
                   onClick={action.onClick}
@@ -172,15 +182,15 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onDismiss }) => {
           {toast.duration && toast.duration > 0 && toast.showProgress && (
             <Box sx={{ mt: 1 }}>
               <LinearProgress
-                variant="determinate"
+                variant='determinate'
                 value={progress}
                 sx={{
                   height: 3,
                   borderRadius: 1,
                   backgroundColor: 'rgba(255, 255, 255, 0.3)',
                   '& .MuiLinearProgress-bar': {
-                    borderRadius: 1
-                  }
+                    borderRadius: 1,
+                  },
                 }}
               />
             </Box>
@@ -206,8 +216,8 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ position }) => {
       zIndex: 9999,
       pointerEvents: 'none' as const,
       '& > *': {
-        pointerEvents: 'auto' as const
-      }
+        pointerEvents: 'auto' as const,
+      },
     };
 
     switch (finalPosition) {
@@ -220,7 +230,12 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ position }) => {
       case 'bottom-left':
         return { ...base, bottom: 16, left: 16 };
       case 'bottom-center':
-        return { ...base, bottom: 16, left: '50%', transform: 'translateX(-50%)' };
+        return {
+          ...base,
+          bottom: 16,
+          left: '50%',
+          transform: 'translateX(-50%)',
+        };
       case 'bottom-right':
         return { ...base, bottom: 16, right: 16 };
       default:
@@ -249,10 +264,7 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ position }) => {
           style={{ transitionDelay: `${index * 100}ms` }}
         >
           <div>
-            <ToastItem
-              toast={toast}
-              onDismiss={dismissToast}
-            />
+            <ToastItem toast={toast} onDismiss={dismissToast} />
           </div>
         </Fade>
       ))}
@@ -260,4 +272,4 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ position }) => {
   );
 };
 
-export default ToastContainer; 
+export default ToastContainer;

@@ -6,7 +6,12 @@ export class AppError extends Error {
   code: string;
   details?: any;
 
-  constructor(statusCode: number, code: string, message: string, details?: any) {
+  constructor(
+    statusCode: number,
+    code: string,
+    message: string,
+    details?: any
+  ) {
     super(message);
     this.statusCode = statusCode;
     this.code = code;
@@ -45,7 +50,12 @@ export const errorCodes = {
   SERVICE_UNAVAILABLE: 'SRV_5002',
 } as const;
 
-export function errorHandler(err: Error | AppError, _req: Request, res: Response, _next: NextFunction) {
+export function errorHandler(
+  err: Error | AppError,
+  _req: Request,
+  res: Response,
+  _next: NextFunction
+) {
   console.error('Error:', {
     name: err.name,
     message: err.message,
@@ -54,40 +64,46 @@ export function errorHandler(err: Error | AppError, _req: Request, res: Response
   });
 
   if (err instanceof AppError) {
-    return res.status(err.statusCode).json(
-      ApiResponseBuilder.error(err.code, err.message, err.details)
-    );
+    return res
+      .status(err.statusCode)
+      .json(ApiResponseBuilder.error(err.code, err.message, err.details));
   }
 
   // Handle specific error types
   if (err.name === 'ValidationError') {
-    return res.status(400).json(
-      ApiResponseBuilder.error(
-        errorCodes.VALIDATION_ERROR,
-        'Validation Error',
-        err.message
-      )
-    );
+    return res
+      .status(400)
+      .json(
+        ApiResponseBuilder.error(
+          errorCodes.VALIDATION_ERROR,
+          'Validation Error',
+          err.message
+        )
+      );
   }
 
   if (err.name === 'JsonWebTokenError') {
-    return res.status(401).json(
-      ApiResponseBuilder.error(
-        errorCodes.AUTH_TOKEN_INVALID,
-        'Invalid token',
-        err.message
-      )
-    );
+    return res
+      .status(401)
+      .json(
+        ApiResponseBuilder.error(
+          errorCodes.AUTH_TOKEN_INVALID,
+          'Invalid token',
+          err.message
+        )
+      );
   }
 
   // Default error
-  return res.status(500).json(
-    ApiResponseBuilder.error(
-      errorCodes.INTERNAL_SERVER_ERROR,
-      'Internal Server Error',
-      process.env.NODE_ENV === 'development' ? err.message : undefined
-    )
-  );
+  return res
+    .status(500)
+    .json(
+      ApiResponseBuilder.error(
+        errorCodes.INTERNAL_SERVER_ERROR,
+        'Internal Server Error',
+        process.env.NODE_ENV === 'development' ? err.message : undefined
+      )
+    );
 }
 
 // Async handler to catch errors in async routes
@@ -95,4 +111,4 @@ export function asyncHandler(fn: Function) {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
-} 
+}

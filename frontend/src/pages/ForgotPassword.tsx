@@ -50,7 +50,10 @@ const ForgotPassword = () => {
       console.log('[Debug] ForgotPassword - Password reset request successful');
       setIsSuccess(true);
     } catch (err) {
-      console.error('[Debug] ForgotPassword - Password reset request error:', err);
+      console.error(
+        '[Debug] ForgotPassword - Password reset request error:',
+        err
+      );
       setError(
         err instanceof Error
           ? err.message
@@ -67,7 +70,7 @@ const ForgotPassword = () => {
   };
 
   return (
-    <Container maxWidth="sm">
+    <Container maxWidth='sm'>
       <Box
         sx={{
           minHeight: '100vh',
@@ -86,32 +89,33 @@ const ForgotPassword = () => {
             alignItems: 'center',
           }}
         >
-          <Typography component="h1" variant="h4" gutterBottom>
+          <Typography component='h1' variant='h4' gutterBottom>
             CPR Training Portal
           </Typography>
-          <Typography variant="h5" gutterBottom>
+          <Typography variant='h5' gutterBottom>
             Reset Password
           </Typography>
 
           {error && (
-            <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+            <Alert severity='error' sx={{ width: '100%', mb: 2 }}>
               {error}
             </Alert>
           )}
 
           {isSuccess ? (
             <Box sx={{ width: '100%', textAlign: 'center' }}>
-              <Alert severity="success" sx={{ mb: 3 }}>
+              <Alert severity='success' sx={{ mb: 3 }}>
                 Password reset instructions have been sent to your email.
               </Alert>
-              <Typography variant="body1" paragraph>
-                Please check your email for instructions on how to reset your password.
-                If you don't receive the email within a few minutes, please check your spam folder.
+              <Typography variant='body1' paragraph>
+                Please check your email for instructions on how to reset your
+                password. If you don't receive the email within a few minutes,
+                please check your spam folder.
               </Typography>
               <Button
                 startIcon={<ArrowBackIcon />}
                 onClick={handleBackToLogin}
-                variant="outlined"
+                variant='outlined'
                 sx={{ mt: 2 }}
               >
                 Back to Login
@@ -119,34 +123,39 @@ const ForgotPassword = () => {
             </Box>
           ) : (
             <>
-              <Typography variant="body1" sx={{ mb: 3, textAlign: 'center' }}>
-                Enter your email address and we'll send you instructions to reset your password.
+              <Typography variant='body1' sx={{ mb: 3, textAlign: 'center' }}>
+                Enter your email address and we'll send you instructions to
+                reset your password.
               </Typography>
 
-              <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
+              <Box
+                component='form'
+                onSubmit={handleSubmit}
+                sx={{ width: '100%' }}
+              >
                 <TextField
-                  margin="normal"
+                  margin='normal'
                   required
                   fullWidth
-                  id="email"
-                  label="Email Address"
-                  name="email"
-                  autoComplete="email"
+                  id='email'
+                  label='Email Address'
+                  name='email'
+                  autoComplete='email'
                   autoFocus
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={e => setEmail(e.target.value)}
                   disabled={isLoading}
                   error={!!error && !email}
                 />
                 <Button
-                  type="submit"
+                  type='submit'
                   fullWidth
-                  variant="contained"
+                  variant='contained'
                   sx={{ mt: 3, mb: 2, py: 1.5 }}
                   disabled={isLoading}
                 >
                   {isLoading ? (
-                    <CircularProgress size={24} color="inherit" />
+                    <CircularProgress size={24} color='inherit' />
                   ) : (
                     'Send Reset Instructions'
                   )}
@@ -155,12 +164,12 @@ const ForgotPassword = () => {
 
               <Box sx={{ mt: 2 }}>
                 <Link
-                  component="button"
-                  variant="body2"
+                  component='button'
+                  variant='body2'
                   onClick={handleBackToLogin}
                   sx={{ display: 'flex', alignItems: 'center' }}
                 >
-                  <ArrowBackIcon sx={{ mr: 0.5 }} fontSize="small" />
+                  <ArrowBackIcon sx={{ mr: 0.5 }} fontSize='small' />
                   Back to Login
                 </Link>
               </Box>
@@ -168,7 +177,12 @@ const ForgotPassword = () => {
           )}
         </Paper>
 
-        <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 4 }}>
+        <Typography
+          variant='body2'
+          color='text.secondary'
+          align='center'
+          sx={{ mt: 4 }}
+        >
           Need help? Contact your administrator.
         </Typography>
       </Box>
@@ -177,4 +191,4 @@ const ForgotPassword = () => {
 };
 
 console.log('[Debug] ForgotPassword.tsx - Exporting component');
-export default ForgotPassword; 
+export default ForgotPassword;

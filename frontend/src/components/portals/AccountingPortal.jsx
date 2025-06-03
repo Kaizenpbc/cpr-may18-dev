@@ -1,39 +1,44 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { api, getBillingQueue, createInvoice, getInvoices } from '../../services/api';
+import {
+  api,
+  getBillingQueue,
+  createInvoice,
+  getInvoices,
+} from '../../services/api';
 import logger from '../../utils/logger';
 import {
-    Box,
-    Container,
-    Typography,
-    Drawer,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
-    Divider,
-    CircularProgress,
-    Alert,
-    Snackbar,
-    Button,
-    AppBar,
-    Toolbar
+  Box,
+  Container,
+  Typography,
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  CircularProgress,
+  Alert,
+  Snackbar,
+  Button,
+  AppBar,
+  Toolbar,
 } from '@mui/material';
 import {
-    ReceiptLong as BillingIcon, 
-    RequestQuote as ReceivablesIcon,
-    History as HistoryIcon,
-    Assessment as ReportsIcon,
-    Logout as LogoutIcon,
-    AttachMoney as PricingIcon,
-    PictureAsPdf as DemoIcon,
-    VerifiedUser as VerificationIcon,
-    TrendingUp as AgingIcon
+  ReceiptLong as BillingIcon,
+  RequestQuote as ReceivablesIcon,
+  History as HistoryIcon,
+  Assessment as ReportsIcon,
+  Logout as LogoutIcon,
+  AttachMoney as PricingIcon,
+  PictureAsPdf as DemoIcon,
+  VerifiedUser as VerificationIcon,
+  TrendingUp as AgingIcon,
 } from '@mui/icons-material';
 import ReadyForBillingTable from '../tables/ReadyForBillingTable';
 import AccountsReceivableTable from '../tables/AccountsReceivableTable';
-import ViewStudentsDialog from '../dialogs/ViewStudentsDialog'; 
+import ViewStudentsDialog from '../dialogs/ViewStudentsDialog';
 import InvoiceDetailDialog from '../dialogs/InvoiceDetailDialog';
 import RecordPaymentDialog from '../dialogs/RecordPaymentDialog';
 import TransactionHistoryView from '../../components/views/TransactionHistoryView';
@@ -46,500 +51,634 @@ import AgingReportView from '../views/AgingReportView';
 const drawerWidth = 240;
 
 const AccountingPortal = () => {
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
-    const [selectedView, setSelectedView] = useState('billingReady');
-    
-    // State for Billing Ready view
-    const [billingQueue, setBillingQueue] = useState([]);
-    const [isLoadingBilling, setIsLoadingBilling] = useState(true);
-    const [billingError, setBillingError] = useState('');
-    
-    // State for View Students dialog
-    const [showViewStudentsDialog, setShowViewStudentsDialog] = useState(false);
-    const [selectedCourseForView, setSelectedCourseForView] = useState(null);
-    
-    // State for success/error messages
-    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-    
-    // State for AR view
-    const [invoices, setInvoices] = useState([]);
-    const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
-    const [invoicesError, setInvoicesError] = useState('');
-    
-    // State for Invoice Detail Dialog
-    const [showInvoiceDetailDialog, setShowInvoiceDetailDialog] = useState(false);
-    const [selectedInvoiceForDetail, setSelectedInvoiceForDetail] = useState(null);
-    
-    // State for Record Payment Dialog
-    const [showRecordPaymentDialog, setShowRecordPaymentDialog] = useState(false);
-    const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState(null);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [selectedView, setSelectedView] = useState('billingReady');
 
-    // Add showSnackbar helper
-    const showSnackbar = useCallback((message, severity = 'success') => {
-        setSnackbar({ open: true, message, severity });
-    }, []);
+  // State for Billing Ready view
+  const [billingQueue, setBillingQueue] = useState([]);
+  const [isLoadingBilling, setIsLoadingBilling] = useState(true);
+  const [billingError, setBillingError] = useState('');
 
-    const fetchBillingQueue = useCallback(async () => {
-        try {
-            setIsLoadingBilling(true);
-            setBillingError('');
-            const response = await getBillingQueue();
-            setBillingQueue(response.data || []);
-        } catch (error) {
-            console.error('Error fetching billing queue:', error);
-            setBillingError('Failed to load billing queue. Please try again.');
-        } finally {
-            setIsLoadingBilling(false);
-        }
-    }, []);
+  // State for View Students dialog
+  const [showViewStudentsDialog, setShowViewStudentsDialog] = useState(false);
+  const [selectedCourseForView, setSelectedCourseForView] = useState(null);
 
-    const handleCreateInvoice = async (courseId) => {
-        try {
-            const response = await createInvoice(courseId);
-            showSnackbar(response.message || 'Invoice created successfully', 'success');
-            
-            // Refresh both billing queue and invoices
-            await Promise.all([
-                fetchBillingQueue(),
-                fetchInvoices()
-            ]);
-        } catch (error) {
-            console.error('Error creating invoice:', error);
-            showSnackbar('Failed to create invoice. Please try again.', 'error');
-        }
-    };
+  // State for success/error messages
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
-    // Handler to load invoices
-    const fetchInvoices = useCallback(async () => {
-        setIsLoadingInvoices(true);
-        setInvoicesError('');
-        logger.debug('[loadInvoices] Fetching invoices...');
-        try {
-            const data = await getInvoices();
-            logger.debug('[loadInvoices] API Response:', data);
-            setInvoices(data || []);
-            logger.debug('[loadInvoices] State updated:', data || []);
-        } catch (err) {
-            const errorMsg = err.message || 'Failed to load invoices.';
-            logger.error('Error loading invoices:', err);
-            setInvoicesError(errorMsg);
-            logger.debug('[loadInvoices] Error state set:', errorMsg);
-            setInvoices([]);
-        } finally {
-            setIsLoadingInvoices(false);
-            logger.debug('[loadInvoices] Finished.');
-        }
-    }, []);
+  // State for AR view
+  const [invoices, setInvoices] = useState([]);
+  const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
+  const [invoicesError, setInvoicesError] = useState('');
 
-    // Load data based on selected view
-    useEffect(() => {
-        if (selectedView === 'billingReady') {
-            fetchBillingQueue();
-        } else if (selectedView === 'receivables') {
-            fetchInvoices();
-        }
-    }, [selectedView, fetchBillingQueue, fetchInvoices]);
+  // State for Invoice Detail Dialog
+  const [showInvoiceDetailDialog, setShowInvoiceDetailDialog] = useState(false);
+  const [selectedInvoiceForDetail, setSelectedInvoiceForDetail] =
+    useState(null);
 
-    const handleLogout = () => {
-        const firstName = user?.first_name || 'Accounting User';
-        const logoutMessage = `Goodbye ${firstName}, Have a Great Day!`;
-        showSnackbar(logoutMessage, 'info'); 
-        
-        setTimeout(() => {
-            logout();
-            navigate('/');
-        }, 1500); 
-    };
+  // State for Record Payment Dialog
+  const [showRecordPaymentDialog, setShowRecordPaymentDialog] = useState(false);
+  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] =
+    useState(null);
 
-    // Action Handlers
-    const handleReviewCourseClick = (course_id) => {
-        logger.debug("Review/View Details clicked for course:", course_id);
-        setSelectedCourseForView(course_id);
-        setShowViewStudentsDialog(true);
-    };
+  // Add showSnackbar helper
+  const showSnackbar = useCallback((message, severity = 'success') => {
+    setSnackbar({ open: true, message, severity });
+  }, []);
 
-    const handleViewStudentsDialogClose = () => {
-        setShowViewStudentsDialog(false);
-        setSelectedCourseForView(null);
-    };
+  const fetchBillingQueue = useCallback(async () => {
+    try {
+      setIsLoadingBilling(true);
+      setBillingError('');
+      const response = await getBillingQueue();
+      setBillingQueue(response.data || []);
+    } catch (error) {
+      console.error('Error fetching billing queue:', error);
+      setBillingError('Failed to load billing queue. Please try again.');
+    } finally {
+      setIsLoadingBilling(false);
+    }
+  }, []);
 
-    const handleRecordPaymentClick = (invoice) => {
-        logger.debug("Record Payment clicked for invoice:", invoice);
-        setSelectedInvoiceForPayment(invoice);
-        setShowRecordPaymentDialog(true);
-    };
+  const handleCreateInvoice = async courseId => {
+    try {
+      const response = await createInvoice(courseId);
+      showSnackbar(
+        response.message || 'Invoice created successfully',
+        'success'
+      );
 
-    const handleRecordPaymentDialogClose = () => {
-        setShowRecordPaymentDialog(false);
-        setSelectedInvoiceForPayment(null);
-    };
+      // Refresh both billing queue and invoices
+      await Promise.all([fetchBillingQueue(), fetchInvoices()]);
+    } catch (error) {
+      console.error('Error creating invoice:', error);
+      showSnackbar('Failed to create invoice. Please try again.', 'error');
+    }
+  };
 
-    const handlePaymentSuccessfullyRecorded = (message) => {
-        setSnackbar({ open: true, message: message, severity: 'success' });
-        fetchInvoices(); 
-    };
+  // Handler to load invoices
+  const fetchInvoices = useCallback(async () => {
+    setIsLoadingInvoices(true);
+    setInvoicesError('');
+    logger.debug('[loadInvoices] Fetching invoices...');
+    try {
+      const data = await getInvoices();
+      logger.debug('[loadInvoices] API Response:', data);
+      setInvoices(data || []);
+      logger.debug('[loadInvoices] State updated:', data || []);
+    } catch (err) {
+      const errorMsg = err.message || 'Failed to load invoices.';
+      logger.error('Error loading invoices:', err);
+      setInvoicesError(errorMsg);
+      logger.debug('[loadInvoices] Error state set:', errorMsg);
+      setInvoices([]);
+    } finally {
+      setIsLoadingInvoices(false);
+      logger.debug('[loadInvoices] Finished.');
+    }
+  }, []);
 
-    const handleViewDetailsClick = (invoice_id) => {
-        logger.debug("View Details clicked for invoice:", invoice_id);
-        setSelectedInvoiceForDetail(invoice_id);
-        setShowInvoiceDetailDialog(true);
-    };
+  // Load data based on selected view
+  useEffect(() => {
+    if (selectedView === 'billingReady') {
+      fetchBillingQueue();
+    } else if (selectedView === 'receivables') {
+      fetchInvoices();
+    }
+  }, [selectedView, fetchBillingQueue, fetchInvoices]);
 
-    const handleInvoiceDetailDialogClose = () => {
-        setShowInvoiceDetailDialog(false);
-        setSelectedInvoiceForDetail(null);
-    };
+  const handleLogout = () => {
+    const firstName = user?.first_name || 'Accounting User';
+    const logoutMessage = `Goodbye ${firstName}, Have a Great Day!`;
+    showSnackbar(logoutMessage, 'info');
 
-    const handleEmailInvoiceClick = (invoice_id) => {
-        logger.debug(`[AccountingPortal] handleEmailInvoiceClick called for Invoice ID: ${invoice_id}`);
-        
-        const selectedInvoice = invoices.find(inv => inv.invoiceid === invoice_id);
-        if (!selectedInvoice) {
-            logger.error(`[AccountingPortal] Could not find invoice data for ID ${invoice_id} in state.`);
-            showSnackbar(`Error: Could not find invoice data for ID ${invoice_id}.`, 'error');
-            return; 
-        }
+    setTimeout(() => {
+      logout();
+      navigate('/');
+    }, 1500);
+  };
 
-        logger.debug('[AccountingPortal] Found selected invoice data, setting state to open dialog:', selectedInvoice);
-        setSelectedInvoiceForDetail(selectedInvoice);
-        setShowInvoiceDetailDialog(true);
-    };
+  // Action Handlers
+  const handleReviewCourseClick = course_id => {
+    logger.debug('Review/View Details clicked for course:', course_id);
+    setSelectedCourseForView(course_id);
+    setShowViewStudentsDialog(true);
+  };
 
-    const handlePostToOrgClick = async (invoice) => {
-        logger.debug(`[AccountingPortal] handlePostToOrgClick called for Invoice ID: ${invoice.invoiceid}`);
-        
-        try {
-            const response = await api.post(`/accounting/invoices/${invoice.invoiceid}/post-to-org`);
-            showSnackbar(response.data.message || 'Invoice posted to organization successfully', 'success');
-            
-            // Refresh invoices to update the UI
-            await fetchInvoices();
-        } catch (error) {
-            console.error('Error posting invoice to organization:', error);
-            showSnackbar('Failed to post invoice to organization. Please try again.', 'error');
-        }
-    };
+  const handleViewStudentsDialogClose = () => {
+    setShowViewStudentsDialog(false);
+    setSelectedCourseForView(null);
+  };
 
-    const renderSelectedView = () => {
-        logger.debug(`[renderSelectedView] Rendering view: ${selectedView}`);
-        switch (selectedView) {
-            case 'billingReady':
-                logger.debug(`[renderSelectedView: billingReady] State: isLoading=${isLoadingBilling}, error=${billingError}, queue=${JSON.stringify(billingQueue)}`);
-                if (isLoadingBilling) return <CircularProgress />;
-                if (billingError) return <Alert severity="error">{billingError}</Alert>;
-                return (
-                    <Box>
-                        <Typography variant="h4" gutterBottom>
-                            Ready for Billing
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-                            Courses that have been marked as ready for billing by the Course Admin
-                        </Typography>
-                        <ReadyForBillingTable 
-                            courses={billingQueue} 
-                            onCreateInvoice={handleCreateInvoice}
-                            isLoading={isLoadingBilling}
-                            error={billingError}
-                        />
-                    </Box>
-                );
-            case 'receivables':
-                if (isLoadingInvoices) return <CircularProgress />;
-                if (invoicesError) return <Alert severity="error">{invoicesError}</Alert>;
-                return (
-                    <AccountsReceivableTable 
-                        invoices={invoices}
-                        onRecordPaymentClick={handleRecordPaymentClick}
-                        onViewDetailsClick={handleViewDetailsClick} 
-                        onEmailInvoiceClick={handleEmailInvoiceClick}
-                        onPostToOrgClick={handlePostToOrgClick} 
-                    />
-                );
-            case 'pricing': 
-                logger.debug('[renderSelectedView: pricing]');
-                return <CoursePricingSetup />;
-            case 'history': 
-                logger.debug('[renderSelectedView: history]');
-                return <TransactionHistoryView />;
-            case 'reports': 
-                logger.debug('[renderSelectedView: reports]');
-                return <ReportsView />;
-            case 'demo': 
-                logger.debug('[renderSelectedView: demo]');
-                return <PDFDemo />;
-            case 'verification': 
-                logger.debug('[renderSelectedView: verification]');
-                return <PaymentVerificationView />;
-            case 'aging': 
-                logger.debug('[renderSelectedView: aging]');
-                return <AgingReportView />;
-            default:
-                return <Typography>Select a view</Typography>;
-        }
-    };
+  const handleRecordPaymentClick = invoice => {
+    logger.debug('Record Payment clicked for invoice:', invoice);
+    setSelectedInvoiceForPayment(invoice);
+    setShowRecordPaymentDialog(true);
+  };
 
-    return (
-        <Box sx={{ display: 'flex' }}>
-            <AppBar
-                position="fixed"
-                sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
-            >
-                <Toolbar>
-                    <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, textAlign: 'center' }}>
-                        Accounting Portal
-                    </Typography>
-                    <Typography variant="body1" noWrap sx={{ mr: 2 }}>
-                         Welcome {user?.first_name || 'Accounting User'}!
-                    </Typography>
-                </Toolbar>
-            </AppBar>
+  const handleRecordPaymentDialogClose = () => {
+    setShowRecordPaymentDialog(false);
+    setSelectedInvoiceForPayment(null);
+  };
 
-            <Drawer
-                variant="permanent"
-                sx={{
-                    width: drawerWidth,
-                    flexShrink: 0,
-                    '& .MuiDrawer-paper': {
-                        width: drawerWidth,
-                        boxSizing: 'border-box',
-                    },
-                }}
-            >
-                <Toolbar />
-                <Box sx={{ overflow: 'auto' }}>
-                    <List>
-                        <ListItem 
-                            component="div"
-                            selected={selectedView === 'billingReady'}
-                            onClick={() => setSelectedView('billingReady')}
-                            sx={{ 
-                                cursor: 'pointer', 
-                                py: 1.5, 
-                                backgroundColor: selectedView === 'billingReady' ? 'primary.light' : 'transparent',
-                                color: selectedView === 'billingReady' ? 'primary.contrastText' : 'inherit',
-                                '& .MuiListItemIcon-root': {
-                                    color: selectedView === 'billingReady' ? 'primary.contrastText' : 'inherit',
-                                },
-                                '&:hover': {
-                                    backgroundColor: selectedView === 'billingReady' ? 'primary.main' : 'action.hover',
-                                }
-                            }}
-                        >
-                            <ListItemIcon sx={{ color: 'inherit' }}><BillingIcon /></ListItemIcon>
-                            <ListItemText primary="Ready for Billing" />
-                        </ListItem>
-                        
-                        <ListItem 
-                            component="div"
-                            selected={selectedView === 'receivables'}
-                            onClick={() => setSelectedView('receivables')}
-                            sx={{ 
-                                cursor: 'pointer', 
-                                py: 1.5, 
-                                backgroundColor: selectedView === 'receivables' ? 'primary.light' : 'transparent',
-                                color: selectedView === 'receivables' ? 'primary.contrastText' : 'inherit',
-                                '& .MuiListItemIcon-root': {
-                                    color: selectedView === 'receivables' ? 'primary.contrastText' : 'inherit',
-                                },
-                                '&:hover': {
-                                    backgroundColor: selectedView === 'receivables' ? 'primary.main' : 'action.hover',
-                                }
-                            }}
-                        >
-                            <ListItemIcon sx={{ color: 'inherit' }}><ReceivablesIcon /></ListItemIcon>
-                            <ListItemText primary="Accounts Receivable" />
-                        </ListItem>
-                        
-                        <ListItem 
-                            component="div"
-                            selected={selectedView === 'history'}
-                            onClick={() => setSelectedView('history')}
-                            sx={{ 
-                                cursor: 'pointer', 
-                                py: 1.5, 
-                                backgroundColor: selectedView === 'history' ? 'primary.light' : 'transparent',
-                                color: selectedView === 'history' ? 'primary.contrastText' : 'inherit',
-                                '& .MuiListItemIcon-root': {
-                                    color: selectedView === 'history' ? 'primary.contrastText' : 'inherit',
-                                },
-                                '&:hover': {
-                                    backgroundColor: selectedView === 'history' ? 'primary.main' : 'action.hover',
-                                }
-                            }}
-                        >
-                            <ListItemIcon sx={{ color: 'inherit' }}><HistoryIcon /></ListItemIcon>
-                            <ListItemText primary="Invoice History" />
-                        </ListItem>
-                        
-                        <ListItem 
-                            component="div"
-                            selected={selectedView === 'reports'}
-                            onClick={() => setSelectedView('reports')}
-                            sx={{ 
-                                cursor: 'pointer', 
-                                py: 1.5, 
-                                backgroundColor: selectedView === 'reports' ? 'primary.light' : 'transparent',
-                                color: selectedView === 'reports' ? 'primary.contrastText' : 'inherit',
-                                '& .MuiListItemIcon-root': {
-                                    color: selectedView === 'reports' ? 'primary.contrastText' : 'inherit',
-                                },
-                                '&:hover': {
-                                    backgroundColor: selectedView === 'reports' ? 'primary.main' : 'action.hover',
-                                }
-                            }}
-                        >
-                            <ListItemIcon sx={{ color: 'inherit' }}><ReportsIcon /></ListItemIcon>
-                            <ListItemText primary="Reports" />
-                        </ListItem>
-                        
-                        <ListItem 
-                            component="div"
-                            selected={selectedView === 'pricing'}
-                            onClick={() => setSelectedView('pricing')}
-                            sx={{ 
-                                cursor: 'pointer', 
-                                py: 1.5, 
-                                backgroundColor: selectedView === 'pricing' ? 'primary.light' : 'transparent',
-                                color: selectedView === 'pricing' ? 'primary.contrastText' : 'inherit',
-                                '& .MuiListItemIcon-root': {
-                                    color: selectedView === 'pricing' ? 'primary.contrastText' : 'inherit',
-                                },
-                                '&:hover': {
-                                    backgroundColor: selectedView === 'pricing' ? 'primary.main' : 'action.hover',
-                                }
-                            }}
-                        >
-                            <ListItemIcon sx={{ color: 'inherit' }}><PricingIcon /></ListItemIcon>
-                            <ListItemText primary="Course Pricing Setup" />
-                        </ListItem>
-                        
-                        <ListItem 
-                            component="div"
-                            selected={selectedView === 'verification'}
-                            onClick={() => setSelectedView('verification')}
-                            sx={{ 
-                                cursor: 'pointer', 
-                                py: 1.5, 
-                                backgroundColor: selectedView === 'verification' ? 'primary.light' : 'transparent',
-                                color: selectedView === 'verification' ? 'primary.contrastText' : 'inherit',
-                                '& .MuiListItemIcon-root': {
-                                    color: selectedView === 'verification' ? 'primary.contrastText' : 'inherit',
-                                },
-                                '&:hover': {
-                                    backgroundColor: selectedView === 'verification' ? 'primary.main' : 'action.hover',
-                                }
-                            }}
-                        >
-                            <ListItemIcon sx={{ color: 'inherit' }}><VerificationIcon /></ListItemIcon>
-                            <ListItemText primary="Payment Verification" />
-                        </ListItem>
-                        
-                        <ListItem 
-                            component="div"
-                            selected={selectedView === 'aging'}
-                            onClick={() => setSelectedView('aging')}
-                            sx={{ 
-                                cursor: 'pointer', 
-                                py: 1.5, 
-                                backgroundColor: selectedView === 'aging' ? 'primary.light' : 'transparent',
-                                color: selectedView === 'aging' ? 'primary.contrastText' : 'inherit',
-                                '& .MuiListItemIcon-root': {
-                                    color: selectedView === 'aging' ? 'primary.contrastText' : 'inherit',
-                                },
-                                '&:hover': {
-                                    backgroundColor: selectedView === 'aging' ? 'primary.main' : 'action.hover',
-                                }
-                            }}
-                        >
-                            <ListItemIcon sx={{ color: 'inherit' }}><AgingIcon /></ListItemIcon>
-                            <ListItemText primary="Aging Report" />
-                        </ListItem>
-                        
-                        <ListItem 
-                            component="div"
-                            selected={selectedView === 'demo'}
-                            onClick={() => setSelectedView('demo')}
-                            sx={{ 
-                                cursor: 'pointer', 
-                                py: 1.5, 
-                                backgroundColor: selectedView === 'demo' ? 'primary.light' : 'transparent',
-                                color: selectedView === 'demo' ? 'primary.contrastText' : 'inherit',
-                                '& .MuiListItemIcon-root': {
-                                    color: selectedView === 'demo' ? 'primary.contrastText' : 'inherit',
-                                },
-                                '&:hover': {
-                                    backgroundColor: selectedView === 'demo' ? 'primary.main' : 'action.hover',
-                                }
-                            }}
-                        >
-                            <ListItemIcon sx={{ color: 'inherit' }}><DemoIcon /></ListItemIcon>
-                            <ListItemText primary="PDF Demo" />
-                        </ListItem>
-                        
-                        <Divider sx={{ my: 1 }} />
-                        
-                        <ListItem 
-                            component="div"
-                            onClick={handleLogout}
-                            sx={{ 
-                                cursor: 'pointer', 
-                                py: 1.5, 
-                                '&:hover': { backgroundColor: 'action.hover'} 
-                            }}
-                        >
-                            <ListItemIcon><LogoutIcon /></ListItemIcon>
-                            <ListItemText primary="Logout" />
-                        </ListItem>
-                    </List>
-                </Box>
-            </Drawer>
-            
-            <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-                <Toolbar />
-                <Container maxWidth="xl">
-                    {renderSelectedView()}
-                </Container>
-            </Box>
+  const handlePaymentSuccessfullyRecorded = message => {
+    setSnackbar({ open: true, message: message, severity: 'success' });
+    fetchInvoices();
+  };
 
-            {showViewStudentsDialog && (
-                <ViewStudentsDialog
-                    open={showViewStudentsDialog}
-                    onClose={handleViewStudentsDialogClose}
-                    courseId={selectedCourseForView}
-                />
-            )}
+  const handleViewDetailsClick = invoice_id => {
+    logger.debug('View Details clicked for invoice:', invoice_id);
+    setSelectedInvoiceForDetail(invoice_id);
+    setShowInvoiceDetailDialog(true);
+  };
 
-            {showInvoiceDetailDialog && (
-                <InvoiceDetailDialog 
-                    open={showInvoiceDetailDialog}
-                    onClose={handleInvoiceDetailDialogClose}
-                    invoice={selectedInvoiceForDetail}
-                    onEmailInvoice={handleEmailInvoiceClick}
-                />
-            )}
+  const handleInvoiceDetailDialogClose = () => {
+    setShowInvoiceDetailDialog(false);
+    setSelectedInvoiceForDetail(null);
+  };
 
-            {showRecordPaymentDialog && selectedInvoiceForPayment && (
-                <RecordPaymentDialog
-                    open={showRecordPaymentDialog}
-                    onClose={handleRecordPaymentDialogClose}
-                    invoice={selectedInvoiceForPayment}
-                    onPaymentRecorded={handlePaymentSuccessfullyRecorded}
-                />
-            )}
-
-            <Snackbar
-                open={snackbar.open}
-                autoHideDuration={6000}
-                onClose={() => setSnackbar({ ...snackbar, open: false })}
-                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-            >
-                <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} variant="filled" sx={{ width: '100%' }}>
-                    {snackbar.message}
-                </Alert>
-            </Snackbar>
-        </Box>
+  const handleEmailInvoiceClick = invoice_id => {
+    logger.debug(
+      `[AccountingPortal] handleEmailInvoiceClick called for Invoice ID: ${invoice_id}`
     );
+
+    const selectedInvoice = invoices.find(inv => inv.invoiceid === invoice_id);
+    if (!selectedInvoice) {
+      logger.error(
+        `[AccountingPortal] Could not find invoice data for ID ${invoice_id} in state.`
+      );
+      showSnackbar(
+        `Error: Could not find invoice data for ID ${invoice_id}.`,
+        'error'
+      );
+      return;
+    }
+
+    logger.debug(
+      '[AccountingPortal] Found selected invoice data, setting state to open dialog:',
+      selectedInvoice
+    );
+    setSelectedInvoiceForDetail(selectedInvoice);
+    setShowInvoiceDetailDialog(true);
+  };
+
+  const handlePostToOrgClick = async invoice => {
+    logger.debug(
+      `[AccountingPortal] handlePostToOrgClick called for Invoice ID: ${invoice.invoiceid}`
+    );
+
+    try {
+      const response = await api.post(
+        `/accounting/invoices/${invoice.invoiceid}/post-to-org`
+      );
+      showSnackbar(
+        response.data.message || 'Invoice posted to organization successfully',
+        'success'
+      );
+
+      // Refresh invoices to update the UI
+      await fetchInvoices();
+    } catch (error) {
+      console.error('Error posting invoice to organization:', error);
+      showSnackbar(
+        'Failed to post invoice to organization. Please try again.',
+        'error'
+      );
+    }
+  };
+
+  const renderSelectedView = () => {
+    logger.debug(`[renderSelectedView] Rendering view: ${selectedView}`);
+    switch (selectedView) {
+      case 'billingReady':
+        logger.debug(
+          `[renderSelectedView: billingReady] State: isLoading=${isLoadingBilling}, error=${billingError}, queue=${JSON.stringify(billingQueue)}`
+        );
+        if (isLoadingBilling) return <CircularProgress />;
+        if (billingError) return <Alert severity='error'>{billingError}</Alert>;
+        return (
+          <Box>
+            <Typography variant='h4' gutterBottom>
+              Ready for Billing
+            </Typography>
+            <Typography variant='body2' color='textSecondary' sx={{ mb: 3 }}>
+              Courses that have been marked as ready for billing by the Course
+              Admin
+            </Typography>
+            <ReadyForBillingTable
+              courses={billingQueue}
+              onCreateInvoice={handleCreateInvoice}
+              isLoading={isLoadingBilling}
+              error={billingError}
+            />
+          </Box>
+        );
+      case 'receivables':
+        if (isLoadingInvoices) return <CircularProgress />;
+        if (invoicesError)
+          return <Alert severity='error'>{invoicesError}</Alert>;
+        return (
+          <AccountsReceivableTable
+            invoices={invoices}
+            onRecordPaymentClick={handleRecordPaymentClick}
+            onViewDetailsClick={handleViewDetailsClick}
+            onEmailInvoiceClick={handleEmailInvoiceClick}
+            onPostToOrgClick={handlePostToOrgClick}
+          />
+        );
+      case 'pricing':
+        logger.debug('[renderSelectedView: pricing]');
+        return <CoursePricingSetup />;
+      case 'history':
+        logger.debug('[renderSelectedView: history]');
+        return <TransactionHistoryView />;
+      case 'reports':
+        logger.debug('[renderSelectedView: reports]');
+        return <ReportsView />;
+      case 'demo':
+        logger.debug('[renderSelectedView: demo]');
+        return <PDFDemo />;
+      case 'verification':
+        logger.debug('[renderSelectedView: verification]');
+        return <PaymentVerificationView />;
+      case 'aging':
+        logger.debug('[renderSelectedView: aging]');
+        return <AgingReportView />;
+      default:
+        return <Typography>Select a view</Typography>;
+    }
+  };
+
+  return (
+    <Box sx={{ display: 'flex' }}>
+      <AppBar
+        position='fixed'
+        sx={{ zIndex: theme => theme.zIndex.drawer + 1 }}
+      >
+        <Toolbar>
+          <Typography
+            variant='h6'
+            noWrap
+            component='div'
+            sx={{ flexGrow: 1, textAlign: 'center' }}
+          >
+            Accounting Portal
+          </Typography>
+          <Typography variant='body1' noWrap sx={{ mr: 2 }}>
+            Welcome {user?.first_name || 'Accounting User'}!
+          </Typography>
+        </Toolbar>
+      </AppBar>
+
+      <Drawer
+        variant='permanent'
+        sx={{
+          width: drawerWidth,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            boxSizing: 'border-box',
+          },
+        }}
+      >
+        <Toolbar />
+        <Box sx={{ overflow: 'auto' }}>
+          <List>
+            <ListItem
+              component='div'
+              selected={selectedView === 'billingReady'}
+              onClick={() => setSelectedView('billingReady')}
+              sx={{
+                cursor: 'pointer',
+                py: 1.5,
+                backgroundColor:
+                  selectedView === 'billingReady'
+                    ? 'primary.light'
+                    : 'transparent',
+                color:
+                  selectedView === 'billingReady'
+                    ? 'primary.contrastText'
+                    : 'inherit',
+                '& .MuiListItemIcon-root': {
+                  color:
+                    selectedView === 'billingReady'
+                      ? 'primary.contrastText'
+                      : 'inherit',
+                },
+                '&:hover': {
+                  backgroundColor:
+                    selectedView === 'billingReady'
+                      ? 'primary.main'
+                      : 'action.hover',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: 'inherit' }}>
+                <BillingIcon />
+              </ListItemIcon>
+              <ListItemText primary='Ready for Billing' />
+            </ListItem>
+
+            <ListItem
+              component='div'
+              selected={selectedView === 'receivables'}
+              onClick={() => setSelectedView('receivables')}
+              sx={{
+                cursor: 'pointer',
+                py: 1.5,
+                backgroundColor:
+                  selectedView === 'receivables'
+                    ? 'primary.light'
+                    : 'transparent',
+                color:
+                  selectedView === 'receivables'
+                    ? 'primary.contrastText'
+                    : 'inherit',
+                '& .MuiListItemIcon-root': {
+                  color:
+                    selectedView === 'receivables'
+                      ? 'primary.contrastText'
+                      : 'inherit',
+                },
+                '&:hover': {
+                  backgroundColor:
+                    selectedView === 'receivables'
+                      ? 'primary.main'
+                      : 'action.hover',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: 'inherit' }}>
+                <ReceivablesIcon />
+              </ListItemIcon>
+              <ListItemText primary='Accounts Receivable' />
+            </ListItem>
+
+            <ListItem
+              component='div'
+              selected={selectedView === 'history'}
+              onClick={() => setSelectedView('history')}
+              sx={{
+                cursor: 'pointer',
+                py: 1.5,
+                backgroundColor:
+                  selectedView === 'history' ? 'primary.light' : 'transparent',
+                color:
+                  selectedView === 'history'
+                    ? 'primary.contrastText'
+                    : 'inherit',
+                '& .MuiListItemIcon-root': {
+                  color:
+                    selectedView === 'history'
+                      ? 'primary.contrastText'
+                      : 'inherit',
+                },
+                '&:hover': {
+                  backgroundColor:
+                    selectedView === 'history'
+                      ? 'primary.main'
+                      : 'action.hover',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: 'inherit' }}>
+                <HistoryIcon />
+              </ListItemIcon>
+              <ListItemText primary='Invoice History' />
+            </ListItem>
+
+            <ListItem
+              component='div'
+              selected={selectedView === 'reports'}
+              onClick={() => setSelectedView('reports')}
+              sx={{
+                cursor: 'pointer',
+                py: 1.5,
+                backgroundColor:
+                  selectedView === 'reports' ? 'primary.light' : 'transparent',
+                color:
+                  selectedView === 'reports'
+                    ? 'primary.contrastText'
+                    : 'inherit',
+                '& .MuiListItemIcon-root': {
+                  color:
+                    selectedView === 'reports'
+                      ? 'primary.contrastText'
+                      : 'inherit',
+                },
+                '&:hover': {
+                  backgroundColor:
+                    selectedView === 'reports'
+                      ? 'primary.main'
+                      : 'action.hover',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: 'inherit' }}>
+                <ReportsIcon />
+              </ListItemIcon>
+              <ListItemText primary='Reports' />
+            </ListItem>
+
+            <ListItem
+              component='div'
+              selected={selectedView === 'pricing'}
+              onClick={() => setSelectedView('pricing')}
+              sx={{
+                cursor: 'pointer',
+                py: 1.5,
+                backgroundColor:
+                  selectedView === 'pricing' ? 'primary.light' : 'transparent',
+                color:
+                  selectedView === 'pricing'
+                    ? 'primary.contrastText'
+                    : 'inherit',
+                '& .MuiListItemIcon-root': {
+                  color:
+                    selectedView === 'pricing'
+                      ? 'primary.contrastText'
+                      : 'inherit',
+                },
+                '&:hover': {
+                  backgroundColor:
+                    selectedView === 'pricing'
+                      ? 'primary.main'
+                      : 'action.hover',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: 'inherit' }}>
+                <PricingIcon />
+              </ListItemIcon>
+              <ListItemText primary='Course Pricing Setup' />
+            </ListItem>
+
+            <ListItem
+              component='div'
+              selected={selectedView === 'verification'}
+              onClick={() => setSelectedView('verification')}
+              sx={{
+                cursor: 'pointer',
+                py: 1.5,
+                backgroundColor:
+                  selectedView === 'verification'
+                    ? 'primary.light'
+                    : 'transparent',
+                color:
+                  selectedView === 'verification'
+                    ? 'primary.contrastText'
+                    : 'inherit',
+                '& .MuiListItemIcon-root': {
+                  color:
+                    selectedView === 'verification'
+                      ? 'primary.contrastText'
+                      : 'inherit',
+                },
+                '&:hover': {
+                  backgroundColor:
+                    selectedView === 'verification'
+                      ? 'primary.main'
+                      : 'action.hover',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: 'inherit' }}>
+                <VerificationIcon />
+              </ListItemIcon>
+              <ListItemText primary='Payment Verification' />
+            </ListItem>
+
+            <ListItem
+              component='div'
+              selected={selectedView === 'aging'}
+              onClick={() => setSelectedView('aging')}
+              sx={{
+                cursor: 'pointer',
+                py: 1.5,
+                backgroundColor:
+                  selectedView === 'aging' ? 'primary.light' : 'transparent',
+                color:
+                  selectedView === 'aging' ? 'primary.contrastText' : 'inherit',
+                '& .MuiListItemIcon-root': {
+                  color:
+                    selectedView === 'aging'
+                      ? 'primary.contrastText'
+                      : 'inherit',
+                },
+                '&:hover': {
+                  backgroundColor:
+                    selectedView === 'aging' ? 'primary.main' : 'action.hover',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: 'inherit' }}>
+                <AgingIcon />
+              </ListItemIcon>
+              <ListItemText primary='Aging Report' />
+            </ListItem>
+
+            <ListItem
+              component='div'
+              selected={selectedView === 'demo'}
+              onClick={() => setSelectedView('demo')}
+              sx={{
+                cursor: 'pointer',
+                py: 1.5,
+                backgroundColor:
+                  selectedView === 'demo' ? 'primary.light' : 'transparent',
+                color:
+                  selectedView === 'demo' ? 'primary.contrastText' : 'inherit',
+                '& .MuiListItemIcon-root': {
+                  color:
+                    selectedView === 'demo'
+                      ? 'primary.contrastText'
+                      : 'inherit',
+                },
+                '&:hover': {
+                  backgroundColor:
+                    selectedView === 'demo' ? 'primary.main' : 'action.hover',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: 'inherit' }}>
+                <DemoIcon />
+              </ListItemIcon>
+              <ListItemText primary='PDF Demo' />
+            </ListItem>
+
+            <Divider sx={{ my: 1 }} />
+
+            <ListItem
+              component='div'
+              onClick={handleLogout}
+              sx={{
+                cursor: 'pointer',
+                py: 1.5,
+                '&:hover': { backgroundColor: 'action.hover' },
+              }}
+            >
+              <ListItemIcon>
+                <LogoutIcon />
+              </ListItemIcon>
+              <ListItemText primary='Logout' />
+            </ListItem>
+          </List>
+        </Box>
+      </Drawer>
+
+      <Box component='main' sx={{ flexGrow: 1, p: 3 }}>
+        <Toolbar />
+        <Container maxWidth='xl'>{renderSelectedView()}</Container>
+      </Box>
+
+      {showViewStudentsDialog && (
+        <ViewStudentsDialog
+          open={showViewStudentsDialog}
+          onClose={handleViewStudentsDialogClose}
+          courseId={selectedCourseForView}
+        />
+      )}
+
+      {showInvoiceDetailDialog && (
+        <InvoiceDetailDialog
+          open={showInvoiceDetailDialog}
+          onClose={handleInvoiceDetailDialogClose}
+          invoice={selectedInvoiceForDetail}
+          onEmailInvoice={handleEmailInvoiceClick}
+        />
+      )}
+
+      {showRecordPaymentDialog && selectedInvoiceForPayment && (
+        <RecordPaymentDialog
+          open={showRecordPaymentDialog}
+          onClose={handleRecordPaymentDialogClose}
+          invoice={selectedInvoiceForPayment}
+          onPaymentRecorded={handlePaymentSuccessfullyRecorded}
+        />
+      )}
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          variant='filled'
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
 };
 
-export default AccountingPortal; 
+export default AccountingPortal;

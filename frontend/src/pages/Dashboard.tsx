@@ -15,7 +15,7 @@ import {
   ListItem,
   ListItemText,
   Divider,
-  useTheme
+  useTheme,
 } from '@mui/material';
 import {
   CalendarToday as CalendarIcon,
@@ -26,7 +26,11 @@ import type { Class, Availability, ApiResponse } from '../types/api';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { fetchDashboardData, fetchInstructorAvailability, fetchSchedule } from '../services/api';
+import {
+  fetchDashboardData,
+  fetchInstructorAvailability,
+  fetchSchedule,
+} from '../services/api';
 
 console.log('[Debug] Dashboard.tsx - Component loading');
 
@@ -48,21 +52,34 @@ interface DashboardMetrics {
   }>;
 }
 
-const MetricCard: React.FC<{ title: string; value: number | string; isLoading: boolean }> = ({ title, value, isLoading }) => {
+const MetricCard: React.FC<{
+  title: string;
+  value: number | string;
+  isLoading: boolean;
+}> = ({ title, value, isLoading }) => {
   const theme = useTheme();
-  
+
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent>
-        <Typography color="textSecondary" gutterBottom>
+        <Typography color='textSecondary' gutterBottom>
           {title}
         </Typography>
         {isLoading ? (
-          <Box display="flex" justifyContent="center" alignItems="center" minHeight={60}>
+          <Box
+            display='flex'
+            justifyContent='center'
+            alignItems='center'
+            minHeight={60}
+          >
             <CircularProgress size={24} />
           </Box>
         ) : (
-          <Typography variant="h4" component="div" sx={{ color: theme.palette.primary.main }}>
+          <Typography
+            variant='h4'
+            component='div'
+            sx={{ color: theme.palette.primary.main }}
+          >
             {value}
           </Typography>
         )}
@@ -77,7 +94,11 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
 
-  const { data: availability, isLoading: availabilityLoading, error: availabilityError } = useQuery({
+  const {
+    data: availability,
+    isLoading: availabilityLoading,
+    error: availabilityError,
+  } = useQuery({
     queryKey: ['availability'],
     queryFn: async () => {
       try {
@@ -90,10 +111,14 @@ const Dashboard: React.FC = () => {
         }
         throw error;
       }
-    }
+    },
   });
 
-  const { data: classes, isLoading: classesLoading, error: classesError } = useQuery({
+  const {
+    data: classes,
+    isLoading: classesLoading,
+    error: classesError,
+  } = useQuery({
     queryKey: ['classes'],
     queryFn: async () => {
       try {
@@ -106,15 +131,23 @@ const Dashboard: React.FC = () => {
         }
         throw error;
       }
-    }
+    },
   });
 
-  const { data, isLoading: dashboardLoading, error: dashboardError } = useQuery<DashboardMetrics>({
+  const {
+    data,
+    isLoading: dashboardLoading,
+    error: dashboardError,
+  } = useQuery<DashboardMetrics>({
     queryKey: ['dashboardData'],
     queryFn: () => fetchDashboardData(),
   });
 
-  console.log('[Debug] Dashboard - Data fetched:', { data, isLoading: dashboardLoading, error: dashboardError });
+  console.log('[Debug] Dashboard - Data fetched:', {
+    data,
+    isLoading: dashboardLoading,
+    error: dashboardError,
+  });
 
   const handleLogout = async () => {
     await logout();
@@ -123,7 +156,12 @@ const Dashboard: React.FC = () => {
 
   if (availabilityLoading || classesLoading || dashboardLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+      <Box
+        display='flex'
+        justifyContent='center'
+        alignItems='center'
+        minHeight='60vh'
+      >
         <CircularProgress />
       </Box>
     );
@@ -132,8 +170,11 @@ const Dashboard: React.FC = () => {
   if (availabilityError || classesError || dashboardError) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error">
-          {availabilityError?.message || classesError?.message || dashboardError?.message || 'An error occurred while loading the dashboard'}
+        <Alert severity='error'>
+          {availabilityError?.message ||
+            classesError?.message ||
+            dashboardError?.message ||
+            'An error occurred while loading the dashboard'}
         </Alert>
       </Box>
     );
@@ -141,7 +182,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
+      <Typography variant='h4' gutterBottom>
         Welcome back, {user?.full_name}
       </Typography>
 
@@ -149,21 +190,21 @@ const Dashboard: React.FC = () => {
         {/* Metrics */}
         <Grid item xs={12} sm={6} md={4}>
           <MetricCard
-            title="Upcoming Classes"
+            title='Upcoming Classes'
             value={data?.upcomingClasses || 0}
             isLoading={dashboardLoading}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
           <MetricCard
-            title="Total Students"
+            title='Total Students'
             value={data?.totalStudents || 0}
             isLoading={dashboardLoading}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
           <MetricCard
-            title="Completed Classes"
+            title='Completed Classes'
             value={data?.completedClasses || 0}
             isLoading={dashboardLoading}
           />
@@ -172,27 +213,27 @@ const Dashboard: React.FC = () => {
         {/* Next Class */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant='h6' gutterBottom>
               Next Class
             </Typography>
             {dashboardLoading ? (
-              <Box display="flex" justifyContent="center" p={3}>
+              <Box display='flex' justifyContent='center' p={3}>
                 <CircularProgress />
               </Box>
             ) : data?.nextClass ? (
               <Box>
-                <Typography variant="h5" color="primary" gutterBottom>
+                <Typography variant='h5' color='primary' gutterBottom>
                   {data.nextClass.type}
                 </Typography>
                 <Typography>
                   {data.nextClass.date} at {data.nextClass.time}
                 </Typography>
-                <Typography color="textSecondary">
+                <Typography color='textSecondary'>
                   {data.nextClass.location}
                 </Typography>
               </Box>
             ) : (
-              <Typography color="textSecondary">
+              <Typography color='textSecondary'>
                 No upcoming classes scheduled
               </Typography>
             )}
@@ -202,11 +243,11 @@ const Dashboard: React.FC = () => {
         {/* Recent Classes */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant='h6' gutterBottom>
               Recent Classes
             </Typography>
             {dashboardLoading ? (
-              <Box display="flex" justifyContent="center" p={3}>
+              <Box display='flex' justifyContent='center' p={3}>
                 <CircularProgress />
               </Box>
             ) : (
@@ -219,11 +260,11 @@ const Dashboard: React.FC = () => {
                         secondary={`${classItem.date} • ${classItem.students} students`}
                       />
                     </ListItem>
-                    {index < (data.recentClasses.length - 1) && <Divider />}
+                    {index < data.recentClasses.length - 1 && <Divider />}
                   </React.Fragment>
                 ))}
                 {(!data?.recentClasses || data.recentClasses.length === 0) && (
-                  <Typography color="textSecondary" sx={{ p: 2 }}>
+                  <Typography color='textSecondary' sx={{ p: 2 }}>
                     No recent classes
                   </Typography>
                 )}
@@ -237,4 +278,4 @@ const Dashboard: React.FC = () => {
 };
 
 console.log('[Debug] Dashboard.tsx - Exporting component');
-export default Dashboard; 
+export default Dashboard;

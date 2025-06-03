@@ -1,5 +1,11 @@
 import React, { Suspense, lazy, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useLocation,
+} from 'react-router-dom';
 import {
   Box,
   Container,
@@ -10,7 +16,7 @@ import {
   Grid,
   Card,
   CardContent,
-  Button
+  Button,
 } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useInstructorData } from '../../hooks/useInstructorData';
@@ -24,14 +30,29 @@ import { useToast } from '../../contexts/ToastContext';
 import { useQueryClient } from '@tanstack/react-query';
 
 // Lazy load components for better performance (using TypeScript files)
-const InstructorDashboard = lazy(() => import('../views/instructor/InstructorDashboard.tsx'));
-const MyClassesView = lazy(() => import('../views/instructor/MyClassesView.tsx'));
-const AttendanceView = lazy(() => import('../views/instructor/AttendanceView.jsx'));
-const InstructorArchiveTable = lazy(() => import('../tables/InstructorArchiveTable.tsx'));
+const InstructorDashboard = lazy(
+  () => import('../views/instructor/InstructorDashboard.tsx')
+);
+const MyClassesView = lazy(
+  () => import('../views/instructor/MyClassesView.tsx')
+);
+const AttendanceView = lazy(
+  () => import('../views/instructor/AttendanceView.jsx')
+);
+const InstructorArchiveTable = lazy(
+  () => import('../tables/InstructorArchiveTable.tsx')
+);
 
 // Loading component
 const LoadingFallback = () => (
-  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+  <Box
+    sx={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '60vh',
+    }}
+  >
     <CircularProgress />
   </Box>
 );
@@ -53,7 +74,7 @@ const InstructorPortal: React.FC = () => {
     fetchClassStudents,
     updateAttendance,
     completeClass,
-    loadData
+    loadData,
   } = useInstructorData();
 
   // Redirect if not authenticated
@@ -68,7 +89,7 @@ const InstructorPortal: React.FC = () => {
     if (isAuthenticated && user) {
       analytics.setUser(user.id || user.username, {
         role: user.role,
-        portal: 'instructor'
+        portal: 'instructor',
       });
     }
   }, [isAuthenticated, user]);
@@ -77,7 +98,7 @@ const InstructorPortal: React.FC = () => {
     const currentView = getCurrentView();
     analytics.trackPageView(`instructor_${currentView}`, {
       portal: 'instructor',
-      view: currentView
+      view: currentView,
     });
   }, [location.pathname]);
 
@@ -85,7 +106,7 @@ const InstructorPortal: React.FC = () => {
   const handleError = (error: Error, errorInfo: React.ErrorInfo) => {
     analytics.trackError(error, 'instructor_portal', {
       componentStack: errorInfo.componentStack,
-      view: getCurrentView()
+      view: getCurrentView(),
     });
   };
 
@@ -106,10 +127,16 @@ const InstructorPortal: React.FC = () => {
   if (error) {
     return (
       <InstructorLayout currentView={getCurrentView()} onRefresh={loadData}>
-        <Container maxWidth="lg">
-          <Alert severity="error" sx={{ mt: 2 }}>
-            <Typography variant="h6">{error.userMessage || 'Error Loading Data'}</Typography>
-            <Typography>{error.suggestion || error.message || 'An unexpected error occurred'}</Typography>
+        <Container maxWidth='lg'>
+          <Alert severity='error' sx={{ mt: 2 }}>
+            <Typography variant='h6'>
+              {error.userMessage || 'Error Loading Data'}
+            </Typography>
+            <Typography>
+              {error.suggestion ||
+                error.message ||
+                'An unexpected error occurred'}
+            </Typography>
           </Alert>
         </Container>
       </InstructorLayout>
@@ -119,12 +146,15 @@ const InstructorPortal: React.FC = () => {
   return (
     <ErrorBoundary onError={handleError}>
       <InstructorLayout currentView={getCurrentView()} onRefresh={loadData}>
-        <Container maxWidth="lg">
+        <Container maxWidth='lg'>
           <Suspense fallback={<LoadingFallback />}>
             <Routes>
-              <Route path="/" element={<Navigate to="/instructor/dashboard" replace />} />
-              <Route 
-                path="/dashboard" 
+              <Route
+                path='/'
+                element={<Navigate to='/instructor/dashboard' replace />}
+              />
+              <Route
+                path='/dashboard'
                 element={
                   <ErrorBoundary onError={handleError}>
                     <InstructorDashboard
@@ -132,39 +162,48 @@ const InstructorPortal: React.FC = () => {
                       availableDates={availableDates}
                     />
                   </ErrorBoundary>
-                } 
+                }
               />
-              <Route 
-                path="/availability" 
+              <Route
+                path='/availability'
                 element={
                   <ErrorBoundary onError={handleError}>
                     <AvailabilityView
                       availableDates={Array.from(availableDates)}
                       scheduledClasses={scheduledClasses}
-                      onAddAvailability={async (date) => {
+                      onAddAvailability={async date => {
                         analytics.trackAvailabilityAction('add', date);
                         return await addAvailability(date);
                       }}
-                      onRemoveAvailability={async (date) => {
+                      onRemoveAvailability={async date => {
                         analytics.trackAvailabilityAction('remove', date);
                         return await removeAvailability(date);
                       }}
                       onRefresh={loadData}
                     />
                   </ErrorBoundary>
-                } 
+                }
               />
-              <Route 
-                path="/classes" 
+              <Route
+                path='/classes'
                 element={
                   <ErrorBoundary onError={handleError}>
                     <Box>
                       {/* Debug section - remove this after fixing the issue */}
-                      <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-                        <Typography variant="subtitle2" gutterBottom>Debug Tools</Typography>
-                        <Button 
-                          variant="outlined" 
-                          size="small"
+                      <Box
+                        sx={{
+                          mb: 2,
+                          p: 2,
+                          bgcolor: 'grey.100',
+                          borderRadius: 1,
+                        }}
+                      >
+                        <Typography variant='subtitle2' gutterBottom>
+                          Debug Tools
+                        </Typography>
+                        <Button
+                          variant='outlined'
+                          size='small'
                           onClick={() => {
                             queryClient.resetQueries();
                             queryClient.clear();
@@ -175,16 +214,24 @@ const InstructorPortal: React.FC = () => {
                           Clear All Cache & Refresh
                         </Button>
                       </Box>
-                      
+
                       <MyClassesView
                         combinedItems={(() => {
                           // Get dates that already have scheduled classes
-                          const scheduledDates = new Set(scheduledClasses.map((sc: any) => sc.datescheduled));
-                          
+                          const scheduledDates = new Set(
+                            scheduledClasses.map((sc: any) => sc.datescheduled)
+                          );
+
                           // Debug log to see what's in availableDates
-                          console.log('[InstructorPortal] Available dates:', Array.from(availableDates));
-                          console.log('[InstructorPortal] Scheduled dates:', Array.from(scheduledDates));
-                          
+                          console.log(
+                            '[InstructorPortal] Available dates:',
+                            Array.from(availableDates)
+                          );
+                          console.log(
+                            '[InstructorPortal] Scheduled dates:',
+                            Array.from(scheduledDates)
+                          );
+
                           return [
                             // Add scheduled classes (backend now excludes completed ones)
                             ...scheduledClasses.map((sc: any) => ({
@@ -199,7 +246,7 @@ const InstructorPortal: React.FC = () => {
                               studentsregistered: sc.studentcount,
                               studentsattendance: sc.studentsattendance,
                               notes: '',
-                              status: 'Scheduled'
+                              status: 'Scheduled',
                             })),
                             // Add availability dates ONLY if they don't conflict with scheduled classes
                             ...Array.from(availableDates)
@@ -216,23 +263,40 @@ const InstructorPortal: React.FC = () => {
                                 studentsattendance: undefined,
                                 notes: '',
                                 status: 'Available',
-                                course_id: undefined
-                              }))
-                          ].sort((a, b) => new Date(a.displayDate).getTime() - new Date(b.displayDate).getTime());
+                                course_id: undefined,
+                              })),
+                          ].sort(
+                            (a, b) =>
+                              new Date(a.displayDate).getTime() -
+                              new Date(b.displayDate).getTime()
+                          );
                         })()}
-                        onAttendanceClick={(item) => {
-                          analytics.trackClassAction('view_attendance', item.course_id);
+                        onAttendanceClick={item => {
+                          analytics.trackClassAction(
+                            'view_attendance',
+                            item.course_id
+                          );
                           navigate(`/instructor/attendance`);
                         }}
-                        onMarkCompleteClick={async (classItem) => {
-                          analytics.trackClassAction('mark_complete', classItem.course_id);
+                        onMarkCompleteClick={async classItem => {
+                          analytics.trackClassAction(
+                            'mark_complete',
+                            classItem.course_id
+                          );
                           try {
                             await completeClass(classItem.course_id || 0);
-                            analytics.trackClassAction('completed_successfully', classItem.course_id);
+                            analytics.trackClassAction(
+                              'completed_successfully',
+                              classItem.course_id
+                            );
                             loadData();
                           } catch (error: any) {
                             // Display user-friendly error message
-                            const errorMessage = error.suggestion || error.userMessage || error.message || 'Failed to complete class. Please try again.';
+                            const errorMessage =
+                              error.suggestion ||
+                              error.userMessage ||
+                              error.message ||
+                              'Failed to complete class. Please try again.';
                             toastError(errorMessage);
                             console.error('Failed to complete class:', error);
                           }
@@ -240,46 +304,47 @@ const InstructorPortal: React.FC = () => {
                       />
                     </Box>
                   </ErrorBoundary>
-                } 
+                }
               />
-              <Route 
-                path="/attendance" 
+              <Route
+                path='/attendance'
                 element={
                   <ErrorBoundary onError={handleError}>
                     <AttendanceView
                       onAttendanceUpdate={(studentId, attendance) => {
-                        analytics.trackInstructorAction('update_attendance', { studentId, attendance });
+                        analytics.trackInstructorAction('update_attendance', {
+                          studentId,
+                          attendance,
+                        });
                         return loadData();
                       }}
                     />
                   </ErrorBoundary>
-                } 
+                }
               />
-              <Route 
-                path="/archive" 
+              <Route
+                path='/archive'
                 element={
                   <ErrorBoundary onError={handleError}>
-                    <InstructorArchiveTable 
-                      courses={completedClasses} 
-                    />
+                    <InstructorArchiveTable courses={completedClasses} />
                   </ErrorBoundary>
-                } 
+                }
               />
-              <Route 
-                path="/toast-demo" 
+              <Route
+                path='/toast-demo'
                 element={
                   <ErrorBoundary onError={handleError}>
                     <ToastDemo />
                   </ErrorBoundary>
-                } 
+                }
               />
-              <Route 
-                path="/profile" 
+              <Route
+                path='/profile'
                 element={
                   <ErrorBoundary onError={handleError}>
                     <InstructorProfile />
                   </ErrorBoundary>
-                } 
+                }
               />
             </Routes>
           </Suspense>
@@ -289,4 +354,4 @@ const InstructorPortal: React.FC = () => {
   );
 };
 
-export default InstructorPortal; 
+export default InstructorPortal;

@@ -31,7 +31,7 @@ const mockIntersectionObserver = vi.fn();
 mockIntersectionObserver.mockReturnValue({
   observe: () => null,
   unobserve: () => null,
-  disconnect: () => null
+  disconnect: () => null,
 });
 window.IntersectionObserver = mockIntersectionObserver;
 
@@ -40,6 +40,6 @@ const mockResizeObserver = vi.fn();
 mockResizeObserver.mockReturnValue({
   observe: () => null,
   unobserve: () => null,
-  disconnect: () => null
+  disconnect: () => null,
 });
-window.ResizeObserver = mockResizeObserver; 
+window.ResizeObserver = mockResizeObserver;

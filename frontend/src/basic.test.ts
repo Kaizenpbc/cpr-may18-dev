@@ -8,4 +8,4 @@ describe('Basic Test Suite', () => {
   it('should handle strings', () => {
     expect('hello').toBe('hello');
   });
-}); 
+});

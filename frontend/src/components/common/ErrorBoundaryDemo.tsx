@@ -39,22 +39,23 @@ const ErrorTest: React.FC<ErrorTestProps> = ({ errorType, onTrigger }) => {
 
   if (shouldError) {
     switch (errorType) {
-      case 'network': return <NetworkErrorComponent />;
-      case 'chunk': return <ChunkErrorComponent />;
-      case 'auth': return <AuthErrorComponent />;
-      case 'runtime': return <RuntimeErrorComponent />;
-      case 'validation': return <ValidationErrorComponent />;
-      default: return <div>Unknown error type</div>;
+      case 'network':
+        return <NetworkErrorComponent />;
+      case 'chunk':
+        return <ChunkErrorComponent />;
+      case 'auth':
+        return <AuthErrorComponent />;
+      case 'runtime':
+        return <RuntimeErrorComponent />;
+      case 'validation':
+        return <ValidationErrorComponent />;
+      default:
+        return <div>Unknown error type</div>;
     }
   }
 
   return (
-    <Button 
-      variant="outlined" 
-      color="error" 
-      onClick={handleTrigger}
-      fullWidth
-    >
+    <Button variant='outlined' color='error' onClick={handleTrigger} fullWidth>
       Trigger {errorType} Error
     </Button>
   );
@@ -66,31 +67,28 @@ const ErrorBoundaryDemo: React.FC = () => {
     { type: 'chunk', label: 'Chunk Loading Error' },
     { type: 'auth', label: 'Authentication Error' },
     { type: 'runtime', label: 'Runtime Error' },
-    { type: 'validation', label: 'Validation Error' }
+    { type: 'validation', label: 'Validation Error' },
   ];
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
+      <Typography variant='h4' gutterBottom>
         Enhanced Error Boundary Demo
       </Typography>
-      <Typography variant="body1" sx={{ mb: 3 }}>
-        Test the enhanced error boundary with different error types. 
-        Each error will be categorized and handled appropriately.
+      <Typography variant='body1' sx={{ mb: 3 }}>
+        Test the enhanced error boundary with different error types. Each error
+        will be categorized and handled appropriately.
       </Typography>
 
       <Grid container spacing={2}>
         {errorTypes.map(({ type, label }) => (
           <Grid item xs={12} sm={6} md={4} key={type}>
             <Paper sx={{ p: 2, height: '100%' }}>
-              <Typography variant="h6" gutterBottom>
+              <Typography variant='h6' gutterBottom>
                 {label}
               </Typography>
-              <ErrorBoundary 
-                context={`demo_${type}`}
-                showDetails={true}
-              >
-                <ErrorTest 
+              <ErrorBoundary context={`demo_${type}`} showDetails={true}>
+                <ErrorTest
                   errorType={type}
                   onTrigger={() => console.log(`Triggering ${type} error`)}
                 />
@@ -103,4 +101,4 @@ const ErrorBoundaryDemo: React.FC = () => {
   );
 };
 
-export default ErrorBoundaryDemo; 
+export default ErrorBoundaryDemo;
