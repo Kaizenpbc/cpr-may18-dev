@@ -8,12 +8,13 @@ import ResetPassword from './pages/ResetPassword';
 import RoleBasedRouter from './components/RoleBasedRouter';
 import InstructorPortal from './components/portals/InstructorPortal';
 import OrganizationPortal from './components/portals/OrganizationPortal';
-import CourseAdminPortal from './components/portals/CourseAdminPortal';
+import CourseAdminPortal from './components/portals/courseAdmin/CourseAdminPortal';
 import SuperAdminPortal from './components/portals/SuperAdminPortal';
 import AccountingPortal from './components/portals/AccountingPortal';
 import SystemAdminPortal from './components/portals/SystemAdminPortal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import ToastContainer from './components/common/ToastContainer';
+import { SnackbarProvider } from './contexts/SnackbarContext';
 
 console.log('[TRACE] App.tsx - Starting to load dependencies');
 
@@ -31,67 +32,69 @@ function App() {
     console.log('[TRACE] App.tsx - Starting to render providers and router');
     return (
       <ErrorBoundary>
-        <ToastContainer />
-        <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            
-            {/* Role-specific portal routes - these allow direct URL access and refresh */}
-            <Route path="/instructor/*" element={
-              <PrivateRoute requiredRole="instructor">
-                <InstructorPortal />
-              </PrivateRoute>
-            } />
-            
-            <Route path="/organization/*" element={
-              <PrivateRoute requiredRole="organization">
-                <OrganizationPortal />
-              </PrivateRoute>
-            } />
-            
-            <Route path="/admin/*" element={
-              <PrivateRoute requiredRole="admin">
-                <CourseAdminPortal />
-              </PrivateRoute>
-            } />
-            
-            <Route path="/accounting/*" element={
-              <PrivateRoute requiredRole="accountant">
-                <AccountingPortal />
-              </PrivateRoute>
-            } />
-            
-            <Route path="/superadmin/*" element={
-              <PrivateRoute requiredRole="superadmin">
-                <SuperAdminPortal />
-              </PrivateRoute>
-            } />
+        <SnackbarProvider>
+          <ToastContainer />
+          <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              
+              {/* Role-specific portal routes - these allow direct URL access and refresh */}
+              <Route path="/instructor/*" element={
+                <PrivateRoute requiredRole="instructor">
+                  <InstructorPortal />
+                </PrivateRoute>
+              } />
+              
+              <Route path="/organization/*" element={
+                <PrivateRoute requiredRole="organization">
+                  <OrganizationPortal />
+                </PrivateRoute>
+              } />
+              
+              <Route path="/admin/*" element={
+                <PrivateRoute requiredRole="admin">
+                  <CourseAdminPortal />
+                </PrivateRoute>
+              } />
+              
+              <Route path="/accounting/*" element={
+                <PrivateRoute requiredRole="accountant">
+                  <AccountingPortal />
+                </PrivateRoute>
+              } />
+              
+              <Route path="/superadmin/*" element={
+                <PrivateRoute requiredRole="superadmin">
+                  <SuperAdminPortal />
+                </PrivateRoute>
+              } />
 
-            <Route path="/sysadmin/*" element={
-              <PrivateRoute requiredRole="sysadmin">
-                <SystemAdminPortal />
-              </PrivateRoute>
-            } />
+              <Route path="/sysadmin/*" element={
+                <PrivateRoute requiredRole="sysadmin">
+                  <SystemAdminPortal />
+                </PrivateRoute>
+              } />
 
-            {/* Main protected route - redirects to role-based portal */}
-            <Route path="/" element={
-              <PrivateRoute>
-                <RoleBasedRouter />
-              </PrivateRoute>
-            } />
+              {/* Main protected route - redirects to role-based portal */}
+              <Route path="/" element={
+                <PrivateRoute>
+                  <RoleBasedRouter />
+                </PrivateRoute>
+              } />
 
-            {/* Legacy routes for backward compatibility */}
-            <Route path="/dashboard" element={
-              <PrivateRoute>
-                <RoleBasedRouter />
-              </PrivateRoute>
-            } />
-            
-            {/* Fallback for unknown routes */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              {/* Legacy routes for backward compatibility */}
+              <Route path="/dashboard" element={
+                <PrivateRoute>
+                  <RoleBasedRouter />
+                </PrivateRoute>
+              } />
+              
+              {/* Fallback for unknown routes */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </SnackbarProvider>
         </ErrorBoundary>
     );
   } catch (error) {

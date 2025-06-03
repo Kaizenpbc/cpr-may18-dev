@@ -92,6 +92,46 @@ const initializeDatabase = async () => {
     `, [adminPasswordHash]);
     console.log('✅ Admin user created successfully');
 
+    // Create email_templates table if it doesn't exist
+    console.log('📧 Creating email_templates table...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS email_templates (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        key VARCHAR(50) NOT NULL UNIQUE,
+        category VARCHAR(50) NOT NULL,
+        subject TEXT NOT NULL,
+        body TEXT NOT NULL,
+        is_active BOOLEAN DEFAULT true,
+        is_system BOOLEAN DEFAULT false,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        created_by INTEGER REFERENCES users(id),
+        last_modified_by INTEGER REFERENCES users(id),
+        deleted_at TIMESTAMP WITH TIME ZONE
+      );
+    `);
+    console.log('✅ Email_templates table created successfully');
+
+    // Insert default email templates if none exist
+    console.log('📝 Inserting default email templates...');
+    await pool.query(`
+      INSERT INTO email_templates (name, key, category, subject, body, created_by, last_modified_by)
+      VALUES 
+        ('Course Assignment Notification', 'course_assigned_instructor', 'course',
+         'Course Assignment Notification',
+         'Dear {{instructorName}},\n\nYou have been assigned to teach {{courseName}}.\n\nBest regards,\nCPR Team',
+         (SELECT id FROM users WHERE username = 'admin'),
+         (SELECT id FROM users WHERE username = 'admin')),
+        ('Course Reminder', 'course_reminder_instructor', 'reminder',
+         'Course Reminder',
+         'Dear {{instructorName}},\n\nThis is a reminder that you have a course {{courseName}} scheduled for {{courseDate}}.\n\nBest regards,\nCPR Team',
+         (SELECT id FROM users WHERE username = 'admin'),
+         (SELECT id FROM users WHERE username = 'admin'))
+      ON CONFLICT (key) DO NOTHING;
+    `);
+    console.log('✅ Default email templates inserted successfully');
+
     // Create default instructor user if it doesn't exist
     console.log('👨‍🏫 Creating default instructor user...');
     const instructorPassword = 'test123';

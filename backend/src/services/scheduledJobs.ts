@@ -1,6 +1,6 @@
 import * as cron from 'node-cron';
 import { pool } from '../config/database';
-import { EmailService } from './emailService';
+import { emailService } from './emailService';
 
 export class ScheduledJobsService {
   private static instance: ScheduledJobsService;
@@ -112,13 +112,11 @@ export class ScheduledJobsService {
 
     task.start();
     this.jobs.set('emailReminders', task);
-    console.log('📧 [SCHEDULED JOB] Email reminders job scheduled (daily at 9:00 AM)');
+    console.log(' [SCHEDULED JOB] Email reminders job scheduled (daily at 9:00 AM)');
   }
 
   private async sendEmailReminders(): Promise<void> {
     try {
-      const emailService = EmailService.getInstance();
-      
       // Find invoices due in 7 days and 3 days
       const reminderDays = [7, 3];
       

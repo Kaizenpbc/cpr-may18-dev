@@ -4280,6 +4280,6 @@ router.delete('/instructor/availability/:date', authenticateToken, asyncHandler(
 }));
 
 // Email template routes (admin only)
-router.use('/email-templates', authenticateToken, authorizeRoles(['admin']), emailTemplatesRouter);
+router.use('/email-templates', authenticateToken, authorizeRoles(['admin', 'courseAdmin']), emailTemplatesRouter);
 
 export default router; 

@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { CircularProgress, Box, Typography } from '@mui/material';
 import InstructorPortal from './portals/InstructorPortal';
 import OrganizationPortal from './portals/OrganizationPortal';
-import CourseAdminPortal from './portals/CourseAdminPortal';
+import CourseAdminPortal from './portals/courseAdmin/CourseAdminPortal';
 import SuperAdminPortal from './portals/SuperAdminPortal';
 import AccountingPortal from './portals/AccountingPortal';
 import SystemAdminPortal from './portals/SystemAdminPortal';

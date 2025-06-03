@@ -1,18 +1,29 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../contexts/AuthContext';
 import {
     Box,
     Tab,
     Tabs,
     Typography,
     Paper,
-    Container
+    Container,
+    AppBar,
+    Toolbar,
+    IconButton,
+    Menu,
+    MenuItem,
+    Divider
 } from '@mui/material';
 import {
     Dashboard as DashboardIcon,
     People as PeopleIcon,
     Event as EventIcon,
     Email as EmailIcon,
-    Settings as SettingsIcon
+    Settings as SettingsIcon,
+    AccountCircle as AccountIcon,
+    Logout as LogoutIcon,
+    VpnKey as PasswordIcon
 } from '@mui/icons-material';
 import InstructorManagement from './InstructorManagement';
 import CourseScheduling from './CourseScheduling';
@@ -25,7 +36,7 @@ interface TabPanelProps {
     value: number;
 }
 
-const TabPanel = (props: TabPanelProps) => {
+function TabPanel(props: TabPanelProps) {
     const { children, value, index, ...other } = props;
 
     return (
@@ -43,7 +54,7 @@ const TabPanel = (props: TabPanelProps) => {
             )}
         </div>
     );
-};
+}
 
 const tabs = [
     {
@@ -70,41 +81,117 @@ const tabs = [
 
 const CourseAdminPortal: React.FC = () => {
     const [selectedTab, setSelectedTab] = useState(0);
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
 
     const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
         setSelectedTab(newValue);
     };
 
-    return (
-        <Container maxWidth="xl">
-            <Paper elevation={3} sx={{ mt: 3, mb: 3 }}>
-                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                    <Tabs
-                        value={selectedTab}
-                        onChange={handleTabChange}
-                        variant="scrollable"
-                        scrollButtons="auto"
-                        aria-label="course admin tabs"
-                    >
-                        {tabs.map((tab, index) => (
-                            <Tab
-                                key={tab.label}
-                                icon={tab.icon}
-                                label={tab.label}
-                                id={`course-admin-tab-${index}`}
-                                aria-controls={`course-admin-tabpanel-${index}`}
-                            />
-                        ))}
-                    </Tabs>
-                </Box>
+    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(event.currentTarget);
+    };
 
-                {tabs.map((tab, index) => (
-                    <TabPanel key={tab.label} value={selectedTab} index={index}>
-                        {tab.component}
-                    </TabPanel>
-                ))}
-            </Paper>
-        </Container>
+    const handleMenuClose = () => {
+        setAnchorEl(null);
+    };
+
+    const handleLogout = async () => {
+        handleMenuClose();
+        await logout();
+        navigate('/');
+    };
+
+    const handlePasswordReset = () => {
+        handleMenuClose();
+        navigate('/reset-password');
+    };
+
+    return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+            {/* AppBar with Banner */}
+            <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+                <Toolbar>
+                    <SettingsIcon sx={{ mr: 2 }} />
+                    <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+                        Course Administration Portal
+                    </Typography>
+                    <Typography variant="body1" sx={{ mr: 2 }}>
+                        Welcome, {user?.first_name || user?.username || 'Admin'}!
+                    </Typography>
+                    <IconButton
+                        size="large"
+                        edge="end"
+                        aria-label="account of current user"
+                        aria-controls="menu-appbar"
+                        aria-haspopup="true"
+                        onClick={handleMenuOpen}
+                        color="inherit"
+                    >
+                        <AccountIcon />
+                    </IconButton>
+                    <Menu
+                        id="menu-appbar"
+                        anchorEl={anchorEl}
+                        anchorOrigin={{
+                            vertical: 'bottom',
+                            horizontal: 'right',
+                        }}
+                        keepMounted
+                        transformOrigin={{
+                            vertical: 'top',
+                            horizontal: 'right',
+                        }}
+                        open={Boolean(anchorEl)}
+                        onClose={handleMenuClose}
+                    >
+                        <MenuItem onClick={handlePasswordReset}>
+                            <PasswordIcon sx={{ mr: 1 }} />
+                            Reset Password
+                        </MenuItem>
+                        <Divider />
+                        <MenuItem onClick={handleLogout}>
+                            <LogoutIcon sx={{ mr: 1 }} />
+                            Logout
+                        </MenuItem>
+                    </Menu>
+                </Toolbar>
+            </AppBar>
+
+            {/* Main Content */}
+            <Box component="main" sx={{ flexGrow: 1, mt: 8 }}>
+                <Container maxWidth="xl">
+                    <Paper elevation={3} sx={{ mt: 3, mb: 3 }}>
+                        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                            <Tabs
+                                value={selectedTab}
+                                onChange={handleTabChange}
+                                variant="scrollable"
+                                scrollButtons="auto"
+                                aria-label="course admin tabs"
+                            >
+                                {tabs.map((tab, index) => (
+                                    <Tab
+                                        key={tab.label}
+                                        icon={tab.icon}
+                                        label={tab.label}
+                                        id={`course-admin-tab-${index}`}
+                                        aria-controls={`course-admin-tabpanel-${index}`}
+                                    />
+                                ))}
+                            </Tabs>
+                        </Box>
+
+                        {tabs.map((tab, index) => (
+                            <TabPanel key={tab.label} value={selectedTab} index={index}>
+                                {tab.component}
+                            </TabPanel>
+                        ))}
+                    </Paper>
+                </Container>
+            </Box>
+        </Box>
     );
 };
 

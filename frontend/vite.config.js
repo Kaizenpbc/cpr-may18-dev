@@ -30,9 +30,15 @@ export default defineConfig({
     root: path.resolve(__dirname),
     base: '/',
     server: {
+        host: true,
         port: 5173,
+        proxy: {
+            '/api': {
+                target: 'http://localhost:3001',
+                changeOrigin: true
+            }
+        },
         strictPort: true,
-        host: 'localhost',
         hmr: {
             protocol: 'ws',
             host: 'localhost',

@@ -422,6 +422,27 @@ export const adminApi = {
   getCourseStudents: (courseId: number) => api.get(`/api/v1/admin/courses/${courseId}/students`),
 };
 
+// Email Template endpoints
+export const emailTemplateApi = {
+  getAll: (params?: any) => {
+    console.log('[emailTemplateApi.getAll] Called with params:', params);
+    const queryString = params ? `?${new URLSearchParams(params).toString()}` : '';
+    const url = `/api/v1/email-templates${queryString}`;
+    console.log('[emailTemplateApi.getAll] Making request to:', url);
+    return api.get(url);
+  },
+  getById: (id: number) => api.get(`/api/v1/email-templates/${id}`),
+  create: (data: any) => api.post('/api/v1/email-templates', data),
+  update: (id: number, data: any) => api.put(`/api/v1/email-templates/${id}`, data),
+  delete: (id: number) => api.delete(`/api/v1/email-templates/${id}`),
+  preview: (id: number, variables: any) => api.post(`/api/v1/email-templates/${id}/preview`, { variables }),
+  sendTest: (id: number, recipientEmail: string, variables: any) => 
+    api.post(`/api/v1/email-templates/${id}/test`, { recipientEmail, variables }),
+  clone: (id: number, newName: string) => api.post(`/api/v1/email-templates/${id}/clone`, { name: newName }),
+  getEventTriggers: () => api.get('/api/v1/email-templates/meta/event-triggers'),
+  getTemplateVariables: () => api.get('/api/v1/email-templates/meta/variables')
+};
+
 export default api;
 
 console.log('[Debug] api.ts - API service initialized'); 

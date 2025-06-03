@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "kill-ports": "powershell -Command \"$p3001 = Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue; if($p3001) { Stop-Process -Id $p3001.OwningProcess -Force }; $p5173 = Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue; if($p5173) { Stop-Process -Id $p5173.OwningProcess -Force }; echo 'Ports cleared'\"",
     "cleanup": "taskkill /f /im node.exe 2>nul || echo 'No node processes to kill'",
     "check-ports": "netstat -ano | findstr \":3001\\|:5173\" || echo 'Ports are free'",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev", 
-    "dev:clean": "npm run cleanup && timeout /t 2 /nobreak && npm run check-ports",
+    "dev:clean": "npm run cleanup && npm run kill-ports && timeout /t 3 /nobreak && npm run check-ports",
     "dev": "npm run dev:clean && start npm run dev:backend && timeout /t 3 /nobreak && npm run dev:frontend",
-    "stop": "npm run cleanup && npm run check-ports"
+    "stop": "npm run cleanup && npm run kill-ports && npm run check-ports"
   },
   "workspaces": [
     "frontend",
