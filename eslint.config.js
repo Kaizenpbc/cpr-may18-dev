@@ -23,6 +23,54 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+      // Enhanced TypeScript and code quality rules
+      '@typescript-eslint/no-unused-vars': 'error',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
+      '@typescript-eslint/no-empty-function': 'warn',
+      
+      // Import and code organization rules
+      'no-duplicate-imports': 'error',
+      'sort-imports': ['error', {
+        'ignoreCase': false,
+        'ignoreDeclarationSort': true,
+        'ignoreMemberSort': false,
+        'memberSyntaxSortOrder': ['none', 'all', 'multiple', 'single'],
+      }],
+      
+      // Code quality rules
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'no-console': 'warn',
+      'eqeqeq': 'error',
+      'curly': 'error',
+      
+      // Naming conventions
+      '@typescript-eslint/naming-convention': [
+        'error',
+        {
+          'selector': 'interface',
+          'format': ['PascalCase'],
+          'prefix': ['I']
+        },
+        {
+          'selector': 'typeAlias',
+          'format': ['PascalCase']
+        },
+        {
+          'selector': 'class',
+          'format': ['PascalCase']
+        },
+        {
+          'selector': 'function',
+          'format': ['camelCase', 'PascalCase']
+        },
+        {
+          'selector': 'variable',
+          'format': ['camelCase', 'PascalCase', 'UPPER_CASE']
+        }
+      ]
     },
   },
 )

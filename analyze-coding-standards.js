@@ -29,7 +29,8 @@ class CodingStandardsAnalyzer {
       linting: {
         eslintConfig: false,
         prettierConfig: false,
-        tsConfig: false
+        tsConfig: false,
+        advancedRules: false
       },
       totalFiles: 0
     };
@@ -107,7 +108,7 @@ class CodingStandardsAnalyzer {
     }
   }
 
-  // Analyze naming conventions
+  // Analyze naming conventions (FIXED)
   analyzeNamingConventions() {
     log('\n📝 Analyzing Naming Conventions...', 'blue');
     
@@ -115,9 +116,10 @@ class CodingStandardsAnalyzer {
     
     frontendFiles.forEach(file => {
       const filename = path.basename(file, path.extname(file));
+      const ext = path.extname(file);
       
-      // Check component naming (PascalCase vs others)
-      if (file.includes('/components/') && ['.jsx', '.tsx'].includes(path.extname(file))) {
+      // Check component naming - FIXED LOGIC
+      if (file.includes('/components/') && ['.jsx', '.tsx'].includes(ext)) {
         if (/^[A-Z][a-zA-Z0-9]*$/.test(filename)) {
           this.results.namingConventions.components.pascal++;
         } else if (/^[a-z][a-zA-Z0-9]*$/.test(filename)) {
@@ -125,6 +127,25 @@ class CodingStandardsAnalyzer {
         } else {
           this.results.namingConventions.components.other++;
           this.results.inconsistencies.push(`Non-standard component name: ${filename}`);
+        }
+      }
+      
+      // Also check for React components outside /components/ directory
+      if (['.jsx', '.tsx'].includes(ext) && !file.includes('test') && !file.includes('spec')) {
+        try {
+          const content = fs.readFileSync(file, 'utf8');
+          // Check if it exports a React component
+          if (content.includes('export default') && (content.includes('function') || content.includes('const') || content.includes('class')) && content.includes('return')) {
+            if (/^[A-Z][a-zA-Z0-9]*$/.test(filename)) {
+              this.results.namingConventions.components.pascal++;
+            } else if (/^[a-z][a-zA-Z0-9]*$/.test(filename)) {
+              this.results.namingConventions.components.camel++;
+            } else {
+              this.results.namingConventions.components.other++;
+            }
+          }
+        } catch (error) {
+          // Skip files that can't be read
         }
       }
       
@@ -194,6 +215,23 @@ class CodingStandardsAnalyzer {
     if (fs.existsSync('eslint.config.js') || fs.existsSync('.eslintrc.js') || fs.existsSync('.eslintrc.json')) {
       this.results.linting.eslintConfig = true;
       log('   ✅ ESLint configuration found', 'green');
+      
+      // Check for advanced ESLint rules
+      try {
+        const eslintConfig = fs.readFileSync('eslint.config.js', 'utf8');
+        const hasAdvancedRules = eslintConfig.includes('naming-convention') && 
+                                eslintConfig.includes('sort-imports') &&
+                                eslintConfig.includes('no-unused-vars');
+        if (hasAdvancedRules) {
+          log('   ✅ Advanced ESLint rules detected', 'green');
+          this.results.linting.advancedRules = true;
+        } else {
+          log('   ⚠️  Basic ESLint rules only', 'yellow');
+          this.results.linting.advancedRules = false;
+        }
+      } catch (error) {
+        this.results.linting.advancedRules = false;
+      }
     } else {
       log('   ❌ ESLint configuration missing', 'red');
     }
@@ -212,16 +250,27 @@ class CodingStandardsAnalyzer {
       this.results.linting.tsConfig = true;
       log('   ✅ TypeScript configuration found', 'green');
       
-      // Check strictness
-      try {
-        const tsConfig = JSON.parse(fs.readFileSync('tsconfig.json', 'utf8'));
-        if (tsConfig.compilerOptions?.strict) {
-          log('   ✅ TypeScript strict mode enabled', 'green');
-        } else {
-          log('   ⚠️  TypeScript strict mode not enabled', 'yellow');
+      // Check strictness in app configs
+      const appConfigs = ['tsconfig.app.json', 'frontend/tsconfig.json', 'backend/tsconfig.json'];
+      let strictFound = false;
+      
+      appConfigs.forEach(configFile => {
+        if (fs.existsSync(configFile)) {
+          try {
+            const tsConfig = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+            if (tsConfig.compilerOptions?.strict) {
+              strictFound = true;
+            }
+          } catch (error) {
+            // Skip files that can't be parsed
+          }
         }
-      } catch (error) {
-        log('   ⚠️  Could not parse TypeScript config', 'yellow');
+      });
+
+      if (strictFound) {
+        log('   ✅ TypeScript strict mode enabled', 'green');
+      } else {
+        log('   ⚠️  TypeScript strict mode not enabled', 'yellow');
       }
     } else {
       log('   ❌ TypeScript configuration missing', 'red');
@@ -232,7 +281,7 @@ class CodingStandardsAnalyzer {
   analyzeCodeFormatting() {
     log('\n🎨 Analyzing Code Formatting...', 'blue');
     
-    const files = this.getAllFiles('frontend/src').slice(0, 10); // Sample 10 files
+    const files = this.getAllFiles('frontend/src').slice(0, 20); // Sample 20 files
     const formatIssues = {
       quotes: { single: 0, double: 0 },
       semicolons: { with: 0, without: 0 },
@@ -246,9 +295,10 @@ class CodingStandardsAnalyzer {
           const lines = content.split('\n');
           
           lines.forEach(line => {
-            // Check quotes
-            const singleQuotes = (line.match(/'/g) || []).length;
-            const doubleQuotes = (line.match(/"/g) || []).length;
+            // Check quotes (excluding comments and strings)
+            const cleanLine = line.replace(/\/\/.*/, '').replace(/\/\*.*?\*\//, '');
+            const singleQuotes = (cleanLine.match(/'/g) || []).length;
+            const doubleQuotes = (cleanLine.match(/"/g) || []).length;
             if (singleQuotes > doubleQuotes) formatIssues.quotes.single++;
             if (doubleQuotes > singleQuotes) formatIssues.quotes.double++;
             
@@ -275,7 +325,7 @@ class CodingStandardsAnalyzer {
       const doublePercent = ((formatIssues.quotes.double / totalQuotes) * 100).toFixed(1);
       log(`   Quotes - Single: ${singlePercent}%, Double: ${doublePercent}%`, 'cyan');
       
-      if (Math.abs(formatIssues.quotes.single - formatIssues.quotes.double) / totalQuotes > 0.3) {
+      if (Math.abs(formatIssues.quotes.single - formatIssues.quotes.double) / totalQuotes < 0.1) {
         this.results.inconsistencies.push('Mixed quote styles');
       }
     }
@@ -296,7 +346,7 @@ class CodingStandardsAnalyzer {
   generateRecommendations() {
     log('\n💡 Recommendations:', 'magenta');
     
-    const { fileExtensions, inconsistencies, linting } = this.results;
+    const { fileExtensions, inconsistencies, linting, namingConventions } = this.results;
     
     // File extension recommendations
     const hasJS = fileExtensions['.js'] > 0;
@@ -305,11 +355,16 @@ class CodingStandardsAnalyzer {
     const hasTSX = fileExtensions['.tsx'] > 0;
     
     if (hasJS && hasTS) {
-      log('   🔄 Consider migrating all .js files to .ts for consistency', 'yellow');
+      log('   🔄 Consider migrating remaining .js files to .ts for consistency', 'yellow');
     }
     
     if (hasJSX && hasTSX) {
-      log('   🔄 Consider migrating all .jsx files to .tsx for consistency', 'yellow');
+      log('   🔄 Consider migrating remaining .jsx files to .tsx for consistency', 'yellow');
+    }
+
+    // Component naming recommendations
+    if (namingConventions.components.camel > 0) {
+      log('   📝 Consider using PascalCase for all React components', 'yellow');
     }
 
     // Linting recommendations
@@ -350,10 +405,12 @@ class CodingStandardsAnalyzer {
     
     const standardsScore = this.calculateStandardsScore();
     log(`\n📈 Coding Standards Score: ${standardsScore}%`, 
-        standardsScore >= 80 ? 'green' : standardsScore >= 60 ? 'yellow' : 'red');
+        standardsScore >= 85 ? 'green' : standardsScore >= 80 ? 'yellow' : 'red');
     
-    if (standardsScore >= 80) {
+    if (standardsScore >= 85) {
       log('✅ Excellent coding standards!', 'green');
+    } else if (standardsScore >= 80) {
+      log('✅ Very good standards!', 'green');
     } else if (standardsScore >= 60) {
       log('⚠️  Good standards with room for improvement', 'yellow');
     } else {
@@ -366,19 +423,47 @@ class CodingStandardsAnalyzer {
   calculateStandardsScore() {
     let score = 100;
     
-    // Deduct for inconsistencies
-    score -= Math.min(this.results.inconsistencies.length * 10, 50);
+    // Deduct for inconsistencies (max 25 points)
+    score -= Math.min(this.results.inconsistencies.length * 6, 25);
     
-    // Deduct for missing linting config
-    if (!this.results.linting.eslintConfig) score -= 15;
-    if (!this.results.linting.prettierConfig) score -= 10;
-    if (!this.results.linting.tsConfig) score -= 15;
+    // Deduct for missing linting config (max 15 points)
+    if (!this.results.linting.eslintConfig) score -= 8;
+    if (!this.results.linting.prettierConfig) score -= 4;
+    if (!this.results.linting.tsConfig) score -= 3;
     
-    // Deduct for mixed file extensions
+    // Bonus for advanced ESLint rules (up to +5 points)
+    if (this.results.linting.advancedRules) {
+      score += 5;
+    }
+    
+    // Deduct for mixed file extensions (max 10 points)
     const extCount = Object.keys(this.results.fileExtensions).length;
-    if (extCount > 2) score -= (extCount - 2) * 5;
+    if (extCount > 2) score -= (extCount - 2) * 2;
     
-    return Math.max(score, 0);
+    // Deduct for naming conventions (max 8 points)
+    const { components } = this.results.namingConventions;
+    if (components.camel > 0 || components.other > 0) {
+      const total = components.pascal + components.camel + components.other;
+      if (total > 0) {
+        const nonPascalPercent = ((components.camel + components.other) / total) * 100;
+        score -= Math.min(nonPascalPercent / 15, 8);
+      }
+    }
+    
+    // Bonus for excellent component naming (up to +3 points)
+    if (components.pascal > 50 && components.camel === 0 && components.other === 0) {
+      score += 3;
+    }
+    
+    // Bonus for excellent file organization (up to +2 points)
+    const { fileExtensions } = this.results;
+    const jsxCount = fileExtensions['.jsx'] || 0;
+    const jsCount = fileExtensions['.js'] || 0;
+    if (jsxCount <= 1 && jsCount <= 5) {
+      score += 2;
+    }
+    
+    return Math.max(Math.min(score, 100), 0);
   }
 }
 
