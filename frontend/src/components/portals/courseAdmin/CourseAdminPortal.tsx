@@ -161,35 +161,35 @@ const CourseAdminPortal: React.FC = () => {
 
             {/* Main Content */}
             <Box component="main" sx={{ flexGrow: 1, mt: 8 }}>
-                <Container maxWidth="xl">
-                    <Paper elevation={3} sx={{ mt: 3, mb: 3 }}>
-                        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                            <Tabs
-                                value={selectedTab}
-                                onChange={handleTabChange}
-                                variant="scrollable"
-                                scrollButtons="auto"
-                                aria-label="course admin tabs"
-                            >
-                                {tabs.map((tab, index) => (
-                                    <Tab
-                                        key={tab.label}
-                                        icon={tab.icon}
-                                        label={tab.label}
-                                        id={`course-admin-tab-${index}`}
-                                        aria-controls={`course-admin-tabpanel-${index}`}
-                                    />
-                                ))}
-                            </Tabs>
-                        </Box>
-
+        <Container maxWidth="xl">
+            <Paper elevation={3} sx={{ mt: 3, mb: 3 }}>
+                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                    <Tabs
+                        value={selectedTab}
+                        onChange={handleTabChange}
+                        variant="scrollable"
+                        scrollButtons="auto"
+                        aria-label="course admin tabs"
+                    >
                         {tabs.map((tab, index) => (
-                            <TabPanel key={tab.label} value={selectedTab} index={index}>
-                                {tab.component}
-                            </TabPanel>
+                            <Tab
+                                key={tab.label}
+                                icon={tab.icon}
+                                label={tab.label}
+                                id={`course-admin-tab-${index}`}
+                                aria-controls={`course-admin-tabpanel-${index}`}
+                            />
                         ))}
-                    </Paper>
-                </Container>
+                    </Tabs>
+                </Box>
+
+                {tabs.map((tab, index) => (
+                    <TabPanel key={tab.label} value={selectedTab} index={index}>
+                        {tab.component}
+                    </TabPanel>
+                ))}
+            </Paper>
+        </Container>
             </Box>
         </Box>
     );

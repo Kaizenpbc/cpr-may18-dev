@@ -4,6 +4,7 @@ import { AppError, asyncHandler } from '../../utils/errorHandler';
 import { EmailTemplateService } from '../../models/EmailTemplate';
 import { authorizeRoles } from '../../middleware/authMiddleware';
 import { errorCodes } from '../../utils/errorHandler';
+import { validateEmailTemplate } from '../../middleware/inputSanitizer';
 
 interface EmailTemplateRequestBody {
   name: string;
@@ -60,7 +61,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // Create email template
-router.post('/', authorizeRoles('admin'), asyncHandler(async (req: Request<{}, {}, EmailTemplateRequestBody>, res: Response) => {
+router.post('/', validateEmailTemplate, authorizeRoles(['admin']), asyncHandler(async (req: Request<{}, {}, EmailTemplateRequestBody>, res: Response) => {
     const { name, category, subCategory, subject, body, isActive } = req.body;
     
     console.log('Creating email template with data:', req.body);
@@ -82,7 +83,7 @@ router.post('/', authorizeRoles('admin'), asyncHandler(async (req: Request<{}, {
 }));
 
 // Update email template
-router.put('/:id', authorizeRoles('admin'), asyncHandler(async (req: Request<{ id: string }, {}, EmailTemplateRequestBody>, res: Response) => {
+router.put('/:id', validateEmailTemplate, authorizeRoles(['admin']), asyncHandler(async (req: Request<{ id: string }, {}, EmailTemplateRequestBody>, res: Response) => {
     const template = await EmailTemplateService.getById(parseInt(req.params.id));
     
     if (!template) {
@@ -105,7 +106,7 @@ router.put('/:id', authorizeRoles('admin'), asyncHandler(async (req: Request<{ i
 }));
 
 // Delete email template
-router.delete('/:id', authorizeRoles('admin'), asyncHandler(async (req: Request, res: Response) => {
+router.delete('/:id', authorizeRoles(['admin']), asyncHandler(async (req: Request, res: Response) => {
     await EmailTemplateService.delete(parseInt(req.params.id));
     return res.json(ApiResponseBuilder.success({ message: 'Email template deleted successfully' }));
 }));

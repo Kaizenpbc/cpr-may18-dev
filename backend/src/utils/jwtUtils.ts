@@ -7,15 +7,16 @@ const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh_secret';
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY = '7d';
 
-interface TokenPayload {
+export interface TokenPayload {
   userId: string;
   username: string;
   role?: string;
   organizationId?: number;
+  sessionId?: string;
 }
 
 export const generateTokens = (payload: TokenPayload) => {
-  console.log('[Debug] jwtUtils - Generating new tokens for user:', payload.username, 'role:', payload.role);
+  console.log('[Debug] jwtUtils - Generating new tokens for user:', payload.username, 'role:', payload.role, 'session:', payload.sessionId);
   const accessToken = jwt.sign(payload, ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
   const refreshToken = jwt.sign(payload, REFRESH_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRY });
   
@@ -29,7 +30,7 @@ export const verifyAccessToken = (token: string): TokenPayload => {
   try {
     console.log('[Debug] jwtUtils - Verifying access token');
     const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET) as TokenPayload;
-    console.log('[Debug] jwtUtils - Access token verified for user:', decoded.username);
+    console.log('[Debug] jwtUtils - Access token verified for user:', decoded.username, 'session:', decoded.sessionId);
     return decoded;
   } catch (error) {
     console.error('[Debug] jwtUtils - Access token verification failed:', error);
@@ -41,7 +42,7 @@ export const verifyRefreshToken = (token: string): TokenPayload => {
   try {
     console.log('[Debug] jwtUtils - Verifying refresh token');
     const decoded = jwt.verify(token, REFRESH_TOKEN_SECRET) as TokenPayload;
-    console.log('[Debug] jwtUtils - Refresh token verified for user:', decoded.username);
+    console.log('[Debug] jwtUtils - Refresh token verified for user:', decoded.username, 'session:', decoded.sessionId);
     return decoded;
   } catch (error) {
     console.error('[Debug] jwtUtils - Refresh token verification failed:', error);

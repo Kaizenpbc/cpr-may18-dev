@@ -234,10 +234,10 @@ const EmailTemplateManager: React.FC = () => {
                 console.log('[EmailTemplateManager] First mapped template:', mappedTemplates[0]);
                 
                 setTemplates(mappedTemplates);
-            } catch (error) {
+        } catch (error) {
                 console.error('[EmailTemplateManager] Error fetching templates:', error);
-                showError('Failed to fetch email templates');
-            } finally {
+            showError('Failed to fetch email templates');
+        } finally {
                 setLoading(false);
             }
         } catch (outerError) {

@@ -10,6 +10,7 @@ import { authenticateToken, requireRole, authorizeRoles } from '../../middleware
 import { PDFService } from '../../services/pdfService';
 import { emailService } from '../../services/emailService';
 import emailTemplatesRouter from './emailTemplates';
+import { cacheService } from '../../services/cacheService';
 
 const router = Router();
 
@@ -105,132 +106,80 @@ router.get(
 );
 
 // Certifications routes
-router.get('/certifications', asyncHandler(async (_req: Request, res: Response) => {
+router.get('/certifications', asyncHandler(async (req: Request, res: Response) => {
+  console.log('[Debug] Getting certifications with cache');
+  
   try {
-    const result = await pool.query('SELECT * FROM certifications');
-    return res.json(
-      ApiResponseBuilder.success(result.rows, {
-        version: '1.0.0',
-      })
-    );
-  } catch (error: any) {
+    // Use cached certifications
+    const certifications = await cacheService.getCertifications();
+    
+    res.json({
+      success: true,
+      data: certifications,
+      cached: true
+    });
+  } catch (error) {
     console.error('Error fetching certifications:', error);
-    throw new AppError(
-      500,
-      errorCodes.DB_QUERY_ERROR,
-      'Failed to fetch certifications'
-    );
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch certifications'
+    });
   }
 }));
 
 router.get('/certifications/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  if (!id) {
-    throw new AppError(
-      400,
-      errorCodes.VALIDATION_ERROR,
-      'Certification ID is required'
-    );
-  }
-
+  
   try {
-    const result = await pool.query('SELECT * FROM certifications WHERE id = $1', [id]);
-    if (result.rows.length === 0) {
-      throw new AppError(
-        404,
-        errorCodes.RESOURCE_NOT_FOUND,
-        'Certification not found'
-      );
+    // Get all certifications from cache, then filter
+    const certifications = await cacheService.getCertifications();
+    const certification = certifications.find(cert => cert.id.toString() === id);
+    
+    if (!certification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Certification not found'
+      });
     }
-    return res.json(
-      ApiResponseBuilder.success(result.rows[0], {
-        version: '1.0.0',
-      })
-    );
-  } catch (error: any) {
+    
+    res.json({
+      success: true,
+      data: certification,
+      cached: true
+    });
+  } catch (error) {
     console.error('Error fetching certification:', error);
-    throw new AppError(
-      500,
-      errorCodes.DB_QUERY_ERROR,
-      'Failed to fetch certification'
-    );
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch certification'
+    });
   }
 }));
 
 // Dashboard route
 router.get('/dashboard', asyncHandler(async (req: Request, res: Response) => {
+  console.log('[Debug] Getting dashboard data with cache');
+  
   try {
-    // Get upcoming classes count
-    const upcomingClassesResult = await pool.query(
-      'SELECT COUNT(*) FROM classes WHERE date >= CURRENT_DATE'
+    const user = (req as any).user;
+    
+    // Use cached dashboard stats
+    const dashboardStats = await cacheService.getDashboardStats(
+      user.role, 
+      user.organizationId
     );
-    const upcomingClasses = parseInt(upcomingClassesResult.rows[0].count);
-
-    // Get total students count
-    const totalStudentsResult = await pool.query(
-      'SELECT COUNT(*) FROM users WHERE role = \'student\''
-    );
-    const totalStudents = parseInt(totalStudentsResult.rows[0].count);
-
-    // Get completed classes count
-    const completedClassesResult = await pool.query(
-      'SELECT COUNT(*) FROM classes WHERE date < CURRENT_DATE'
-    );
-    const completedClasses = parseInt(completedClassesResult.rows[0].count);
-
-    // Get next class
-    const nextClassResult = await pool.query(
-      `SELECT 
-        c.date,
-        c.start_time as time,
-        c.location,
-        ct.name as type
-      FROM classes c
-      JOIN class_types ct ON c.type_id = ct.id
-      WHERE c.date >= CURRENT_DATE
-      ORDER BY c.date, c.start_time
-      LIMIT 1`
-    );
-    const nextClass = nextClassResult.rows[0] || null;
-
-    // Get recent classes
-    const recentClassesResult = await pool.query(
-      `SELECT 
-        c.id,
-        c.date,
-        ct.name as type,
-        COUNT(e.student_id) as students
-      FROM classes c
-      JOIN class_types ct ON c.type_id = ct.id
-      LEFT JOIN enrollments e ON c.id = e.class_id
-      WHERE c.date < CURRENT_DATE
-      GROUP BY c.id, ct.name
-      ORDER BY c.date DESC
-      LIMIT 5`
-    );
-
-    const dashboardData = {
-      upcomingClasses,
-      totalStudents,
-      completedClasses,
-      nextClass: nextClass ? {
-        date: nextClass.date,
-        time: nextClass.time,
-        location: nextClass.location,
-        type: nextClass.type
-      } : null,
-      recentClasses: recentClassesResult.rows.map(row => ({
-        id: row.id,
-        date: row.date,
-        type: row.type,
-        students: parseInt(row.students)
-      }))
-    };
-
-    return res.json(ApiResponseBuilder.success(dashboardData));
+    
+    res.json({
+      success: true,
+      data: dashboardStats,
+      cached: true
+    });
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch dashboard data');
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch dashboard data'
+    });
   }
 }));
 
@@ -279,14 +228,25 @@ router.get('/schedule', authenticateToken, asyncHandler(async (_req: Request, re
   }
 }));
 
-// Course types endpoint
-router.get('/course-types', asyncHandler(async (_req: Request, res: Response) => {
+// Course types endpoint - Use caching
+router.get('/course-types', asyncHandler(async (req: Request, res: Response) => {
+  console.log('[Debug] Getting course types with cache');
+  
   try {
-    const result = await pool.query('SELECT id as coursetypeid, name as coursetypename, description, duration_minutes FROM class_types ORDER BY name');
-    return res.json(ApiResponseBuilder.success(result.rows));
-  } catch (error: any) {
+    // Use cached course types
+    const courseTypes = await cacheService.getCourseTypes();
+    
+    res.json({
+      success: true,
+      data: courseTypes,
+      cached: true
+    });
+  } catch (error) {
     console.error('Error fetching course types:', error);
-    throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch course types');
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch course types'
+    });
   }
 }));
 
@@ -1762,32 +1722,47 @@ router.get('/accounting/dashboard', asyncHandler(async (req: Request, res: Respo
 
 // Get course pricing for all organizations
 router.get('/accounting/course-pricing', asyncHandler(async (req: Request, res: Response) => {
+  console.log('[Debug] Getting course pricing with cache');
+  
   try {
-    const result = await pool.query(`
-      SELECT 
-        cp.id,
-        cp.organization_id,
-        cp.course_type_id,
-        cp.price_per_student,
-        cp.effective_date,
-        cp.is_active,
-        o.name as organization_name,
-        ct.name as course_type_name,
-        ct.description as course_description
-      FROM course_pricing cp
-      JOIN organizations o ON cp.organization_id = o.id
-      JOIN class_types ct ON cp.course_type_id = ct.id
-      WHERE cp.is_active = true
-      ORDER BY o.name, ct.name
-    `);
-
-    res.json({
-      success: true,
-      data: result.rows
-    });
+    const user = (req as any).user;
+    
+    if (user.role === 'accountant' || user.role === 'admin') {
+      // For accountants/admins, get all organizations
+      const organizations = await cacheService.getOrganizations();
+      const coursePricingPromises = organizations.map(org => 
+        cacheService.getCoursePricing(org.id)
+      );
+      
+      const allPricing = await Promise.all(coursePricingPromises);
+      const flatPricing = allPricing.flat();
+      
+      res.json({
+        success: true,
+        data: flatPricing,
+        cached: true
+      });
+    } else if (user.organizationId) {
+      // For organization users, get only their pricing
+      const pricing = await cacheService.getCoursePricing(user.organizationId);
+      
+      res.json({
+        success: true,
+        data: pricing,
+        cached: true
+      });
+    } else {
+      res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
   } catch (error) {
     console.error('Error fetching course pricing:', error);
-    throw error;
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch course pricing'
+    });
   }
 }));
 
@@ -1825,20 +1800,23 @@ router.put('/accounting/course-pricing/:id', asyncHandler(async (req: Request, r
 
 // Get organizations list for pricing setup
 router.get('/accounting/organizations', asyncHandler(async (req: Request, res: Response) => {
+  console.log('[Debug] Getting organizations with cache');
+  
   try {
-    const result = await pool.query(`
-      SELECT id, name, contact_email, contact_phone
-      FROM organizations
-      ORDER BY name
-    `);
-
+    // Use cached organizations
+    const organizations = await cacheService.getOrganizations();
+    
     res.json({
       success: true,
-      data: result.rows
+      data: organizations,
+      cached: true
     });
   } catch (error) {
     console.error('Error fetching organizations:', error);
-    throw error;
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch organizations'
+    });
   }
 }));
 
@@ -1855,7 +1833,7 @@ router.get('/accounting/course-types', asyncHandler(async (req: Request, res: Re
       success: true,
       data: result.rows
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching course types:', error);
     throw error;
   }
