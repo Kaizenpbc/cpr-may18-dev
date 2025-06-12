@@ -11,174 +11,324 @@ import {
   Typography,
   Tooltip,
   IconButton,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
 } from '@mui/material';
 import {
   Visibility as VisibilityIcon,
   CheckCircle as CompleteIcon,
+  EventAvailable as AvailableIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { CombinedScheduleItem } from '../../../types/instructor';
 
 interface MyClassesViewProps {
-  combinedItems: CombinedScheduleItem[];
-  onAttendanceClick: (item: CombinedScheduleItem) => void;
-  onMarkCompleteClick: (item: CombinedScheduleItem) => void;
+  combinedSchedule?: CombinedScheduleItem[];
+  onCompleteClass: (item: CombinedScheduleItem) => void;
+  onRemoveAvailability?: (date: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const MyClassesView: React.FC<MyClassesViewProps> = ({
-  combinedItems,
-  onAttendanceClick,
-  onMarkCompleteClick,
+  combinedSchedule = [],
+  onCompleteClass,
+  onRemoveAvailability,
 }) => {
+  const [deleteDialog, setDeleteDialog] = React.useState<{
+    open: boolean;
+    date: string;
+  }>({
+    open: false,
+    date: '',
+  });
+
+  // Format date helper
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const handleDeleteClick = (date: string) => {
+    setDeleteDialog({
+      open: true,
+      date,
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (onRemoveAvailability) {
+      try {
+        await onRemoveAvailability(deleteDialog.date);
+      } catch (error) {
+        console.error('Error removing availability:', error);
+      }
+    }
+    setDeleteDialog({ open: false, date: '' });
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog({ open: false, date: '' });
+  };
+
   return (
-    <TableContainer component={Paper}>
-      <Typography variant='h6' sx={{ p: 2 }}>
-        My Schedule
-      </Typography>
-      <Table stickyHeader size='small'>
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>
-              Date
-            </TableCell>
-            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>
-              Organization
-            </TableCell>
-            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>
-              Location
-            </TableCell>
-            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>
-              Course No
-            </TableCell>
-            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>
-              Course Type
-            </TableCell>
-            <TableCell
-              sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}
-              align='center'
-            >
-              Students R
-            </TableCell>
-            <TableCell
-              sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}
-              align='center'
-            >
-              Students A
-            </TableCell>
-            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>
-              Notes
-            </TableCell>
-            <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>
-              Status
-            </TableCell>
-            <TableCell
-              sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}
-              align='center'
-            >
-              Actions
-            </TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {combinedItems.length === 0 ? (
+    <>
+      <TableContainer 
+        component={Paper}
+        sx={{
+          borderRadius: 2,
+          boxShadow: (theme) => theme.shadows[2],
+          overflow: 'hidden',
+        }}
+      >
+        <Typography 
+          variant='h6' 
+          sx={{ 
+            p: 2,
+            backgroundColor: 'background.paper',
+            borderBottom: 1,
+            borderColor: 'divider',
+            fontWeight: 600,
+          }}
+        >
+          My Schedule
+        </Typography>
+        <Table stickyHeader size='small'>
+          <TableHead>
             <TableRow>
-              <TableCell colSpan={10} align='center'>
-                No schedule items found.
+              <TableCell 
+                sx={{ 
+                  fontWeight: 'bold', 
+                  backgroundColor: 'background.paper',
+                  borderBottom: 2,
+                  borderColor: 'divider',
+                  color: 'text.primary',
+                }}
+              >
+                Date
+              </TableCell>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 'bold', 
+                  backgroundColor: 'background.paper',
+                  borderBottom: 2,
+                  borderColor: 'divider',
+                  color: 'text.primary',
+                }}
+              >
+                Organization
+              </TableCell>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 'bold', 
+                  backgroundColor: 'background.paper',
+                  borderBottom: 2,
+                  borderColor: 'divider',
+                  color: 'text.primary',
+                }}
+              >
+                Location
+              </TableCell>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 'bold', 
+                  backgroundColor: 'background.paper',
+                  borderBottom: 2,
+                  borderColor: 'divider',
+                  color: 'text.primary',
+                }}
+              >
+                Course No
+              </TableCell>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 'bold', 
+                  backgroundColor: 'background.paper',
+                  borderBottom: 2,
+                  borderColor: 'divider',
+                  color: 'text.primary',
+                }}
+              >
+                Course Type
+              </TableCell>
+              <TableCell
+                sx={{ 
+                  fontWeight: 'bold', 
+                  backgroundColor: 'background.paper',
+                  borderBottom: 2,
+                  borderColor: 'divider',
+                  color: 'text.primary',
+                }}
+                align='center'
+              >
+                Students R
+              </TableCell>
+              <TableCell
+                sx={{ 
+                  fontWeight: 'bold', 
+                  backgroundColor: 'background.paper',
+                  borderBottom: 2,
+                  borderColor: 'divider',
+                  color: 'text.primary',
+                }}
+                align='center'
+              >
+                Students A
+              </TableCell>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 'bold', 
+                  backgroundColor: 'background.paper',
+                  borderBottom: 2,
+                  borderColor: 'divider',
+                  color: 'text.primary',
+                }}
+              >
+                Notes
+              </TableCell>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 'bold', 
+                  backgroundColor: 'background.paper',
+                  borderBottom: 2,
+                  borderColor: 'divider',
+                  color: 'text.primary',
+                }}
+              >
+                Status
+              </TableCell>
+              <TableCell
+                sx={{ 
+                  fontWeight: 'bold', 
+                  backgroundColor: 'background.paper',
+                  borderBottom: 2,
+                  borderColor: 'divider',
+                  color: 'text.primary',
+                }}
+                align='center'
+              >
+                Actions
               </TableCell>
             </TableRow>
-          ) : (
-            combinedItems.map((item, index) => {
-              const isAvailable = item.type === 'availability';
-              const isScheduled =
-                item.type === 'class' && item.status === 'Scheduled';
-              const isPastDate =
-                new Date(item.displayDate) <
-                new Date(new Date().setHours(0, 0, 0, 0));
-              const canMarkComplete =
-                isScheduled &&
-                (isPastDate ||
-                  new Date(item.displayDate).toDateString() ===
-                    new Date().toDateString());
-              const rowColor = index % 2 === 0 ? '#ffffff' : '#f5f5f5';
-
-              return (
-                <TableRow
-                  key={item.key || index}
-                  sx={{
-                    '& td': {
-                      backgroundColor: isAvailable
-                        ? '#fff59d !important'
-                        : rowColor,
-                    },
-                    '&:hover td': {
-                      backgroundColor: '#e3f2fd !important',
-                    },
+          </TableHead>
+          <TableBody>
+            {combinedSchedule.length === 0 ? (
+              <TableRow>
+                <TableCell 
+                  colSpan={10} 
+                  align='center'
+                  sx={{ 
+                    py: 4,
+                    color: 'text.secondary',
+                    fontStyle: 'italic',
                   }}
                 >
-                  <TableCell>{item.displayDate}</TableCell>
-                  <TableCell>{item.organizationname || '-'}</TableCell>
-                  <TableCell>{item.location || '-'}</TableCell>
-                  <TableCell>{item.coursenumber || '-'}</TableCell>
-                  <TableCell>{item.coursetypename || '-'}</TableCell>
-                  <TableCell align='center'>
-                    {item.studentsregistered ?? '-'}
+                  No schedule items found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              combinedSchedule.map((item) => (
+                <TableRow key={item.key} hover>
+                  <TableCell>{formatDate(item.displayDate)}</TableCell>
+                  <TableCell>{item.type === 'class' ? item.organizationname : ''}</TableCell>
+                  <TableCell>{item.type === 'class' ? item.location : ''}</TableCell>
+                  <TableCell>{item.type === 'class' ? item.coursenumber : ''}</TableCell>
+                  <TableCell>{item.type === 'class' ? item.coursetypename : ''}</TableCell>
+                  <TableCell align='center'>{item.type === 'class' ? item.studentsregistered : ''}</TableCell>
+                  <TableCell align='center'>{item.type === 'class' ? item.studentsattendance : ''}</TableCell>
+                  <TableCell>{item.type === 'class' ? item.notes : ''}</TableCell>
+                  <TableCell>
+                    {item.type === 'class' ? (
+                      <Chip 
+                        label={item.status} 
+                        color={item.status === 'Completed' ? 'success' : 'primary'}
+                        size="small"
+                      />
+                    ) : (
+                      <Chip 
+                        label="Available" 
+                        color="success"
+                        icon={<AvailableIcon />}
+                        size="small"
+                      />
+                    )}
                   </TableCell>
                   <TableCell align='center'>
-                    {item.studentsattendance ?? '-'}
-                  </TableCell>
-                  <TableCell>{item.notes || '-'}</TableCell>
-                  <TableCell
-                    sx={{
-                      fontWeight: 'medium',
-                      color: isAvailable ? 'success.main' : 'primary.main',
-                    }}
-                  >
-                    {item.status}
-                  </TableCell>
-                  <TableCell align='center'>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        gap: 0.5,
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {!isAvailable && (
-                        <Tooltip title='View/Manage Attendance'>
-                          <IconButton
-                            size='small'
-                            color='primary'
-                            onClick={() => onAttendanceClick(item)}
-                          >
-                            <VisibilityIcon fontSize='small' />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      {canMarkComplete && (
-                        <Tooltip title='Mark Class as Complete'>
-                          <IconButton
-                            size='small'
-                            color='success'
-                            onClick={() => onMarkCompleteClick(item)}
-                            sx={{
-                              '&:hover': {
-                                backgroundColor: 'success.light',
-                                color: 'white',
-                              },
-                            }}
-                          >
-                            <CompleteIcon fontSize='small' />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
+                    {item.type === 'class' && item.status !== 'Completed' && (
+                      <Tooltip title='Mark as Complete'>
+                        <IconButton onClick={() => onCompleteClass(item)}>
+                          <CompleteIcon color='success' />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {item.type === 'class' && (
+                      <Tooltip title='View Details'>
+                        <IconButton>
+                          <VisibilityIcon />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {item.type === 'availability' && (
+                      <Tooltip title='Remove Availability'>
+                        <IconButton onClick={() => handleDeleteClick(item.displayDate)}>
+                          <DeleteIcon color="error" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </TableCell>
                 </TableRow>
-              );
-            })
-          )}
-        </TableBody>
-      </Table>
-    </TableContainer>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Dialog
+        open={deleteDialog.open}
+        onClose={handleDeleteCancel}
+      >
+        <DialogTitle>Remove Availability</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to remove your availability for {formatDate(deleteDialog.date)}?
+            {(() => {
+              const today = new Date();
+              const targetDate = new Date(deleteDialog.date);
+              const diffTime = targetDate.getTime() - today.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              
+              if (diffDays < 11) {
+                return ' This date is less than 11 days away and cannot be modified.';
+              }
+              return '';
+            })()}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel}>Cancel</Button>
+          <Button 
+            onClick={handleDeleteConfirm} 
+            color="error"
+            disabled={(() => {
+              const today = new Date();
+              const targetDate = new Date(deleteDialog.date);
+              const diffTime = targetDate.getTime() - today.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              return diffDays < 11;
+            })()}
+          >
+            Remove
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 };
 

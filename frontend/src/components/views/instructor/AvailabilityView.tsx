@@ -35,8 +35,8 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 interface AvailabilityViewProps {
-  availableDates: string[];
-  scheduledClasses: any[];
+  availableDates?: string[];
+  scheduledClasses?: any[];
   onAddAvailability?: (
     date: string
   ) => Promise<{ success: boolean; error?: string }>;
@@ -45,6 +45,7 @@ interface AvailabilityViewProps {
   ) => Promise<{ success: boolean; error?: string }>;
   onRefresh?: () => void;
   ontarioHolidays2024?: string[];
+  isLoading?: boolean;
 }
 
 interface ConfirmationState {
@@ -55,22 +56,20 @@ interface ConfirmationState {
 }
 
 const AvailabilityView: React.FC<AvailabilityViewProps> = ({
-  availableDates: propAvailableDates,
-  scheduledClasses: propScheduledClasses,
+  availableDates: propAvailableDates = [],
+  scheduledClasses: propScheduledClasses = [],
   onAddAvailability,
   onRemoveAvailability,
   onRefresh,
-  ontarioHolidays2024,
+  ontarioHolidays2024 = [],
+  isLoading = false,
 }) => {
   const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const theme = useTheme();
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [scheduledClasses, setScheduledClasses] = useState<any[]>(
-    propScheduledClasses || []
-  );
-  const [holidays, setHolidays] = useState<string[]>(ontarioHolidays2024 || []);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [scheduledClasses, setScheduledClasses] = useState<any[]>(propScheduledClasses);
+  const [holidays, setHolidays] = useState<string[]>(ontarioHolidays2024);
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<ConfirmationState>({
     open: false,
@@ -80,7 +79,8 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
   });
   const [successMessage, setSuccessMessage] = useState<string>('');
 
-  const availableDates = propAvailableDates || [];
+  // Ensure availableDates is always an array
+  const availableDates = Array.isArray(propAvailableDates) ? propAvailableDates : [];
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -100,7 +100,21 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
     }
 
     const dateStr = format(date, 'yyyy-MM-dd');
-    const isAvailable = availableDates.includes(dateStr);
+    const isAvailable = availableDates.some(d => {
+      if (!d) return false;
+      const dStr = typeof d === 'string' ? d.slice(0, 10) : '';
+      return dStr.length === 10 && !isNaN(new Date(dStr).getTime()) && dStr === dateStr;
+    });
+
+    // Check if the date is less than 11 days from now
+    const today = new Date();
+    const diffTime = date.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (isAvailable && diffDays < 11) {
+      setError('Cannot remove availability: Dates less than 11 days in the future cannot be modified');
+      return;
+    }
 
     // Show confirmation dialog
     setConfirmation({
@@ -112,71 +126,21 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
   };
 
   const handleConfirmationClose = () => {
-    setConfirmation({
-      open: false,
-      date: '',
-      action: 'add',
-      isAvailable: false,
-    });
+    setConfirmation(prev => ({ ...prev, open: false }));
   };
 
   const handleConfirmationConfirm = async () => {
     try {
-      const { date: dateStr, isAvailable } = confirmation;
-      console.log(
-        '[AvailabilityView] Confirming action:',
-        confirmation.action,
-        'for date:',
-        dateStr
-      );
-
-      if (isAvailable) {
-        console.log('[AvailabilityView] Removing availability for:', dateStr);
-
-        if (onRemoveAvailability) {
-          const result = await onRemoveAvailability(dateStr);
-          if (!result.success) {
-            throw new Error(result.error || 'Failed to remove availability');
-          }
-        } else {
-          await instructorApi.removeAvailability(dateStr);
-        }
-
-        console.log(
-          '[AvailabilityView] Updated available dates after removal:',
-          availableDates.filter(d => d !== dateStr)
-        );
-        setSuccessMessage(`Removed availability for ${dateStr}`);
-        if (onRefresh) onRefresh();
+      if (confirmation.action === 'add') {
+        await onAddAvailability?.(confirmation.date);
+        setSuccessMessage('Availability added successfully');
       } else {
-        console.log('[AvailabilityView] Adding availability for:', dateStr);
-
-        if (onAddAvailability) {
-          const result = await onAddAvailability(dateStr);
-          if (!result.success) {
-            throw new Error(result.error || 'Failed to add availability');
-          }
-        } else {
-          await instructorApi.addAvailability(dateStr);
-        }
-
-        console.log(
-          '[AvailabilityView] Updated available dates after addition:',
-          [...availableDates, dateStr]
-        );
-        setSuccessMessage(`Added availability for ${dateStr}`);
-        if (onRefresh) onRefresh();
+        await onRemoveAvailability?.(confirmation.date);
+        setSuccessMessage('Availability removed successfully');
       }
-
-      setError(null);
-      console.log('[AvailabilityView] Operation completed successfully');
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        handleUnauthorized();
-        return;
-      }
-      setError('Failed to update availability');
-      console.error('Error updating availability:', error);
+    } catch (err: any) {
+      console.error('Error updating availability:', err);
+      setError(err.response?.data?.error?.message || 'Failed to update availability');
     } finally {
       handleConfirmationClose();
     }
@@ -185,7 +149,11 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
   const CustomDay = (props: any) => {
     const { day, ...other } = props;
     const dateStr = format(day, 'yyyy-MM-dd');
-    const isAvailable = availableDates.includes(dateStr);
+    const isAvailable = availableDates.some(d => {
+      if (!d) return false;
+      const dStr = typeof d === 'string' ? d.slice(0, 10) : '';
+      return dStr.length === 10 && !isNaN(new Date(dStr).getTime()) && dStr === dateStr;
+    });
 
     const isScheduled = scheduledClasses.some(c => {
       // Check multiple possible date field names from backend
@@ -195,8 +163,14 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
 
     const isHoliday = holidays.includes(dateStr);
     const isPastDate = day < new Date(new Date().setHours(0, 0, 0, 0));
+    
+    // Check if date is within 11 days
+    const today = new Date();
+    const diffTime = day.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const isWithin11Days = diffDays < 11;
 
-    // Color scheduled classes BLUE and available dates GREEN
+    // Color available dates GREEN
     let backgroundColor, hoverColor, tooltipTitle, textColor;
 
     if (isScheduled) {
@@ -213,7 +187,9 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
       backgroundColor = theme.palette.success.main;
       hoverColor = theme.palette.success.dark;
       textColor = 'white';
-      tooltipTitle = 'Available - Click to remove';
+      tooltipTitle = isWithin11Days 
+        ? 'Cannot modify availability within 11 days'
+        : 'Available - Click to remove';
     } else {
       // All other dates use default styling
       backgroundColor = 'inherit';
@@ -229,48 +205,34 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
       }
     }
 
-    const handleDayClick = () => {
-      if (isPastDate || isScheduled) {
-        return; // Don't allow clicks on past dates or scheduled classes
-      }
-
-      console.log('Day clicked:', dateStr, 'isAvailable:', isAvailable);
-
-      // Show confirmation dialog
-      setConfirmation({
-        open: true,
-        date: dateStr,
-        action: isAvailable ? 'remove' : 'add',
-        isAvailable,
-      });
-    };
-
     return (
       <Tooltip title={tooltipTitle} arrow>
-        <PickersDay
-          {...other}
-          day={day}
-          onClick={handleDayClick}
-          disabled={isPastDate}
-          sx={{
-            backgroundColor: `${backgroundColor}!important`,
-            color: `${textColor}!important`,
-            cursor: isPastDate || isScheduled ? 'not-allowed' : 'pointer',
-            '&:hover': {
-              backgroundColor: `${hoverColor}!important`,
-            },
-            '&.Mui-disabled': {
+        <span style={{ display: 'inline-block' }}>
+          <PickersDay
+            {...other}
+            day={day}
+            onClick={() => !isPastDate && !(isAvailable && isWithin11Days) && handleDateClick(day)}
+            disabled={isPastDate || (isAvailable && isWithin11Days)}
+            sx={{
               backgroundColor: `${backgroundColor}!important`,
               color: `${textColor}!important`,
-              opacity: 0.7,
-            },
-          }}
-        />
+              cursor: isPastDate || isScheduled || (isAvailable && isWithin11Days) ? 'not-allowed' : 'pointer',
+              '&:hover': {
+                backgroundColor: `${hoverColor}!important`,
+              },
+              '&.Mui-disabled': {
+                backgroundColor: `${backgroundColor}!important`,
+                color: `${textColor}!important`,
+                opacity: 0.7,
+              },
+            }}
+          />
+        </span>
       </Tooltip>
     );
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Box
         display='flex'
@@ -419,18 +381,10 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
       {/* Success Snackbar */}
       <Snackbar
         open={!!successMessage}
-        autoHideDuration={3000}
+        autoHideDuration={6000}
         onClose={() => setSuccessMessage('')}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setSuccessMessage('')}
-          severity='success'
-          sx={{ width: '100%' }}
-        >
-          {successMessage}
-        </Alert>
-      </Snackbar>
+        message={successMessage}
+      />
     </Container>
   );
 };

@@ -3,8 +3,13 @@ import { format } from 'date-fns';
 import { pool } from '../config/database';
 import { ApiResponseBuilder } from '../utils/apiResponse';
 import { AppError, errorCodes } from '../utils/errorHandler';
+import { authenticateToken, requireRole } from '../middleware/authMiddleware';
 
 const router = express.Router();
+
+// Apply authentication middleware to all routes
+router.use(authenticateToken);
+router.use(requireRole(['instructor']));
 
 // Debug endpoint to test authentication
 router.get('/debug', async (req, res) => {
@@ -22,75 +27,137 @@ router.get('/debug', async (req, res) => {
 // Get instructor's classes
 router.get('/classes', async (req, res) => {
   try {
-    const instructorId = parseInt(req.user?.userId || '0', 10);
+    const instructorId = req.user?.userId;
     if (!instructorId) {
-      return res
-        .status(400)
-        .json(
-          ApiResponseBuilder.error(
-            errorCodes.VALIDATION_ERROR,
-            'Invalid instructor ID'
-          )
-        );
+      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid instructor ID');
     }
+    console.log('[Instructor Classes] Starting request for instructor:', instructorId);
+    console.log('[Instructor Classes] User object:', req.user);
 
-    console.log('[Debug] Fetching classes for instructor ID:', instructorId);
+    // First check if the instructor exists
+    const instructorCheck = await pool.query(
+      'SELECT id, username FROM users WHERE id = $1 AND role = $2',
+      [instructorId, 'instructor']
+    );
+    console.log('[Instructor Classes] Instructor check result:', instructorCheck.rows);
 
-    // Query to get all classes for the instructor (both regular classes and those created from course assignments)
+    // Check course_requests table directly
+    const courseRequestsCheck = await pool.query(
+      `SELECT id, confirmed_date, confirmed_start_time, confirmed_end_time, status 
+       FROM course_requests 
+       WHERE instructor_id = $1 
+       AND confirmed_date >= CURRENT_DATE 
+       AND status = 'confirmed'`,
+      [instructorId]
+    );
+    console.log('[Instructor Classes] Course requests check:', courseRequestsCheck.rows);
+
+    // Check classes table directly
+    const classesCheck = await pool.query(
+      `SELECT id, date, start_time, end_time, status 
+       FROM classes 
+       WHERE instructor_id = $1 
+       AND date >= CURRENT_DATE 
+       AND status != 'completed'`,
+      [instructorId]
+    );
+    console.log('[Instructor Classes] Classes check:', classesCheck.rows);
+
     const result = await pool.query(
-      `SELECT 
-                c.id as course_id,
-                c.date::text as datescheduled,
-                c.start_time::text, 
-                c.end_time::text, 
-                c.status, 
-                c.location,
-                c.max_students,
-                c.current_students,
-                ct.name as coursetypename,
-                COALESCE(o.name, 'Unassigned') as organizationname,
-                COALESCE(cr.notes, '') as notes,
-                COALESCE(cr.registered_students, c.max_students, 0) as studentcount
-             FROM classes c 
-             LEFT JOIN class_types ct ON c.type_id = ct.id 
-             LEFT JOIN course_requests cr ON cr.instructor_id = c.instructor_id 
-                AND cr.status = 'confirmed'
-                AND DATE(cr.confirmed_date) = DATE(c.date)
-                AND cr.course_type_id = c.type_id
-             LEFT JOIN organizations o ON cr.organization_id = o.id
-             WHERE c.instructor_id = $1 AND c.date >= CURRENT_DATE AND c.status != 'completed'
-             ORDER BY c.date, c.start_time`,
+      `WITH instructor_classes AS (
+        -- Get regular classes
+        SELECT 
+          c.id,
+          c.date as datescheduled,
+          c.start_time,
+          c.end_time,
+          c.status,
+          c.location,
+          c.max_students,
+          c.current_students,
+          c.type_id,
+          NULL as organization_id,
+          NULL as notes,
+          NULL as registered_students
+        FROM classes c
+        WHERE c.instructor_id = $1 
+        AND c.date >= CURRENT_DATE 
+        AND c.status != 'completed'
+        
+        UNION
+        
+        -- Get confirmed course requests
+        SELECT 
+          cr.id,
+          cr.confirmed_date as datescheduled,
+          cr.confirmed_start_time as start_time,
+          cr.confirmed_end_time as end_time,
+          cr.status,
+          cr.location,
+          cr.registered_students as max_students,
+          0 as current_students,
+          cr.course_type_id as type_id,
+          cr.organization_id,
+          cr.notes,
+          cr.registered_students
+        FROM course_requests cr
+        WHERE cr.instructor_id = $1
+        AND cr.confirmed_date >= CURRENT_DATE
+        AND cr.status = 'confirmed'
+      )
+      SELECT 
+        ic.id as course_id,
+        ic.datescheduled::text,
+        ic.start_time::text,
+        ic.end_time::text,
+        ic.status,
+        ic.location,
+        ic.max_students,
+        ic.current_students,
+        ct.name as coursetypename,
+        COALESCE(o.name, 'Unassigned') as organizationname,
+        COALESCE(ic.notes, '') as notes,
+        COALESCE(ic.registered_students, ic.max_students, 0) as studentcount
+      FROM instructor_classes ic
+      LEFT JOIN class_types ct ON ic.type_id = ct.id
+      LEFT JOIN organizations o ON ic.organization_id = o.id
+      ORDER BY ic.datescheduled, ic.start_time`,
       [instructorId]
     );
 
-    const formattedClasses = result.rows.map(row => ({
-      course_id: row.course_id.toString(),
-      datescheduled: row.datescheduled,
-      coursetypename: row.coursetypename || 'CPR Class',
-      organizationname: row.organizationname || 'Unassigned',
-      location: row.location || 'TBD',
-      studentcount: row.studentcount || 0,
-      studentsregistered: row.studentcount || 0,
-      studentsattendance: row.current_students || 0,
-      notes: row.notes || '',
-      status: row.status || 'scheduled',
-      max_students: row.max_students || 10,
-      current_students: row.current_students || 0,
-      start_time: row.start_time ? row.start_time.slice(0, 5) : '09:00',
-      end_time: row.end_time ? row.end_time.slice(0, 5) : '12:00',
+    console.log('[Instructor Classes] Raw query results:', result.rows);
+    
+    // Log specific June 4th entries
+    const june4Entries = result.rows.filter(row => row.datescheduled?.includes('2024-06-04'));
+    console.log('[Instructor Classes] June 4th entries:', june4Entries);
+
+    // Format the response to match the expected interface
+    const formattedData = result.rows.map(row => ({
+      id: row.course_id.toString(),
+      type: row.coursetypename,
+      date: row.datescheduled,
+      time: `${row.start_time} - ${row.end_time}`,
+      location: row.location,
+      instructor_id: instructorId?.toString() || '0',
+      max_students: row.max_students,
+      current_students: row.current_students,
+      status: row.status,
+      organization: row.organizationname,
+      notes: row.notes,
+      studentcount: row.studentcount
     }));
 
-    res.json(ApiResponseBuilder.success(formattedClasses));
+    console.log('[Instructor Classes] Formatted response data:', formattedData);
+    console.log('[Instructor Classes] June 4th entries in formatted data:', 
+      formattedData.filter(entry => entry.date?.includes('2024-06-04')));
+
+    res.json({
+      success: true,
+      data: formattedData
+    });
   } catch (error) {
-    console.error('Error fetching classes:', error);
-    res
-      .status(500)
-      .json(
-        ApiResponseBuilder.error(
-          errorCodes.SERVICE_UNAVAILABLE,
-          'Failed to fetch classes'
-        )
-      );
+    console.error('[Instructor Classes] Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch classes' });
   }
 });
 
@@ -134,10 +201,20 @@ router.get('/classes/upcoming', async (req, res) => {
 });
 
 // Get instructor availability
-router.get('/availability', async (req, res) => {
+router.get('/availability', authenticateToken, async (req, res) => {
   try {
+    console.log('[TRACE] Availability request received');
+    console.log('[TRACE] Request headers:', {
+      authorization: req.headers.authorization ? 'present' : 'missing',
+      cookie: req.headers.cookie ? 'present' : 'missing'
+    });
+    console.log('[TRACE] User object:', req.user);
+    
     const instructorId = parseInt(req.user?.userId || '0', 10);
+    console.log('[TRACE] Parsed instructor ID:', instructorId);
+    
     if (!instructorId) {
+      console.log('[TRACE] Invalid instructor ID:', instructorId);
       return res
         .status(400)
         .json(
@@ -148,10 +225,7 @@ router.get('/availability', async (req, res) => {
         );
     }
 
-    console.log(
-      '[Debug] Fetching availability for instructor ID:',
-      instructorId
-    );
+    console.log('[TRACE] Executing availability query for instructor:', instructorId);
     const result = await pool.query(
       `SELECT id, instructor_id, date::text, status, created_at, updated_at 
              FROM instructor_availability 
@@ -162,20 +236,25 @@ router.get('/availability', async (req, res) => {
       [instructorId]
     );
 
+    console.log('[TRACE] Raw availability query results:', JSON.stringify(result.rows, null, 2));
+
+    const formattedResponse = result.rows.map(row => ({
+      id: row.id.toString(),
+      instructor_id: row.instructor_id.toString(),
+      date: row.date.split('T')[0],
+      start_time: '09:00', // Default time since availability doesn't have specific times
+      end_time: '17:00', // Default time since availability doesn't have specific times
+      status: row.status || 'available',
+    }));
+
+    console.log('[TRACE] Formatted availability response:', JSON.stringify(formattedResponse, null, 2));
+
     res.json(
-      ApiResponseBuilder.success(
-        result.rows.map(row => ({
-          id: row.id.toString(),
-          instructor_id: row.instructor_id.toString(),
-          date: row.date.split('T')[0],
-          start_time: '09:00', // Default time since availability doesn't have specific times
-          end_time: '17:00', // Default time since availability doesn't have specific times
-          status: row.status || 'available',
-        }))
-      )
+      ApiResponseBuilder.success(formattedResponse)
     );
   } catch (error) {
-    console.error('Error fetching availability:', error);
+    console.error('[TRACE] Error fetching availability:', error);
+    console.error('[TRACE] Error stack:', error.stack);
     res
       .status(500)
       .json(
@@ -231,16 +310,53 @@ router.delete('/availability/:date', async (req, res) => {
     const instructorId = req.user?.userId;
     const { date } = req.params;
 
+    if (!instructorId) {
+      return res.status(400).json(
+        ApiResponseBuilder.error(
+          errorCodes.VALIDATION_ERROR,
+          'Invalid instructor ID'
+        )
+      );
+    }
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
+      // Check if availability exists before trying to delete
+      const availabilityCheck = await client.query(
+        'SELECT id FROM instructor_availability WHERE instructor_id = $1 AND date::date = $2::date',
+        [instructorId, date]
+      );
+
+      if (availabilityCheck.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'No availability found for this date'
+        );
+      }
+
+      // Check if the date is less than 11 days from now
+      const targetDate = new Date(date);
+      const today = new Date();
+      const diffTime = targetDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays < 11) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Cannot remove availability: Dates less than 11 days in the future cannot be modified'
+        );
+      }
+
       // First, check if there are any confirmed courses for this instructor on this date
       const confirmedCoursesCheck = await client.query(
         `SELECT id FROM course_requests 
-                 WHERE instructor_id = $1 
-                 AND confirmed_date::date = $2::date 
-                 AND status = 'confirmed'`,
+         WHERE instructor_id = $1 
+         AND confirmed_date::date = $2::date 
+         AND status = 'confirmed'`,
         [instructorId, date]
       );
 
@@ -261,10 +377,10 @@ router.delete('/availability/:date', async (req, res) => {
       // Also delete any scheduled (not confirmed) classes for this date
       const deleteClassesResult = await client.query(
         `DELETE FROM classes 
-                 WHERE instructor_id = $1 
-                 AND date::date = $2::date 
-                 AND status = 'scheduled'
-                 RETURNING *`,
+         WHERE instructor_id = $1 
+         AND date::date = $2::date 
+         AND status = 'scheduled'
+         RETURNING *`,
         [instructorId, date]
       );
 
@@ -301,56 +417,137 @@ router.delete('/availability/:date', async (req, res) => {
   }
 });
 
-// Get instructor's scheduled classes (alias for /classes)
+// Get instructor's schedule (alias for /classes)
 router.get('/schedule', async (req, res) => {
   try {
-    const instructorId = parseInt(req.user?.userId || '0', 10);
-    if (!instructorId) {
-      return res
-        .status(400)
-        .json(
-          ApiResponseBuilder.error(
-            errorCodes.VALIDATION_ERROR,
-            'Invalid instructor ID'
-          )
-        );
-    }
+    const instructorId = req.user?.userId;
+    console.log('[Instructor Schedule] Starting request for instructor:', instructorId);
+    console.log('[Instructor Schedule] User object:', req.user);
+
+    // First check if the instructor exists
+    const instructorCheck = await pool.query(
+      'SELECT id, username FROM users WHERE id = $1 AND role = $2',
+      [instructorId, 'instructor']
+    );
+    console.log('[Instructor Schedule] Instructor check result:', instructorCheck.rows);
+
+    // Check course_requests table directly
+    const courseRequestsCheck = await pool.query(
+      `SELECT id, confirmed_date, confirmed_start_time, confirmed_end_time, status 
+       FROM course_requests 
+       WHERE instructor_id = $1 
+       AND confirmed_date >= CURRENT_DATE 
+       AND status = 'confirmed'`,
+      [instructorId]
+    );
+    console.log('[Instructor Schedule] Course requests check:', courseRequestsCheck.rows);
+
+    // Check classes table directly
+    const classesCheck = await pool.query(
+      `SELECT id, date, start_time, end_time, status 
+       FROM classes 
+       WHERE instructor_id = $1 
+       AND date >= CURRENT_DATE 
+       AND status != 'completed'`,
+      [instructorId]
+    );
+    console.log('[Instructor Schedule] Classes check:', classesCheck.rows);
 
     const result = await pool.query(
-      `SELECT c.id, c.date::text, c.start_time::text, c.end_time::text, c.status, c.location, 
-                    ct.name as type, c.max_students, c.current_students 
-             FROM classes c 
-             LEFT JOIN class_types ct ON c.type_id = ct.id 
-             WHERE c.instructor_id = $1 AND c.date >= CURRENT_DATE AND c.status != 'completed'
-             ORDER BY c.date, c.start_time`,
+      `WITH instructor_classes AS (
+        -- Get regular classes
+        SELECT 
+          c.id,
+          c.date as datescheduled,
+          c.start_time,
+          c.end_time,
+          c.status,
+          c.location,
+          c.max_students,
+          c.current_students,
+          c.type_id,
+          NULL as organization_id,
+          NULL as notes,
+          NULL as registered_students
+        FROM classes c
+        WHERE c.instructor_id = $1 
+        AND c.date >= CURRENT_DATE 
+        AND c.status != 'completed'
+        
+        UNION
+        
+        -- Get confirmed course requests
+        SELECT 
+          cr.id,
+          cr.confirmed_date as datescheduled,
+          cr.confirmed_start_time as start_time,
+          cr.confirmed_end_time as end_time,
+          cr.status,
+          cr.location,
+          cr.registered_students as max_students,
+          0 as current_students,
+          cr.course_type_id as type_id,
+          cr.organization_id,
+          cr.notes,
+          cr.registered_students
+        FROM course_requests cr
+        WHERE cr.instructor_id = $1
+        AND cr.confirmed_date >= CURRENT_DATE
+        AND cr.status = 'confirmed'
+      )
+      SELECT 
+        ic.id as course_id,
+        ic.datescheduled::text,
+        ic.start_time::text,
+        ic.end_time::text,
+        ic.status,
+        ic.location,
+        ic.max_students,
+        ic.current_students,
+        ct.name as coursetypename,
+        COALESCE(o.name, 'Unassigned') as organizationname,
+        COALESCE(ic.notes, '') as notes,
+        COALESCE(ic.registered_students, ic.max_students, 0) as studentcount
+      FROM instructor_classes ic
+      LEFT JOIN class_types ct ON ic.type_id = ct.id
+      LEFT JOIN organizations o ON ic.organization_id = o.id
+      ORDER BY ic.datescheduled, ic.start_time`,
       [instructorId]
     );
 
-    res.json(
-      ApiResponseBuilder.success(
-        result.rows.map(row => ({
-          id: row.id.toString(),
-          type: row.type || 'CPR Class',
-          date: row.date.split('T')[0],
-          time: row.start_time ? row.start_time.slice(0, 5) : '09:00',
-          location: row.location || 'TBD',
-          instructor_id: instructorId.toString(),
-          max_students: row.max_students || 10,
-          current_students: row.current_students || 0,
-          status: row.status || 'scheduled',
-        }))
-      )
-    );
+    console.log('[Instructor Schedule] Raw query results:', result.rows);
+    
+    // Log specific June 4th entries
+    const june4Entries = result.rows.filter(row => row.datescheduled?.includes('2024-06-04'));
+    console.log('[Instructor Schedule] June 4th entries:', june4Entries);
+
+    // Format the response to match the expected interface
+    const formattedData = result.rows.map(row => ({
+      id: row.course_id.toString(),
+      type: row.coursetypename,
+      date: row.datescheduled,
+      time: `${row.start_time} - ${row.end_time}`,
+      location: row.location,
+      instructor_id: instructorId?.toString() || '0',
+      max_students: row.max_students,
+      current_students: row.current_students,
+      status: row.status,
+      organization: row.organizationname,
+      notes: row.notes,
+      studentcount: row.studentcount
+    }));
+
+    console.log('[Instructor Schedule] Formatted response data:', formattedData);
+    console.log('[Instructor Schedule] June 4th entries in formatted data:', 
+      formattedData.filter(entry => entry.date?.includes('2024-06-04')));
+
+    res.json({
+      success: true,
+      data: formattedData
+    });
   } catch (error) {
-    console.error('Error fetching schedule:', error);
-    res
-      .status(500)
-      .json(
-        ApiResponseBuilder.error(
-          errorCodes.SERVICE_UNAVAILABLE,
-          'Failed to fetch schedule'
-        )
-      );
+    console.error('[Instructor Schedule] Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch schedule' });
   }
 });
 
@@ -748,7 +945,7 @@ router.put(
         );
 
         const attendedCount = parseInt(
-          attendanceCountResult.rows[0].attended_count || '0'
+          attendanceCountResult.rows[0].attended_count
         );
 
         // Update the classes table with the new attendance count
@@ -1015,195 +1212,210 @@ router.put('/classes/:classId/complete', async (req, res) => {
     await client.query('COMMIT');
 
     console.log(
-      `[Audit] Class ${classId} successfully completed by instructor ${instructorId}`
+      `[Audit] Class ${classId} completed successfully by instructor ${instructorId}`
     );
 
-    res.json(
-      ApiResponseBuilder.success(
-        {
-          class_id: classId,
-          status: 'completed',
-          completion_time: completionTime.toISOString(),
-          students_attended: classData.current_students,
-          course_details: completedClassResult.rows[0],
-        },
-        {
-          message: 'Class marked as completed successfully',
-          next_action: 'Class has been moved to your archive',
-        }
-      )
-    );
-  } catch (error: any) {
+    return res.json({
+      success: true,
+      message: 'Class completed successfully',
+      data: completedClassResult.rows[0]
+    });
+  } catch (error) {
     await client.query('ROLLBACK');
-    console.error(
-      `[Error] Failed to complete class ${req.params.classId}:`,
-      error
-    );
-
-    if (error instanceof AppError) {
-      return res
-        .status(error.statusCode)
-        .json(ApiResponseBuilder.error(error.code, error.message));
-    }
-
-    res
-      .status(500)
-      .json(
-        ApiResponseBuilder.error(
-          errorCodes.SERVICE_UNAVAILABLE,
-          'Failed to complete class. Please try again or contact support.'
-        )
-      );
-  } finally {
-    client.release();
+    next(error);
   }
 });
 
-/**
- * @route GET /classes/completed
- * @description Get instructor's completed classes for archive view
- * @access Private (Instructor only)
- * @query {number} [page=1] - Page number for pagination
- * @query {number} [limit=50] - Number of records per page
- * @query {string} [sortBy=date] - Sort field (date, course_type, organization)
- * @query {string} [sortOrder=desc] - Sort order (asc, desc)
- * @returns {Object} Paginated list of completed classes
- */
+// Get instructor's completed classes
 router.get('/classes/completed', async (req, res) => {
   try {
-    const instructorId = parseInt(req.user?.userId || '0', 10);
+    const instructorId = req.user?.userId;
     if (!instructorId) {
-      throw new AppError(
-        400,
-        errorCodes.VALIDATION_ERROR,
-        'Invalid instructor credentials'
-      );
+      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid instructor ID');
     }
 
-    // Pagination and sorting with validation
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(
-      100,
-      Math.max(1, parseInt(req.query.limit as string) || 50)
-    );
-    const offset = (page - 1) * limit;
-
-    const validSortFields = [
-      'date',
-      'course_type',
-      'organization',
-      'students_count',
-    ];
-    const sortBy = validSortFields.includes(req.query.sortBy as string)
-      ? (req.query.sortBy as string)
-      : 'date';
-    const sortOrder = req.query.sortOrder === 'asc' ? 'ASC' : 'DESC';
-
-    console.log(
-      `[Debug] Fetching completed classes for instructor ${instructorId}, page ${page}`
-    );
-
-    // Get total count for pagination
-    const countResult = await pool.query(
-      `SELECT COUNT(*) as total
-             FROM classes c
-             WHERE c.instructor_id = $1 AND c.status = 'completed'`,
+    const result = await pool.query(
+      `WITH completed_classes AS (
+        -- Get completed regular classes
+        SELECT 
+          c.id,
+          c.date as datescheduled,
+          c.start_time,
+          c.end_time,
+          c.status,
+          c.location,
+          c.max_students,
+          c.current_students,
+          c.type_id,
+          NULL as organization_id,
+          NULL as notes,
+          NULL as registered_students
+        FROM classes c
+        WHERE c.instructor_id = $1 
+        AND c.status = 'completed'
+        
+        UNION
+        
+        -- Get completed course requests
+        SELECT 
+          cr.id,
+          cr.confirmed_date as datescheduled,
+          cr.confirmed_start_time as start_time,
+          cr.confirmed_end_time as end_time,
+          cr.status,
+          cr.location,
+          cr.registered_students as max_students,
+          0 as current_students,
+          cr.course_type_id as type_id,
+          cr.organization_id,
+          cr.notes,
+          cr.registered_students
+        FROM course_requests cr
+        WHERE cr.instructor_id = $1
+        AND cr.status = 'completed'
+      )
+      SELECT 
+        cc.id as course_id,
+        cc.datescheduled::text,
+        cc.start_time::text,
+        cc.end_time::text,
+        cc.status,
+        cc.location,
+        cc.max_students,
+        cc.current_students,
+        ct.name as coursetypename,
+        COALESCE(o.name, 'Unassigned') as organizationname,
+        COALESCE(cc.notes, '') as notes,
+        COALESCE(cc.registered_students, cc.max_students, 0) as studentcount
+      FROM completed_classes cc
+      LEFT JOIN class_types ct ON cc.type_id = ct.id
+      LEFT JOIN organizations o ON cc.organization_id = o.id
+      ORDER BY cc.datescheduled DESC, cc.start_time DESC`,
       [instructorId]
     );
 
-    const totalRecords = parseInt(countResult.rows[0].total);
-    const totalPages = Math.ceil(totalRecords / limit);
-
-    // Get completed classes with rich details
-    const sortField =
-      sortBy === 'date'
-        ? 'c.date'
-        : sortBy === 'course_type'
-          ? 'ct.name'
-          : sortBy === 'organization'
-            ? 'o.name'
-            : 'c.current_students';
-
-    const result = await pool.query(
-      `SELECT 
-                c.id as course_id,
-                c.date::text as datescheduled,
-                c.completed_at::text as date_completed,
-                c.start_time::text,
-                c.end_time::text,
-                c.location,
-                c.current_students as students_attended,
-                c.max_students,
-                ct.name as coursetypename,
-                COALESCE(o.name, 'Unassigned') as organizationname,
-                COALESCE(cr.notes, '') as notes,
-                COALESCE(cr.registered_students, c.max_students, 0) as studentsregistered,
-                c.status
-             FROM classes c 
-             LEFT JOIN class_types ct ON c.type_id = ct.id 
-             LEFT JOIN course_requests cr ON cr.instructor_id = c.instructor_id 
-                AND cr.status = 'completed'
-                AND DATE(cr.confirmed_date) = DATE(c.date)
-                AND cr.course_type_id = c.type_id
-             LEFT JOIN organizations o ON cr.organization_id = o.id
-             WHERE c.instructor_id = $1 AND c.status = 'completed'
-             ORDER BY ${sortField} ${sortOrder}, c.date DESC
-             LIMIT $2 OFFSET $3`,
-      [instructorId, limit, offset]
-    );
-
-    const formattedClasses = result.rows.map(row => ({
-      course_id: row.course_id.toString(),
-      datescheduled: row.datescheduled,
-      date_completed: row.date_completed,
-      coursetypename: row.coursetypename || 'CPR Class',
-      organizationname: row.organizationname,
-      location: row.location || 'TBD',
-      studentsregistered: row.studentsregistered || 0,
-      studentsattended: row.students_attended || 0,
-      studentsattendance: row.students_attended || 0, // For compatibility
-      notes: row.notes || '',
-      status: 'Completed',
-      max_students: row.max_students || 10,
-      start_time: row.start_time ? row.start_time.slice(0, 5) : '09:00',
-      end_time: row.end_time ? row.end_time.slice(0, 5) : '12:00',
-      completion_date: row.date_completed,
+    const formattedData = result.rows.map(row => ({
+      id: row.course_id.toString(),
+      type: row.coursetypename,
+      date: row.datescheduled,
+      time: `${row.start_time} - ${row.end_time}`,
+      location: row.location,
+      instructor_id: instructorId.toString(),
+      max_students: row.max_students,
+      current_students: row.current_students,
+      status: row.status,
+      organization: row.organizationname,
+      notes: row.notes,
+      studentcount: row.studentcount
     }));
 
-    res.json(
-      ApiResponseBuilder.success({
-        classes: formattedClasses,
-        pagination: {
-          current_page: page,
-          total_pages: totalPages,
-          total_records: totalRecords,
-          page_size: limit,
-          has_next: page < totalPages,
-          has_previous: page > 1,
-        },
-        sorting: {
-          sort_by: sortBy,
-          sort_order: sortOrder.toLowerCase(),
-        },
-      })
-    );
-  } catch (error: any) {
-    console.error('Error fetching completed classes:', error);
-
+    res.json(ApiResponseBuilder.success(formattedData));
+  } catch (error) {
+    console.error('[Instructor Completed Classes] Error:', error);
     if (error instanceof AppError) {
-      return res
-        .status(error.statusCode)
-        .json(ApiResponseBuilder.error(error.code, error.message));
+      res.status(error.statusCode).json(ApiResponseBuilder.error(error.code, error.message));
+    } else {
+      res.status(500).json(ApiResponseBuilder.error(errorCodes.SERVICE_UNAVAILABLE, 'Failed to fetch completed classes'));
+    }
+  }
+});
+
+// Get a specific class by ID
+router.get('/classes/:classId', async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const instructorId = req.user?.userId;
+
+    if (!instructorId) {
+      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid instructor ID');
     }
 
-    res
-      .status(500)
-      .json(
-        ApiResponseBuilder.error(
-          errorCodes.SERVICE_UNAVAILABLE,
-          'Failed to fetch completed classes'
-        )
-      );
+    // First check if the class exists and belongs to this instructor
+    const result = await pool.query(
+      `WITH class_data AS (
+        -- Check regular classes
+        SELECT 
+          c.id,
+          c.date as datescheduled,
+          c.start_time,
+          c.end_time,
+          c.status,
+          c.location,
+          c.max_students,
+          c.current_students,
+          c.type_id,
+          NULL as organization_id,
+          NULL as notes,
+          NULL as registered_students
+        FROM classes c
+        WHERE c.id = $1 AND c.instructor_id = $2
+        
+        UNION
+        
+        -- Check confirmed course requests
+        SELECT 
+          cr.id,
+          cr.confirmed_date as datescheduled,
+          cr.confirmed_start_time as start_time,
+          cr.confirmed_end_time as end_time,
+          cr.status,
+          cr.location,
+          cr.registered_students as max_students,
+          0 as current_students,
+          cr.course_type_id as type_id,
+          cr.organization_id,
+          cr.notes,
+          cr.registered_students
+        FROM course_requests cr
+        WHERE cr.id = $1 AND cr.instructor_id = $2
+      )
+      SELECT 
+        cd.id as course_id,
+        cd.datescheduled::text,
+        cd.start_time::text,
+        cd.end_time::text,
+        cd.status,
+        cd.location,
+        cd.max_students,
+        cd.current_students,
+        ct.name as coursetypename,
+        COALESCE(o.name, 'Unassigned') as organizationname,
+        COALESCE(cd.notes, '') as notes,
+        COALESCE(cd.registered_students, cd.max_students, 0) as studentcount
+      FROM class_data cd
+      LEFT JOIN class_types ct ON cd.type_id = ct.id
+      LEFT JOIN organizations o ON cd.organization_id = o.id`,
+      [classId, instructorId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Class not found');
+    }
+
+    const classData = result.rows[0];
+    const formattedData = {
+      id: classData.course_id.toString(),
+      type: classData.coursetypename,
+      date: classData.datescheduled,
+      time: `${classData.start_time} - ${classData.end_time}`,
+      location: classData.location,
+      instructor_id: instructorId.toString(),
+      max_students: classData.max_students,
+      current_students: classData.current_students,
+      status: classData.status,
+      organization: classData.organizationname,
+      notes: classData.notes,
+      studentcount: classData.studentcount
+    };
+
+    res.json(ApiResponseBuilder.success(formattedData));
+  } catch (error) {
+    console.error('[Instructor Class Details] Error:', error);
+    if (error instanceof AppError) {
+      res.status(error.statusCode).json(ApiResponseBuilder.error(error.code, error.message));
+    } else {
+      res.status(500).json(ApiResponseBuilder.error(errorCodes.SERVICE_UNAVAILABLE, 'Failed to fetch class details'));
+    }
   }
 });
 
