@@ -5,30 +5,6 @@ console.log('Loading Vite config');
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [react()],
-    optimizeDeps: {
-        esbuildOptions: {
-            loader: {
-                '.js': 'jsx',
-            },
-        },
-        include: [
-            'react',
-            'react-dom',
-            'react-router-dom',
-            '@mui/material',
-            '@mui/icons-material',
-            '@emotion/react',
-            '@emotion/styled',
-            '@tanstack/react-query',
-            '@mui/x-date-pickers',
-            'date-fns',
-            'papaparse',
-            'react-phone-number-input'
-        ],
-        force: true
-    },
-    root: path.resolve(__dirname),
-    base: '/',
     server: {
         host: true,
         port: 5173,
@@ -37,32 +13,18 @@ export default defineConfig({
                 target: 'http://localhost:3001',
                 changeOrigin: true
             }
-        },
-        strictPort: true,
-        hmr: {
-            protocol: 'ws',
-            host: 'localhost',
-            port: 5173,
-            clientPort: 5173,
-            timeout: 10000,
-            overlay: true,
-            path: 'hmr'
-        }
-    },
-    build: {
-        outDir: 'dist',
-        rollupOptions: {
-            input: {
-                main: path.resolve(__dirname, 'index.html')
-            }
         }
     },
     resolve: {
         alias: {
-            '@': path.resolve(__dirname, './src')
-        },
-        extensions: ['.js', '.jsx', '.ts', '.tsx']
+            '@': path.resolve(__dirname, './src'),
+            'src': path.resolve(__dirname, './src')
+        }
     },
-    clearScreen: false,
-    logLevel: 'info'
+    build: {
+        sourcemap: true
+    },
+    optimizeDeps: {
+        include: ['react', 'react-dom', 'react-router-dom']
+    }
 });

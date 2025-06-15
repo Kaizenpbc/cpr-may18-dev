@@ -138,7 +138,7 @@ export const getScheduledClasses = async (): Promise<ScheduledClass[]> => {
 
 export const getHolidays = async (): Promise<HolidaysResponse> => {
   try {
-    const response = await axios.get('/api/holidays');
+    const response = await axios.get('/holidays');
     return response.data;
   } catch (error) {
     console.error('Error fetching holidays:', error);

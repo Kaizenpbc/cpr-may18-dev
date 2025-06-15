@@ -1,0 +1,311 @@
+# ===============================================
+# Prometheus Alerting Rules for CPR Training System
+# ===============================================
+
+groups:
+  # ===============================================
+  # Critical System Alerts
+  # ===============================================
+  - name: cpr.critical
+    interval: 30s
+    rules:
+      - alert: CPRBackendDown
+        expr: up{job="cpr-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: backend
+          team: platform
+        annotations:
+          summary: "CPR Backend is down"
+          description: "The CPR Training backend service has been down for more than 1 minute."
+          impact: "All CPR training operations are unavailable"
+          runbook: "https://docs.cpr-training.com/runbooks/backend-down"
+
+      - alert: DatabaseConnectionFailure
+        expr: cpr_database_connections{state="active"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: database
+          team: platform
+        annotations:
+          summary: "Database connection failure"
+          description: "No active database connections detected for {{ $value }} minutes."
+          impact: "Data operations are failing"
+
+      - alert: HighErrorRate
+        expr: (rate(cpr_http_requests_total{status_code=~"5.."}[5m]) / rate(cpr_http_requests_total[5m])) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          service: backend
+          team: platform
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes."
+          impact: "Users experiencing service failures"
+
+  # ===============================================
+  # Performance & Resource Alerts
+  # ===============================================
+  - name: cpr.performance
+    interval: 60s
+    rules:
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(cpr_http_request_duration_seconds_bucket[5m])) > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: backend
+          team: platform
+        annotations:
+          summary: "High response time"
+          description: "95th percentile response time is {{ $value }}s for the last 10 minutes."
+          impact: "Poor user experience"
+
+      - alert: HighCPUUsage
+        expr: (100 - (avg by (instance) (rate(cpr_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 80
+        for: 15m
+        labels:
+          severity: warning
+          service: system
+          team: platform
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}."
+          impact: "System performance degradation"
+
+      - alert: HighMemoryUsage
+        expr: (cpr_memory_MemTotal_bytes - cpr_memory_MemAvailable_bytes) / cpr_memory_MemTotal_bytes * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+          team: platform
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}."
+          impact: "Risk of service instability"
+
+      - alert: DiskSpaceLow
+        expr: (cpr_filesystem_avail_bytes{mountpoint="/"} / cpr_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+          team: platform
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is {{ $value | humanizePercentage }} full on {{ $labels.instance }}."
+          impact: "Risk of service interruption"
+
+  # ===============================================
+  # Business Logic Alerts
+  # ===============================================
+  - name: cpr.business
+    interval: 300s
+    rules:
+      - alert: NoCoursesScheduledToday
+        expr: cpr_courses_total{status="confirmed"} == 0 and hour() >= 8 and hour() <= 18
+        for: 60m
+        labels:
+          severity: warning
+          service: business
+          team: operations
+        annotations:
+          summary: "No courses scheduled today"
+          description: "No confirmed courses found during business hours."
+          impact: "Potential business operations issue"
+
+      - alert: HighCourseFailureRate
+        expr: (cpr_courses_total{status="cancelled"} / (cpr_courses_total{status="confirmed"} + cpr_courses_total{status="cancelled"})) * 100 > 20
+        for: 24h
+        labels:
+          severity: warning
+          service: business
+          team: operations
+        annotations:
+          summary: "High course failure rate"
+          description: "Course cancellation rate is {{ $value | humanizePercentage }} over the last 24 hours."
+          impact: "Poor customer satisfaction"
+
+      - alert: LowAttendanceRate
+        expr: cpr_attendance_rate < 70
+        for: 6h
+        labels:
+          severity: warning
+          service: business
+          team: operations
+        annotations:
+          summary: "Low attendance rate"
+          description: "Average attendance rate is {{ $value | humanizePercentage }} over the last 6 hours."
+          impact: "Revenue impact and customer dissatisfaction"
+
+      - alert: UnpaidInvoicesAccumulating
+        expr: cpr_invoices_total{status="overdue"} > 10
+        for: 1h
+        labels:
+          severity: warning
+          service: business
+          team: accounting
+        annotations:
+          summary: "Unpaid invoices accumulating"
+          description: "{{ $value }} overdue invoices detected."
+          impact: "Cash flow issues"
+
+  # ===============================================
+  # Security Alerts
+  # ===============================================
+  - name: cpr.security
+    interval: 60s
+    rules:
+      - alert: HighFailedAuthenticationRate
+        expr: rate(cpr_authentication_attempts_total{result="failure"}[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          service: security
+          team: security
+        annotations:
+          summary: "High failed authentication rate"
+          description: "{{ $value }} failed authentication attempts per second over the last 5 minutes."
+          impact: "Potential brute force attack"
+
+      - alert: RateLimitViolationsSpike
+        expr: rate(cpr_rate_limit_violations_total[5m]) > 50
+        for: 1m
+        labels:
+          severity: warning
+          service: security
+          team: security
+        annotations:
+          summary: "Rate limit violations spike"
+          description: "{{ $value }} rate limit violations per second detected."
+          impact: "Potential DDoS or abuse"
+
+      - alert: SecurityEventCritical
+        expr: rate(cpr_security_events_total{severity="critical"}[5m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          service: security
+          team: security
+        annotations:
+          summary: "Critical security event detected"
+          description: "Critical security event: {{ $labels.event_type }} from {{ $labels.source }}."
+          impact: "Immediate security threat"
+
+  # ===============================================
+  # External Service Monitoring
+  # ===============================================
+  - name: cpr.external
+    interval: 120s
+    rules:
+      - alert: HealthCheckFailing
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: external
+          team: platform
+        annotations:
+          summary: "Health check failing"
+          description: "Health check for {{ $labels.instance }} has been failing for 5 minutes."
+          impact: "Service may be unavailable to users"
+
+      - alert: HighHTTPResponseTime
+        expr: probe_duration_seconds{job="blackbox-http"} > 3
+        for: 10m
+        labels:
+          severity: warning
+          service: external
+          team: platform
+        annotations:
+          summary: "High HTTP response time"
+          description: "HTTP response time for {{ $labels.instance }} is {{ $value }}s."
+          impact: "Poor user experience"
+
+  # ===============================================
+  # Database Specific Alerts
+  # ===============================================
+  - name: cpr.database
+    interval: 60s
+    rules:
+      - alert: SlowQueries
+        expr: rate(cpr_database_query_duration_seconds_sum[5m]) / rate(cpr_database_query_duration_seconds_count[5m]) > 1
+        for: 10m
+        labels:
+          severity: warning
+          service: database
+          team: platform
+        annotations:
+          summary: "Slow database queries"
+          description: "Average query time is {{ $value }}s over the last 10 minutes."
+          impact: "Application performance degradation"
+
+      - alert: DatabaseConnectionsHigh
+        expr: cpr_database_connections{state="active"} > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: database
+          team: platform
+        annotations:
+          summary: "High database connections"
+          description: "{{ $value }} active database connections detected."
+          impact: "Risk of connection pool exhaustion"
+
+      - alert: DatabaseSizeGrowthHigh
+        expr: rate(cpr_database_size_bytes[1h]) > 1073741824  # 1GB per hour
+        for: 15m
+        labels:
+          severity: warning
+          service: database
+          team: platform
+        annotations:
+          summary: "High database growth rate"
+          description: "Database is growing at {{ $value | printf \"%.2f\" }} bytes per second."
+          impact: "Risk of storage issues"
+
+  # ===============================================
+  # Instructor & Course Operations
+  # ===============================================
+  - name: cpr.operations
+    interval: 300s
+    rules:
+      - alert: LowInstructorAvailability
+        expr: (cpr_instructors_total{availability="available"} / cpr_instructors_total) * 100 < 30
+        for: 2h
+        labels:
+          severity: warning
+          service: business
+          team: operations
+        annotations:
+          summary: "Low instructor availability"
+          description: "Only {{ $value | humanizePercentage }} of instructors are available."
+          impact: "Course scheduling difficulties"
+
+      - alert: InstructorUtilizationLow
+        expr: cpr_instructor_utilization_rate < 20
+        for: 24h
+        labels:
+          severity: info
+          service: business
+          team: operations
+        annotations:
+          summary: "Low instructor utilization"
+          description: "Instructor utilization is {{ $value | humanizePercentage }} over the last 24 hours."
+          impact: "Resource optimization opportunity"
+
+      - alert: LongBillingCycleTime
+        expr: histogram_quantile(0.95, rate(cpr_billing_cycle_time_hours_bucket[24h])) > 72
+        for: 4h
+        labels:
+          severity: warning
+          service: business
+          team: accounting
+        annotations:
+          summary: "Long billing cycle time"
+          description: "95th percentile billing cycle time is {{ $value }} hours."
+          impact: "Delayed revenue recognition" 

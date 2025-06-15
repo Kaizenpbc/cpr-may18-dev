@@ -1,0 +1,123 @@
+# ===============================================
+# Prometheus Configuration for CPR Training System
+# ===============================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'cpr-training'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - 'alertmanager:9093'
+
+# Alert rules
+rule_files:
+  - "alerts.yml"
+
+# Scrape configurations
+scrape_configs:
+  # ===============================================
+  # CPR Training Application Metrics
+  # ===============================================
+  - job_name: 'cpr-backend'
+    static_configs:
+      - targets: ['host.docker.internal:3001']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 10s
+    scheme: 'http'
+    params:
+      format: ['prometheus']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'cpr-backend'
+      - target_label: job
+        replacement: 'cpr-backend'
+      - target_label: service
+        replacement: 'cpr-training-api'
+
+  # ===============================================
+  # System Metrics (Node Exporter)
+  # ===============================================
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'cpr-host'
+
+  # ===============================================
+  # Database Metrics (PostgreSQL)
+  # ===============================================
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 15s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'cpr-database'
+
+  # ===============================================
+  # Redis Metrics (if enabled)
+  # ===============================================
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 15s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'cpr-redis'
+
+  # ===============================================
+  # Blackbox Monitoring (HTTP Endpoints)
+  # ===============================================
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - 'http://host.docker.internal:3001/health'
+          - 'http://host.docker.internal:3001/api/v1/dashboard'
+          - 'http://host.docker.internal:5173'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # ===============================================
+  # Monitoring Stack Self-Monitoring
+  # ===============================================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']
+    scrape_interval: 30s
+
+# ===============================================
+# Storage Configuration
+# ===============================================

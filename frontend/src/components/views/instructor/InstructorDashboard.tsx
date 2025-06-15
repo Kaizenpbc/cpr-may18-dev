@@ -39,9 +39,6 @@ interface InstructorDashboardProps {
   completedClasses?: any[];
 }
 
-/**
- * Instructor Dashboard - Overview of instructor activities
- */
 const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
   scheduledClasses = [],
   availableDates = new Set(),
@@ -49,421 +46,322 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
 }) => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  const upcomingClasses = scheduledClasses
-    .filter(cls => !cls.completed)
-    .slice(0, 3);
-  const recentCompleted = completedClasses.slice(0, 3);
-
-  // Get tomorrow's date
-  const getTomorrowDate = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow;
-  };
-
-  // Get tomorrow's classes
-  const getTomorrowClasses = () => {
-    const tomorrow = getTomorrowDate();
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-    return scheduledClasses.filter(cls => {
-      const classDate = new Date(cls.datescheduled).toISOString().split('T')[0];
-      return classDate === tomorrowStr && !cls.completed;
-    });
-  };
-
-  // Handle Quick Actions
-  const handleViewTomorrowSchedule = () => {
-    const tomorrowClasses = getTomorrowClasses();
-    if (tomorrowClasses.length === 0) {
-      alert('No classes scheduled for tomorrow');
-    } else {
-      navigate('/instructor/classes', {
-        state: { filterDate: getTomorrowDate().toISOString() },
-      });
-    }
-  };
-
-  const handleUpdateAvailability = () => {
-    const nextWeek = new Date();
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    navigate('/instructor/availability', {
-      state: { focusWeek: nextWeek.toISOString() },
-    });
-  };
-
-  const handleDownloadWeekSchedule = async () => {
-    try {
-      const today = new Date();
-      const startOfWeek = new Date(today);
-      startOfWeek.setDate(today.getDate() - today.getDay());
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
-
-      const weekClasses = scheduledClasses.filter(cls => {
-        const classDate = new Date(cls.datescheduled);
-        return classDate >= startOfWeek && classDate <= endOfWeek;
-      });
-
-      if (weekClasses.length === 0) {
-        alert('No classes scheduled for this week');
-        return;
-      }
-
-      const response = await fetch('/api/v1/instructor/schedule/weekly-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({
-          startDate: startOfWeek.toISOString(),
-          endDate: endOfWeek.toISOString(),
-        }),
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `weekly-schedule-${startOfWeek.toISOString().split('T')[0]}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } else {
-        alert('Failed to generate PDF. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error downloading schedule:', error);
-      alert('Error downloading schedule. Please try again.');
-    }
-  };
-
-  const StatCard = ({ icon, title, value, color }: any) => (
-    <Card sx={{ height: '100%' }}>
-      <CardContent>
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            mb: 1,
-            minHeight: isMobile ? 48 : 'auto', // Larger touch target on mobile
-          }}
-        >
-          {React.cloneElement(icon, {
-            sx: {
-              mr: 1,
-              fontSize: isMobile ? 32 : 24,
-              color: `${color}.main`,
-            },
-          })}
-          <Typography
-            variant={isMobile ? 'body1' : 'h6'}
-            sx={{
-              flexGrow: 1,
-              fontSize: isMobile ? '1rem' : 'inherit',
-            }}
-          >
-            {title}
-          </Typography>
-        </Box>
-        <Typography
-          variant={isMobile ? 'h4' : 'h3'}
-          color={`${color}.main`}
-          sx={{
-            textAlign: isMobile ? 'right' : 'left',
-            fontSize: isMobile ? '2rem' : 'inherit',
-          }}
-        >
-          {value}
-        </Typography>
-      </CardContent>
-    </Card>
+  // Calculate statistics
+  const totalClasses = scheduledClasses.length;
+  const upcomingClasses = scheduledClasses.filter(
+    (cls) => new Date(cls.datescheduled) > new Date()
+  );
+  const todayClasses = scheduledClasses.filter(
+    (cls) =>
+      new Date(cls.datescheduled).toDateString() === new Date().toDateString()
+  );
+  const totalStudents = scheduledClasses.reduce(
+    (sum, cls) => sum + (cls.studentcount || 0),
+    0
   );
 
-  const ClassCard = ({ cls, isCompleted = false }: any) => (
-    <Card
-      sx={{
-        mb: 2,
-        '&:active': isMobile
-          ? {
-              transform: 'scale(0.98)',
-              transition: 'transform 0.1s',
-            }
-          : {},
-      }}
-    >
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
-          <Avatar
-            sx={{
-              bgcolor: isCompleted ? 'success.main' : 'primary.main',
-              mr: 2,
-            }}
-          >
-            {isCompleted ? <AssignmentIcon /> : <ClassIcon />}
-          </Avatar>
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography variant='subtitle1' fontWeight='bold'>
-              {cls.coursetypename}
-            </Typography>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                color: 'text.secondary',
-                mt: 0.5,
-              }}
-            >
-              <LocationIcon sx={{ fontSize: '1rem', mr: 0.5 }} />
-              <Typography variant='body2'>
-                {cls.organizationname} - {cls.location}
-              </Typography>
-            </Box>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                color: 'text.secondary',
-                mt: 0.5,
-              }}
-            >
-              <TimeIcon sx={{ fontSize: '1rem', mr: 0.5 }} />
-              <Typography variant='body2'>
-                {new Date(cls.datescheduled).toLocaleDateString()}
-              </Typography>
-            </Box>
-          </Box>
-          {!isCompleted && (
-            <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
-              <GroupIcon
-                sx={{ fontSize: '1rem', mr: 0.5, color: 'primary.main' }}
-              />
-              <Typography variant='body2' color='primary' fontWeight='bold'>
-                {cls.studentcount || 0}
-              </Typography>
-            </Box>
-          )}
-        </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-          <Chip
-            label={
-              isCompleted ? 'Completed' : `${cls.studentcount || 0} students`
-            }
-            size='small'
-            color={isCompleted ? 'success' : 'primary'}
-          />
-        </Box>
-      </CardContent>
-    </Card>
-  );
+  // Format date helper
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
 
   return (
-    <Box sx={{ p: isMobile ? 2 : 3 }}>
-      <Typography variant={isMobile ? 'h5' : 'h4'} gutterBottom sx={{ mb: 3 }}>
-        Instructor Dashboard
-      </Typography>
+    <Box>
+      {/* Welcome Section */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" gutterBottom>
+          Welcome Back!
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Here's your teaching schedule and upcoming classes.
+        </Typography>
+      </Box>
 
-      {/* Quick Actions Widget */}
-      <Card
-        sx={{
-          mb: 4,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          borderRadius: isMobile ? 2 : 3,
-        }}
-      >
-        <CardContent>
-          <Typography variant='h6' color='white' gutterBottom sx={{ mb: 3 }}>
-            ⚡ Quick Actions
+      {/* Quick Stats */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ bgcolor: 'primary.main' }}>
+                  <ClassIcon />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6">{totalClasses}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Total Classes
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ bgcolor: 'info.main' }}>
+                  <ScheduleIcon />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6">{upcomingClasses.length}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Upcoming Classes
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ bgcolor: 'success.main' }}>
+                  <PeopleIcon />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6">{totalStudents}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Total Students
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ bgcolor: 'warning.main' }}>
+                  <CalendarIcon />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6">{availableDates.size}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Available Dates
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Today's Classes */}
+      {todayClasses.length > 0 && (
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h6" gutterBottom>
+            Today's Classes
           </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={4}>
-              <Button
-                fullWidth
-                variant='contained'
-                startIcon={<ScheduleIcon />}
-                onClick={handleViewTomorrowSchedule}
-                sx={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  color: '#667eea',
-                  py: isMobile ? 1.5 : 1,
-                  '&:hover': {
-                    backgroundColor: 'white',
-                  },
-                  '&:active': isMobile
-                    ? {
-                        transform: 'scale(0.98)',
+          <Paper variant="outlined">
+            <List>
+              {todayClasses.map((cls) => (
+                <React.Fragment key={cls.course_id}>
+                  <ListItem>
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <ClassIcon color="primary" />
+                          <Typography variant="subtitle1">
+                            {cls.coursetypename}
+                          </Typography>
+                        </Box>
                       }
-                    : {},
-                }}
-              >
-                Tomorrow's Schedule
-                {getTomorrowClasses().length > 0 && (
-                  <Chip
-                    label={getTomorrowClasses().length}
-                    size='small'
-                    sx={{
-                      ml: 1,
-                      backgroundColor: '#667eea',
-                      color: 'white',
-                      height: isMobile ? 24 : 20,
-                    }}
+                      secondary={
+                        <Box sx={{ mt: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <LocationIcon fontSize="small" color="action" />
+                            <Typography variant="body2">{cls.location}</Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <GroupIcon fontSize="small" color="action" />
+                            <Typography variant="body2">
+                              {cls.studentcount} Students
+                            </Typography>
+                          </Box>
+                        </Box>
+                      }
+                    />
+                    <ListItemSecondaryAction>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() => navigate(`/instructor/attendance/${cls.course_id}`)}
+                      >
+                        Take Attendance
+                      </Button>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                  <Divider />
+                </React.Fragment>
+              ))}
+            </List>
+          </Paper>
+        </Box>
+      )}
+
+      {/* Upcoming Classes */}
+      <Box sx={{ mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">Upcoming Classes</Typography>
+          <Button
+            endIcon={<ArrowForwardIcon />}
+            onClick={() => navigate('/instructor/classes')}
+          >
+            View All
+          </Button>
+        </Box>
+        <Paper variant="outlined">
+          <List>
+            {upcomingClasses.slice(0, 5).map((cls) => (
+              <React.Fragment key={cls.course_id}>
+                <ListItem>
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <ClassIcon color="primary" />
+                        <Typography variant="subtitle1">
+                          {cls.coursetypename}
+                        </Typography>
+                      </Box>
+                    }
+                    secondary={
+                      <Box sx={{ mt: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CalendarIcon fontSize="small" color="action" />
+                          <Typography variant="body2">
+                            {formatDate(cls.datescheduled)}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <LocationIcon fontSize="small" color="action" />
+                          <Typography variant="body2">{cls.location}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <GroupIcon fontSize="small" color="action" />
+                          <Typography variant="body2">
+                            {cls.studentcount} Students
+                          </Typography>
+                        </Box>
+                      </Box>
+                    }
                   />
-                )}
-              </Button>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <Button
-                fullWidth
-                variant='contained'
-                startIcon={<EventAvailableIcon />}
-                onClick={handleUpdateAvailability}
-                sx={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  color: '#764ba2',
-                  py: isMobile ? 1.5 : 1,
-                  '&:hover': {
-                    backgroundColor: 'white',
-                  },
-                  '&:active': isMobile
-                    ? {
-                        transform: 'scale(0.98)',
-                      }
-                    : {},
-                }}
-              >
-                Update Next Week
-              </Button>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <Button
-                fullWidth
-                variant='contained'
-                startIcon={<DownloadIcon />}
-                onClick={handleDownloadWeekSchedule}
-                sx={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  color: '#667eea',
-                  py: isMobile ? 1.5 : 1,
-                  '&:hover': {
-                    backgroundColor: 'white',
-                  },
-                  '&:active': isMobile
-                    ? {
-                        transform: 'scale(0.98)',
-                      }
-                    : {},
-                }}
-              >
-                Download Week PDF
-              </Button>
-            </Grid>
+                  <ListItemSecondaryAction>
+                    <Button
+                      variant="outlined"
+                      onClick={() => navigate(`/instructor/classes/${cls.course_id}`)}
+                    >
+                      View Details
+                    </Button>
+                  </ListItemSecondaryAction>
+                </ListItem>
+                <Divider />
+              </React.Fragment>
+            ))}
+            {upcomingClasses.length === 0 && (
+              <ListItem>
+                <ListItemText
+                  primary="No upcoming classes"
+                  secondary="Check back later for new class assignments"
+                />
+              </ListItem>
+            )}
+          </List>
+        </Paper>
+      </Box>
+
+      {/* Quick Actions */}
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          Quick Actions
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <Avatar sx={{ bgcolor: 'primary.main' }}>
+                    <EventAvailableIcon />
+                  </Avatar>
+                  <Typography variant="subtitle1">Set Availability</Typography>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={() => navigate('/instructor/availability')}
+                  >
+                    Manage Schedule
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
           </Grid>
-        </CardContent>
-      </Card>
-
-      {/* Stats Cards */}
-      <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: 4 }}>
-        <Grid item xs={6} md={3}>
-          <StatCard
-            icon={<ClassIcon />}
-            title='Scheduled'
-            value={scheduledClasses.filter(cls => !cls.completed).length}
-            color='primary'
-          />
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <Avatar sx={{ bgcolor: 'info.main' }}>
+                    <AssignmentIcon />
+                  </Avatar>
+                  <Typography variant="subtitle1">View Archive</Typography>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={() => navigate('/instructor/archive')}
+                  >
+                    Past Classes
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <Avatar sx={{ bgcolor: 'success.main' }}>
+                    <DownloadIcon />
+                  </Avatar>
+                  <Typography variant="subtitle1">Download Reports</Typography>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={() => navigate('/instructor/reports')}
+                  >
+                    Generate Reports
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <Avatar sx={{ bgcolor: 'warning.main' }}>
+                    <PeopleIcon />
+                  </Avatar>
+                  <Typography variant="subtitle1">Student Management</Typography>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={() => navigate('/instructor/students')}
+                  >
+                    View Students
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
-        <Grid item xs={6} md={3}>
-          <StatCard
-            icon={<CalendarIcon />}
-            title='Available'
-            value={availableDates.size}
-            color='success'
-          />
-        </Grid>
-        <Grid item xs={6} md={3}>
-          <StatCard
-            icon={<AssignmentIcon />}
-            title='Completed'
-            value={completedClasses.length}
-            color='info'
-          />
-        </Grid>
-        <Grid item xs={6} md={3}>
-          <StatCard
-            icon={<PeopleIcon />}
-            title='Students'
-            value={scheduledClasses.reduce(
-              (total, cls) => total + (cls.studentcount || 0),
-              0
-            )}
-            color='warning'
-          />
-        </Grid>
-      </Grid>
-
-      {/* Classes Lists */}
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Paper
-            sx={{
-              p: isMobile ? 2 : 3,
-              height: '100%',
-            }}
-          >
-            <Typography variant='h6' gutterBottom sx={{ mb: 2 }}>
-              Upcoming Classes
-            </Typography>
-            {upcomingClasses.length > 0 ? (
-              upcomingClasses.map((cls, index) => (
-                <ClassCard key={index} cls={cls} />
-              ))
-            ) : (
-              <Typography
-                variant='body2'
-                color='text.secondary'
-                sx={{
-                  textAlign: 'center',
-                  py: 4,
-                }}
-              >
-                No upcoming classes scheduled
-              </Typography>
-            )}
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Paper
-            sx={{
-              p: isMobile ? 2 : 3,
-              height: '100%',
-            }}
-          >
-            <Typography variant='h6' gutterBottom sx={{ mb: 2 }}>
-              Recent Completed
-            </Typography>
-            {recentCompleted.length > 0 ? (
-              recentCompleted.map((cls, index) => (
-                <ClassCard key={index} cls={cls} isCompleted />
-              ))
-            ) : (
-              <Typography
-                variant='body2'
-                color='text.secondary'
-                sx={{
-                  textAlign: 'center',
-                  py: 4,
-                }}
-              >
-                No completed classes yet
-              </Typography>
-            )}
-          </Paper>
-        </Grid>
-      </Grid>
+      </Box>
     </Box>
   );
 };

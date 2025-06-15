@@ -137,7 +137,7 @@ const OrganizationCoursesTable = ({
             <TableCell sx={{ fontWeight: 'bold' }}>Scheduled Date</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Confirmed Date</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Confirmed Time</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Course Type</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Course Name</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Location</TableCell>
             <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
               Students Registered

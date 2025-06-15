@@ -35,7 +35,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 interface AvailabilityViewProps {
-  availableDates?: string[];
+  availableDates?: (string | AvailabilitySlot)[];
   scheduledClasses?: any[];
   onAddAvailability?: (
     date: string
@@ -79,8 +79,16 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
   });
   const [successMessage, setSuccessMessage] = useState<string>('');
 
-  // Ensure availableDates is always an array
-  const availableDates = Array.isArray(propAvailableDates) ? propAvailableDates : [];
+  // Ensure availableDates is always an array and extract dates
+  const availableDates = React.useMemo(() => {
+    return (Array.isArray(propAvailableDates) ? propAvailableDates : [])
+      .map(item => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object' && 'date' in item) return item.date;
+        return null;
+      })
+      .filter((date): date is string => date !== null);
+  }, [propAvailableDates]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -188,7 +196,9 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
       hoverColor = theme.palette.success.dark;
       textColor = 'white';
       tooltipTitle = isWithin11Days 
-        ? 'Cannot modify availability within 11 days'
+        ? 'Cannot unmark availability within 11 days'
+        : isPastDate
+        ? 'Cannot unmark past availability'
         : 'Available - Click to remove';
     } else {
       // All other dates use default styling
@@ -211,12 +221,23 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
           <PickersDay
             {...other}
             day={day}
-            onClick={() => !isPastDate && !(isAvailable && isWithin11Days) && handleDateClick(day)}
-            disabled={isPastDate || (isAvailable && isWithin11Days)}
+            onClick={() => {
+              if (isAvailable) {
+                if (isPastDate) {
+                  setError('Cannot unmark past availability');
+                  return;
+                }
+                if (isWithin11Days) {
+                  setError('Cannot unmark availability within 11 days');
+                  return;
+                }
+              }
+              handleDateClick(day);
+            }}
             sx={{
               backgroundColor: `${backgroundColor}!important`,
               color: `${textColor}!important`,
-              cursor: isPastDate || isScheduled || (isAvailable && isWithin11Days) ? 'not-allowed' : 'pointer',
+              cursor: isScheduled ? 'not-allowed' : 'pointer',
               '&:hover': {
                 backgroundColor: `${hoverColor}!important`,
               },

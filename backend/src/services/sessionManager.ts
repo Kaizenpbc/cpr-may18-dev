@@ -134,9 +134,6 @@ class SessionManager {
         userData.username
       );
 
-      // Check if user has too many active sessions
-      await this.enforceSessionLimits(userData.userId);
-
       const sessionId = this.generateSessionId();
       const securityLevel = this.determineSecurityLevel(
         userData.role,
@@ -146,6 +143,7 @@ class SessionManager {
 
       // Generate JWT tokens
       const tokens = generateTokens({
+        id: parseInt(userData.userId),
         userId: userData.userId,
         username: userData.username,
         role: userData.role,
@@ -170,12 +168,16 @@ class SessionManager {
         refreshToken: tokens.refreshToken,
       };
 
-      // Store session in Redis
-      await redisManager.setSession(sessionId, sessionData, sessionExpiry);
-
-      console.log(
-        `🔐 [SESSION] Session ${sessionId} created successfully (security: ${securityLevel}, expires: ${sessionExpiry}s)`
-      );
+      // Try to store session in Redis, but don't fail if it doesn't work
+      try {
+        await redisManager.setSession(sessionId, sessionData, sessionExpiry);
+        console.log(
+          `🔐 [SESSION] Session ${sessionId} stored in Redis (security: ${securityLevel}, expires: ${sessionExpiry}s)`
+        );
+      } catch (redisError) {
+        console.error('❌ [SESSION] Failed to store session in Redis:', redisError);
+        console.log('⚠️ [SESSION] Continuing with standard JWT authentication');
+      }
 
       return {
         sessionId,
@@ -333,6 +335,7 @@ class SessionManager {
 
       // Generate new tokens
       const newTokens = generateTokens({
+        id: parseInt(sessionData.userId),
         userId: sessionData.userId,
         username: sessionData.username,
         role: sessionData.role,

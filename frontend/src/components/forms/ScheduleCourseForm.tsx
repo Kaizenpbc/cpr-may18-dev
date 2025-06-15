@@ -16,20 +16,50 @@ import {
 import * as api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import logger from '../../utils/logger';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { AxiosResponse } from 'axios';
 
-const ScheduleCourseForm = ({ onCourseScheduled }) => {
+interface CourseType {
+  coursetypeid: number;
+  coursetypename: string;
+}
+
+interface FormData {
+  scheduledDate: Date | null;
+  location: string;
+  courseTypeId: number;
+  registeredStudents: string;
+  notes: string;
+  time?: string;
+  instructorId?: number;
+}
+
+interface ApiResponse {
+  success: boolean;
+  error?: string;
+  message?: string;
+  course?: any;
+}
+
+interface ScheduleCourseFormProps {
+  onCourseScheduled: () => void;
+}
+
+const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseScheduled }) => {
   const { user } = useAuth();
-  const [formData, setFormData] = useState({
-    scheduledDate: '',
+  const [formData, setFormData] = useState<FormData>({
+    scheduledDate: null,
     location: '',
-    courseTypeId: '',
+    courseTypeId: 0,
     registeredStudents: '',
     notes: '',
   });
-  const [courseTypes, setCourseTypes] = useState([]);
+  const [courseTypes, setCourseTypes] = useState<CourseType[]>([]);
   const [isLoadingTypes, setIsLoadingTypes] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
@@ -37,10 +67,11 @@ const ScheduleCourseForm = ({ onCourseScheduled }) => {
     const fetchTypes = async () => {
       setIsLoadingTypes(true);
       try {
-        const types = await api.getCourseTypes();
-        setCourseTypes(types);
+        const response = await api.organizationApi.getCourseTypes();
+        setCourseTypes(response as CourseType[]);
       } catch (err) {
-        setError('Failed to load course types. ' + (err.message || ''));
+        logger.error('Error fetching course types:', err);
+        setError('Failed to load course types');
       } finally {
         setIsLoadingTypes(false);
       }
@@ -63,74 +94,42 @@ const ScheduleCourseForm = ({ onCourseScheduled }) => {
     setSuccessMessage('');
   };
 
-  const handleSubmit = async event => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
     setSuccessMessage('');
-    setIsSubmitting(true);
-    logger.info('[handleSubmit] Form submitted with data:', formData);
 
-    // Basic validation
-    if (
-      !formData.scheduledDate ||
-      !formData.location ||
-      !formData.courseTypeId ||
-      formData.registeredStudents === ''
-    ) {
-      setError(
-        'Please fill in all required fields (Scheduled Date, Location, Course Type, # Students).'
-      );
-      setIsSubmitting(false);
+    if (!formData.scheduledDate || !formData.location || !formData.courseTypeId || !formData.registeredStudents) {
+      setError('Please fill in all required fields');
       return;
     }
 
     try {
-      const dataToSend = {
-        ...formData,
-        registeredStudents: parseInt(formData.registeredStudents, 10) || 0, // Ensure number
-      };
-      logger.info('[handleSubmit] Calling api.requestCourse with:', dataToSend);
-      const response = await api.requestCourse(dataToSend);
-      logger.info('[handleSubmit] API response received:', response);
+      const formattedDate = formData.scheduledDate.toISOString().split('T')[0];
+      const response = await api.organizationApi.requestCourse({
+        scheduledDate: formattedDate,
+        location: formData.location,
+        courseTypeId: formData.courseTypeId,
+        registeredStudents: parseInt(formData.registeredStudents, 10),
+        notes: formData.notes || ''
+      });
 
-      if (response.success) {
-        const message = response.message || 'Course requested successfully!';
-        logger.info(
-          '[handleSubmit] Success! Setting success message:',
-          message
-        );
-        setSuccessMessage(message);
-        // Clear form
+      if (response.data.success) {
+        setSuccessMessage('Course request submitted successfully');
         setFormData({
-          scheduledDate: '',
+          scheduledDate: null,
           location: '',
-          courseTypeId: '',
+          courseTypeId: 0,
           registeredStudents: '',
           notes: '',
         });
-        // Optionally call a parent handler
-        if (onCourseScheduled) {
-          onCourseScheduled(response.course);
-        }
+        onCourseScheduled();
       } else {
-        const errorMessage = response.message || 'Failed to schedule course.';
-        logger.warn(
-          '[handleSubmit] API reported failure. Setting error:',
-          errorMessage
-        );
-        setError(errorMessage);
+        setError(response.data.message || 'Failed to submit course request');
       }
     } catch (err) {
-      const errorMessage = err.message || 'Failed to submit request.';
-      logger.error(
-        '[handleSubmit] Exception caught. Setting error:',
-        errorMessage,
-        err
-      );
-      setError('Failed to submit request. ' + errorMessage);
-    } finally {
-      logger.debug('[handleSubmit] Setting isSubmitting to false.');
-      setIsSubmitting(false);
+      console.error('Error submitting course request:', err);
+      setError('Failed to submit course request. Please try again.');
     }
   };
 
@@ -207,33 +206,38 @@ const ScheduleCourseForm = ({ onCourseScheduled }) => {
           </Grid>
           {/* Scheduled Course Date */}
           <Grid item xs={12} sm={6}>
-            <TextField
-              required
-              fullWidth
-              id='scheduledDate'
-              label='Scheduled Course Date'
-              name='scheduledDate'
-              type='date'
-              InputLabelProps={{ shrink: true }}
-              value={formData.scheduledDate}
-              onChange={handleChange}
-              disabled={isSubmitting}
-              helperText='When would you like the course to be scheduled?'
-            />
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label="Scheduled Course Date"
+                value={formData.scheduledDate}
+                onChange={(newValue) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    scheduledDate: newValue
+                  }));
+                }}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    required: true
+                  }
+                }}
+              />
+            </LocalizationProvider>
           </Grid>
-          {/* Course Type Dropdown */}
+          {/* Course Name Dropdown */}
           <Grid item xs={12} sm={6}>
             <FormControl
               fullWidth
               required
               disabled={isLoadingTypes || isSubmitting}
             >
-              <InputLabel id='courseTypeId-label'>Type of Course</InputLabel>
+              <InputLabel id='courseTypeId-label'>Course Name</InputLabel>
               <Select
                 labelId='courseTypeId-label'
                 id='courseTypeId'
                 value={formData.courseTypeId}
-                label='Type of Course'
+                label='Course Name'
                 name='courseTypeId'
                 onChange={handleChange}
               >
@@ -250,7 +254,7 @@ const ScheduleCourseForm = ({ onCourseScheduled }) => {
                   ))
                 ) : (
                   <MenuItem disabled value=''>
-                    No course types available
+                    No courses available
                   </MenuItem>
                 )}
               </Select>

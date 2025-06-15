@@ -79,3 +79,12 @@ export const getDateColor = (
   }
   return 'gray';
 };
+
+export const formatDateWithoutTimezone = (dateString: string): string => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+};

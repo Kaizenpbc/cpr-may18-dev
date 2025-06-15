@@ -34,10 +34,8 @@ const InstructorClasses: React.FC<InstructorClassesProps> = ({
       try {
         const endpoint = completed
           ? '/api/v1/instructor/classes/completed'
-          : '/api/v1/instructor/classes';
-        const response = await api.get<
-          ApiResponse<Course[]> | PaginatedResponse<Course>
-        >(endpoint);
+          : '/api/v1/instructor/schedule';
+        const response = await api.get<ApiResponse<Course[]> | PaginatedResponse<Course>>(endpoint);
 
         if (response.data.success) {
           // Handle both regular response and paginated response

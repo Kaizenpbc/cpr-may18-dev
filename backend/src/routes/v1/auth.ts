@@ -17,6 +17,7 @@ import {
 import { redisManager, ensureRedisConnection } from '../../config/redis';
 import { sessionManager } from '../../services/sessionManager';
 import { cacheService } from '../../services/cacheService';
+import { authenticateToken } from '../../middleware/authMiddleware';
 
 const router = express.Router();
 
@@ -68,6 +69,16 @@ router.post(
         );
       }
 
+      // Fetch organization name
+      let organizationName = '';
+      if (user.organization_id) {
+        const orgResult = await pool.query(
+          'SELECT name FROM organizations WHERE id = $1',
+          [user.organization_id]
+        );
+        organizationName = orgResult.rows[0]?.name || '';
+      }
+
       // Extract request metadata for session management
       const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
       const userAgent = req.headers['user-agent'] || 'unknown';
@@ -75,11 +86,28 @@ router.post(
 
       console.log('🔐 [AUTH] Creating session for successful login');
 
-      try {
-        // Ensure Redis connection before creating session
-        await ensureRedisConnection();
+      // Generate tokens first
+      const tokens = generateTokens({
+        id: user.id,
+        userId: user.id.toString(),
+        username: user.username,
+        role: user.role,
+        organizationId: user.organization_id,
+        organizationName,
+      });
 
-        // Create enhanced session with Redis
+      // Set refresh token as httpOnly cookie
+      res.cookie('refreshToken', tokens.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      // Try to create Redis session, but don't fail if it doesn't work
+      try {
+        await ensureRedisConnection();
         const sessionResult = await createUserSession({
           userId: user.id.toString(),
           username: user.username,
@@ -94,14 +122,6 @@ router.post(
           `🔐 [AUTH] Session created successfully: ${sessionResult.sessionId}`
         );
 
-        // Set refresh token as httpOnly cookie
-        res.cookie('refreshToken', sessionResult.refreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        });
-
         console.log('Login successful for user:', user.username);
         res.json(
           ApiResponseBuilder.success(
@@ -111,6 +131,7 @@ router.post(
                 username: user.username,
                 role: user.role,
                 organizationId: user.organization_id,
+                organizationName,
               },
               accessToken: sessionResult.accessToken,
               sessionId: sessionResult.sessionId,
@@ -120,26 +141,12 @@ router.post(
         );
       } catch (sessionError) {
         console.error(
-          '❌ [AUTH] Session creation failed, falling back to standard JWT:',
+          '❌ [AUTH] Session creation failed, using standard JWT:',
           sessionError
         );
 
-        // Fall back to standard JWT authentication if Redis is unavailable
-        const tokens = generateTokens({
-          userId: user.id.toString(),
-          username: user.username,
-          role: user.role,
-          organizationId: user.organization_id,
-        });
-
-        res.cookie('refreshToken', tokens.refreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        });
-
-        console.log('Login successful for user (JWT fallback):', user.username);
+        // Use standard JWT authentication
+        console.log('Login successful for user (JWT):', user.username);
         res.json(
           ApiResponseBuilder.success(
             {
@@ -148,6 +155,7 @@ router.post(
                 username: user.username,
                 role: user.role,
                 organizationId: user.organization_id,
+                organizationName,
               },
               accessToken: tokens.accessToken,
             },
@@ -269,6 +277,7 @@ router.post(
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
+            path: '/',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
           });
 
@@ -310,11 +319,23 @@ router.post(
 
       const user = result.rows[0];
 
+      // Fetch organization name
+      let organizationName = '';
+      if (user.organization_id) {
+        const orgResult = await pool.query(
+          'SELECT name FROM organizations WHERE id = $1',
+          [user.organization_id]
+        );
+        organizationName = orgResult.rows[0]?.name || '';
+      }
+
       const tokens = generateTokens({
+        id: user.id,
         userId: user.id.toString(),
         username: user.username,
         role: user.role,
         organizationId: user.organization_id,
+        organizationName,
       });
 
       // Set new refresh token
@@ -322,6 +343,7 @@ router.post(
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
+        path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
@@ -330,6 +352,13 @@ router.post(
         ApiResponseBuilder.success(
           {
             accessToken: tokens.accessToken,
+            user: {
+              id: user.id,
+              username: user.username,
+              role: user.role,
+              organizationId: user.organization_id,
+              organizationName,
+            },
           },
           'Token refreshed successfully'
         )
@@ -454,6 +483,89 @@ router.post(
       // Clear cookie even if session invalidation fails
       res.clearCookie('refreshToken');
       res.json(ApiResponseBuilder.success(null, 'Logged out successfully'));
+    }
+  })
+);
+
+// Get current user profile
+router.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
+  }
+
+  const result = await pool.query(
+    'SELECT id, username, email, role, organization_id FROM users WHERE id = $1',
+    [userId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'User not found');
+  }
+
+  const user = result.rows[0];
+  res.json(ApiResponseBuilder.success({
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      organizationId: user.organization_id
+    }
+  }));
+}));
+
+// Password recovery endpoint
+router.post(
+  '/recover-password',
+  validateSchema(commonSchemas.email),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    console.log('🔐 [AUTH] Password recovery attempt:', {
+      email,
+      timestamp: new Date().toISOString()
+    });
+
+    try {
+      const result = await pool.query(
+        'SELECT id, username, email FROM users WHERE email = $1',
+        [email]
+      );
+
+      if (result.rows.length === 0) {
+        // Don't reveal that the user doesn't exist
+        console.log('ℹ️ [AUTH] No user found for email:', email);
+        return res.json(
+          ApiResponseBuilder.success(
+            null,
+            'If an account exists with this email, you will receive recovery instructions.'
+          )
+        );
+      }
+
+      const user = result.rows[0];
+
+      // TODO: Implement actual email sending
+      console.log('📧 [AUTH] Would send recovery email to:', {
+        userId: user.id,
+        email: user.email,
+        timestamp: new Date().toISOString()
+      });
+
+      res.json(
+        ApiResponseBuilder.success(
+          null,
+          'If an account exists with this email, you will receive recovery instructions.'
+        )
+      );
+    } catch (error) {
+      console.error('❌ [AUTH] Password recovery error:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+      });
+      throw error;
     }
   })
 );

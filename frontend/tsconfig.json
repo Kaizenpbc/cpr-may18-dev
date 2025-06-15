@@ -20,8 +20,12 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
-    }
+      "@/*": ["src/*"],
+      "src/*": ["src/*"]
+    },
+    "types": ["react", "react-dom", "node"],
+    "jsxImportSource": "react",
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]

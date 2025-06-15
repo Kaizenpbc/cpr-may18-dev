@@ -1,102 +1,136 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   AppBar,
   Toolbar,
   Typography,
-  Box,
   IconButton,
-  Menu,
-  MenuItem,
-  Avatar,
+  Box,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
-  Notifications as NotificationsIcon,
-  AccountCircle as AccountCircleIcon,
+  Menu as MenuIcon,
+  Refresh as RefreshIcon,
+  Logout as LogoutIcon,
 } from '@mui/icons-material';
 
-const InstructorPortalHeader = ({ user, onLogout }) => {
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const [notificationsAnchorEl, setNotificationsAnchorEl] =
-    React.useState(null);
+interface InstructorPortalHeaderProps {
+  onMenuClick?: () => void;
+  onRefresh?: () => void;
+  currentView?: string;
+}
 
-  const handleMenu = event => {
-    setAnchorEl(event.currentTarget);
-  };
+const InstructorPortalHeader: React.FC<InstructorPortalHeaderProps> = ({
+  onMenuClick,
+  onRefresh,
+  currentView,
+}) => {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  const handleNotificationsMenu = event => {
-    setNotificationsAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleNotificationsClose = () => {
-    setNotificationsAnchorEl(null);
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
   };
 
   return (
-    <AppBar position='fixed' sx={{ zIndex: theme => theme.zIndex.drawer + 1 }}>
-      <Toolbar>
-        <Typography variant='h6' noWrap component='div' sx={{ flexGrow: 1 }}>
-          Instructor Portal
+    <AppBar
+      position="fixed"
+      sx={{
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+        backgroundColor: 'background.paper',
+        color: 'text.primary',
+        borderBottom: 1,
+        borderColor: 'divider',
+        boxShadow: 'none',
+      }}
+    >
+      <Toolbar sx={{ minHeight: { xs: '56px', sm: '64px' } }}>
+        {isMobile && onMenuClick && (
+          <IconButton
+            color="inherit"
+            edge="start"
+            onClick={onMenuClick}
+            sx={{ mr: 2 }}
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
+        <Typography 
+          variant="h6" 
+          component="div" 
+          sx={{ 
+            flexGrow: 1,
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
+          <Box
+            component="span"
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              backgroundColor: 'primary.main',
+              color: 'primary.contrastText',
+              fontSize: '1.2rem',
+            }}
+          >
+            🏥
+          </Box>
+          {isMobile && currentView
+            ? currentView.charAt(0).toUpperCase() + currentView.slice(1)
+            : 'Instructor Portal'}
         </Typography>
-
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <IconButton
-            size='large'
-            aria-label='show notifications'
-            color='inherit'
-            onClick={handleNotificationsMenu}
-          >
-            <NotificationsIcon />
-          </IconButton>
-          <Menu
-            anchorEl={notificationsAnchorEl}
-            open={Boolean(notificationsAnchorEl)}
-            onClose={handleNotificationsClose}
-          >
-            <MenuItem onClick={handleNotificationsClose}>
-              No new notifications
-            </MenuItem>
-          </Menu>
-
-          <IconButton
-            size='large'
-            aria-label='account of current user'
-            aria-controls='menu-appbar'
-            aria-haspopup='true'
-            onClick={handleMenu}
-            color='inherit'
-          >
-            {user?.first_name ? (
-              <Avatar sx={{ width: 32, height: 32 }}>
-                {user.first_name.charAt(0)}
-              </Avatar>
-            ) : (
-              <AccountCircleIcon />
-            )}
-          </IconButton>
-          <Menu
-            id='menu-appbar'
-            anchorEl={anchorEl}
-            anchorOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
+        {!isMobile && (
+          <Typography 
+            variant="body1" 
+            sx={{ 
+              mr: 2,
+              color: 'text.secondary',
+              fontWeight: 500,
             }}
-            keepMounted
-            transformOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
-            }}
-            open={Boolean(anchorEl)}
-            onClose={handleClose}
           >
-            <MenuItem onClick={handleClose}>Profile</MenuItem>
-            <MenuItem onClick={handleClose}>Settings</MenuItem>
-            <MenuItem onClick={onLogout}>Logout</MenuItem>
-          </Menu>
-        </Box>
+            Welcome, {user?.username || 'Instructor'}
+          </Typography>
+        )}
+        {onRefresh && (
+          <IconButton 
+            color="primary" 
+            onClick={onRefresh} 
+            size="small" 
+            sx={{ 
+              mr: 1,
+              '&:hover': {
+                backgroundColor: 'action.hover',
+              },
+            }}
+          >
+            <RefreshIcon />
+          </IconButton>
+        )}
+        <IconButton
+          color="primary"
+          onClick={handleLogout}
+          sx={{ 
+            ml: 1,
+            '&:hover': {
+              backgroundColor: 'action.hover',
+            },
+          }}
+          aria-label="logout"
+        >
+          <LogoutIcon />
+        </IconButton>
       </Toolbar>
     </AppBar>
   );

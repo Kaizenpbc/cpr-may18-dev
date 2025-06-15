@@ -84,8 +84,8 @@ export const authenticateSession = (options: AuthOptions = {}) => {
       if (options.requireSession !== false && decoded.sessionId) {
         try {
           if (!redisManager.isReady()) {
-            console.error(
-              '❌ [SESSION AUTH] Redis not connected, falling back to JWT-only auth'
+            console.log(
+              '🔐 [SESSION AUTH] Redis not connected, falling back to JWT-only auth'
             );
             // Fall back to JWT-only authentication
             if (options.requireSession === true) {
@@ -95,79 +95,81 @@ export const authenticateSession = (options: AuthOptions = {}) => {
                 'Session service unavailable'
               );
             }
-          } else {
-            // Validate session with security checks
-            const sessionData = await validateUserSession(
-              decoded.sessionId,
-              ipAddress,
-              userAgent
+            // Continue with JWT-only auth
+            next();
+            return;
+          }
+          // Validate session with security checks
+          const sessionData = await validateUserSession(
+            decoded.sessionId,
+            ipAddress,
+            userAgent
+          );
+
+          if (!sessionData) {
+            console.error(
+              `🔐 [SESSION AUTH] Session validation failed for session: ${decoded.sessionId}`
             );
-
-            if (!sessionData) {
-              console.error(
-                `🔐 [SESSION AUTH] Session validation failed for session: ${decoded.sessionId}`
-              );
-              throw new AppError(
-                401,
-                errorCodes.AUTH_SESSION_INVALID,
-                'Session expired or invalid'
-              );
-            }
-
-            req.sessionData = sessionData;
-            console.log(
-              `🔐 [SESSION AUTH] Session validated: ${decoded.sessionId} (security: ${sessionData.securityLevel})`
+            throw new AppError(
+              401,
+              errorCodes.AUTH_SESSION_INVALID,
+              'Session expired or invalid'
             );
+          }
 
-            // Additional security checks
-            if (
-              options.checkIPBinding !== false &&
-              sessionData.ipAddress !== ipAddress
-            ) {
-              console.error(
-                `🚨 [SESSION AUTH] IP address mismatch: session=${sessionData.ipAddress}, request=${ipAddress}`
-              );
+          req.sessionData = sessionData;
+          console.log(
+            `🔐 [SESSION AUTH] Session validated: ${decoded.sessionId} (security: ${sessionData.securityLevel})`
+          );
+
+          // Additional security checks
+          if (
+            options.checkIPBinding !== false &&
+            sessionData.ipAddress !== ipAddress
+          ) {
+            console.error(
+              `🚨 [SESSION AUTH] IP address mismatch: session=${sessionData.ipAddress}, request=${ipAddress}`
+            );
+            throw new AppError(
+              401,
+              'AUTH_IP_MISMATCH',
+              'Session IP address validation failed'
+            );
+          }
+
+          if (
+            options.checkUserAgentBinding !== false &&
+            sessionData.userAgent !== userAgent
+          ) {
+            // Perform lenient user agent checking
+            const sessionFingerprint = extractUserAgentFingerprint(
+              sessionData.userAgent
+            );
+            const requestFingerprint = extractUserAgentFingerprint(userAgent);
+
+            if (sessionFingerprint !== requestFingerprint) {
+              console.error(`🚨 [SESSION AUTH] User agent mismatch detected`);
               throw new AppError(
                 401,
-                'AUTH_IP_MISMATCH',
-                'Session IP address validation failed'
+                'AUTH_USER_AGENT_MISMATCH',
+                'Session user agent validation failed'
               );
             }
+          }
 
-            if (
-              options.checkUserAgentBinding !== false &&
-              sessionData.userAgent !== userAgent
-            ) {
-              // Perform lenient user agent checking
-              const sessionFingerprint = extractUserAgentFingerprint(
-                sessionData.userAgent
-              );
-              const requestFingerprint = extractUserAgentFingerprint(userAgent);
-
-              if (sessionFingerprint !== requestFingerprint) {
-                console.error(`🚨 [SESSION AUTH] User agent mismatch detected`);
-                throw new AppError(
-                  401,
-                  'AUTH_USER_AGENT_MISMATCH',
-                  'Session user agent validation failed'
-                );
-              }
-            }
-
-            // Check if session is active
-            if (
-              options.requireActiveSession !== false &&
-              !sessionData.isActive
-            ) {
-              console.error(
-                `🔐 [SESSION AUTH] Session ${decoded.sessionId} is inactive`
-              );
-              throw new AppError(
-                401,
-                errorCodes.AUTH_SESSION_INVALID,
-                'Session is inactive'
-              );
-            }
+          // Check if session is active
+          if (
+            options.requireActiveSession !== false &&
+            !sessionData.isActive
+          ) {
+            console.error(
+              `🔐 [SESSION AUTH] Session ${decoded.sessionId} is inactive`
+            );
+            throw new AppError(
+              401,
+              errorCodes.AUTH_SESSION_INVALID,
+              'Session is inactive'
+            );
           }
         } catch (error) {
           if (error instanceof AppError) {

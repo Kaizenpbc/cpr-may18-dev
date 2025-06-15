@@ -8,33 +8,43 @@ const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY || '15m';
 const REFRESH_TOKEN_EXPIRY = process.env.REFRESH_TOKEN_EXPIRY || '7d';
 
 export interface TokenPayload {
+  id: number;
   userId: string;
   username: string;
-  role?: string;
+  role: string;
   organizationId?: number;
+  organizationName?: string;
   sessionId?: string;
 }
 
 export const generateTokens = (payload: TokenPayload) => {
-  console.log(
-    '[Debug] jwtUtils - Generating new tokens for user:',
-    payload.username,
-    'role:',
-    payload.role,
-    'session:',
-    payload.sessionId
-  );
-  const accessToken = jwt.sign(payload, ACCESS_TOKEN_SECRET, {
-    expiresIn: ACCESS_TOKEN_EXPIRY,
-  });
-  const refreshToken = jwt.sign(payload, REFRESH_TOKEN_SECRET, {
-    expiresIn: REFRESH_TOKEN_EXPIRY,
-  });
+  const { exp, ...payloadWithoutExp } = payload as any;
 
-  return {
-    accessToken,
-    refreshToken,
-  };
+  const accessToken = jwt.sign(
+    payloadWithoutExp,
+    ACCESS_TOKEN_SECRET,
+    { expiresIn: ACCESS_TOKEN_EXPIRY }
+  );
+
+  const refreshToken = jwt.sign(
+    payloadWithoutExp,
+    REFRESH_TOKEN_SECRET,
+    { expiresIn: REFRESH_TOKEN_EXPIRY }
+  );
+
+  return { accessToken, refreshToken };
+};
+
+export const verifyToken = (token: string, isRefreshToken = false) => {
+  try {
+    const secret = isRefreshToken
+      ? process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key'
+      : process.env.JWT_SECRET || 'your-secret-key';
+
+    return jwt.verify(token, secret) as TokenPayload;
+  } catch (error) {
+    throw new Error('Invalid token');
+  }
 };
 
 export const verifyAccessToken = (token: string): TokenPayload => {

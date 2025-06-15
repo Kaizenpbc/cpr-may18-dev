@@ -10,7 +10,7 @@ dotenv.config();
 const poolConfig: PoolConfig = {
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'gtacpr',
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST || '127.0.0.1',
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME || 'cpr_may18',
 };
@@ -212,6 +212,21 @@ const initializeDatabase = async () => {
       ON CONFLICT (name) DO NOTHING;
     `);
 
+    // Create instructor_availability table if it doesn't exist
+    console.log('📅 Creating instructor_availability table...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS instructor_availability (
+        id SERIAL PRIMARY KEY,
+        instructor_id INTEGER NOT NULL REFERENCES users(id),
+        date DATE NOT NULL,
+        status VARCHAR(50) DEFAULT 'available',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(instructor_id, date)
+      );
+    `);
+    console.log('✅ Instructor_availability table created successfully');
+
     // Create course_requests table if it doesn't exist
     console.log('📋 Creating course_requests table...');
     await pool.query(`
@@ -308,6 +323,14 @@ const initializeDatabase = async () => {
         ) THEN 
           ALTER TABLE course_requests ADD COLUMN invoiced_at TIMESTAMP WITH TIME ZONE;
         END IF;
+
+        -- Add last_reminder_at column to track reminder status
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'course_requests' AND column_name = 'last_reminder_at'
+        ) THEN 
+          ALTER TABLE course_requests ADD COLUMN last_reminder_at TIMESTAMP WITH TIME ZONE;
+        END IF;
       END $$;
     `);
 
@@ -390,42 +413,6 @@ const initializeDatabase = async () => {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
-
-    // Create instructor_availability table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS instructor_availability (
-        id SERIAL PRIMARY KEY,
-        instructor_id INTEGER NOT NULL REFERENCES users(id),
-        date DATE NOT NULL,
-        status VARCHAR(20) DEFAULT 'available',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(instructor_id, date)
-      );
-    `);
-
-    // Add status column to instructor_availability if it doesn't exist
-    console.log(
-      '🔄 Ensuring status column exists in instructor_availability...'
-    );
-    await pool.query(`
-      DO $$ 
-      BEGIN 
-        -- Add status column if it doesn't exist
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.columns 
-          WHERE table_name = 'instructor_availability' AND column_name = 'status'
-        ) THEN 
-          ALTER TABLE instructor_availability ADD COLUMN status VARCHAR(20) DEFAULT 'available';
-        END IF;
-
-        -- Update any NULL status values to 'available'
-        UPDATE instructor_availability 
-        SET status = 'available' 
-        WHERE status IS NULL;
-      END $$;
-    `);
-    console.log('✅ Status column migration completed');
 
     // Create enrollments table if it doesn't exist
     await pool.query(`
@@ -635,6 +622,24 @@ const initializeDatabase = async () => {
       );
     `);
     console.log('✅ Course_pricing table created successfully');
+
+    // Add cancellation tracking columns if they don't exist
+    const hasCancellationColumns = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'course_requests' 
+      AND column_name IN ('is_cancelled', 'cancelled_at', 'cancellation_reason')
+    `);
+
+    if (hasCancellationColumns.rows.length < 3) {
+      await pool.query(`
+        ALTER TABLE course_requests
+        ADD COLUMN IF NOT EXISTS is_cancelled BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS cancellation_reason TEXT
+      `);
+      console.log('Added cancellation tracking columns to course_requests table');
+    }
 
     console.log(
       '🎉 [DATABASE SUCCESS] All database tables initialized successfully!'

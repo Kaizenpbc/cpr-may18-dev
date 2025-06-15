@@ -1,124 +1,86 @@
 import { Request, Response, NextFunction } from 'express';
 import { cacheService } from '../services/cacheService';
+import { redisManager } from '../config/redis';
 
 interface CacheOptions {
   ttl?: number; // Time to live in seconds
   keyGenerator?: (req: Request) => string;
   skipCache?: (req: Request) => boolean;
   varyBy?: string[]; // Headers/params to vary cache by
+  key?: string;
+  skipIf?: (req: Request) => boolean;
 }
 
 /**
  * Middleware to cache API responses in Redis
  */
-export const cacheMiddleware = (options: CacheOptions = {}) => {
-  const {
-    ttl = 300, // 5 minutes default
-    keyGenerator,
-    skipCache,
-    varyBy = [],
-  } = options;
-
+export function cacheMiddleware(options: CacheOptions = {}) {
   return async (req: Request, res: Response, next: NextFunction) => {
     // Skip caching for non-GET requests
     if (req.method !== 'GET') {
       return next();
     }
 
-    // Skip caching if specified condition is met
-    if (skipCache && skipCache(req)) {
+    // Skip caching if Redis is disabled
+    if (!redisManager.isReady()) {
+      return next();
+    }
+
+    // Skip caching if skipIf condition is met
+    if (options.skipIf && options.skipIf(req)) {
       return next();
     }
 
     // Generate cache key
-    let cacheKey: string;
-    if (keyGenerator) {
-      cacheKey = keyGenerator(req);
-    } else {
-      // Default key generation
-      const baseKey = `api:${req.originalUrl}`;
-      const varyParts = varyBy
-        .map(header => {
-          const value =
-            req.headers[header.toLowerCase()] ||
-            req.params[header] ||
-            req.query[header];
-          return `${header}:${value}`;
-        })
-        .join('|');
-
-      cacheKey = varyParts ? `${baseKey}|${varyParts}` : baseKey;
-    }
+    const cacheKey = options.key || `cache:${req.originalUrl}`;
 
     try {
-      // Check if Redis is enabled
-      if (process.env.REDIS_ENABLED === 'true') {
-        // Try to get from cache
-        const client = cacheService['redisManager']?.getClient();
-        if (client) {
-          const cached = await client.get(cacheKey);
+      // Check cache
+      const cachedData = await redisManager.getClient().get(cacheKey);
 
-          if (cached) {
-            console.log(`🚀 [CACHE HIT] ${cacheKey}`);
-            const cachedData = JSON.parse(cached);
-
-            // Set cache headers
-            res.setHeader('X-Cache', 'HIT');
-            res.setHeader('X-Cache-Key', cacheKey);
-
-            return res.json(cachedData);
-          }
-        }
+      if (cachedData) {
+        // Cache hit
+        const data = JSON.parse(cachedData);
+        res.setHeader('X-Cache', 'HIT');
+        return res.json(data);
       }
 
-      // Cache miss - continue to route handler
-      console.log(`📊 [CACHE MISS] ${cacheKey}`);
+      // Cache miss
       res.setHeader('X-Cache', 'MISS');
-      res.setHeader('X-Cache-Key', cacheKey);
 
-      // Override res.json to cache the response
+      // Store original json method
       const originalJson = res.json.bind(res);
-      res.json = function (body: any) {
-        // Cache successful responses
-        if (
-          res.statusCode >= 200 &&
-          res.statusCode < 300 &&
-          process.env.REDIS_ENABLED === 'true'
-        ) {
-          // Cache in background (don't wait)
-          cacheResponse(cacheKey, body, ttl).catch(error => {
-            console.warn(`⚠️ [CACHE] Failed to cache ${cacheKey}:`, error);
-          });
-        }
 
-        return originalJson(body);
+      // Override json method to cache response
+      res.json = function(data: any) {
+        // Cache successful responses
+        if (res.statusCode === 200) {
+          const ttl = options.ttl || 3600; // Default 1 hour
+          redisManager.getClient().setEx(cacheKey, ttl, JSON.stringify(data));
+        }
+        return originalJson(data);
       };
 
       next();
     } catch (error) {
-      console.warn(`⚠️ [CACHE MIDDLEWARE] Error for ${cacheKey}:`, error);
-      // Continue without caching on error
+      console.error('❌ [CACHE] Error in cache middleware:', error);
       next();
     }
   };
-};
+}
 
 /**
  * Cache API response in background
  */
-async function cacheResponse(
-  key: string,
-  data: any,
-  ttl: number
-): Promise<void> {
+export async function cacheResponse(key: string, data: any, ttl: number = 3600): Promise<void> {
+  if (!redisManager.isReady()) {
+    return;
+  }
+
   try {
-    const client = cacheService['redisManager']?.getClient();
-    if (client) {
-      await client.setex(key, ttl, JSON.stringify(data));
-      console.log(`✅ [CACHE SET] ${key} (TTL: ${ttl}s)`);
-    }
+    await redisManager.getClient().setEx(key, ttl, JSON.stringify(data));
   } catch (error) {
-    console.warn(`⚠️ [CACHE] Failed to set ${key}:`, error);
+    console.error('❌ [CACHE] Error caching response:', error);
   }
 }
 

@@ -4,6 +4,7 @@ import {
   Dashboard as DashboardIcon,
   AttachMoney as PricingIcon,
 } from '@mui/icons-material';
+import ErrorBoundary from '../common/ErrorBoundary';
 import AccountingDashboard from './accounting/AccountingDashboard';
 import CoursePricingManagement from './accounting/CoursePricingManagement';
 
@@ -43,49 +44,59 @@ const AccountingPortal: React.FC = () => {
     setTabValue(newValue);
   };
 
+  const handleError = (error: Error, errorInfo: any) => {
+    console.error('[AccountingPortal] Error caught by boundary:', error, errorInfo);
+  };
+
   return (
-    <Container maxWidth='xl' sx={{ mt: 2, mb: 4 }}>
-      <Paper elevation={1} sx={{ mb: 3, p: 2 }}>
-        <Typography variant='h4' component='h1' gutterBottom>
-          🏦 Accounting Portal
-        </Typography>
-        <Typography variant='subtitle1' color='textSecondary'>
-          Financial management and course pricing administration
-        </Typography>
-      </Paper>
+    <ErrorBoundary context="accounting_portal" onError={handleError}>
+      <Container maxWidth='xl' sx={{ mt: 2, mb: 4 }}>
+        <Paper elevation={1} sx={{ mb: 3, p: 2 }}>
+          <Typography variant='h4' component='h1' gutterBottom>
+            🏦 Accounting Portal
+          </Typography>
+          <Typography variant='subtitle1' color='textSecondary'>
+            Financial management and course pricing administration
+          </Typography>
+        </Paper>
 
-      <Paper elevation={1}>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs
-            value={tabValue}
-            onChange={handleTabChange}
-            aria-label='accounting portal tabs'
-            variant='fullWidth'
-          >
-            <Tab
-              icon={<DashboardIcon />}
-              label='Financial Dashboard'
-              {...a11yProps(0)}
-              sx={{ minHeight: 72 }}
-            />
-            <Tab
-              icon={<PricingIcon />}
-              label='Course Pricing Setup'
-              {...a11yProps(1)}
-              sx={{ minHeight: 72 }}
-            />
-          </Tabs>
-        </Box>
+        <Paper elevation={1}>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tabs
+              value={tabValue}
+              onChange={handleTabChange}
+              aria-label='accounting portal tabs'
+              variant='fullWidth'
+            >
+              <Tab
+                icon={<DashboardIcon />}
+                label='Financial Dashboard'
+                {...a11yProps(0)}
+                sx={{ minHeight: 72 }}
+              />
+              <Tab
+                icon={<PricingIcon />}
+                label='Course Pricing Setup'
+                {...a11yProps(1)}
+                sx={{ minHeight: 72 }}
+              />
+            </Tabs>
+          </Box>
 
-        <TabPanel value={tabValue} index={0}>
-          <AccountingDashboard />
-        </TabPanel>
+          <TabPanel value={tabValue} index={0}>
+            <ErrorBoundary context="accounting_dashboard" onError={handleError}>
+              <AccountingDashboard />
+            </ErrorBoundary>
+          </TabPanel>
 
-        <TabPanel value={tabValue} index={1}>
-          <CoursePricingManagement />
-        </TabPanel>
-      </Paper>
-    </Container>
+          <TabPanel value={tabValue} index={1}>
+            <ErrorBoundary context="accounting_pricing" onError={handleError}>
+              <CoursePricingManagement />
+            </ErrorBoundary>
+          </TabPanel>
+        </Paper>
+      </Container>
+    </ErrorBoundary>
   );
 };
 

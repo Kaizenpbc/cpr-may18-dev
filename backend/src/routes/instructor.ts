@@ -4,12 +4,14 @@ import { pool } from '../config/database';
 import { ApiResponseBuilder } from '../utils/apiResponse';
 import { AppError, errorCodes } from '../utils/errorHandler';
 import { authenticateToken, requireRole } from '../middleware/authMiddleware';
+import { asyncHandler } from '../middleware/asyncHandler';
+import { Request, Response } from 'express';
 
 const router = express.Router();
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
-router.use(requireRole(['instructor']));
+router.use(requireRole(['instructor', 'admin']));
 
 // Debug endpoint to test authentication
 router.get('/debug', async (req, res) => {
@@ -242,178 +244,140 @@ router.get('/availability', authenticateToken, async (req, res) => {
       id: row.id.toString(),
       instructor_id: row.instructor_id.toString(),
       date: row.date.split('T')[0],
-      start_time: '09:00', // Default time since availability doesn't have specific times
-      end_time: '17:00', // Default time since availability doesn't have specific times
       status: row.status || 'available',
     }));
 
     console.log('[TRACE] Formatted availability response:', JSON.stringify(formattedResponse, null, 2));
 
-    res.json(
-      ApiResponseBuilder.success(formattedResponse)
-    );
+    res.json(ApiResponseBuilder.success(formattedResponse));
   } catch (error) {
     console.error('[TRACE] Error fetching availability:', error);
-    console.error('[TRACE] Error stack:', error.stack);
-    res
-      .status(500)
-      .json(
-        ApiResponseBuilder.error(
-          errorCodes.SERVICE_UNAVAILABLE,
-          'Failed to fetch availability'
-        )
-      );
+    res.status(500).json(
+      ApiResponseBuilder.error(
+        errorCodes.SERVICE_UNAVAILABLE,
+        'Failed to fetch availability'
+      )
+    );
   }
 });
 
-// Add availability date
-router.post('/availability', async (req, res) => {
+// Add instructor availability
+router.post('/availability', authenticateToken, async (req, res) => {
   try {
-    const instructorId = req.user?.userId;
+    const instructorId = parseInt(req.user?.userId || '0', 10);
     const { date } = req.body;
 
-    if (!date) {
-      return res
-        .status(400)
-        .json(
-          ApiResponseBuilder.error(
-            errorCodes.VALIDATION_ERROR,
-            'Date is required'
-          )
-        );
-    }
-
-    await pool.query(
-      'INSERT INTO instructor_availability (instructor_id, date) VALUES ($1, $2)',
-      [instructorId, date]
-    );
-
-    res.json(
-      ApiResponseBuilder.success({ message: 'Availability added successfully' })
-    );
-  } catch (error) {
-    console.error('Error adding availability:', error);
-    res
-      .status(500)
-      .json(
-        ApiResponseBuilder.error(
-          errorCodes.SERVICE_UNAVAILABLE,
-          'Failed to add availability'
-        )
-      );
-  }
-});
-
-// Remove availability date
-router.delete('/availability/:date', async (req, res) => {
-  try {
-    const instructorId = req.user?.userId;
-    const { date } = req.params;
-
-    if (!instructorId) {
+    if (!instructorId || !date) {
       return res.status(400).json(
         ApiResponseBuilder.error(
           errorCodes.VALIDATION_ERROR,
-          'Invalid instructor ID'
+          'Invalid instructor ID or date'
         )
       );
     }
 
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+    // Check if date is at least 11 days in the future
+    const selectedDate = new Date(date);
+    const today = new Date();
+    const diffTime = selectedDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      // Check if availability exists before trying to delete
-      const availabilityCheck = await client.query(
-        'SELECT id FROM instructor_availability WHERE instructor_id = $1 AND date::date = $2::date',
-        [instructorId, date]
-      );
-
-      if (availabilityCheck.rows.length === 0) {
-        throw new AppError(
-          404,
-          errorCodes.RESOURCE_NOT_FOUND,
-          'No availability found for this date'
-        );
-      }
-
-      // Check if the date is less than 11 days from now
-      const targetDate = new Date(date);
-      const today = new Date();
-      const diffTime = targetDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (diffDays < 11) {
-        throw new AppError(
-          400,
-          errorCodes.VALIDATION_ERROR,
-          'Cannot remove availability: Dates less than 11 days in the future cannot be modified'
-        );
-      }
-
-      // First, check if there are any confirmed courses for this instructor on this date
-      const confirmedCoursesCheck = await client.query(
-        `SELECT id FROM course_requests 
-         WHERE instructor_id = $1 
-         AND confirmed_date::date = $2::date 
-         AND status = 'confirmed'`,
-        [instructorId, date]
-      );
-
-      if (confirmedCoursesCheck.rows.length > 0) {
-        throw new AppError(
-          400,
-          errorCodes.VALIDATION_ERROR,
-          'Cannot remove availability: You have confirmed courses on this date. Please contact an administrator.'
-        );
-      }
-
-      // Delete from instructor_availability
-      const deleteAvailabilityResult = await client.query(
-        'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date::date = $2::date RETURNING *',
-        [instructorId, date]
-      );
-
-      // Also delete any scheduled (not confirmed) classes for this date
-      const deleteClassesResult = await client.query(
-        `DELETE FROM classes 
-         WHERE instructor_id = $1 
-         AND date::date = $2::date 
-         AND status = 'scheduled'
-         RETURNING *`,
-        [instructorId, date]
-      );
-
-      await client.query('COMMIT');
-
-      return res.json(
-        ApiResponseBuilder.success({
-          message: 'Availability removed successfully',
-          deletedAvailability: deleteAvailabilityResult.rows.length,
-          deletedClasses: deleteClassesResult.rows.length,
-        })
-      );
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
-  } catch (error: any) {
-    console.error('Error removing availability:', error);
-    if (error instanceof AppError) {
-      return res
-        .status(error.statusCode)
-        .json(ApiResponseBuilder.error(error.code, error.message));
-    }
-    return res
-      .status(500)
-      .json(
+    if (diffDays < 11) {
+      return res.status(400).json(
         ApiResponseBuilder.error(
-          errorCodes.DB_QUERY_ERROR,
-          'Failed to remove availability'
+          errorCodes.VALIDATION_ERROR,
+          'Availability must be set at least 11 days in advance'
         )
       );
+    }
+
+    // Check if availability already exists
+    const existingAvailability = await pool.query(
+      'SELECT id FROM instructor_availability WHERE instructor_id = $1 AND date = $2',
+      [instructorId, date]
+    );
+
+    if (existingAvailability.rows.length > 0) {
+      return res.status(400).json(
+        ApiResponseBuilder.error(
+          errorCodes.VALIDATION_ERROR,
+          'Availability already exists for this date'
+        )
+      );
+    }
+
+    // Add new availability
+    const result = await pool.query(
+      'INSERT INTO instructor_availability (instructor_id, date, status) VALUES ($1, $2, $3) RETURNING *',
+      [instructorId, date, 'available']
+    );
+
+    res.json(ApiResponseBuilder.success(result.rows[0]));
+  } catch (error) {
+    console.error('Error adding availability:', error);
+    res.status(500).json(
+      ApiResponseBuilder.error(
+        errorCodes.SERVICE_UNAVAILABLE,
+        'Failed to add availability'
+      )
+    );
+  }
+});
+
+// Remove instructor availability
+router.delete('/availability/:date', authenticateToken, async (req, res) => {
+  try {
+    const instructorId = parseInt(req.user?.userId || '0', 10);
+    const { date } = req.params;
+
+    if (!instructorId || !date) {
+      return res.status(400).json(
+        ApiResponseBuilder.error(
+          errorCodes.VALIDATION_ERROR,
+          'Invalid instructor ID or date'
+        )
+      );
+    }
+
+    // Check if date is at least 11 days in the future
+    const selectedDate = new Date(date);
+    const today = new Date();
+    const diffTime = selectedDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 11) {
+      return res.status(400).json(
+        ApiResponseBuilder.error(
+          errorCodes.VALIDATION_ERROR,
+          'Cannot remove availability less than 11 days in advance'
+        )
+      );
+    }
+
+    // Remove availability
+    const result = await pool.query(
+      'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date = $2 RETURNING *',
+      [instructorId, date]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json(
+        ApiResponseBuilder.error(
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Availability not found'
+        )
+      );
+    }
+
+    res.json(ApiResponseBuilder.success({ message: 'Availability removed successfully' }));
+  } catch (error) {
+    console.error('Error removing availability:', error);
+    res.status(500).json(
+      ApiResponseBuilder.error(
+        errorCodes.SERVICE_UNAVAILABLE,
+        'Failed to remove availability'
+      )
+    );
   }
 });
 
@@ -1418,5 +1382,159 @@ router.get('/classes/:classId', async (req, res) => {
     }
   }
 });
+
+// Get instructor schedule (admin access)
+router.get(
+  '/:id/schedule',
+  authenticateToken,
+  requireRole(['admin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const instructorId = parseInt(id, 10);
+
+      if (!instructorId) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Invalid instructor ID'
+        );
+      }
+
+      const result = await pool.query(
+        `WITH instructor_classes AS (
+          -- Get regular classes
+          SELECT 
+            c.id,
+            c.date as datescheduled,
+            c.start_time,
+            c.end_time,
+            c.status,
+            c.location,
+            c.max_students,
+            c.current_students,
+            c.type_id,
+            NULL as organization_id,
+            NULL as notes,
+            NULL as registered_students
+          FROM classes c
+          WHERE c.instructor_id = $1 
+          AND c.date >= CURRENT_DATE 
+          AND c.status != 'completed'
+          
+          UNION
+          
+          -- Get confirmed course requests
+          SELECT 
+            cr.id,
+            cr.confirmed_date as datescheduled,
+            cr.confirmed_start_time as start_time,
+            cr.confirmed_end_time as end_time,
+            cr.status,
+            cr.location,
+            cr.registered_students as max_students,
+            0 as current_students,
+            cr.course_type_id as type_id,
+            cr.organization_id,
+            cr.notes,
+            cr.registered_students
+          FROM course_requests cr
+          WHERE cr.instructor_id = $1
+          AND cr.confirmed_date >= CURRENT_DATE
+          AND cr.status = 'confirmed'
+        )
+        SELECT 
+          ic.id as course_id,
+          ic.datescheduled::text,
+          ic.start_time::text,
+          ic.end_time::text,
+          ic.status,
+          ic.location,
+          ic.max_students,
+          ic.current_students,
+          ct.name as coursetypename,
+          COALESCE(o.name, 'Unassigned') as organizationname,
+          COALESCE(ic.notes, '') as notes,
+          COALESCE(ic.registered_students, ic.max_students, 0) as studentcount
+        FROM instructor_classes ic
+        LEFT JOIN class_types ct ON ic.type_id = ct.id
+        LEFT JOIN organizations o ON ic.organization_id = o.id
+        ORDER BY ic.datescheduled, ic.start_time`,
+        [instructorId]
+      );
+
+      const formattedData = result.rows.map(row => ({
+        id: row.course_id.toString(),
+        type: row.coursetypename,
+        date: row.datescheduled,
+        time: `${row.start_time} - ${row.end_time}`,
+        location: row.location,
+        instructor_id: instructorId.toString(),
+        max_students: row.max_students,
+        current_students: row.current_students,
+        status: row.status,
+        organization: row.organizationname,
+        notes: row.notes,
+        studentcount: row.studentcount
+      }));
+
+      return res.json(ApiResponseBuilder.success(formattedData));
+    } catch (error: any) {
+      console.error('Error fetching instructor schedule:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch instructor schedule'
+      );
+    }
+  })
+);
+
+// Get instructor availability (admin access)
+router.get(
+  '/:id/availability',
+  authenticateToken,
+  requireRole(['admin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const instructorId = parseInt(id, 10);
+
+      if (!instructorId) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Invalid instructor ID'
+        );
+      }
+
+      const result = await pool.query(
+        `SELECT id, instructor_id, date::text, status, created_at, updated_at 
+         FROM instructor_availability 
+         WHERE instructor_id = $1 
+         AND date >= CURRENT_DATE 
+         AND (status = 'available' OR status IS NULL)
+         ORDER BY date`,
+        [instructorId]
+      );
+
+      const formattedResponse = result.rows.map(row => ({
+        id: row.id.toString(),
+        instructor_id: row.instructor_id.toString(),
+        date: row.date.split('T')[0],
+        status: row.status || 'available',
+      }));
+
+      return res.json(ApiResponseBuilder.success(formattedResponse));
+    } catch (error: any) {
+      console.error('Error fetching instructor availability:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch instructor availability'
+      );
+    }
+  })
+);
 
 export default router;

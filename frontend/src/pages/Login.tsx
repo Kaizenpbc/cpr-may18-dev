@@ -27,20 +27,32 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login - Handling form submission');
+    console.log('[DEEP TRACE] Login form submitted:', {
+      username,
+      timestamp: new Date().toISOString()
+    });
     setError(null);
     setIsLoading(true);
 
     try {
-      // Trim whitespace from username to prevent authentication issues
       const trimmedUsername = username.trim();
+      console.log('[DEEP TRACE] Attempting login:', {
+        username: trimmedUsername,
+        timestamp: new Date().toISOString()
+      });
+      
       await login(trimmedUsername, password);
-      console.log(
-        'Login - Login successful, AuthContext will handle navigation'
-      );
-      // No manual navigation - AuthContext handles this and restores user's location
+      console.log('[DEEP TRACE] Login successful:', {
+        username: trimmedUsername,
+        timestamp: new Date().toISOString()
+      });
     } catch (err: any) {
-      console.error('Login - Login error:', err);
+      console.error('[DEEP TRACE] Login error:', {
+        error: err,
+        response: err.response?.data,
+        status: err.response?.status,
+        timestamp: new Date().toISOString()
+      });
       setError(
         err.response?.data?.message ||
           'Failed to login. Please check your credentials.'

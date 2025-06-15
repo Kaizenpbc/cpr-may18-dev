@@ -70,8 +70,8 @@ const InstructorDashboard: React.FC = () => {
     setError(null);
     try {
       const [statsResponse, summaryResponse] = await Promise.all([
-        api.get(`/api/v1/admin/instructor-stats?month=${selectedMonth}`),
-        api.get(`/api/v1/admin/dashboard-summary?month=${selectedMonth}`),
+        api.get(`/admin/instructor-stats?month=${selectedMonth}`),
+        api.get(`/admin/dashboard-summary?month=${selectedMonth}`),
       ]);
 
       // Ensure instructorStats is always an array

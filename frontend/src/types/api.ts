@@ -1,7 +1,7 @@
 export interface User {
-  id: string;
+  id: number;
   username: string;
-  email: string;
+  email?: string;
   full_name?: string;
   first_name?: string;
   role:
@@ -58,7 +58,10 @@ export interface DashboardMetrics {
 }
 
 export interface ApiResponse<T> {
-  status: 'success' | 'error';
+  success: boolean;
   data: T;
+  error?: string;
+  meta?: any;
+  status?: number;
   message?: string;
 }

@@ -29,7 +29,7 @@ INSERT INTO email_templates (
         <h2 style="color: #007bff;">New Course Assignment</h2>
         <p>You have been assigned to teach a new course:</p>
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
-            <p><strong>Course Type:</strong> {{courseType}}</p>
+            <p><strong>Course Name:</strong> {{courseName}}</p>
             <p><strong>Date:</strong> {{date}}</p>
             <p><strong>Time:</strong> {{startTime}} - {{endTime}}</p>
             <p><strong>Location:</strong> {{location}}</p>
@@ -47,7 +47,7 @@ INSERT INTO email_templates (
         <h2 style="color: #007bff;">New Course Assignment</h2>
         <p>You have been assigned to teach a new course:</p>
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
-            <p><strong>Course Type:</strong> {{courseType}}</p>
+            <p><strong>Course Name:</strong> {{courseName}}</p>
             <p><strong>Date:</strong> {{date}}</p>
             <p><strong>Time:</strong> {{startTime}} - {{endTime}}</p>
             <p><strong>Location:</strong> {{location}}</p>
@@ -68,7 +68,7 @@ INSERT INTO email_templates (
         <h2 style="color: #007bff;">Course Request Confirmed</h2>
         <p>Your course request has been confirmed and an instructor has been assigned:</p>
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
-            <p><strong>Course Type:</strong> {{courseType}}</p>
+            <p><strong>Course Name:</strong> {{courseName}}</p>
             <p><strong>Date:</strong> {{date}}</p>
             <p><strong>Time:</strong> {{startTime}} - {{endTime}}</p>
             <p><strong>Location:</strong> {{location}}</p>
@@ -84,7 +84,7 @@ INSERT INTO email_templates (
         <h2 style="color: #007bff;">Course Request Confirmed</h2>
         <p>Your course request has been confirmed and an instructor has been assigned:</p>
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
-            <p><strong>Course Type:</strong> {{courseType}}</p>
+            <p><strong>Course Name:</strong> {{courseName}}</p>
             <p><strong>Date:</strong> {{date}}</p>
             <p><strong>Time:</strong> {{startTime}} - {{endTime}}</p>
             <p><strong>Location:</strong> {{location}}</p>

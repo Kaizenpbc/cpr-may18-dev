@@ -2,27 +2,35 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { CircularProgress, Box, Typography } from '@mui/material';
-import InstructorPortal from './portals/InstructorPortal';
-import OrganizationPortal from './portals/OrganizationPortal';
-import CourseAdminPortal from './portals/courseAdmin/CourseAdminPortal';
-import SuperAdminPortal from './portals/SuperAdminPortal';
-import AccountingPortal from './portals/AccountingPortal';
-import SystemAdminPortal from './portals/SystemAdminPortal';
+import InstructorPortal from '../components/portals/InstructorPortal';
+import OrganizationPortal from '../components/portals/OrganizationPortal';
+import CourseAdminPortal from '../components/portals/courseAdmin/CourseAdminPortal';
+import SuperAdminPortal from '../components/portals/SuperAdminPortal';
+import AccountingPortal from '../components/portals/AccountingPortal';
+import SystemAdminPortal from '../components/portals/SystemAdminPortal';
+import { tokenService } from '../services/tokenService';
 
 const RoleBasedRouter: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, checkAuth } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = tokenService.getAccessToken();
+    if (token && !user && !loading) {
+      checkAuth();
+    }
+  }, [user, loading, checkAuth]);
 
   useEffect(() => {
     // Redirect users to their role-specific URLs for better bookmarking and refresh behavior
     if (user && !loading) {
       const roleRoutes = {
-        instructor: '/instructor',
-        organization: '/organization',
-        admin: '/admin',
-        accountant: '/accounting',
-        superadmin: '/superadmin',
-        sysadmin: '/sysadmin',
+        instructor: '/instructor/dashboard',
+        organization: '/organization/dashboard',
+        admin: '/admin/dashboard',
+        accountant: '/accounting/dashboard',
+        superadmin: '/superadmin/dashboard',
+        sysadmin: '/sysadmin/dashboard',
       };
 
       const targetRoute = roleRoutes[user.role as keyof typeof roleRoutes];

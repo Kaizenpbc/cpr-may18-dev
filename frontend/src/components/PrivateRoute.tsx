@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { tokenService } from '../services/tokenService';
@@ -6,15 +6,22 @@ import { CircularProgress, Box } from '@mui/material';
 
 interface PrivateRouteProps {
   children: React.ReactNode;
-  requiredRole?: string;
+  role?: string;
 }
 
 const PrivateRoute: React.FC<PrivateRouteProps> = ({
   children,
-  requiredRole,
+  role,
 }) => {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { user, loading, checkAuth } = useAuth();
   const location = useLocation();
+
+  useEffect(() => {
+    const token = tokenService.getAccessToken();
+    if (token && !user && !loading) {
+      checkAuth();
+    }
+  }, [user, loading, checkAuth]);
 
   // Show loading while authentication is being checked
   if (loading) {
@@ -31,7 +38,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
   }
 
   // If not authenticated and no token exists, redirect to login
-  if (!isAuthenticated && !tokenService.getAccessToken()) {
+  if (!user && !tokenService.getAccessToken()) {
     // Save the current location so we can redirect back after login
     tokenService.saveCurrentLocation(location.pathname);
     return <Navigate to='/login' state={{ from: location }} replace />;
@@ -58,9 +65,19 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
   }
 
   // Check role requirements
-  if (requiredRole && user.role !== requiredRole) {
-    // Redirect to their appropriate dashboard instead of generic /dashboard
-    return <Navigate to='/' replace />;
+  if (role && user.role !== role) {
+    // Redirect to their appropriate dashboard based on role
+    const roleRoutes = {
+      instructor: '/instructor/dashboard',
+      organization: '/organization/dashboard',
+      admin: '/admin/dashboard',
+      accountant: '/accounting/dashboard',
+      superadmin: '/superadmin/dashboard',
+      sysadmin: '/sysadmin/dashboard',
+    };
+
+    const targetRoute = roleRoutes[user.role as keyof typeof roleRoutes] || '/';
+    return <Navigate to={targetRoute} replace />;
   }
 
   return <>{children}</>;

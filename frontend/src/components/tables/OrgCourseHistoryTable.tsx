@@ -69,7 +69,7 @@ const OrgCourseHistoryTable = ({ courses = [] }) => {
             <TableCell sx={{ fontWeight: 'bold' }}>Date Requested</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Date Scheduled</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Course #</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Course Type</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Course Name</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Location</TableCell>
             <TableCell align='center' sx={{ fontWeight: 'bold' }}>
               Status

@@ -5,10 +5,18 @@ import { useAuth } from '../contexts/AuthContext';
 import { tokenService } from '../services/tokenService';
 import logger from '../utils/logger';
 import analytics from '../services/analytics';
+import React from 'react';
 
 // Types
-interface ScheduledClass {
+export interface ApiResponse<T> {
+  data: T;
+  message?: string;
+  status?: number;
+}
+
+export interface ScheduledClass {
   course_id: number;
+  id: number;
   datescheduled: string;
   completed: boolean;
   organizationname: string;
@@ -16,16 +24,21 @@ interface ScheduledClass {
   location: string;
   studentcount: number;
   studentsattendance: number;
+  coursenumber: string;
+  studentsregistered: number;
+  notes: string;
+  start_time: string;
+  end_time: string;
 }
 
-interface Student {
+export interface Student {
   student_id: number;
   first_name: string;
   last_name: string;
   attendance: boolean;
 }
 
-interface RetryState {
+export interface RetryState {
   isRetrying: boolean;
   retryCount: number;
   maxRetries: number;
@@ -33,13 +46,22 @@ interface RetryState {
 }
 
 // Enhanced error types
-interface EnhancedError {
+export interface EnhancedError {
   message: string;
   code?: string;
   statusCode?: number;
   isRetryable: boolean;
   userMessage: string;
   suggestion?: string;
+}
+
+export interface AvailabilitySlot {
+  id: number;
+  instructor_id: number;
+  date: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // Query Keys for React Query
@@ -62,6 +84,7 @@ const RETRY_CONFIG = {
   classes: { maxRetries: 3, baseDelay: 1000 },
   completedClasses: { maxRetries: 2, baseDelay: 1000 },
   critical: { maxRetries: 5, baseDelay: 500 },
+  classDetails: { maxRetries: 3, baseDelay: 1000 },
 } as const;
 
 // Smart retry function with exponential backoff + jitter
@@ -215,65 +238,106 @@ const getEnhancedError = (error: any, context: string): EnhancedError => {
 // API Functions with enhanced error handling
 const fetchAvailability = async () => {
   try {
-    const response = await api.get('/api/v1/instructor/availability');
-    const data = response.data.data || [];
-    logger.info('[useInstructorData] Availability data fetched:', data);
-    return data;
-  } catch (error) {
-    const enhancedError = getEnhancedError(error, 'load availability');
-    logger.error(
-      '[useInstructorData] Availability fetch error:',
-      enhancedError
-    );
-    throw enhancedError;
+    console.log('[fetchAvailability] Making request to /instructor/availability');
+    const response = await api.get<ApiResponse<AvailabilitySlot[]>>('/instructor/availability');
+    console.log('[fetchAvailability] Raw response:', response);
+    console.log('[fetchAvailability] Response data:', response.data);
+    console.log('[fetchAvailability] Response data.data:', response.data.data);
+    
+    if (!response.data.data) {
+      console.error('[fetchAvailability] No data in response:', response.data);
+      return [];
+    }
+    return response.data.data;
+  } catch (error: any) {
+    console.error('[fetchAvailability] Error details:', {
+      message: error?.message,
+      response: error?.response?.data,
+      status: error?.response?.status,
+      headers: error?.response?.headers
+    });
+    logger.error('Error fetching availability:', error);
+    throw error;
   }
 };
 
 const fetchScheduledClasses = async () => {
   try {
-    const response = await api.get('/api/v1/instructor/classes');
-    return response.data.data || [];
-  } catch (error) {
-    const enhancedError = getEnhancedError(error, 'load scheduled classes');
-    logger.error('[useInstructorData] Classes fetch error:', enhancedError);
-    throw enhancedError;
+    console.log('[fetchScheduledClasses] Making request to /instructor/classes');
+    const response = await api.get<ApiResponse<ScheduledClass[]>>('/instructor/classes');
+    console.log('[fetchScheduledClasses] Raw response:', response);
+    console.log('[fetchScheduledClasses] Response data:', response.data);
+    console.log('[fetchScheduledClasses] Response data.data:', response.data.data);
+    
+    if (!response.data.data) {
+      console.error('[fetchScheduledClasses] No data in response:', response.data);
+      return [];
+    }
+    return response.data.data;
+  } catch (error: any) {
+    console.error('[fetchScheduledClasses] Error details:', {
+      message: error?.message,
+      response: error?.response?.data,
+      status: error?.response?.status,
+      headers: error?.response?.headers
+    });
+    logger.error('Error fetching scheduled classes:', error);
+    throw error;
   }
 };
 
 const fetchCompletedClasses = async () => {
   try {
-    const response = await api.get('/api/v1/instructor/classes/completed');
-    return response.data.data?.classes || response.data.data || [];
-  } catch (error) {
-    const enhancedError = getEnhancedError(error, 'load completed classes');
-    logger.error(
-      '[useInstructorData] Completed classes fetch error:',
-      enhancedError
-    );
-    throw enhancedError;
+    console.log('[fetchCompletedClasses] Making request to /instructor/classes/completed');
+    const response = await api.get<ApiResponse<ScheduledClass[]>>('/instructor/classes/completed');
+    console.log('[fetchCompletedClasses] Raw response:', response);
+    console.log('[fetchCompletedClasses] Response data:', response.data);
+    console.log('[fetchCompletedClasses] Response data.data:', response.data.data);
+    
+    if (!response.data.data) {
+      console.error('[fetchCompletedClasses] No data in response:', response.data);
+      return [];
+    }
+    return response.data.data;
+  } catch (error: any) {
+    console.error('[fetchCompletedClasses] Error details:', {
+      message: error?.message,
+      response: error?.response?.data,
+      status: error?.response?.status,
+      headers: error?.response?.headers
+    });
+    logger.error('Error fetching completed classes:', error);
+    throw error;
   }
 };
 
 const fetchClassStudents = async (courseId: number) => {
   try {
-    const response = await api.get('/api/v1/instructor/classes/students', {
-      params: { course_id: courseId },
-    });
-    return response.data || [];
+    const response = await api.get<ApiResponse<Student[]>>(`/instructor/classes/${courseId}/students`);
+    return response.data.data;
   } catch (error) {
-    const enhancedError = getEnhancedError(error, 'load class students');
-    logger.error('[useInstructorData] Students fetch error:', enhancedError);
-    throw enhancedError;
+    logger.error('Error fetching class students:', error);
+    throw error;
+  }
+};
+
+const fetchTodayClasses = async () => {
+  try {
+    const response = await api.get<ApiResponse<ScheduledClass[]>>('/instructor/classes/today');
+    return response.data.data;
+  } catch (error) {
+    logger.error('Error fetching today classes:', error);
+    throw error;
   }
 };
 
 export const useInstructorData = () => {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { user, checkAuth } = useAuth();
   const queryClient = useQueryClient();
   const [error, setError] = useState<EnhancedError | null>(null);
-  const [retryStates, setRetryStates] = useState<Record<string, RetryState>>(
-    {}
-  );
+  const [retryStates, setRetryStates] = useState<Record<string, RetryState>>({});
+
+  console.log('[useInstructorData] Hook initialized with user:', user);
 
   // Helper to update retry state
   const updateRetryState = useCallback(
@@ -294,7 +358,8 @@ export const useInstructorData = () => {
 
         // Handle auth errors
         if (enhancedError.statusCode === 401) {
-          logout();
+          tokenService.clearTokens();
+          window.location.href = '/login';
           return;
         }
 
@@ -304,7 +369,7 @@ export const useInstructorData = () => {
         logger.error(`[useInstructorData] ${context} error:`, enhancedError);
       };
     },
-    [logout]
+    []
   );
 
   // Enhanced onRetry handler
@@ -328,194 +393,208 @@ export const useInstructorData = () => {
     [updateRetryState]
   );
 
-  // Availability Query with enhanced retry
-  const {
-    data: availabilityData = [],
+  // Check authentication before making any requests
+  useEffect(() => {
+    const token = tokenService.getAccessToken();
+    if (token && !user) {
+      checkAuth();
+    }
+  }, [user, checkAuth]);
+
+  // Fetch availability data with enhanced logging
+  const { 
+    data: availableDates = [], 
     isLoading: availabilityLoading,
     error: availabilityError,
-    isFetching: availabilityFetching,
+    isFetching: availabilityFetching
   } = useQuery({
     queryKey: QUERY_KEYS.availability,
-    queryFn: fetchAvailability,
-    enabled: isAuthenticated && !!user,
-    staleTime: 30 * 1000, // 30 seconds (reduced from 5 minutes)
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    retry: createRetryFn(
-      RETRY_CONFIG.availability.maxRetries,
-      RETRY_CONFIG.availability.baseDelay
-    ),
+    queryFn: async () => {
+      console.log('[TRACE] Starting availability fetch');
+      try {
+        const token = tokenService.getAccessToken();
+        console.log('[TRACE] Auth token present:', !!token);
+        
+        const response = await api.get('/instructor/availability');
+        console.log('[TRACE] Availability API response:', JSON.stringify(response.data, null, 2));
+        
+        if (!response.data || !response.data.data) {
+          console.error('[TRACE] Invalid availability response:', response.data);
+          return [];
+        }
+
+        const availabilityData = response.data.data;
+        console.log('[TRACE] Availability data array:', JSON.stringify(availabilityData, null, 2));
+        console.log('[TRACE] Number of availability dates:', availabilityData.length);
+        
+        // Ensure each item has the required fields
+        return availabilityData.map((item: any) => ({
+          id: item.id,
+          instructor_id: item.instructor_id,
+          date: item.date,
+          status: item.status || 'Available',
+          created_at: item.created_at,
+          updated_at: item.updated_at
+        }));
+      } catch (error) {
+        console.error('[TRACE] Availability fetch error:', error);
+        throw error;
+      }
+    },
+    enabled: !!user?.id,
+    retry: createRetryFn(RETRY_CONFIG.availability.maxRetries, RETRY_CONFIG.availability.baseDelay),
     retryDelay: createRetryDelay(RETRY_CONFIG.availability.baseDelay),
   });
 
-  // Scheduled Classes Query with enhanced retry
-  const {
-    data: scheduledClasses = [],
+  console.log('[useInstructorData] Availability query state:', {
+    availableDates,
+    availabilityLoading,
+    availabilityError,
+    availabilityFetching,
+    userId: user?.id
+  });
+
+  // Fetch scheduled classes
+  const { 
+    data: scheduledClasses = [], 
     isLoading: classesLoading,
     error: classesError,
-    isFetching: classesFetching,
+    isFetching: classesFetching
   } = useQuery({
     queryKey: QUERY_KEYS.classes,
     queryFn: fetchScheduledClasses,
-    enabled: isAuthenticated && !!user,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    retry: createRetryFn(
-      RETRY_CONFIG.classes.maxRetries,
-      RETRY_CONFIG.classes.baseDelay
-    ),
+    enabled: !!user?.id,
+    retry: createRetryFn(RETRY_CONFIG.classes.maxRetries, RETRY_CONFIG.classes.baseDelay),
     retryDelay: createRetryDelay(RETRY_CONFIG.classes.baseDelay),
   });
 
-  // Completed Classes Query with enhanced retry
-  const {
-    data: completedClasses = [],
-    isLoading: completedLoading,
+  console.log('[useInstructorData] Classes query state:', {
+    scheduledClasses,
+    classesLoading,
+    classesError,
+    classesFetching
+  });
+
+  // Fetch completed classes
+  const { 
+    data: completedClasses = [], 
+    isLoading: completedClassesLoading,
     error: completedError,
-    isFetching: completedFetching,
+    isFetching: completedFetching
   } = useQuery({
     queryKey: QUERY_KEYS.completedClasses,
     queryFn: fetchCompletedClasses,
-    enabled: isAuthenticated && !!user,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
-    retry: createRetryFn(
-      RETRY_CONFIG.completedClasses.maxRetries,
-      RETRY_CONFIG.completedClasses.baseDelay
-    ),
+    enabled: !!user?.id,
+    retry: createRetryFn(RETRY_CONFIG.completedClasses.maxRetries, RETRY_CONFIG.completedClasses.baseDelay),
     retryDelay: createRetryDelay(RETRY_CONFIG.completedClasses.baseDelay),
   });
 
-  // Enhanced mutations with better error handling
+  console.log('[useInstructorData] Completed classes query state:', {
+    completedClasses,
+    completedClassesLoading,
+    completedError,
+    completedFetching
+  });
+
+  // Add availability mutation
   const addAvailabilityMutation = useMutation({
     mutationFn: async (date: string) => {
-      try {
-        const response = await api.post('/api/v1/instructor/availability', {
-          date,
-        });
-        if (!response.data.success) {
-          throw new Error(
-            response.data.message || 'Failed to add availability'
-          );
-        }
-        return date;
-      } catch (error) {
-        const enhancedError = getEnhancedError(error, 'add availability');
-        throw enhancedError;
+      const response = await api.post('/instructor/availability', { date });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.availability });
+    },
+    onError: (error: any) => {
+      const enhancedError = getEnhancedError(error, 'add availability');
+      setError(enhancedError);
+      if (enhancedError.code === 'UNAUTHORIZED') {
+        tokenService.clearTokens();
+        window.location.href = '/login';
       }
-    },
-    onSuccess: date => {
-      // Optimistically update cache
-      queryClient.setQueryData(QUERY_KEYS.availability, (old: any[] = []) => [
-        ...old,
-        { date },
-      ]);
-      analytics.trackAvailabilityAction('add', date);
-      setError(null); // Clear any previous errors
-    },
-    onError: (error: EnhancedError) => {
-      logger.error('[useInstructorData] Error adding availability:', error);
-      setError(error);
     },
   });
 
+  // Remove availability mutation
   const removeAvailabilityMutation = useMutation({
     mutationFn: async (date: string) => {
       try {
-        await api.delete(`/api/v1/instructor/availability/${date}`);
-        return date;
-      } catch (error) {
-        const enhancedError = getEnhancedError(error, 'remove availability');
-        throw enhancedError;
+        const response = await api.delete(`/instructor/availability/${date}`);
+        return response.data;
+      } catch (error: any) {
+        logger.error('[useInstructorData] Remove availability error:', error);
+        throw error;
       }
     },
-    onSuccess: date => {
-      // Optimistically update cache
-      queryClient.setQueryData(QUERY_KEYS.availability, (old: any[] = []) =>
-        old.filter((avail: any) => avail.date !== date)
+    onMutate: async (date) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.availability });
+      
+      // Snapshot the previous value
+      const previousAvailability = queryClient.getQueryData(QUERY_KEYS.availability);
+      
+      // Optimistically update to the new value
+      queryClient.setQueryData(QUERY_KEYS.availability, (old: any) => 
+        old.filter((item: any) => item.date !== date)
       );
-      analytics.trackAvailabilityAction('remove', date);
-      setError(null);
+      
+      return { previousAvailability };
     },
-    onError: (error: EnhancedError) => {
-      logger.error('[useInstructorData] Error removing availability:', error);
-      setError(error);
-    },
-  });
-
-  const updateAttendanceMutation = useMutation({
-    mutationFn: async ({
-      studentId,
-      attendance,
-    }: {
-      studentId: number;
-      attendance: boolean;
-    }) => {
-      try {
-        await api.post('/api/v1/instructor/classes/students/attendance', {
-          student_id: studentId,
-          attendance,
-        });
-        return { studentId, attendance };
-      } catch (error) {
-        const enhancedError = getEnhancedError(error, 'update attendance');
-        throw enhancedError;
+    onError: (error: any, date, context) => {
+      // Rollback to the previous value
+      if (context?.previousAvailability) {
+        queryClient.setQueryData(QUERY_KEYS.availability, context.previousAvailability);
+      }
+      
+      const enhancedError = getEnhancedError(error, 'remove availability');
+      setError(enhancedError);
+      if (enhancedError.code === 'UNAUTHORIZED') {
+        tokenService.clearTokens();
+        window.location.href = '/login';
       }
     },
-    onSuccess: () => {
-      // Invalidate related queries to refresh data
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
-      analytics.trackInstructorAction('update_attendance');
-      setError(null);
-    },
-    onError: (error: EnhancedError) => {
-      logger.error('[useInstructorData] Error updating attendance:', error);
-      setError(error);
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.availability });
     },
   });
 
+  // Complete class mutation
   const completeClassMutation = useMutation({
     mutationFn: async (courseId: number) => {
-      try {
-        const response = await api.put(
-          `/api/v1/instructor/classes/${courseId}/complete`,
-          {
-            generateCertificates: false,
-          }
-        );
-        if (!response.data.success) {
-          throw new Error(response.data.message || 'Failed to complete class');
-        }
-        return {
-          courseId,
-          studentsAttended: response.data.data.students_attended,
-        };
-      } catch (error) {
-        const enhancedError = getEnhancedError(error, 'complete class');
-        throw enhancedError;
+      const response = await api.post(`/instructor/classes/${courseId}/complete`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.completedClasses });
+    },
+    onError: (error: any) => {
+      const enhancedError = getEnhancedError(error, 'complete class');
+      setError(enhancedError);
+      if (enhancedError.code === 'UNAUTHORIZED') {
+        tokenService.clearTokens();
+        window.location.href = '/login';
       }
     },
-    onSuccess: async ({ courseId }) => {
-      // Small delay to ensure backend has processed the update
-      await new Promise(resolve => setTimeout(resolve, 500));
+  });
 
-      // Reset query data to force fresh fetch
-      queryClient.resetQueries({ queryKey: QUERY_KEYS.availability });
-
-      // Invalidate queries to refresh data from server
-      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
-      await queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.completedClasses,
-      });
-      await queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.availability,
-      });
-
-      analytics.trackClassAction('completed_successfully', courseId);
-      setError(null);
+  // Update attendance mutation
+  const updateAttendanceMutation = useMutation({
+    mutationFn: async ({ courseId, students }: { courseId: number; students: Student[] }) => {
+      const response = await api.post(`/instructor/classes/${courseId}/attendance`, { students });
+      return response.data;
     },
-    onError: (error: EnhancedError) => {
-      logger.error('[useInstructorData] Error completing class:', error);
-      setError(error);
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
+    },
+    onError: (error: any) => {
+      const enhancedError = getEnhancedError(error, 'update attendance');
+      setError(enhancedError);
+      if (enhancedError.code === 'UNAUTHORIZED') {
+        tokenService.clearTokens();
+        window.location.href = '/login';
+      }
     },
   });
 
@@ -561,90 +640,69 @@ export const useInstructorData = () => {
 
   // Manual refresh function
   const loadData = useCallback(async () => {
-    const startTime = performance.now();
-
+    console.log('[useInstructorData] loadData called');
     try {
-      setError(null);
-
-      // Invalidate all queries to force refresh
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.availability }),
         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes }),
-        queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.completedClasses,
-        }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.completedClasses })
       ]);
-
-      const loadTime = performance.now() - startTime;
-      analytics.trackPerformance({
-        name: 'instructor_data_refresh_time',
-        value: loadTime,
-        timestamp: new Date().toISOString(),
-        metadata: { portal: 'instructor', type: 'manual_refresh' },
-      });
-    } catch (error: any) {
-      const enhancedError = getEnhancedError(error, 'refresh data');
-      logger.error('[useInstructorData] Error refreshing data:', enhancedError);
-      setError(enhancedError);
+      console.log('[useInstructorData] Queries invalidated successfully');
+    } catch (error) {
+      console.error('[useInstructorData] Error invalidating queries:', error);
     }
   }, [queryClient]);
 
   // Prefetch today's classes on mount for better UX
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (user) {
       queryClient.prefetchQuery({
         queryKey: QUERY_KEYS.todayClasses,
         queryFn: () =>
           api
-            .get('/api/v1/instructor/classes/today')
+            .get('/instructor/classes/today')
             .then(res => res.data.data),
         staleTime: 1 * 60 * 1000, // 1 minute
       });
     }
-  }, [isAuthenticated, user, queryClient]);
+  }, [user, queryClient]);
 
   // Handle query errors
   useEffect(() => {
     if (availabilityError) {
-      const enhancedError = getEnhancedError(
-        availabilityError,
-        'load availability'
-      );
-      if (enhancedError.statusCode === 401) {
-        logout();
+      const enhancedError = getEnhancedError(availabilityError, 'availability');
+      if (enhancedError.code === 'UNAUTHORIZED') {
+        tokenService.clearTokens();
+        window.location.href = '/login';
       } else {
         setError(enhancedError);
       }
     }
-  }, [availabilityError, logout]);
+  }, [availabilityError]);
 
   useEffect(() => {
     if (classesError) {
-      const enhancedError = getEnhancedError(
-        classesError,
-        'load scheduled classes'
-      );
-      if (enhancedError.statusCode === 401) {
-        logout();
+      const enhancedError = getEnhancedError(classesError, 'classes');
+      if (enhancedError.code === 'UNAUTHORIZED') {
+        tokenService.clearTokens();
+        window.location.href = '/login';
       } else {
         setError(enhancedError);
       }
     }
-  }, [classesError, logout]);
+  }, [classesError]);
 
   useEffect(() => {
     if (completedError) {
-      const enhancedError = getEnhancedError(
-        completedError,
-        'load completed classes'
-      );
-      if (enhancedError.statusCode === 401) {
-        logout();
+      const enhancedError = getEnhancedError(completedError, 'completed classes');
+      if (enhancedError.code === 'UNAUTHORIZED') {
+        tokenService.clearTokens();
+        window.location.href = '/login';
       } else {
         setError(enhancedError);
       }
     }
-  }, [completedError, logout]);
+  }, [completedError]);
 
   // Clear error after 10 seconds (longer for enhanced errors)
   useEffect(() => {
@@ -655,47 +713,116 @@ export const useInstructorData = () => {
   }, [error]);
 
   // Compute derived state
-  const availableDates = new Set(
-    (availabilityData as any[]).map((avail: { date: string }) => avail.date)
-  );
-  const loading = availabilityLoading || classesLoading || completedLoading;
+  const loading = availabilityLoading || classesLoading || completedClassesLoading;
   const isFetching =
     availabilityFetching || classesFetching || completedFetching;
   const hasError = availabilityError || classesError || completedError || error;
 
+  // Combine scheduled classes and availability slots into a single array, sorted by date
+  const combinedSchedule = React.useMemo(() => {
+    console.log('[TRACE] Starting combinedSchedule computation');
+    console.log('[TRACE] Raw availableDates:', JSON.stringify(availableDates, null, 2));
+    console.log('[TRACE] Raw scheduledClasses:', JSON.stringify(scheduledClasses, null, 2));
+
+    const availabilityItems = availableDates.map((availability: AvailabilitySlot) => {
+      console.log('[TRACE] Processing availability item:', JSON.stringify(availability, null, 2));
+      return {
+        displayDate: availability.date,
+        key: `available-${availability.date}`,
+        status: 'available',
+        organization: '',
+        location: '',
+        courseNumber: '',
+        courseType: '',
+        studentsRegistered: 0,
+        studentsAttendance: 0,
+        notes: '',
+        start_time: '',
+        end_time: ''
+      };
+    });
+    console.log('[TRACE] Transformed availabilityItems:', JSON.stringify(availabilityItems, null, 2));
+
+    const scheduledItems = scheduledClasses.map((c: ScheduledClass) => {
+      console.log('[TRACE] Processing scheduled class:', JSON.stringify(c, null, 2));
+      return {
+        displayDate: c.datescheduled,
+        key: `scheduled-${c.id}`,
+        status: 'scheduled',
+        organization: c.organizationname || '',
+        location: c.location || '',
+        courseNumber: c.coursenumber || '',
+        courseType: c.coursetypename || '',
+        studentsRegistered: c.studentsregistered || 0,
+        studentsAttendance: c.studentsattendance || 0,
+        notes: c.notes || '',
+        start_time: c.start_time || '',
+        end_time: c.end_time || ''
+      };
+    });
+    console.log('[TRACE] Transformed scheduledItems:', JSON.stringify(scheduledItems, null, 2));
+
+    const combined = [...availabilityItems, ...scheduledItems].sort((a, b) => 
+      new Date(a.displayDate).getTime() - new Date(b.displayDate).getTime()
+    );
+    console.log('[TRACE] Final combined schedule:', JSON.stringify(combined, null, 2));
+
+    return combined;
+  }, [availableDates, scheduledClasses]);
+
+  // Debug log for availableDates and combinedSchedule
+  React.useEffect(() => {
+    console.log('[TRACE] useEffect triggered - availableDates changed:', JSON.stringify(availableDates, null, 2));
+    console.log('[TRACE] useEffect triggered - combinedSchedule changed:', JSON.stringify(combinedSchedule, null, 2));
+  }, [availableDates, combinedSchedule]);
+
+  // Fetch class details with proper error handling
+  const getClassDetails = useQuery({
+    queryKey: ['classDetails', user?.id],
+    queryFn: async () => {
+      if (!user) throw new Error('User not authenticated');
+      const response = await api.get(`/instructor/classes`);
+      return response.data.data;
+    },
+    enabled: !!user && !!user.id,
+    retry: createRetryFn(RETRY_CONFIG.classDetails.maxRetries, RETRY_CONFIG.classDetails.baseDelay),
+    retryDelay: createRetryDelay(RETRY_CONFIG.classDetails.baseDelay),
+  });
+
+  // Fetch class students with proper error handling
+  const fetchClassStudents = async (courseId: number) => {
+    try {
+      if (!courseId) {
+        throw new Error('Course ID is required');
+      }
+      const response = await api.get(`/instructor/classes/${courseId}/students`);
+      return response.data;
+    } catch (err: any) {
+      const enhancedError = getEnhancedError(err, 'class students');
+      setError(enhancedError);
+      throw enhancedError;
+    }
+  };
+
   return {
-    // Data
     availableDates,
     scheduledClasses,
     completedClasses,
-
-    // Loading states
     loading,
-    isFetching,
     error,
-
-    // Retry states
-    retryStates,
-    retryFailedQueries,
-
-    // Actions with enhanced error handling
-    addAvailability: (date: string) =>
-      addAvailabilityMutation.mutateAsync(date),
-    removeAvailability: (date: string) =>
-      removeAvailabilityMutation.mutateAsync(date),
-    updateAttendance: (studentId: number, attendance: boolean) =>
-      updateAttendanceMutation.mutateAsync({ studentId, attendance }),
-    completeClass: (courseId: number) =>
-      completeClassMutation.mutateAsync(courseId),
-
-    // Optimized functions
-    fetchClassStudents: fetchClassStudentsOptimized,
-    loadData,
-
-    // Loading states for individual operations
+    addAvailability: addAvailabilityMutation.mutate,
+    removeAvailability: removeAvailabilityMutation.mutate,
     isAddingAvailability: addAvailabilityMutation.isPending,
     isRemovingAvailability: removeAvailabilityMutation.isPending,
-    isUpdatingAttendance: updateAttendanceMutation.isPending,
-    isCompletingClass: completeClassMutation.isPending,
+    fetchClassStudents: fetchClassStudentsOptimized,
+    updateAttendance: updateAttendanceMutation.mutate,
+    completeClass: completeClassMutation.mutate,
+    loadData: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.availability });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.completedClasses });
+    },
+    getClassDetails,
+    combinedSchedule,
   };
 };

@@ -1,0 +1,133 @@
+{
+  "version": "8.12.1",
+  "objects": [
+    {
+      "id": "high-error-rate-alert",
+      "type": "alert",
+      "attributes": {
+        "name": "High Error Rate Alert",
+        "description": "Alert when error rate exceeds 10%",
+        "enabled": true,
+        "schedule": {
+          "interval": "1m"
+        },
+        "conditions": [
+          {
+            "type": "threshold",
+            "field": "error_rate",
+            "value": 10,
+            "comparator": ">"
+          }
+        ],
+        "actions": [
+          {
+            "type": "email",
+            "config": {
+              "to": ["admin@example.com"],
+              "subject": "High Error Rate Alert",
+              "body": "Error rate has exceeded 10% in the last minute. Please check the application logs."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "high-memory-usage-alert",
+      "type": "alert",
+      "attributes": {
+        "name": "High Memory Usage Alert",
+        "description": "Alert when memory usage exceeds 80%",
+        "enabled": true,
+        "schedule": {
+          "interval": "5m"
+        },
+        "conditions": [
+          {
+            "type": "threshold",
+            "field": "memory.heapUsed",
+            "value": 80,
+            "comparator": ">"
+          }
+        ],
+        "actions": [
+          {
+            "type": "email",
+            "config": {
+              "to": ["admin@example.com"],
+              "subject": "High Memory Usage Alert",
+              "body": "Memory usage has exceeded 80% of available heap. Please check the application."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "high-latency-alert",
+      "type": "alert",
+      "attributes": {
+        "name": "High Request Latency Alert",
+        "description": "Alert when average request latency exceeds 1000ms",
+        "enabled": true,
+        "schedule": {
+          "interval": "1m"
+        },
+        "conditions": [
+          {
+            "type": "threshold",
+            "field": "latency",
+            "value": 1000,
+            "comparator": ">"
+          }
+        ],
+        "actions": [
+          {
+            "type": "email",
+            "config": {
+              "to": ["admin@example.com"],
+              "subject": "High Request Latency Alert",
+              "body": "Average request latency has exceeded 1000ms in the last minute. Please check the application performance."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "service-health-alert",
+      "type": "alert",
+      "attributes": {
+        "name": "Service Health Alert",
+        "description": "Alert when any service is down",
+        "enabled": true,
+        "schedule": {
+          "interval": "1m"
+        },
+        "conditions": [
+          {
+            "type": "query",
+            "query": {
+              "bool": {
+                "must": [
+                  {
+                    "term": {
+                      "status": "DOWN"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "actions": [
+          {
+            "type": "email",
+            "config": {
+              "to": ["admin@example.com"],
+              "subject": "Service Health Alert",
+              "body": "One or more services are down. Please check the health endpoint for details."
+            }
+          }
+        ]
+      }
+    }
+  ]
+} 

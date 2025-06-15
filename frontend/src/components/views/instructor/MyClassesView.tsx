@@ -48,7 +48,9 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
 
   // Format date helper
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    // Create date in local timezone
+    const date = new Date(dateString + 'T00:00:00');
+    return date.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -156,7 +158,7 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
                   color: 'text.primary',
                 }}
               >
-                Course Type
+                Course Name
               </TableCell>
               <TableCell
                 sx={{ 

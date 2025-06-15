@@ -167,14 +167,22 @@ export const validateSchema = (schema: joi.ObjectSchema) => {
 export const commonSchemas = {
   // User authentication
   login: joi.object({
-    username: joi.string().alphanum().min(3).max(50).required().messages({
-      'string.alphanum': 'Username can only contain alphanumeric characters',
-      'string.min': 'Username must be at least 3 characters long',
-      'string.max': 'Username cannot exceed 50 characters',
+    username: joi.string().required().messages({
+      'string.empty': 'Username is required',
+      'any.required': 'Username is required'
     }),
-    password: joi.string().min(6).max(100).required().messages({
-      'string.min': 'Password must be at least 6 characters long',
-    }),
+    password: joi.string().required().messages({
+      'string.empty': 'Password is required',
+      'any.required': 'Password is required'
+    })
+  }),
+
+  // Password recovery
+  email: joi.object({
+    email: joi.string().email().required().messages({
+      'string.email': 'Please provide a valid email address',
+      'any.required': 'Email is required'
+    })
   }),
 
   // User registration/creation

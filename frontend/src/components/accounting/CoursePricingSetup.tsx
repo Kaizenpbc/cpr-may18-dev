@@ -227,7 +227,7 @@ const CoursePricingSetup = () => {
             Course Pricing Setup
           </Typography>
           <Typography variant='body1' color='text.secondary'>
-            Configure pricing per student for different course types across
+            Configure pricing per student for different courses across
             organizations
           </Typography>
         </Box>
@@ -258,7 +258,7 @@ const CoursePricingSetup = () => {
           <TableHead>
             <TableRow>
               <TableCell sx={{ fontWeight: 'bold' }}>Organization</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Course Type</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Course Name</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Description</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>
                 Price per Student
@@ -298,7 +298,7 @@ const CoursePricingSetup = () => {
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2' fontWeight='medium'>
-                      {pricing.course_type_name}
+                      {pricing.course_name}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -418,10 +418,10 @@ const CoursePricingSetup = () => {
             </Grid>
             <Grid item xs={12}>
               <FormControl fullWidth required>
-                <InputLabel>Course Type</InputLabel>
+                <InputLabel>Course Name</InputLabel>
                 <Select
                   value={newPricing.course_type_id}
-                  label='Course Type'
+                  label='Course Name'
                   onChange={e =>
                     setNewPricing({
                       ...newPricing,
@@ -474,7 +474,7 @@ const CoursePricingSetup = () => {
           📋 Instructions
         </Typography>
         <Typography variant='body2' sx={{ mb: 1 }}>
-          • Set different pricing per student for each course type across
+          • Set different pricing per student for each course across
           organizations
         </Typography>
         <Typography variant='body2' sx={{ mb: 1 }}>

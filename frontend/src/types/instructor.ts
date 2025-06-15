@@ -164,3 +164,21 @@ export interface CombinedScheduleItem {
   course_id?: number;
   originalData?: Course | AvailabilitySlot;
 }
+
+export interface ScheduledClass {
+  id: number;
+  course_id: number;
+  instructor_id: number;
+  date: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  location: string;
+  max_students: number;
+  current_students: number;
+  course_type: string;
+  organization_name: string;
+  notes?: string;
+  registered_students: number;
+  students_attended?: number;
+}

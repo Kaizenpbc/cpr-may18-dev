@@ -30,7 +30,7 @@ const CourseHistoryView = ({ courseHistory }) => {
           <TableHead>
             <TableRow>
               <TableCell>Course Number</TableCell>
-              <TableCell>Course Type</TableCell>
+              <TableCell>Course Name</TableCell>
               <TableCell>Date</TableCell>
               <TableCell>Location</TableCell>
               <TableCell>Students</TableCell>

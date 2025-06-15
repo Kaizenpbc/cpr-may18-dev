@@ -49,7 +49,7 @@ const EMAIL_TEMPLATES = {
           <p><strong>Time:</strong> ${classDetails.startTime} - ${classDetails.endTime}</p>
           <p><strong>Location:</strong> ${classDetails.location}</p>
           <p><strong>Organization:</strong> ${classDetails.organization}</p>
-          <p><strong>Course Type:</strong> ${classDetails.courseType}</p>
+          <p><strong>Course Name:</strong> ${classDetails.courseName}</p>
           <p><strong>Students:</strong> ${classDetails.students}</p>
         </div>
         <p>Please review these details in your instructor portal.</p>
@@ -69,7 +69,7 @@ const EMAIL_TEMPLATES = {
           <p><strong>Time:</strong> ${classDetails.startTime} - ${classDetails.endTime}</p>
           <p><strong>Location:</strong> ${classDetails.location}</p>
           <p><strong>Organization:</strong> ${classDetails.organization}</p>
-          <p><strong>Course Type:</strong> ${classDetails.courseType}</p>
+          <p><strong>Course Name:</strong> ${classDetails.courseName}</p>
           <p><strong>Students:</strong> ${classDetails.students}</p>
         </div>
         <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border-radius: 5px;">
@@ -87,7 +87,7 @@ const EMAIL_TEMPLATES = {
         <h2 style="color: #007bff;">New Course Assignment</h2>
         <p>You have been assigned to teach a new course:</p>
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
-          <p><strong>Course Type:</strong> ${courseDetails.courseType}</p>
+          <p><strong>Course Name:</strong> ${courseDetails.courseName}</p>
           <p><strong>Date:</strong> ${format(new Date(courseDetails.date), 'MMMM do, yyyy')}</p>
           <p><strong>Time:</strong> ${courseDetails.startTime} - ${courseDetails.endTime}</p>
           <p><strong>Location:</strong> ${courseDetails.location}</p>
@@ -109,7 +109,7 @@ const EMAIL_TEMPLATES = {
         <h2 style="color: #007bff;">Course Request Confirmed</h2>
         <p>Your course request has been confirmed and an instructor has been assigned:</p>
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
-          <p><strong>Course Type:</strong> ${courseDetails.courseType}</p>
+          <p><strong>Course Name:</strong> ${courseDetails.courseName}</p>
           <p><strong>Date:</strong> ${format(new Date(courseDetails.date), 'MMMM do, yyyy')}</p>
           <p><strong>Time:</strong> ${courseDetails.startTime} - ${courseDetails.endTime}</p>
           <p><strong>Location:</strong> ${courseDetails.location}</p>

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 import PrivateRoute from './components/PrivateRoute';
@@ -12,114 +12,131 @@ import CourseAdminPortal from './components/portals/courseAdmin/CourseAdminPorta
 import SuperAdminPortal from './components/portals/SuperAdminPortal';
 import AccountingPortal from './components/portals/AccountingPortal';
 import SystemAdminPortal from './components/portals/SystemAdminPortal';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import ToastContainer from './components/common/ToastContainer';
 import { SnackbarProvider } from './contexts/SnackbarContext';
+import RecoverPassword from './pages/RecoverPassword';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RealtimeProvider } from './contexts/RealtimeContext';
 
 console.log('[TRACE] App.tsx - Starting to load dependencies');
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 function App() {
   console.log('[TRACE] App.tsx - Rendering App component');
 
   useEffect(() => {
-    console.log('[TRACE] App.tsx - App component mounted');
+    console.log('[TRACE] App component mounted');
     return () => {
-      console.log('[TRACE] App.tsx - App component unmounting');
+      console.log('[TRACE] App component unmounted');
     };
   }, []);
 
   try {
     console.log('[TRACE] App.tsx - Starting to render providers and router');
     return (
-      <ErrorBoundary>
-        <SnackbarProvider>
-          <ToastContainer />
-          <Routes>
-            {/* Public routes */}
-            <Route path='/login' element={<Login />} />
-            <Route path='/forgot-password' element={<ForgotPassword />} />
-            <Route path='/reset-password' element={<ResetPassword />} />
+      <QueryClientProvider client={queryClient}>
+        <RealtimeProvider>
+          <ErrorBoundary>
+            <SnackbarProvider>
+              <Routes>
+                {/* Public routes */}
+                <Route path='/login' element={<Login />} />
+                <Route path='/recover-password' element={<RecoverPassword />} />
+                <Route path='/forgot-password' element={<ForgotPassword />} />
+                <Route path='/reset-password' element={<ResetPassword />} />
 
-            {/* Role-specific portal routes - these allow direct URL access and refresh */}
-            <Route
-              path='/instructor/*'
-              element={
-                <PrivateRoute requiredRole='instructor'>
-                  <InstructorPortal />
-                </PrivateRoute>
-              }
-            />
+                {/* Protected routes */}
+                <Route
+                  path='/'
+                  element={
+                    <PrivateRoute>
+                      <Navigate to="/login" replace />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path='/organization/*'
-              element={
-                <PrivateRoute requiredRole='organization'>
-                  <OrganizationPortal />
-                </PrivateRoute>
-              }
-            />
+                {/* Role-specific portals */}
+                <Route
+                  path='/instructor/*'
+                  element={
+                    <PrivateRoute role='instructor'>
+                      <InstructorPortal />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path='/admin/*'
-              element={
-                <PrivateRoute requiredRole='admin'>
-                  <CourseAdminPortal />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path='/organization/*'
+                  element={
+                    <PrivateRoute role='organization'>
+                      <OrganizationPortal />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path='/accounting/*'
-              element={
-                <PrivateRoute requiredRole='accountant'>
-                  <AccountingPortal />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path='/admin/*'
+                  element={
+                    <PrivateRoute role='admin'>
+                      <CourseAdminPortal />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path='/superadmin/*'
-              element={
-                <PrivateRoute requiredRole='superadmin'>
-                  <SuperAdminPortal />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path='/accounting/*'
+                  element={
+                    <PrivateRoute role='accountant'>
+                      <AccountingPortal />
+                    </PrivateRoute>
+                  }
+                />
 
-            <Route
-              path='/sysadmin/*'
-              element={
-                <PrivateRoute requiredRole='sysadmin'>
-                  <SystemAdminPortal />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path='/superadmin/*'
+                  element={
+                    <PrivateRoute role='superadmin'>
+                      <SuperAdminPortal />
+                    </PrivateRoute>
+                  }
+                />
 
-            {/* Main protected route - redirects to role-based portal */}
-            <Route
-              path='/'
-              element={
-                <PrivateRoute>
-                  <RoleBasedRouter />
-                </PrivateRoute>
-              }
-            />
+                <Route
+                  path='/sysadmin/*'
+                  element={
+                    <PrivateRoute role='sysadmin'>
+                      <SystemAdminPortal />
+                    </PrivateRoute>
+                  }
+                />
 
-            {/* Legacy routes for backward compatibility */}
-            <Route
-              path='/dashboard'
-              element={
-                <PrivateRoute>
-                  <RoleBasedRouter />
-                </PrivateRoute>
-              }
-            />
+                {/* Legacy routes for backward compatibility */}
+                <Route
+                  path='/dashboard'
+                  element={
+                    <PrivateRoute>
+                      <RoleBasedRouter />
+                    </PrivateRoute>
+                  }
+                />
 
-            {/* Fallback for unknown routes */}
-            <Route path='*' element={<NotFound />} />
-          </Routes>
-        </SnackbarProvider>
-      </ErrorBoundary>
+                {/* Fallback for unknown routes */}
+                <Route path='*' element={<NotFound />} />
+              </Routes>
+              <ToastContainer />
+            </SnackbarProvider>
+          </ErrorBoundary>
+        </RealtimeProvider>
+      </QueryClientProvider>
     );
   } catch (error) {
     console.error('[TRACE] App.tsx - Error during render:', error);

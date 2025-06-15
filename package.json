@@ -7,13 +7,22 @@
     "cleanup": "taskkill /f /im node.exe 2>nul || echo 'No node processes to kill'",
     "check-ports": "netstat -ano | findstr \":3001\\|:5173\" || echo 'Ports are free'",
     "dev:backend": "cd backend && npm run dev",
-    "dev:frontend": "cd frontend && npm run dev", 
+    "dev:frontend": "cd frontend && npm run dev",
     "dev:clean": "npm run cleanup && npm run kill-ports && timeout /t 3 /nobreak && npm run check-ports",
-    "dev": "npm run dev:clean && start npm run dev:backend && timeout /t 3 /nobreak && npm run dev:frontend",
+    "dev": "npm run dev:clean && node dev.js",
+    "monitor": "node monitor-servers.js",
+    "monitor:clean": "npm run dev:clean && node monitor-servers.js",
     "stop": "npm run cleanup && npm run kill-ports && npm run check-ports"
   },
   "workspaces": [
     "frontend",
     "backend"
-  ]
+  ],
+  "devDependencies": {
+    "@playwright/test": "^1.53.0",
+    "axios": "^1.9.0",
+    "chalk": "^4.1.2",
+    "concurrently": "^9.1.2",
+    "playwright": "^1.53.0"
+  }
 }

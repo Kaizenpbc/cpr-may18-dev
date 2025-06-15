@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { tokenService } from './tokenService';
 import type {
   DashboardMetrics,
@@ -7,133 +7,59 @@ import type {
   ApiResponse,
   User,
 } from '../types/api';
+import { API_URL } from '../config';
 
-console.log('[Debug] api.ts - Initializing API service');
+console.log('🌐 [API] Initializing API service with base URL:', import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1');
 
-const BASE_URL = 'http://localhost:3001';
-console.log('[Debug] api.ts - Using API URL:', BASE_URL);
+// Initialize API service with single base URL
+console.log('[TRACE] Initializing API service at:', API_URL);
 
+// Create axios instance
 const api = axios.create({
-  baseURL: BASE_URL,
-  withCredentials: true, // Enable cookies for authentication
+  baseURL: 'http://localhost:3001/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Enable sending cookies
 });
 
-// Request interceptor to add auth token
+// Add request interceptor
 api.interceptors.request.use(
-  config => {
-    const token = tokenService.getAccessToken();
-    console.log('[API REQUEST INTERCEPTOR]', {
+  (config) => {
+    console.log('\n🚀 [API REQUEST]', {
       method: config.method?.toUpperCase(),
       url: config.url,
       baseURL: config.baseURL,
-      fullURL: `${config.baseURL}${config.url}`,
-      hasToken: !!token,
       headers: config.headers,
-      data: config.data,
       params: config.params,
+      data: config.data,
     });
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-      console.log('[API AUTH] Authorization header set with token');
-    } else {
-      console.log(
-        '[API AUTH] No token available, proceeding without auth header'
-      );
-    }
-
-    console.log('[API REQUEST FINAL CONFIG]', {
-      method: config.method,
-      fullURL: `${config.baseURL}${config.url}`,
-      headers: config.headers,
-    });
-
     return config;
   },
-  error => {
-    console.error('[API REQUEST ERROR]', error);
+  (error) => {
+    console.error('❌ [API REQUEST ERROR]', error);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor to handle token refresh
+// Add response interceptor
 api.interceptors.response.use(
-  response => {
-    console.log('[API RESPONSE SUCCESS]', {
-      url: response.config.url,
-      fullURL: `${response.config.baseURL}${response.config.url}`,
+  (response) => {
+    console.log('\n✅ [API RESPONSE]', {
       status: response.status,
       statusText: response.statusText,
-      data: response.data,
       headers: response.headers,
+      data: response.data,
     });
     return response;
   },
-  async error => {
-    console.error('[API RESPONSE ERROR]', {
-      url: error.config?.url,
-      fullURL: error.config
-        ? `${error.config.baseURL}${error.config.url}`
-        : 'unknown',
+  (error) => {
+    console.error('❌ [API RESPONSE ERROR]', {
       status: error.response?.status,
       statusText: error.response?.statusText,
       data: error.response?.data,
-      headers: error.response?.headers,
       message: error.message,
-      code: error.code,
     });
-
-    if (error.response?.status === 404) {
-      console.error('[404 ERROR DETAILS]', {
-        requestedURL: error.config?.url,
-        baseURL: error.config?.baseURL,
-        fullURL: error.config
-          ? `${error.config.baseURL}${error.config.url}`
-          : 'unknown',
-        method: error.config?.method,
-        availableRoutes: 'Check backend routes configuration',
-      });
-    }
-
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      console.log('[API AUTH] 401 received, attempting token refresh');
-
-      try {
-        // Attempt to refresh the token using httpOnly cookie
-        // The backend will automatically use the refresh token from the cookie
-        const response = await axios.post(
-          `${BASE_URL}/api/v1/auth/refresh`,
-          {},
-          {
-            withCredentials: true, // This ensures cookies are sent
-          }
-        );
-
-        const { accessToken } = response.data.data || response.data;
-        if (accessToken) {
-          tokenService.setAccessToken(accessToken);
-          console.log('[API AUTH] Token refreshed successfully');
-
-          // Retry the original request with the new token
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-          return api(originalRequest);
-        } else {
-          throw new Error('No access token received from refresh');
-        }
-      } catch (refreshError) {
-        console.error('[API AUTH] Token refresh failed:', refreshError);
-        // If refresh fails, clear tokens and reject
-        tokenService.clearTokens();
-        return Promise.reject(refreshError);
-      }
-    }
-
     return Promise.reject(error);
   }
 );
@@ -164,10 +90,10 @@ export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
   try {
     const token = tokenService.getAccessToken();
     console.log('[Debug] api.ts - Auth token present:', !!token);
-    console.log('[Debug] api.ts - Base URL:', BASE_URL);
-    console.log('[Debug] api.ts - Endpoint:', '/api/v1/dashboard');
+    console.log('[Debug] api.ts - Base URL:', API_URL);
+    console.log('[Debug] api.ts - Endpoint:', '/dashboard');
     const response =
-      await api.get<ApiResponse<DashboardMetrics>>('/api/v1/dashboard');
+      await api.get<ApiResponse<DashboardMetrics>>('/dashboard');
     const data = extractLegacyData(response);
     console.log('[Debug] api.ts - Dashboard data received:', data);
     return data;
@@ -187,19 +113,19 @@ export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
 // Auth endpoints
 export const authApi = {
   login: (username: string, password: string) =>
-    api.post('/api/v1/auth/login', { username, password }),
-  logout: () => api.post('/api/v1/auth/logout'),
-  refreshToken: () => api.post('/api/v1/auth/refresh'),
+    api.post('/auth/login', { username, password }),
+  logout: () => api.post('/auth/logout'),
+  refreshToken: () => api.post('/auth/refresh'),
 };
 
 // Password reset functions
 export const requestPasswordReset = async (email: string) => {
-  const response = await api.post('/api/v1/auth/forgot-password', { email });
+  const response = await api.post('/auth/forgot-password', { email });
   return response.data;
 };
 
 export const resetPassword = async (token: string, password: string) => {
-  const response = await api.post('/api/v1/auth/reset-password', {
+  const response = await api.post('/auth/reset-password', {
     token,
     password,
   });
@@ -209,60 +135,44 @@ export const resetPassword = async (token: string, password: string) => {
 // Course admin endpoints
 export const courseAdminApi = {
   // Courses
-  getCourses: () => api.get('/api/v1/courses'),
-  createCourse: (data: any) => api.post('/api/v1/courses', data),
+  getCourses: () => api.get('/courses'),
+  createCourse: (data: any) => api.post('/courses', data),
   updateCourse: (id: number, data: any) =>
-    api.put(`/api/v1/courses/${id}`, data),
-  deleteCourse: (id: number) => api.delete(`/api/v1/courses/${id}`),
+    api.put(`/courses/${id}`, data),
+  deleteCourse: (id: number) => api.delete(`/courses/${id}`),
   assignInstructor: (courseId: number, instructorId: number) =>
-    api.put(`/api/v1/courses/${courseId}/assign-instructor`, { instructorId }),
+    api.put(`/courses/${courseId}/assign-instructor`, { instructorId }),
 
   // Classes
-  getClasses: () => api.get('/api/v1/classes'),
-  createClass: (data: any) => api.post('/api/v1/classes', data),
+  getClasses: () => api.get('/classes'),
+  createClass: (data: any) => api.post('/classes', data),
   updateClass: (id: number, data: any) =>
-    api.put(`/api/v1/classes/${id}`, data),
-  deleteClass: (id: number) => api.delete(`/api/v1/classes/${id}`),
+    api.put(`/classes/${id}`, data),
+  deleteClass: (id: number) => api.delete(`/classes/${id}`),
 
   // Instructors
-  getInstructors: () => api.get('/api/v1/instructors'),
-  createInstructor: (data: any) => api.post('/api/v1/instructors', data),
+  getInstructors: () => api.get('/instructors'),
+  createInstructor: (data: any) => api.post('/instructors', data),
   updateInstructor: (id: number, data: any) =>
-    api.put(`/api/v1/instructors/${id}`, data),
-  deleteInstructor: (id: number) => api.delete(`/api/v1/instructors/${id}`),
+    api.put(`/instructors/${id}`, data),
+  deleteInstructor: (id: number) => api.delete(`/instructors/${id}`),
   updateInstructorAvailability: (id: number, data: any) =>
-    api.put(`/api/v1/instructors/${id}/availability`, data),
+    api.put(`/instructors/${id}/availability`, data),
 };
 
 // Organization endpoints
 export const organizationApi = {
-  requestCourse: (data: any) =>
-    api.post('/api/v1/organization/course-request', data),
   getMyCourses: async () => {
-    const response = await api.get('/api/v1/organization/courses');
+    const response = await api.get('/organization/courses');
     return extractData(response);
   },
-  getCourseStudents: (courseId: number) =>
-    api.get(`/api/v1/organization/courses/${courseId}/students`),
-  uploadStudents: async (courseId: number, students: any[]) => {
-    const response = await api.post(
-      `/api/v1/organization/courses/${courseId}/students`,
-      { students }
-    );
-    return response.data;
+  getInvoices: () => api.get('/organization/invoices'),
+  getBillingSummary: () => api.get('/organization/billing-summary'),
+  getCourseTypes: async () => {
+    const response = await api.get('/course-types');
+    return extractData(response);
   },
-};
-
-// Course types endpoint
-export const getCourseTypes = async () => {
-  const response = await api.get('/api/v1/course-types');
-  return extractData(response);
-};
-
-// Organization course request method (for backward compatibility with ScheduleCourseForm)
-export const requestCourse = async (data: any) => {
-  const response = await api.post('/api/v1/organization/course-request', data);
-  return response.data;
+  requestCourse: (data: any) => api.post('/organization/course-request', data),
 };
 
 // Student endpoints
@@ -276,10 +186,10 @@ export const studentApi = {
 
 // Instructor endpoints
 export const instructorApi = {
-  getSchedule: () => api.get('/api/v1/instructor/schedule'),
-  getAvailability: () => api.get('/api/v1/instructor/availability'),
+  getSchedule: () => api.get('/instructor/schedule'),
+  getAvailability: () => api.get('/instructor/availability'),
   updateAvailability: (data: any) =>
-    api.put('/api/v1/instructor/availability', data),
+    api.put('/instructor/availability', data),
 };
 
 // Additional exports for backward compatibility
@@ -287,14 +197,14 @@ export const fetchInstructorAvailability = async (): Promise<
   Availability[]
 > => {
   const response = await api.get<ApiResponse<Availability[]>>(
-    '/api/v1/instructor/availability'
+    '/instructor/availability'
   );
   return extractLegacyData(response);
 };
 
 export const fetchSchedule = async (): Promise<Class[]> => {
   const response = await api.get<ApiResponse<Class[]>>(
-    '/api/v1/instructor/schedule'
+    '/instructor/schedule'
   );
   return extractLegacyData(response);
 };
@@ -316,8 +226,8 @@ export const updateCoursePrice = async (pricingId: number, data: any) => {
   return response.data;
 };
 
-export const createCoursePricing = async (data: any) => {
-  const response = await api.post('/api/v1/accounting/course-pricing', data);
+export const createCoursePricing = async (data: any): Promise<ApiResponse<any>> => {
+  const response = await api.post('/accounting/course-pricing', data);
   return response.data;
 };
 
@@ -380,10 +290,8 @@ export const recordInvoicePayment = async (
   return response.data;
 };
 
-export const getRevenueReport = async (year: number) => {
-  const response = await api.get(
-    `/api/v1/accounting/reports/revenue?year=${year}`
-  );
+export const getRevenueReport = async (year: number): Promise<ApiResponse<any>> => {
+  const response = await api.get(`/accounting/reports/revenue?year=${year}`);
   return response.data;
 };
 
@@ -391,92 +299,92 @@ export const getRevenueReport = async (year: number) => {
 export const sysAdminApi = {
   // Dashboard
   getDashboard: async () => {
-    const response = await api.get('/api/v1/sysadmin/dashboard');
+    const response = await api.get('/sysadmin/dashboard');
     return response.data;
   },
 
   // Course Management
   getCourses: async () => {
-    const response = await api.get('/api/v1/sysadmin/courses');
+    const response = await api.get('/sysadmin/courses');
     return response.data;
   },
   createCourse: async (courseData: any) => {
-    const response = await api.post('/api/v1/sysadmin/courses', courseData);
+    const response = await api.post('/sysadmin/courses', courseData);
     return response.data;
   },
   updateCourse: async (courseId: number, courseData: any) => {
     const response = await api.put(
-      `/api/v1/sysadmin/courses/${courseId}`,
+      `/sysadmin/courses/${courseId}`,
       courseData
     );
     return response.data;
   },
   deleteCourse: async (courseId: number) => {
-    const response = await api.delete(`/api/v1/sysadmin/courses/${courseId}`);
+    const response = await api.delete(`/sysadmin/courses/${courseId}`);
     return response.data;
   },
 
   // User Management
   getUsers: async () => {
-    const response = await api.get('/api/v1/sysadmin/users');
+    const response = await api.get('/sysadmin/users');
     return response.data;
   },
   createUser: async (userData: any) => {
-    const response = await api.post('/api/v1/sysadmin/users', userData);
+    const response = await api.post('/sysadmin/users', userData);
     return response.data;
   },
   updateUser: async (userId: number, userData: any) => {
     const response = await api.put(
-      `/api/v1/sysadmin/users/${userId}`,
+      `/sysadmin/users/${userId}`,
       userData
     );
     return response.data;
   },
   deleteUser: async (userId: number) => {
-    const response = await api.delete(`/api/v1/sysadmin/users/${userId}`);
+    const response = await api.delete(`/sysadmin/users/${userId}`);
     return response.data;
   },
 
   // Vendor Management
   getVendors: async () => {
-    const response = await api.get('/api/v1/sysadmin/vendors');
+    const response = await api.get('/sysadmin/vendors');
     return response.data;
   },
   createVendor: async (vendorData: any) => {
-    const response = await api.post('/api/v1/sysadmin/vendors', vendorData);
+    const response = await api.post('/sysadmin/vendors', vendorData);
     return response.data;
   },
   updateVendor: async (vendorId: number, vendorData: any) => {
     const response = await api.put(
-      `/api/v1/sysadmin/vendors/${vendorId}`,
+      `/sysadmin/vendors/${vendorId}`,
       vendorData
     );
     return response.data;
   },
   deleteVendor: async (vendorId: number) => {
-    const response = await api.delete(`/api/v1/sysadmin/vendors/${vendorId}`);
+    const response = await api.delete(`/sysadmin/vendors/${vendorId}`);
     return response.data;
   },
 
   // Organization Management
   getOrganizations: async () => {
-    const response = await api.get('/api/v1/sysadmin/organizations');
+    const response = await api.get('/sysadmin/organizations');
     return response.data;
   },
   createOrganization: async (orgData: any) => {
-    const response = await api.post('/api/v1/sysadmin/organizations', orgData);
+    const response = await api.post('/sysadmin/organizations', orgData);
     return response.data;
   },
   updateOrganization: async (orgId: number, orgData: any) => {
     const response = await api.put(
-      `/api/v1/sysadmin/organizations/${orgId}`,
+      `/sysadmin/organizations/${orgId}`,
       orgData
     );
     return response.data;
   },
   deleteOrganization: async (orgId: number) => {
     const response = await api.delete(
-      `/api/v1/sysadmin/organizations/${orgId}`
+      `/sysadmin/organizations/${orgId}`
     );
     return response.data;
   },
@@ -504,7 +412,11 @@ export const getOrganizationStudentParticipationAnalytics = async (
 // Admin endpoints
 export const adminApi = {
   getCourseStudents: (courseId: number) =>
-    api.get(`/api/v1/admin/courses/${courseId}/students`),
+    api.get(`/admin/courses/${courseId}/students`),
+  getInstructorStats: (month: string) =>
+    api.get('/admin/instructor-stats', { params: { month } }),
+  getDashboardSummary: (month: string) =>
+    api.get('/admin/dashboard-summary', { params: { month } }),
 };
 
 // Email Template endpoints

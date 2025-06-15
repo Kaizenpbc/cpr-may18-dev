@@ -17,12 +17,15 @@ import {
   IconButton,
   Typography,
   Alert,
+  AlertTitle,
   Chip,
   Stack,
   MenuItem,
   Tooltip,
   FormControlLabel,
   Switch,
+  Card,
+  CardContent,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -33,10 +36,15 @@ import {
   Cancel as CancelIcon,
   Visibility as ViewIcon,
   AttachMoney as BillingIcon,
+  Warning as WarningIcon,
+  PersonAdd as PersonAddIcon,
 } from '@mui/icons-material';
 import { api } from '../../../services/api';
 import InstructorDashboard from './InstructorDashboard';
 import AdminViewStudentsDialog from '../../dialogs/AdminViewStudentsDialog';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRealtime } from '../../../contexts/RealtimeContext';
+import { formatDateWithoutTimezone } from '../../../utils/dateUtils';
 
 console.log('[InstructorManagement] Module loaded');
 
@@ -81,6 +89,8 @@ interface AvailabilityFormData {
 }
 
 const InstructorManagement: React.FC = () => {
+  const queryClient = useQueryClient();
+  const { isConnected, lastUpdate } = useRealtime();
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [availableInstructors, setAvailableInstructors] = useState<
     AvailableInstructor[]
@@ -93,7 +103,6 @@ const InstructorManagement: React.FC = () => {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [editScheduleOpen, setEditScheduleOpen] = useState(false);
-  const [cancelCourseOpen, setCancelCourseOpen] = useState(false);
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(
     null
   );
@@ -102,7 +111,6 @@ const InstructorManagement: React.FC = () => {
   );
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [courseToEdit, setCourseToEdit] = useState<any>(null);
-  const [courseToCancel, setCourseToCancel] = useState<any>(null);
   const [availabilityData, setAvailabilityData] = useState<
     AvailabilityFormData[]
   >([]);
@@ -127,9 +135,6 @@ const InstructorManagement: React.FC = () => {
     endTime: '12:00',
     instructorId: '',
   });
-  const [cancelData, setCancelData] = useState({
-    reason: '',
-  });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -141,49 +146,56 @@ const InstructorManagement: React.FC = () => {
   // State for showing/hiding completed assignments
   const [showCompleted, setShowCompleted] = useState(false);
 
+  // State for edit dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [newScheduledDate, setNewScheduledDate] = useState('');
+
+  // Fetch instructors with React Query
+  const { data: instructorsData = [] } = useQuery({
+    queryKey: ['instructors'],
+    queryFn: async () => {
+      const response = await api.get('/instructors');
+      return response.data.data;
+    },
+    refetchInterval: 30000, // Poll every 30 seconds
+  });
+
+  // Fetch pending courses with React Query
+  const { data: pendingCoursesData = [] } = useQuery({
+    queryKey: ['pendingCourses'],
+    queryFn: async () => {
+      const response = await api.get('/courses/pending');
+      return response.data.data;
+    },
+    refetchInterval: 30000, // Poll every 30 seconds
+  });
+
+  // Fetch confirmed courses with React Query
+  const { data: confirmedCoursesData = [] } = useQuery({
+    queryKey: ['confirmedCourses'],
+    queryFn: async () => {
+      const response = await api.get('/courses/confirmed');
+      return response.data.data;
+    },
+    refetchInterval: 30000, // Poll every 30 seconds
+  });
+
+  // Fetch completed courses with React Query
+  const { data: completedCoursesData = [] } = useQuery({
+    queryKey: ['completedCourses'],
+    queryFn: async () => {
+      const response = await api.get('/courses/completed');
+      return response.data.data;
+    },
+    refetchInterval: 30000, // Poll every 30 seconds
+  });
+
   useEffect(() => {
-    fetchInstructors();
-    fetchPendingCourses();
-    fetchConfirmedCourses();
-    fetchCompletedCourses();
-  }, []);
-
-  const fetchInstructors = async () => {
-    try {
-      const response = await api.get('/api/v1/instructors');
-      setInstructors(response.data.data);
-    } catch (err) {
-      console.error('Error fetching instructors:', err);
-      setError('Failed to fetch instructors');
-    }
-  };
-
-  const fetchPendingCourses = async () => {
-    try {
-      const response = await api.get('/api/v1/courses/pending');
-      setPendingCourses(response.data.data);
-    } catch (err) {
-      setError('Failed to fetch pending courses');
-    }
-  };
-
-  const fetchConfirmedCourses = async () => {
-    try {
-      const response = await api.get('/api/v1/courses/confirmed');
-      setConfirmedCourses(response.data.data);
-    } catch (err) {
-      setError('Failed to fetch confirmed courses');
-    }
-  };
-
-  const fetchCompletedCourses = async () => {
-    try {
-      const response = await api.get('/api/v1/courses/completed');
-      setCompletedCourses(response.data.data);
-    } catch (err) {
-      setError('Failed to fetch completed courses');
-    }
-  };
+    setInstructors(instructorsData);
+    setPendingCourses(pendingCoursesData);
+    setConfirmedCourses(confirmedCoursesData);
+    setCompletedCourses(completedCoursesData);
+  }, [instructorsData, pendingCoursesData, confirmedCoursesData, completedCoursesData]);
 
   const handleOpen = (instructor?: Instructor) => {
     if (instructor) {
@@ -237,20 +249,113 @@ const InstructorManagement: React.FC = () => {
 
   const fetchInstructorScheduleData = async (instructorId: number) => {
     try {
-      // Note: These endpoints would need to be created for admin access to instructor data
-      // For now, we'll show the structure
       const [scheduleRes, availabilityRes] = await Promise.all([
-        api.get(`/api/v1/instructors/${instructorId}/schedule`),
-        api.get(`/api/v1/instructors/${instructorId}/availability`),
+        api.get(`/instructors/${instructorId}/schedule`),
+        api.get(`/instructors/${instructorId}/availability`),
       ]);
-      setInstructorSchedule(scheduleRes.data.data || []);
+      
+      // Process schedule data
+      const scheduleData = (scheduleRes.data.data || []).map((item: any) => ({
+        type: 'class',
+        displayDate: item.date,
+        status: item.status,
+        key: `class-${item.id}`,
+        organizationname: item.organization,
+        location: item.location,
+        coursetypename: item.type,
+        studentsregistered: item.studentcount,
+        notes: item.notes,
+        originalData: item
+      }));
+      
+      // Process availability data and convert to schedule format
+      const availabilityData = (availabilityRes.data.data || []).map((avail: any) => ({
+        type: 'availability',
+        displayDate: avail.date,
+        status: 'Available',
+        key: `availability-${avail.date}`,
+        originalData: avail
+      }));
+      
+      // Combine and sort by date
+      const combinedData = [...scheduleData, ...availabilityData].sort((a, b) => {
+        const dateA = new Date(a.displayDate + 'T00:00:00');
+        const dateB = new Date(b.displayDate + 'T00:00:00');
+        return dateA.getTime() - dateB.getTime();
+      });
+      
+      setInstructorSchedule(combinedData);
       setInstructorAvailability(availabilityRes.data.data || []);
     } catch (err) {
       console.error('Error fetching instructor schedule:', err);
-      // For demo purposes, we'll set empty arrays
-      setInstructorSchedule([]);
-      setInstructorAvailability([]);
+      setError('Failed to fetch instructor schedule data');
     }
+  };
+
+  // Format date helper
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString + 'T00:00:00');
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  // Render schedule dialog content
+  const renderScheduleDialogContent = () => {
+    if (!viewingInstructor) return null;
+
+    return (
+      <Box sx={{ mt: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          Schedule for {viewingInstructor.instructor_name}
+        </Typography>
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Date</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Location</TableCell>
+                <TableCell>Organization</TableCell>
+                <TableCell>Course Name</TableCell>
+                <TableCell>Students</TableCell>
+                <TableCell>Notes</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {instructorSchedule.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center">
+                    No schedule items found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                instructorSchedule.map((item) => (
+                  <TableRow key={item.key}>
+                    <TableCell>{formatDate(item.displayDate)}</TableCell>
+                    <TableCell>
+                      {item.type === 'class' ? 'Class' : 'Availability'}
+                    </TableCell>
+                    <TableCell>{item.status}</TableCell>
+                    <TableCell>{item.type === 'class' ? item.location : '-'}</TableCell>
+                    <TableCell>{item.type === 'class' ? item.organizationname : '-'}</TableCell>
+                    <TableCell>{item.type === 'class' ? item.coursetypename : '-'}</TableCell>
+                    <TableCell>
+                      {item.type === 'class' ? item.studentsregistered : '-'}
+                    </TableCell>
+                    <TableCell>{item.type === 'class' ? item.notes : '-'}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
+    );
   };
 
   const handleAssignOpen = async (course: any) => {
@@ -268,7 +373,7 @@ const InstructorManagement: React.FC = () => {
         // Extract just the date part (YYYY-MM-DD) from the scheduled_date
         const dateOnly = course.scheduled_date.split('T')[0];
         const response = await api.get(
-          `/api/v1/instructors/available/${dateOnly}`
+          `/instructors/available/${dateOnly}`
         );
         setAvailableInstructors(response.data.data);
 
@@ -324,7 +429,7 @@ const InstructorManagement: React.FC = () => {
         // Extract just the date part (YYYY-MM-DD) from the confirmed_date
         const dateOnly = course.confirmed_date.split('T')[0];
         const response = await api.get(
-          `/api/v1/instructors/available/${dateOnly}`
+          `/instructors/available/${dateOnly}`
         );
         // Include the current instructor even if they're not available (to allow keeping them)
         const availableList = response.data.data;
@@ -361,18 +466,6 @@ const InstructorManagement: React.FC = () => {
     });
   };
 
-  const handleCancelCourseOpen = (course: any) => {
-    setCourseToCancel(course);
-    setCancelData({ reason: '' });
-    setCancelCourseOpen(true);
-  };
-
-  const handleCancelCourseClose = () => {
-    setCancelCourseOpen(false);
-    setCourseToCancel(null);
-    setCancelData({ reason: '' });
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -385,13 +478,13 @@ const InstructorManagement: React.FC = () => {
     e.preventDefault();
     try {
       if (editingInstructor) {
-        await api.put(`/api/v1/instructors/${editingInstructor.id}`, formData);
+        await api.put(`/instructors/${editingInstructor.id}`, formData);
         setSuccess('Instructor updated successfully');
       } else {
-        await api.post('/api/v1/instructors', formData);
+        await api.post('/instructors', formData);
         setSuccess('Instructor created successfully');
       }
-      fetchInstructors();
+      queryClient.invalidateQueries({ queryKey: ['instructors'] });
       handleClose();
     } catch (err) {
       setError('Failed to save instructor');
@@ -404,13 +497,13 @@ const InstructorManagement: React.FC = () => {
 
     try {
       await api.put(
-        `/api/v1/instructors/${editingInstructor.id}/availability`,
+        `/instructors/${editingInstructor.id}/availability`,
         {
           availability: availabilityData,
         }
       );
       setSuccess('Availability updated successfully');
-      fetchInstructors();
+      queryClient.invalidateQueries({ queryKey: ['instructors'] });
       handleAvailabilityClose();
     } catch (err) {
       setError('Failed to update availability');
@@ -422,9 +515,9 @@ const InstructorManagement: React.FC = () => {
       return;
 
     try {
-      await api.delete(`/api/v1/instructors/${id}`);
+      await api.delete(`/instructors/${id}`);
       setSuccess('Instructor deleted successfully');
-      fetchInstructors();
+      queryClient.invalidateQueries({ queryKey: ['instructors'] });
     } catch (err) {
       setError('Failed to delete instructor');
     }
@@ -443,10 +536,10 @@ const InstructorManagement: React.FC = () => {
 
     try {
       await api.delete(
-        `/api/v1/instructors/${instructorId}/availability/${date}`
+        `/instructors/${instructorId}/availability/${date}`
       );
       setSuccess('Availability removed successfully');
-      fetchInstructors();
+      queryClient.invalidateQueries({ queryKey: ['instructors'] });
     } catch (err: any) {
       if (err.response?.data?.error?.message) {
         setError(err.response.data.error.message);
@@ -485,26 +578,28 @@ const InstructorManagement: React.FC = () => {
     if (!selectedCourse || !assignmentData.instructorId) return;
 
     try {
-      await api.put(`/api/v1/courses/${selectedCourse.id}/assign-instructor`, {
+      const response = await api.put(`/courses/${selectedCourse.id}/assign-instructor`, {
         instructorId: assignmentData.instructorId,
         startTime: assignmentData.startTime,
         endTime: assignmentData.endTime,
       });
-      setSuccess(
-        'Instructor assigned successfully! Course status updated to Confirmed.'
-      );
 
-      // Refresh all data to ensure UI is in sync
-      await Promise.all([
-        fetchPendingCourses(),
-        fetchConfirmedCourses(),
-        fetchCompletedCourses(),
-        fetchInstructors(), // This will refresh the instructor availability display
-      ]);
+      if (response.data.success) {
+        setSuccess(response.data.message || 'Instructor assigned successfully! Course status updated to Confirmed.');
 
-      handleAssignClose();
-    } catch (err) {
-      setError('Failed to assign instructor');
+        // Refresh all data to ensure UI is in sync
+        queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
+        queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
+        queryClient.invalidateQueries({ queryKey: ['completedCourses'] });
+        queryClient.invalidateQueries({ queryKey: ['instructors'] }); // This will refresh the instructor availability display
+
+        handleAssignClose();
+      } else {
+        setError('Failed to assign instructor: ' + (response.data.message || 'Unknown error'));
+      }
+    } catch (err: any) {
+      console.error('Error assigning instructor:', err);
+      setError(err.response?.data?.error?.message || 'Failed to assign instructor');
     }
   };
 
@@ -517,7 +612,7 @@ const InstructorManagement: React.FC = () => {
         // Ensure we only use the date part (YYYY-MM-DD)
         const dateOnly = newDate.split('T')[0];
         const response = await api.get(
-          `/api/v1/instructors/available/${dateOnly}`
+          `/instructors/available/${dateOnly}`
         );
         const availableList = response.data.data;
 
@@ -547,7 +642,7 @@ const InstructorManagement: React.FC = () => {
     if (!courseToEdit) return;
 
     try {
-      await api.put(`/api/v1/courses/${courseToEdit.id}/schedule`, {
+      await api.put(`/courses/${courseToEdit.id}/schedule`, {
         scheduledDate: editScheduleData.scheduledDate,
         startTime: editScheduleData.startTime,
         endTime: editScheduleData.endTime,
@@ -556,12 +651,10 @@ const InstructorManagement: React.FC = () => {
       setSuccess('Course schedule updated successfully!');
 
       // Refresh all data to ensure UI is in sync
-      await Promise.all([
-        fetchPendingCourses(),
-        fetchConfirmedCourses(),
-        fetchCompletedCourses(),
-        fetchInstructors(), // This will refresh the instructor availability display
-      ]);
+      queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
+      queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
+      queryClient.invalidateQueries({ queryKey: ['completedCourses'] });
+      queryClient.invalidateQueries({ queryKey: ['instructors'] }); // This will refresh the instructor availability display
 
       handleEditScheduleClose();
     } catch (err) {
@@ -569,50 +662,48 @@ const InstructorManagement: React.FC = () => {
     }
   };
 
-  const handleCancelCourseSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!courseToCancel || !cancelData.reason.trim()) {
-      setError('Please provide a reason for cancellation');
-      return;
-    }
+  // Function to check if course is within 7 days
+  const isCourseWithinSevenDays = (course: any) => {
+    const scheduledDate = new Date(course.scheduled_date);
+    const today = new Date();
+    const diffTime = scheduledDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // Return true if the course is within 7 days (inclusive) and not past scheduled date
+    return diffDays <= 7 && diffDays > 0 && !course.instructor_id && !isCoursePastScheduledDate(course);
+  };
 
-    try {
-      await api.put(`/api/v1/courses/${courseToCancel.id}/cancel`, {
-        reason: cancelData.reason,
-      });
-      setSuccess('Course cancelled successfully!');
+  const isCoursePastScheduledDate = (course: any) => {
+    const scheduledDate = new Date(course.scheduled_date);
+    const today = new Date();
+    // Set both dates to midnight for accurate day comparison
+    scheduledDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    // Return true if today is after the scheduled date
+    return today > scheduledDate;
+  };
 
-      // Refresh all data to ensure UI is in sync
-      await Promise.all([
-        fetchPendingCourses(),
-        fetchConfirmedCourses(),
-        fetchCompletedCourses(),
-        fetchInstructors(), // This will refresh the instructor availability display
-      ]);
-
-      handleCancelCourseClose();
-    } catch (err) {
-      setError('Failed to cancel course');
+  // Function to get status color based on course status
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'past_due':
+        return 'error';
+      case 'cancelled':
+        return 'error';
+      case 'confirmed':
+        return 'success';
+      case 'completed':
+        return 'success';
+      default:
+        return 'warning';
     }
   };
 
-  // Add this helper function near the top of the component
-  const formatDateWithoutTimezone = (dateString: string): string => {
-    if (!dateString || dateString === 'No availability set') return dateString;
-
-    // Parse the date string directly without timezone conversion
-    const dateParts = dateString.split('-');
-    if (dateParts.length === 3) {
-      const year = parseInt(dateParts[0]);
-      const month = parseInt(dateParts[1]) - 1; // Month is 0-indexed
-      const day = parseInt(dateParts[2]);
-
-      // Create date in local timezone to avoid UTC conversion
-      const date = new Date(year, month, day);
-      return date.toLocaleDateString();
+  // Function to get status label based on course status
+  const getStatusLabel = (course: any) => {
+    if (isCoursePastScheduledDate(course)) {
+      return 'Past Due';
     }
-
-    return dateString;
+    return course.status.charAt(0).toUpperCase() + course.status.slice(1);
   };
 
   const handleViewStudentsOpen = (course: any) => {
@@ -627,11 +718,54 @@ const InstructorManagement: React.FC = () => {
 
   const handleReadyForBilling = async (courseId: number) => {
     try {
-      await api.put(`/api/v1/courses/${courseId}/ready-for-billing`);
+      await api.put(`/courses/${courseId}/ready-for-billing`);
       setSuccess('Course marked as ready for billing');
-      fetchCompletedCourses();
+      queryClient.invalidateQueries({ queryKey: ['completedCourses'] });
     } catch (err) {
       setError('Failed to mark course as ready for billing');
+    }
+  };
+
+  // Function to handle reminder acknowledgment
+  const handleReminderAcknowledged = async (courseId: number) => {
+    try {
+      await api.post(`/courses/${courseId}/update-reminder`);
+      // Refetch pending courses to update the UI
+      queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
+    } catch (error) {
+      console.error('Error acknowledging reminder:', error);
+      setError('Failed to acknowledge reminder');
+    }
+  };
+
+  const handleEditClick = (course: any) => {
+    setSelectedCourse(course);
+    setNewScheduledDate(course.scheduled_date);
+    setEditDialogOpen(true);
+  };
+
+  const handleEditClose = () => {
+    setEditDialogOpen(false);
+    setSelectedCourse(null);
+    setNewScheduledDate('');
+  };
+
+  const handleEditSave = async () => {
+    try {
+      const response = await api.put(`/courses/${selectedCourse.id}/schedule`, {
+        scheduled_date: newScheduledDate
+      });
+      
+      // Invalidate queries to refresh data in both Admin and Org portals
+      queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
+      queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
+      queryClient.invalidateQueries({ queryKey: ['organizationCourses'] }); // For Org portal
+      
+      setSuccess('Course schedule updated successfully');
+      handleEditClose();
+    } catch (error) {
+      console.error('Error updating course schedule:', error);
+      setError('Failed to update course schedule');
     }
   };
 
@@ -651,6 +785,11 @@ const InstructorManagement: React.FC = () => {
           {success}
         </Alert>
       )}
+      {!isConnected && (
+        <Alert severity='warning' sx={{ mb: 2 }}>
+          Real-time updates are currently using polling. Last update: {lastUpdate?.toLocaleTimeString()}
+        </Alert>
+      )}
 
       {/* Instructor Fairness Dashboard */}
       <InstructorDashboard />
@@ -668,91 +807,50 @@ const InstructorManagement: React.FC = () => {
                 <TableCell>Scheduled Date</TableCell>
                 <TableCell>Organization</TableCell>
                 <TableCell>Location</TableCell>
-                <TableCell>Course Type</TableCell>
+                <TableCell>Type of Course</TableCell>
                 <TableCell>Students Registered</TableCell>
                 <TableCell>Notes</TableCell>
-                <TableCell>Status</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {pendingCourses.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} align='center'>
-                    <Typography
-                      variant='h6'
-                      color='textSecondary'
-                      sx={{ py: 4 }}
-                    >
-                      NO COURSE PENDING
-                    </Typography>
+              {pendingCourses.map(course => (
+                <TableRow key={course.id}>
+                  <TableCell>
+                    {formatDateWithoutTimezone(course.date_requested)}
+                  </TableCell>
+                  <TableCell>
+                    {course.scheduled_date
+                      ? formatDateWithoutTimezone(course.scheduled_date)
+                      : '-'}
+                  </TableCell>
+                  <TableCell>{course.organization_name}</TableCell>
+                  <TableCell>{course.location}</TableCell>
+                  <TableCell>{course.course_type}</TableCell>
+                  <TableCell>{course.registered_students}</TableCell>
+                  <TableCell>{course.notes}</TableCell>
+                  <TableCell>
+                    <Stack direction='row' spacing={1}>
+                      <Button
+                        variant='outlined'
+                        color='primary'
+                        size='small'
+                        onClick={() => handleAssignOpen(course)}
+                      >
+                        Assign Instructor
+                      </Button>
+                      <Button
+                        variant='outlined'
+                        color='info'
+                        size='small'
+                        onClick={() => handleViewStudentsOpen(course)}
+                      >
+                        View Students
+                      </Button>
+                    </Stack>
                   </TableCell>
                 </TableRow>
-              ) : (
-                pendingCourses.map(course => (
-                  <TableRow key={course.id}>
-                    <TableCell>
-                      {formatDateWithoutTimezone(course.date_requested)}
-                    </TableCell>
-                    <TableCell>
-                      {course.scheduled_date
-                        ? formatDateWithoutTimezone(course.scheduled_date)
-                        : '-'}
-                    </TableCell>
-                    <TableCell>{course.organization_name}</TableCell>
-                    <TableCell>{course.location}</TableCell>
-                    <TableCell>{course.course_type}</TableCell>
-                    <TableCell>{course.registered_students}</TableCell>
-                    <TableCell>
-                      <Typography
-                        variant='body2'
-                        sx={{
-                          maxWidth: 200,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
-                        {course.notes || '-'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={course.status}
-                        color='warning'
-                        size='small'
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Stack direction='row' spacing={1}>
-                        <Button
-                          variant='contained'
-                          color='primary'
-                          size='small'
-                          onClick={() => handleAssignOpen(course)}
-                        >
-                          Assign Instructor
-                        </Button>
-                        <Button
-                          variant='outlined'
-                          color='secondary'
-                          size='small'
-                          onClick={() => handleEditScheduleOpen(course)}
-                        >
-                          Edit Schedule
-                        </Button>
-                        <Button
-                          variant='outlined'
-                          color='error'
-                          size='small'
-                          onClick={() => handleCancelCourseOpen(course)}
-                        >
-                          Cancel
-                        </Button>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+              ))}
             </TableBody>
           </Table>
         </TableContainer>
@@ -783,7 +881,7 @@ const InstructorManagement: React.FC = () => {
           />
           <Button
             variant='outlined'
-            onClick={fetchInstructors}
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['instructors'] })}
             sx={{ textTransform: 'none' }}
           >
             Refresh Data
@@ -817,7 +915,7 @@ const InstructorManagement: React.FC = () => {
               </TableCell>
               <TableCell>
                 <Typography variant='subtitle2' fontWeight='bold'>
-                  Course Type
+                  Course Name
                 </Typography>
               </TableCell>
               <TableCell>
@@ -1004,7 +1102,7 @@ const InstructorManagement: React.FC = () => {
                 <TableCell>Confirmed Date</TableCell>
                 <TableCell>Organization</TableCell>
                 <TableCell>Location</TableCell>
-                <TableCell>Course Type</TableCell>
+                <TableCell>Course Name</TableCell>
                 <TableCell>Students Registered</TableCell>
                 <TableCell>Students Attended</TableCell>
                 <TableCell>Notes</TableCell>
@@ -1094,14 +1192,6 @@ const InstructorManagement: React.FC = () => {
                       >
                         Edit
                       </Button>
-                      <Button
-                        variant='outlined'
-                        color='error'
-                        size='small'
-                        onClick={() => handleCancelCourseOpen(course)}
-                      >
-                        Cancel
-                      </Button>
                     </Stack>
                   </TableCell>
                 </TableRow>
@@ -1137,7 +1227,7 @@ const InstructorManagement: React.FC = () => {
                 <TableCell>Date Scheduled</TableCell>
                 <TableCell>Organization</TableCell>
                 <TableCell>Location</TableCell>
-                <TableCell>Course Type</TableCell>
+                <TableCell>Course Name</TableCell>
                 <TableCell>Students Registered</TableCell>
                 <TableCell>Students Attended</TableCell>
                 <TableCell>Notes</TableCell>
@@ -1391,88 +1481,7 @@ const InstructorManagement: React.FC = () => {
           Instructor Schedule - {viewingInstructor?.instructor_name}
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ mb: 3 }}>
-            <Typography variant='h6' gutterBottom>
-              Available Dates
-            </Typography>
-            {instructorAvailability.length > 0 ? (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                {instructorAvailability.map((avail, index) => (
-                  <Chip
-                    key={index}
-                    label={formatDateWithoutTimezone(avail.date)}
-                    color='success'
-                    variant='outlined'
-                    size='small'
-                  />
-                ))}
-              </Box>
-            ) : (
-              <Typography variant='body2' color='textSecondary'>
-                No availability dates set
-              </Typography>
-            )}
-          </Box>
-
-          <Box sx={{ mb: 3 }}>
-            <Typography variant='h6' gutterBottom>
-              Scheduled Classes
-            </Typography>
-            {instructorSchedule.length > 0 ? (
-              <TableContainer component={Paper} variant='outlined'>
-                <Table size='small'>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Date</TableCell>
-                      <TableCell>Time</TableCell>
-                      <TableCell>Type</TableCell>
-                      <TableCell>Location</TableCell>
-                      <TableCell>Students</TableCell>
-                      <TableCell>Status</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {instructorSchedule.map((classItem, index) => (
-                      <TableRow key={index}>
-                        <TableCell>
-                          {formatDateWithoutTimezone(classItem.date)}
-                        </TableCell>
-                        <TableCell>{classItem.time}</TableCell>
-                        <TableCell>{classItem.type}</TableCell>
-                        <TableCell>{classItem.location}</TableCell>
-                        <TableCell>
-                          {classItem.current_students}/{classItem.max_students}
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={classItem.status}
-                            color={
-                              classItem.status === 'scheduled'
-                                ? 'primary'
-                                : 'default'
-                            }
-                            size='small'
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Typography variant='body2' color='textSecondary'>
-                No scheduled classes
-              </Typography>
-            )}
-          </Box>
-
-          <Box>
-            <Typography variant='body2' color='textSecondary'>
-              <strong>Note:</strong> This shows the instructor's calendar-based
-              schedule and availability. Instructors can manage their own
-              availability through their portal.
-            </Typography>
-          </Box>
+          {renderScheduleDialogContent()}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleScheduleClose}>Close</Button>
@@ -1489,7 +1498,7 @@ const InstructorManagement: React.FC = () => {
         <DialogTitle>Assign Instructor to Course</DialogTitle>
         <DialogContent>
           <Typography variant='subtitle1' gutterBottom sx={{ mb: 2 }}>
-            Course Type: {selectedCourse?.course_type}
+            Course Name: {selectedCourse?.course_type}
             <br />
             Organization: {selectedCourse?.organization_name}
             <br />
@@ -1603,7 +1612,7 @@ const InstructorManagement: React.FC = () => {
         <DialogTitle>Edit Course Schedule</DialogTitle>
         <DialogContent>
           <Typography variant='subtitle1' gutterBottom sx={{ mb: 2 }}>
-            Course Type: {courseToEdit?.course_type}
+            Course Name: {courseToEdit?.course_type}
             <br />
             Organization: {courseToEdit?.organization_name}
             <br />
@@ -1693,57 +1702,6 @@ const InstructorManagement: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Cancel Course Dialog */}
-      <Dialog
-        open={cancelCourseOpen}
-        onClose={handleCancelCourseClose}
-        maxWidth='sm'
-        fullWidth
-      >
-        <DialogTitle>Cancel Course</DialogTitle>
-        <DialogContent>
-          <Typography variant='subtitle1' gutterBottom sx={{ mb: 2 }}>
-            Course Type: {courseToCancel?.course_type}
-            <br />
-            Organization: {courseToCancel?.organization_name}
-            <br />
-            Location: {courseToCancel?.location}
-            <br />
-            Students: {courseToCancel?.registered_students}
-          </Typography>
-
-          <Typography variant='body2' color='error' sx={{ mb: 2 }}>
-            Are you sure you want to cancel this course? This action cannot be
-            undone.
-          </Typography>
-
-          <TextField
-            label='Reason for Cancellation'
-            value={cancelData.reason}
-            onChange={e =>
-              setCancelData(prev => ({ ...prev, reason: e.target.value }))
-            }
-            fullWidth
-            multiline
-            rows={4}
-            required
-            placeholder='Please provide a detailed reason for cancelling this course...'
-            sx={{ mt: 2 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCancelCourseClose}>Cancel</Button>
-          <Button
-            onClick={handleCancelCourseSubmit}
-            variant='contained'
-            color='error'
-            disabled={!cancelData.reason.trim()}
-          >
-            Cancel Course
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       {/* View Students Dialog */}
       <AdminViewStudentsDialog
         open={viewStudentsOpen}
@@ -1755,6 +1713,41 @@ const InstructorManagement: React.FC = () => {
           location: selectedCourseForStudents?.location,
         }}
       />
+
+      {/* Edit Date Dialog */}
+      <Dialog open={editDialogOpen} onClose={handleEditClose} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Course Schedule</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Current Schedule: {selectedCourse && formatDateWithoutTimezone(selectedCourse.scheduled_date)}
+            </Typography>
+            <TextField
+              type="datetime-local"
+              label="New Scheduled Date"
+              value={newScheduledDate}
+              onChange={(e) => setNewScheduledDate(e.target.value)}
+              fullWidth
+              margin="normal"
+              InputLabelProps={{ shrink: true }}
+              inputProps={{
+                min: new Date().toISOString().slice(0, 16) // Prevent selecting past dates
+              }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleEditClose}>Cancel</Button>
+          <Button 
+            onClick={handleEditSave} 
+            variant="contained" 
+            color="primary"
+            disabled={!newScheduledDate || newScheduledDate === selectedCourse?.scheduled_date}
+          >
+            Save Changes
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

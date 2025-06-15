@@ -1,0 +1,218 @@
+# ===============================================
+# Blackbox Exporter Configuration for CPR Training System
+# ===============================================
+
+modules:
+  # ===============================================
+  # HTTP 2xx Probe (Standard HTTP Health Checks)
+  # ===============================================
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: [200, 201, 202, 204]
+      method: GET
+      headers:
+        Host: localhost
+        User-Agent: "Blackbox-Exporter/CPR-Monitoring"
+      no_follow_redirects: false
+      fail_if_ssl: false
+      fail_if_not_ssl: false
+      tls_config:
+        insecure_skip_verify: false
+      preferred_ip_protocol: "ip4"
+
+  # ===============================================
+  # HTTP POST Probe (API Endpoint Testing)
+  # ===============================================
+  http_post_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: [200, 201, 202]
+      method: POST
+      headers:
+        Content-Type: "application/json"
+        User-Agent: "Blackbox-Exporter/CPR-Monitoring"
+      body: '{"health": "check"}'
+      no_follow_redirects: false
+
+  # ===============================================
+  # HTTP 401 Probe (Authentication Endpoints)
+  # ===============================================
+  http_401:
+    prober: http
+    timeout: 5s
+    http:
+      valid_status_codes: [401]
+      method: GET
+      headers:
+        User-Agent: "Blackbox-Exporter/CPR-Monitoring"
+
+  # ===============================================
+  # HTTPS SSL Certificate Check
+  # ===============================================
+  http_2xx_ssl:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: [200, 201, 202, 204]
+      method: GET
+      headers:
+        User-Agent: "Blackbox-Exporter/CPR-Monitoring"
+      fail_if_not_ssl: true
+      tls_config:
+        insecure_skip_verify: false
+        ca_file: ""
+        cert_file: ""
+        key_file: ""
+
+  # ===============================================
+  # TCP Probe (Database/Service Connectivity)
+  # ===============================================
+  tcp_connect:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: "ip4"
+      source_ip_address: ""
+
+  # ===============================================
+  # DNS Probe (Domain Resolution)
+  # ===============================================
+  dns:
+    prober: dns
+    timeout: 5s
+    dns:
+      query_name: "example.com"
+      query_type: "A"
+      valid_rcodes:
+        - NOERROR
+      validate_answer_rrs:
+        fail_if_matches_regexp: []
+        fail_if_not_matches_regexp: []
+      validate_authority_rrs:
+        fail_if_matches_regexp: []
+        fail_if_not_matches_regexp: []
+      validate_additional_rrs:
+        fail_if_matches_regexp: []
+        fail_if_not_matches_regexp: []
+      preferred_ip_protocol: "ip4"
+
+  # ===============================================
+  # ICMP Probe (Network Connectivity)
+  # ===============================================
+  icmp:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      preferred_ip_protocol: "ip4"
+      source_ip_address: ""
+      dont_fragment: false
+
+  # ===============================================
+  # Advanced HTTP with Authentication
+  # ===============================================
+  http_2xx_with_auth:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: [200, 201, 202, 204]
+      method: GET
+      headers:
+        Authorization: "Bearer test-token"
+        User-Agent: "Blackbox-Exporter/CPR-Monitoring"
+      no_follow_redirects: false
+
+  # ===============================================
+  # API Health Check with JSON Response Validation
+  # ===============================================
+  api_health_check:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: [200]
+      method: GET
+      headers:
+        Accept: "application/json"
+        User-Agent: "Blackbox-Exporter/CPR-Monitoring"
+      fail_if_body_not_matches_regexp:
+        - '"status"\s*:\s*"(ok|healthy|up)"'
+      fail_if_header_not_matches_regexp:
+        - "Content-Type: application/json"
+
+  # ===============================================
+  # Database Connection Check
+  # ===============================================
+  postgres_tcp:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: "ip4"
+      source_ip_address: ""
+      query_response:
+        - expect: ""
+          send: ""
+
+  # ===============================================
+  # Redis Connection Check
+  # ===============================================
+  redis_tcp:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: "ip4"
+      source_ip_address: ""
+      query_response:
+        - expect: "+PONG"
+          send: "PING\r\n"
+
+  # ===============================================
+  # Custom CPR API Endpoints
+  # ===============================================
+  cpr_api_dashboard:
+    prober: http
+    timeout: 15s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: [200, 401]  # 401 is acceptable for protected endpoints
+      method: GET
+      headers:
+        Accept: "application/json"
+        User-Agent: "Blackbox-Exporter/CPR-Monitoring"
+      no_follow_redirects: false
+
+  cpr_api_health_detailed:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: [200]
+      method: GET
+      headers:
+        Accept: "application/json"
+        User-Agent: "Blackbox-Exporter/CPR-Monitoring"
+      fail_if_body_not_matches_regexp:
+        - '"status"\s*:\s*"healthy"'
+        - '"database"\s*:\s*"connected"'
+
+  # ===============================================
+  # Frontend Application Check
+  # ===============================================
+  frontend_health:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: [200]
+      method: GET
+      headers:
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        User-Agent: "Blackbox-Exporter/CPR-Monitoring"
+      fail_if_body_not_matches_regexp:
+        - "<title>.*CPR.*Training.*</title>" 

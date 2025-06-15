@@ -1,15 +1,34 @@
 import axios from 'axios';
 import logger from './utils/logger';
 import { API_URL } from './config';
+import { ApiResponse } from './types/api';
 
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
 });
 
-export const getScheduledClasses = async () => {
+interface CoursePricing {
+  id: number;
+  price: number;
+  // Add other fields as needed
+}
+
+interface Invoice {
+  id: number;
+  amount: number;
+  // Add other fields as needed
+}
+
+interface Payment {
+  id: number;
+  amount: number;
+  // Add other fields as needed
+}
+
+export const getScheduledClasses = async (): Promise<ApiResponse<any>> => {
   try {
-    const response = await api.get('/api/classes/scheduled');
+    const response = await api.get('/classes/scheduled');
     return response.data;
   } catch (error) {
     logger.error('Error fetching scheduled classes:', error);
@@ -28,9 +47,9 @@ export const getAvailability = async () => {
 };
 
 // Accounting Portal API Functions
-export const getAccountingDashboard = async () => {
+export const getAccountingDashboard = async (): Promise<ApiResponse<any>> => {
   try {
-    const response = await api.get('/api/v1/accounting/dashboard');
+    const response = await api.get('/accounting/dashboard');
     return response.data;
   } catch (error) {
     logger.error('Error fetching accounting dashboard:', error);
@@ -48,12 +67,9 @@ export const getCoursePricing = async () => {
   }
 };
 
-export const updateCoursePrice = async (pricingId, price) => {
+export const updateCoursePricing = async (pricingId: number, price: number): Promise<ApiResponse<CoursePricing>> => {
   try {
-    const response = await api.put(
-      `/api/v1/accounting/course-pricing/${pricingId}`,
-      { price }
-    );
+    const response = await api.put(`/accounting/course-pricing/${pricingId}`, { price });
     return response.data;
   } catch (error) {
     logger.error('Error updating course price:', error);
@@ -92,10 +108,10 @@ export const getInvoicePayments = async invoiceId => {
   }
 };
 
-export const recordInvoicePayment = async (invoiceId, paymentData) => {
+export const recordPayment = async (invoiceId: number, amount: number): Promise<ApiResponse<Payment>> => {
   try {
-    // This endpoint doesn't exist yet - return success for now
-    return { success: true };
+    const response = await api.post(`/accounting/invoices/${invoiceId}/payments`, { amount });
+    return response.data;
   } catch (error) {
     logger.error('Error recording payment:', error);
     throw error;

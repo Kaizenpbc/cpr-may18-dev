@@ -35,16 +35,28 @@ class MasterPerformanceTester {
         shell: true
       });
 
+      let output = '';
+
+      child.stdout?.on('data', (data) => {
+        output += data.toString();
+      });
+
+      child.stderr?.on('data', (data) => {
+        output += data.toString();
+      });
+
       child.on('close', (code) => {
         const duration = Date.now() - startTime;
         const durationSeconds = Math.round(duration / 1000);
         
-        if (code === 0) {
+        if (code === 0 && !output.includes('❌')) {
           log(`\n✅ ${testName} completed successfully in ${durationSeconds}s`, 'green');
           resolve({ status: 'success', duration: durationSeconds });
         } else {
           log(`\n❌ ${testName} failed with exit code ${code}`, 'red');
-          resolve({ status: 'failed', duration: durationSeconds, exitCode: code });
+          log(`\n📋 Test Output:`, 'yellow');
+          log(output, 'yellow');
+          resolve({ status: 'failed', duration: durationSeconds, exitCode: code, output });
         }
       });
 

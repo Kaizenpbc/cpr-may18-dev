@@ -13,7 +13,8 @@ class CacheService {
   private readonly isRedisEnabled: boolean;
 
   private constructor() {
-    this.isRedisEnabled = process.env.REDIS_ENABLED === 'true';
+    this.isRedisEnabled = false; // Disable Redis by default
+    console.log('🔴 [CACHE] Redis caching is disabled');
   }
 
   static getInstance(): CacheService {
@@ -37,8 +38,14 @@ class CacheService {
       forceRefresh = false,
     } = options;
 
+    // Skip cache lookup if Redis is disabled
+    if (!this.isRedisEnabled) {
+      console.log(`📊 [CACHE MISS] Fetching fresh data for ${key}`);
+      return fetcher();
+    }
+
     // If force refresh, skip cache lookup
-    if (!forceRefresh && this.isRedisEnabled) {
+    if (!forceRefresh) {
       try {
         const client = redisManager.getClient();
         const cached = await client.get(key);
@@ -60,7 +67,7 @@ class CacheService {
     if (this.isRedisEnabled && data) {
       try {
         const client = redisManager.getClient();
-        await client.setex(key, ttl, JSON.stringify(data));
+        await client.setEx(key, ttl, JSON.stringify(data));
         console.log(`✅ [CACHE SET] ${key} (TTL: ${ttl}s)`);
       } catch (error) {
         console.warn(`⚠️ [CACHE] Failed to set ${key}:`, error);
@@ -236,45 +243,41 @@ class CacheService {
   }
 
   /**
-   * Invalidate cache entries
+   * Invalidate cache entries matching pattern
    */
   async invalidate(pattern: string): Promise<void> {
-    if (!this.isRedisEnabled) return;
+    if (!this.isRedisEnabled) {
+      console.log(`🔴 [CACHE] Redis disabled, skipping invalidation for ${pattern}`);
+      return;
+    }
 
     try {
       const client = redisManager.getClient();
-
-      if (pattern.includes('*')) {
-        // Pattern-based deletion
-        const keys = await client.keys(pattern);
-        if (keys.length > 0) {
-          await client.del(...keys);
-          console.log(
-            `🗑️ [CACHE] Invalidated ${keys.length} keys matching ${pattern}`
-          );
-        }
-      } else {
-        // Single key deletion
-        await client.del(pattern);
-        console.log(`🗑️ [CACHE] Invalidated ${pattern}`);
+      const keys = await client.keys(pattern);
+      if (keys.length > 0) {
+        await client.del(keys);
+        console.log(`✅ [CACHE] Invalidated ${keys.length} keys matching ${pattern}`);
       }
     } catch (error) {
-      console.warn(`⚠️ [CACHE] Failed to invalidate ${pattern}:`, error);
+      console.error(`❌ [CACHE] Failed to invalidate ${pattern}:`, error);
     }
   }
 
   /**
-   * Clear all cache
+   * Clear all cache entries
    */
   async clearAll(): Promise<void> {
-    if (!this.isRedisEnabled) return;
+    if (!this.isRedisEnabled) {
+      console.log('🔴 [CACHE] Redis disabled, skipping cache clear');
+      return;
+    }
 
     try {
       const client = redisManager.getClient();
-      await client.flushdb();
-      console.log(`🗑️ [CACHE] All cache cleared`);
+      await client.flushDb();
+      console.log('✅ [CACHE] All cache entries cleared');
     } catch (error) {
-      console.warn(`⚠️ [CACHE] Failed to clear all cache:`, error);
+      console.error('❌ [CACHE] Failed to clear cache:', error);
     }
   }
 
@@ -283,22 +286,27 @@ class CacheService {
    */
   async getStats(): Promise<any> {
     if (!this.isRedisEnabled) {
-      return { enabled: false, message: 'Redis not enabled' };
+      return {
+        enabled: false,
+        message: 'Redis caching is disabled',
+      };
     }
 
     try {
       const client = redisManager.getClient();
-      const info = await client.info('memory');
-      const keyspace = await client.info('keyspace');
-
+      const info = await client.info();
+      const keys = await client.keys('*');
       return {
         enabled: true,
-        memory: info,
-        keyspace: keyspace,
-        isConnected: client.isReady,
+        keys: keys.length,
+        info,
       };
     } catch (error) {
-      return { enabled: true, error: error.message };
+      console.error('❌ [CACHE] Failed to get cache stats:', error);
+      return {
+        enabled: true,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
   }
 }

@@ -1,5 +1,27 @@
 import { api } from './api';
 import { tokenService } from './tokenService';
+import { AxiosError } from 'axios';
+
+interface LoginResponse {
+  user: {
+    id: number;
+    username: string;
+    role: string;
+    organizationId?: number;
+    organizationName?: string;
+  };
+  accessToken: string;
+  sessionId?: string;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+  };
+}
 
 // Add request deduplication for auth checks
 let authCheckPromise: Promise<any> | null = null;
@@ -7,7 +29,6 @@ let authCheckPromise: Promise<any> | null = null;
 /**
  * Authentication service that handles user authentication operations.
  * Includes methods for login, registration, logout, and token verification.
- * Updated to force module cache refresh.
  */
 export const authService = {
   /**
@@ -17,36 +38,51 @@ export const authService = {
    * @returns Promise with the authentication response
    * @throws Error if authentication fails
    */
-  async login(username: string, password: string) {
+  async login(username: string, password: string): Promise<LoginResponse> {
+    console.log('🔐 [AUTH] Frontend login attempt:', {
+      username,
+      timestamp: new Date().toISOString()
+    });
+
     try {
-      // Trim whitespace from username to prevent authentication issues
-      const trimmedUsername = username.trim();
-      console.log(
-        '[Debug] authService - Attempting login for user:',
-        trimmedUsername
-      );
-      const response = await api.post('/api/v1/auth/login', {
-        username: trimmedUsername,
-        password,
+      const response = await api.post<ApiResponse<LoginResponse>>('/auth/login', {
+        username: username.trim(),
+        password
       });
-      const { accessToken, refreshToken, user } = response.data.data;
 
-      // Store the tokens
-      if (accessToken) {
-        console.log('[Debug] authService - Received access token, storing');
-        tokenService.setAccessToken(accessToken);
-        // Ensure the token is set in the API instance
-        api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+      if (!response.data.success || !response.data.data) {
+        throw new Error(response.data.error?.message || 'Login failed');
       }
 
-      if (refreshToken) {
-        console.log('[Debug] authService - Received refresh token, storing');
-        tokenService.setRefreshToken(refreshToken);
+      const { user, accessToken, sessionId } = response.data.data;
+
+      if (!accessToken) {
+        throw new Error('No access token received from server');
       }
 
-      return { user, accessToken, refreshToken };
+      console.log('✅ [AUTH] Frontend login response:', {
+        status: response.status,
+        hasAccessToken: true,
+        hasSessionId: !!sessionId,
+        user,
+        timestamp: new Date().toISOString()
+      });
+
+      // Store access token and set in API headers
+      tokenService.setAccessToken(accessToken);
+      api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+
+      return response.data.data;
     } catch (error) {
-      console.error('[Debug] authService - Login error:', error);
+      console.error('❌ [AUTH] Frontend login error:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        response: error instanceof AxiosError ? {
+          status: error.response?.status,
+          data: error.response?.data,
+          headers: error.response?.headers
+        } : undefined,
+        timestamp: new Date().toISOString()
+      });
       throw error;
     }
   },
@@ -59,27 +95,27 @@ export const authService = {
    * @returns Promise with the registration response
    * @throws Error if registration fails
    */
-  async register(username: string, email: string, password: string) {
+  async register(username: string, email: string, password: string): Promise<LoginResponse> {
     try {
-      const response = await api.post('/api/v1/auth/register', {
+      const response = await api.post<ApiResponse<LoginResponse>>('/auth/register', {
         username,
         email,
         password,
       });
-      const { accessToken, refreshToken, user } = response.data.data;
+
+      if (!response.data.success || !response.data.data) {
+        throw new Error(response.data.error?.message || 'Registration failed');
+      }
+
+      const { user, accessToken } = response.data.data;
 
       // Store the tokens
       if (accessToken) {
         tokenService.setAccessToken(accessToken);
-        // Ensure the token is set in the API instance
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
       }
 
-      if (refreshToken) {
-        tokenService.setRefreshToken(refreshToken);
-      }
-
-      return { user, accessToken, refreshToken };
+      return response.data.data;
     } catch (error) {
       throw error;
     }
@@ -87,20 +123,12 @@ export const authService = {
 
   /**
    * Logs out the current user.
-   * Clears the access token from memory and the refresh token cookie.
+   * @returns Promise that resolves when logout is complete
    */
-  async logout() {
+  async logout(): Promise<void> {
     try {
-      const token = tokenService.getAccessToken();
-      if (token) {
-        await api.post('/api/v1/auth/logout');
-      }
-      // Clear tokens from storage and API instance
-      tokenService.clearTokens();
-      delete api.defaults.headers.common['Authorization'];
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Still clear tokens on error
+      await api.post('/auth/logout');
+    } finally {
       tokenService.clearTokens();
       delete api.defaults.headers.common['Authorization'];
     }
@@ -113,74 +141,57 @@ export const authService = {
   async checkAuth() {
     // Return existing promise if one is already in progress
     if (authCheckPromise) {
-      console.log(
-        '[Debug] authService - Returning existing auth check promise'
-      );
+      console.log('[TRACE] Auth service - Returning existing auth check promise');
       return authCheckPromise;
     }
 
     try {
       const token = tokenService.getAccessToken();
+      console.log('[TRACE] Auth service - Token present:', !!token);
+      
       if (!token) {
-        console.log('[Debug] authService - No access token found');
+        console.log('[TRACE] Auth service - No access token found');
         return null;
       }
 
       // Ensure token is set in headers
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      console.log('[TRACE] Auth service - Token set in headers');
 
-      console.log('[Debug] authService - Checking authentication with backend');
-
+      console.log('[TRACE] Auth service - Checking authentication with backend');
       // Create and cache the promise
       authCheckPromise = api
-        .get('/api/v1/auth/me')
+        .get<ApiResponse<{ user: any }>>('/auth/me')
         .then(response => {
-          // Backend returns { success: true, data: { user: {...} } }
+          if (!response.data.success || !response.data.data) {
+            throw new Error(response.data.error?.message || 'Auth check failed');
+          }
           const userData = response.data.data.user;
-          console.log(
-            '[Debug] authService - Authentication check successful for user:',
-            userData.username
-          );
+          console.log('[TRACE] Auth service - Authentication check successful for user:', userData.username);
           authCheckPromise = null; // Clear the promise cache
           return userData;
         })
         .catch(error => {
-          console.error(
-            '[Debug] authService - Authentication check failed:',
-            error.response?.status,
-            error.message
-          );
+          console.error('[TRACE] Auth service - Authentication check failed:', {
+            status: error.response?.status,
+            message: error.message
+          });
 
           // Only clear tokens if we get a 401 (unauthorized) or 403 (forbidden)
-          // Other errors (network issues, server errors) should not clear valid tokens
-          if (
-            error.response?.status === 401 ||
-            error.response?.status === 403
-          ) {
-            console.log(
-              '[Debug] authService - Clearing tokens due to authentication failure'
-            );
+          if (error.response?.status === 401 || error.response?.status === 403) {
+            console.log('[TRACE] Auth service - Clearing tokens due to authentication failure');
             tokenService.clearTokens();
             delete api.defaults.headers.common['Authorization'];
-          } else {
-            console.log(
-              '[Debug] authService - Network/server error, keeping tokens'
-            );
-            // Don't clear tokens for network errors - user might just be offline
           }
 
           authCheckPromise = null; // Clear the promise cache
-          return null;
+          throw error;
         });
 
       return authCheckPromise;
-    } catch (error: any) {
-      authCheckPromise = null; // Clear the promise cache on any error
-      console.error(
-        '[Debug] authService - Unexpected error in checkAuth:',
-        error
-      );
-      return null;
+    } catch (error) {
+      console.error('[TRACE] Auth service - Unexpected error:', error);
+      throw error;
     }
   },
 
@@ -194,10 +205,21 @@ export const authService = {
 
   /**
    * Checks if the user is currently authenticated.
-   * @returns boolean indicating if the user is authenticated
+   * @returns True if the user is authenticated, false otherwise
    */
   isAuthenticated() {
-    const token = this.getAccessToken();
-    return !!token;
+    return !!this.getAccessToken();
+  },
+
+  async recoverPassword(email: string): Promise<void> {
+    console.log('[DEBUG] Attempting to recover password for:', email);
+    try {
+      const response = await api.post('/auth/recover-password', { email });
+      console.log('[DEBUG] Password recovery response:', response.status);
+      return response.data;
+    } catch (error: any) {
+      console.error('[DEBUG] Password recovery error:', error);
+      throw new Error(error.response?.data?.message || 'Failed to send recovery email');
+    }
   },
 };

@@ -9,6 +9,7 @@ import v1Routes from './routes/v1';
 import authRoutes from './routes/v1/auth';
 import apiRoutes from './routes/v1/index';
 import databaseRoutes from './routes/v1/database';
+import healthRoutes from './routes/v1/health';
 import {
   apiLimiter,
   authLimiter,
@@ -18,9 +19,8 @@ import {
   sanitizeInput,
   detectMaliciousInput,
 } from './middleware/inputSanitizer';
-import { authenticateToken } from './middleware/authMiddleware';
+import { authenticateToken, requireRole } from './middleware/authMiddleware';
 import path from 'path';
-import instructorRoutes from './routes/instructor';
 import holidaysRoutes from './routes/holidays';
 import { initializeDatabase } from './config/database';
 import { ScheduledJobsService } from './services/scheduledJobs';
@@ -31,8 +31,14 @@ import {
   ensureRedisConnection,
   closeRedisConnection,
 } from './config/redis';
+import prometheusMiddleware, { metricsHandler } from './middleware/prometheus';
+import instructorRoutes from './routes/instructor';
+import studentRoutes from './routes/v1/student';
+import organizationRoutes from './routes/v1/organization';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 
-console.log('🚀 [STARTUP] Starting backend server initialization...');
+console.log('🚀 [STARTUP] Starting backend server initialization...', new Date().toISOString());
 
 // Load environment variables
 console.log('📝 [STARTUP] Loading environment variables...');
@@ -45,13 +51,9 @@ console.log(
 );
 console.log('Current working directory:', process.cwd());
 
-// Set Redis to disabled by default in development
-if (!process.env.REDIS_ENABLED) {
-  process.env.REDIS_ENABLED = 'false';
-  console.log(
-    '🔴 [REDIS] Redis disabled by default (set REDIS_ENABLED=true to enable)'
-  );
-}
+// Set Redis to disabled by default
+process.env.REDIS_ENABLED = 'false';
+console.log('🔴 [REDIS] Redis disabled by default');
 
 // Log only non-sensitive environment info
 console.log('Environment info:', {
@@ -66,29 +68,30 @@ console.log('Environment info:', {
 
 console.log('🔧 [STARTUP] Creating Express app...');
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    methods: ['GET', 'POST']
+  }
+});
+
+// ===============================================
+// Prometheus Metrics (Early in middleware stack)
+// ===============================================
+app.use(prometheusMiddleware);
 
 console.log('🌐 [STARTUP] Setting up CORS configuration...');
 // CORS configuration
-app.use(
-  cors({
-    origin:
-      process.env.NODE_ENV === 'production'
-        ? 'https://your-production-domain.com'
-        : ['http://localhost:5173', 'http://127.0.0.1:5173'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'Accept',
-      'Origin',
-      'X-Requested-With',
-    ],
-    exposedHeaders: ['Set-Cookie'],
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
-  })
-);
+app.use(cors({
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    'http://localhost:5174'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-access-token']
+}));
 
 // Security Headers Middleware
 console.log('🛡️ [STARTUP] Setting up security headers...');
@@ -106,6 +109,7 @@ app.use(
           "'self'",
           'http://localhost:3001',
           'http://localhost:5173',
+          'http://localhost:5174'
         ],
         frameSrc: ["'none'"],
         objectSrc: ["'none'"],
@@ -188,89 +192,40 @@ console.log('🛣️ [STARTUP] Setting up routes...');
 try {
   console.log('   - Setting up auth routes...');
   app.use('/api/v1/auth', authRoutes);
+  console.log('     ✅ Auth routes registered at /api/v1/auth');
 
-  console.log('   - Setting up v1 routes...');
-  app.use('/api/v1', apiRoutes);
+  console.log('   - Setting up health routes...');
+  app.use('/api/v1/health', healthRoutes);
+  console.log('     ✅ Health routes registered at /api/v1/health');
 
   console.log('   - Setting up database routes...');
   app.use('/api/v1/database', databaseRoutes);
+  console.log('     ✅ Database routes registered at /api/v1/database');
 
-  console.log('   - Setting up protected routes...');
-  // Protected routes
-  app.use('/api/v1/protected', authenticateToken);
+  console.log('   - Setting up holidays routes...');
+  app.use('/api/v1/holidays', holidaysRoutes);
+  console.log('     ✅ Holidays routes registered at /api/v1/holidays');
+
+  console.log('   - Setting up instructor routes...');
   app.use('/api/v1/instructor', authenticateToken, instructorRoutes);
-  app.use('/api/v1/holidays', authenticateToken, holidaysRoutes);
+  console.log('     ✅ Instructor routes registered at /api/v1/instructor');
 
-  console.log('✅ [STARTUP] All routes configured successfully');
+  console.log('   - Setting up student routes...');
+  app.use('/api/v1/student', authenticateToken, studentRoutes);
+  console.log('     ✅ Student routes registered at /api/v1/student');
+
+  console.log('   - Setting up organization routes...');
+  app.use('/api/v1/organization', authenticateToken, organizationRoutes);
+  console.log('     ✅ Organization routes registered at /api/v1/organization');
+
+  console.log('   - Setting up v1 routes...');
+  app.use('/api/v1', v1Routes);
+  console.log('     ✅ V1 routes registered at /api/v1');
+
+  console.log('✅ All routes registered successfully');
 } catch (error) {
-  console.error('❌ [STARTUP ERROR] Failed to set up routes:', error);
+  console.error('❌ Failed to set up routes:', error);
   process.exit(1);
-}
-
-console.log('🏥 [STARTUP] Setting up health check...');
-// Health check
-app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok' });
-});
-
-console.log('📊 [STARTUP] Setting up request logging middleware...');
-// Add comprehensive request logging middleware
-app.use((req: Request, res: Response, next: NextFunction) => {
-  console.log(`[REQUEST] ${new Date().toISOString()}`);
-  console.log(`  Method: ${req.method}`);
-  console.log(`  URL: ${req.url}`);
-  console.log(`  Path: ${req.path}`);
-  console.log(`  Base URL: ${req.baseUrl}`);
-  console.log(`  Original URL: ${req.originalUrl}`);
-  console.log(`  Headers:`, JSON.stringify(req.headers, null, 2));
-  console.log(`  Query:`, req.query);
-  console.log(`  Body:`, req.body || 'No body');
-
-  // Log response when it's done
-  const oldSend = res.send;
-  res.send = function (data: any) {
-    console.log(`[RESPONSE] ${req.method} ${req.originalUrl}`);
-    console.log(`  Status: ${res.statusCode}`);
-    console.log(
-      `  Body preview:`,
-      typeof data === 'string' ? data.substring(0, 200) : 'Non-string response'
-    );
-    res.send = oldSend;
-    return res.send(data);
-  };
-
-  next();
-});
-
-console.log('📋 [STARTUP] Listing all registered routes...');
-// List all registered routes
-console.log('[ROUTES] All registered routes:');
-function printRoutes(path: string, layer: any) {
-  if (layer.route) {
-    layer.route.stack.forEach((routeLayer: any) => {
-      console.log(
-        `  ${routeLayer.method?.toUpperCase() || 'ALL'} ${path}${layer.route.path}`
-      );
-    });
-  } else if (layer.name === 'router' && layer.handle.stack) {
-    layer.handle.stack.forEach((stackLayer: any) => {
-      printRoutes(
-        path + (layer.regexp.source === '^\\/?$' ? '' : layer.path || ''),
-        stackLayer
-      );
-    });
-  }
-}
-
-try {
-  app._router.stack.forEach((layer: any) => {
-    if (layer.name === 'router') {
-      printRoutes('', layer);
-    }
-  });
-  console.log('✅ [STARTUP] Route listing completed');
-} catch (error) {
-  console.error('❌ [STARTUP ERROR] Failed to list routes:', error);
 }
 
 console.log('🚫 [STARTUP] Setting up 404 handler...');
@@ -298,32 +253,17 @@ console.log('⚠️ [STARTUP] Setting up error handler...');
 // Error handling
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 3001;
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
 
-// Initialize Redis connection (helper function for background initialization)
-async function initializeRedis(): Promise<void> {
-  try {
-    console.log('🔴 [REDIS] Initializing Redis connection...');
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
 
-    // Add timeout to prevent hanging
-    const redisPromise = ensureRedisConnection();
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Redis connection timeout')), 3000); // Reduced timeout
-    });
-
-    await Promise.race([redisPromise, timeoutPromise]);
-    console.log('✅ [REDIS] Redis initialized successfully');
-  } catch (error) {
-    console.error(
-      '❌ [REDIS] Redis initialization failed:',
-      error instanceof Error ? error.message : 'Unknown error'
-    );
-    console.log(
-      '⚠️ [REDIS] Application will continue with JWT-only authentication'
-    );
-    throw error; // Re-throw so caller knows it failed
-  }
-}
+// Make io accessible to routes
+app.set('io', io);
 
 // Schedule cleanup job for expired sessions
 cron.schedule('0 2 * * *', async () => {
@@ -400,21 +340,20 @@ async function startServer(): Promise<void> {
     await initializeDatabase();
     console.log('✅ [DATABASE] Database initialized successfully');
 
-    // Start HTTP server first (Redis initialization will happen in background)
-    const server = app.listen(PORT, async () => {
+    // Start HTTP server
+    const port = process.env.PORT || 3001;
+    httpServer.listen(port, async () => {
       console.log('\n' + '='.repeat(80));
       console.log('🚀 CPR Training Management System - Backend Server');
       console.log('='.repeat(80));
-      console.log(`📍 Server running on: http://localhost:${PORT}`);
+      console.log(`📍 Server running on: http://localhost:${port}`);
       console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(
         `🔒 Security Features: Rate Limiting, Security Headers, Input Sanitization`
       );
-      console.log(
-        `🔐 Session Management: ${process.env.REDIS_ENABLED === 'true' ? 'Redis Enhanced (if available)' : 'JWT Only'}`
-      );
-      console.log(`⚡ Health Check: http://localhost:${PORT}/health`);
-      console.log(`📊 API Base: http://localhost:${PORT}/api/v1`);
+      console.log(`🔐 Session Management: JWT Only (Redis disabled)`);
+      console.log(`⚡ Health Check: http://localhost:${port}/api/v1/health`);
+      console.log(`📊 API Base: http://localhost:${port}/api/v1`);
       console.log('='.repeat(80));
       console.log('✅ Server is ready to accept connections');
       console.log('='.repeat(80) + '\n');
@@ -423,30 +362,13 @@ async function startServer(): Promise<void> {
       console.log('🕐 [STARTUP] Starting scheduled jobs...');
       const scheduledJobs = ScheduledJobsService.getInstance();
       scheduledJobs.startAllJobs();
-
-      // Initialize Redis in background (non-blocking)
-      if (process.env.REDIS_ENABLED === 'true') {
-        initializeRedis()
-          .then(() => {
-            console.log(
-              `🔐 Session Management Enhanced: ${redisManager.isReady() ? 'Redis Active' : 'JWT Fallback'}`
-            );
-          })
-          .catch(() => {
-            console.log(
-              '🔐 Session Management: JWT Only (Redis connection failed)'
-            );
-          });
-      } else {
-        console.log('🔐 Session Management: JWT Only (Redis disabled)');
-      }
     });
 
     // Handle server errors
-    server.on('error', (error: any) => {
+    httpServer.on('error', (error: any) => {
       console.error('❌ [SERVER ERROR] Failed to start server:', error);
       if (error.code === 'EADDRINUSE') {
-        console.error(`❌ [SERVER ERROR] Port ${PORT} is already in use`);
+        console.error(`❌ [SERVER ERROR] Port ${port} is already in use`);
         console.error(
           '💡 [SUGGESTION] Try stopping other processes or use a different port'
         );
@@ -458,7 +380,7 @@ async function startServer(): Promise<void> {
     });
 
     // Set server timeout to 30 seconds
-    server.timeout = 30000;
+    httpServer.timeout = 30000;
   } catch (error) {
     console.error('❌ [STARTUP] Failed to start server:', error);
     process.exit(1);

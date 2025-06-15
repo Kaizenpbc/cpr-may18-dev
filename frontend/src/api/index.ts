@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { tokenService } from '../services/tokenService';
 
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: 'http://localhost:3002/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -10,7 +11,7 @@ const api = axios.create({
 // Add request interceptor to include auth token
 api.interceptors.request.use(
   config => {
-    const token = localStorage.getItem('token');
+    const token = tokenService.getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -27,7 +28,7 @@ api.interceptors.response.use(
   error => {
     if (error.response?.status === 401) {
       // Handle unauthorized access
-      localStorage.removeItem('token');
+      tokenService.clearTokens();
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -35,16 +36,16 @@ api.interceptors.response.use(
 );
 
 export const instructorApi = {
-  getSchedule: () => api.get('/instructor/schedule'),
-  getAvailability: () => api.get('/instructor/availability'),
+  getSchedule: () => api.get('/api/v1/instructor/schedule'),
+  getAvailability: () => api.get('/api/v1/instructor/availability'),
   addAvailability: (date: string) =>
-    api.post('/instructor/availability', { date }),
+    api.post('/api/v1/instructor/availability', { date }),
   removeAvailability: (date: string) =>
-    api.delete(`/instructor/availability/${date}`),
-  updateProfile: (data: any) => api.put('/instructor/profile', data),
-  getClasses: () => api.get('/instructor/classes'),
+    api.delete(`/api/v1/instructor/availability/${date}`),
+  updateProfile: (data: any) => api.put('/api/v1/instructor/profile', data),
+  getClasses: () => api.get('/api/v1/instructor/classes'),
   markAttendance: (classId: string, data: any) =>
-    api.post(`/instructor/classes/${classId}/attendance`, data),
+    api.post(`/api/v1/instructor/classes/${classId}/attendance`, data),
 };
 
 export default api;

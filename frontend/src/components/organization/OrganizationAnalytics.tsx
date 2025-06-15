@@ -291,27 +291,27 @@ const OrganizationAnalytics = () => {
           </Paper>
         </Grid>
 
-        {/* Course Type Preferences */}
+        {/* Course Name Preferences */}
         <Grid item xs={12} lg={4}>
           <Paper sx={{ p: 3 }}>
             <Typography variant='h6' gutterBottom>
-              Course Type Preferences
+              Course Name Preferences
             </Typography>
             <ResponsiveContainer width='100%' height={300}>
               <PieChart>
                 <Pie
-                  data={courseRequestData?.courseTypePreferences || []}
+                  data={courseRequestData?.courseNamePreferences || []}
                   cx='50%'
                   cy='50%'
                   labelLine={false}
-                  label={({ course_type, percentage }) =>
-                    `${course_type}: ${percentage}%`
+                  label={({ course_name, percentage }) =>
+                    `${course_name}: ${percentage}%`
                   }
                   outerRadius={80}
                   fill='#8884d8'
                   dataKey='request_count'
                 >
-                  {(courseRequestData?.courseTypePreferences || []).map(
+                  {(courseRequestData?.courseNamePreferences || []).map(
                     (entry, index) => (
                       <Cell
                         key={`cell-${index}`}
@@ -378,11 +378,11 @@ const OrganizationAnalytics = () => {
           </Paper>
         </Grid>
 
-        {/* Attendance Rates by Course Type */}
+        {/* Attendance Rates by Course Name */}
         <Grid item xs={12} lg={6}>
           <Paper sx={{ p: 3 }}>
             <Typography variant='h6' gutterBottom>
-              Attendance Rates by Course Type
+              Attendance Rates by Course Name
             </Typography>
             <Box sx={{ mt: 2 }}>
               {(studentParticipationData?.attendanceRates || []).map(
@@ -396,7 +396,7 @@ const OrganizationAnalytics = () => {
                       }}
                     >
                       <Typography variant='body2'>
-                        {item.course_type}
+                        {item.course_name}
                       </Typography>
                       <Typography variant='body2' color='primary'>
                         {item.attendance_rate}%
@@ -485,7 +485,7 @@ const OrganizationAnalytics = () => {
                     <Card variant='outlined'>
                       <CardContent>
                         <Typography variant='h6' color='primary'>
-                          {item.course_type}
+                          {item.course_name}
                         </Typography>
                         <Divider sx={{ my: 1 }} />
                         <Box

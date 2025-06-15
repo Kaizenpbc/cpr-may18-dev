@@ -1,0 +1,165 @@
+version: '3.8'
+
+services:
+  # ===============================================
+  # Prometheus - Metrics Collection & Storage
+  # ===============================================
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: cpr-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=10GB'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring
+    depends_on:
+      - alertmanager
+
+  # ===============================================
+  # Grafana - Visualization & Dashboards
+  # ===============================================
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: cpr-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel,grafana-clock-panel
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=smtp.gmail.com:587
+      - GF_SMTP_USER=${GRAFANA_SMTP_USER:-}
+      - GF_SMTP_PASSWORD=${GRAFANA_SMTP_PASSWORD:-}
+      - GF_SMTP_FROM_ADDRESS=${GRAFANA_SMTP_FROM:-noreply@cpr-training.com}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - monitoring
+
+  # ===============================================
+  # AlertManager - Alert Processing & Routing
+  # ===============================================
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: cpr-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+      - '--web.route-prefix=/'
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    networks:
+      - monitoring
+
+  # ===============================================
+  # Node Exporter - System Metrics (Host)
+  # ===============================================
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: cpr-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - monitoring
+
+  # ===============================================
+  # Postgres Exporter - Database Metrics
+  # ===============================================
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.13.2
+    container_name: cpr-postgres-exporter
+    restart: unless-stopped
+    ports:
+      - "9187:9187"
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@host.docker.internal:${DB_PORT:-5432}/${DB_NAME:-cpr_may18}?sslmode=disable
+    networks:
+      - monitoring
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ===============================================
+  # Blackbox Exporter - Endpoint Monitoring
+  # ===============================================
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.24.0
+    container_name: cpr-blackbox-exporter
+    restart: unless-stopped
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./monitoring/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    networks:
+      - monitoring
+
+  # ===============================================
+  # Redis Exporter - Redis Metrics (if enabled)
+  # ===============================================
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.54.0
+    container_name: cpr-redis-exporter
+    restart: unless-stopped
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=host.docker.internal:6379
+    networks:
+      - monitoring
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    profiles:
+      - redis
+
+# ===============================================
+# Networks
+# ===============================================
+networks:
+  monitoring:
+    driver: bridge
+    name: cpr-monitoring
+
+# ===============================================
+# Volumes
+# ===============================================
+volumes:
+  prometheus_data:
+    name: cpr-prometheus-data
+  grafana_data:
+    name: cpr-grafana-data
+  alertmanager_data:
+    name: cpr-alertmanager-data 

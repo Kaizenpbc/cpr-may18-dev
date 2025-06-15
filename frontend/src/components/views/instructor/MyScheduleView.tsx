@@ -22,45 +22,68 @@ import { format, parseISO } from 'date-fns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
-import { PickersDay } from '@mui/x-date-pickers/PickersDay';
-import { ChevronLeft, ChevronRight, Refresh } from '@mui/icons-material';
-import type { Class, Availability, ApiResponse } from '../../../types/api';
-import api from '../../../api/index';
+import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
+import { Refresh } from '@mui/icons-material';
+import { useInstructorData, AvailabilitySlot, ScheduledClass } from '../../../hooks/useInstructorData';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 interface ScheduleEntry {
+  key: string;
   date: string;
-  organization?: string;
-  location?: string;
-  classType?: string;
-  notes?: string;
+  displayDate: string;
   status: 'AVAILABLE' | 'CONFIRMED';
+  organization: string;
+  courseType: string;
+  location: string;
+  studentCount: number;
+  studentsAttendance: number;
+  notes?: string;
 }
 
 const MyScheduleView: React.FC = () => {
   const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const theme = useTheme();
-  const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const [error, setError] = useState<string | null>(null);
+
+  const {
+    availableDates,
+    scheduledClasses,
+    completedClasses,
+    loading,
+    loadData,
+  } = useInstructorData();
+
+  console.log('[MyScheduleView] Component rendered with props:', {
+    availableDates: JSON.stringify(availableDates, null, 2),
+    scheduledClasses: JSON.stringify(scheduledClasses, null, 2),
+    completedClasses: JSON.stringify(completedClasses, null, 2),
+    loading,
+    selectedDate,
+    currentMonth
+  });
 
   useEffect(() => {
+    console.log('[MyScheduleView] useEffect triggered');
     if (!isAuthenticated) {
+      console.log('[MyScheduleView] User not authenticated, redirecting to login');
       navigate('/login');
       return;
     }
-    loadScheduleData();
-  }, [isAuthenticated]);
+    console.log('[MyScheduleView] User authenticated, loading data');
+    loadData();
+  }, [isAuthenticated, navigate, loadData]);
 
   // Add a refresh effect when the component is focused/visible
   useEffect(() => {
     const handleFocus = () => {
+      console.log('[MyScheduleView] Window focused, checking authentication');
       if (isAuthenticated) {
-        loadScheduleData();
+        console.log('[MyScheduleView] User authenticated, refreshing data');
+        loadData();
       }
     };
 
@@ -71,7 +94,7 @@ const MyScheduleView: React.FC = () => {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleFocus);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadData]);
 
   const handleUnauthorized = async () => {
     await logout();
@@ -83,103 +106,138 @@ const MyScheduleView: React.FC = () => {
     return format(date, 'yyyy-MM-dd');
   };
 
-  const loadScheduleData = async () => {
-    try {
-      setLoading(true);
-      console.log('[MyScheduleView] Loading schedule data...');
+  // Transform the data from useInstructorData into ScheduleEntry format
+  const schedule: ScheduleEntry[] = React.useMemo(() => {
+    console.log('[MyScheduleView] Computing schedule with data:', {
+      availableDates: JSON.stringify(availableDates, null, 2),
+      scheduledClasses: JSON.stringify(scheduledClasses, null, 2),
+      completedClasses: JSON.stringify(completedClasses, null, 2)
+    });
 
-      const [availabilityRes, classesRes] = await Promise.all([
-        api.get<ApiResponse<Availability[]>>('/api/v1/instructor/availability'),
-        api.get<ApiResponse<Class[]>>('/api/v1/instructor/classes'),
-      ]);
-
-      console.log(
-        '[MyScheduleView] Availability response:',
-        availabilityRes.data
-      );
-      console.log('[MyScheduleView] Classes response:', classesRes.data);
-
-      const availabilityEntries: ScheduleEntry[] =
-        availabilityRes.data.data.map(a => ({
-          date: formatDate(a.date),
+    // Transform available dates into ScheduleEntry format
+    const filteredAvailabilityEntries: ScheduleEntry[] = availableDates
+      .filter((availability: AvailabilitySlot) => {
+        const date = new Date(availability.date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        console.log('[MyScheduleView] Filtering availability:', {
+          date: availability.date,
+          parsedDate: date,
+          today: today,
+          isAfterToday: date >= today
+        });
+        return date >= today;
+      })
+      .map((availability: AvailabilitySlot): ScheduleEntry => {
+        console.log('[MyScheduleView] Transforming availability:', availability);
+        return {
+          key: `available-${availability.id}`,
+          date: availability.date,
+          displayDate: format(new Date(availability.date), 'MMMM d, yyyy'),
           status: 'AVAILABLE',
-        }));
+          organization: 'Available',
+          courseType: 'Available',
+          location: 'Available',
+          studentCount: 0,
+          studentsAttendance: 0,
+        };
+      });
 
-      const classEntries: ScheduleEntry[] = classesRes.data.data.map(c => ({
-        date: formatDate(c.date),
-        organization: c.organization || 'TBD',
-        location: c.location,
-        classType: c.type,
-        notes: c.notes || '',
+    console.log('[MyScheduleView] Filtered availability entries:', JSON.stringify(filteredAvailabilityEntries, null, 2));
+
+    // Transform scheduled classes into ScheduleEntry format
+    const classEntries: ScheduleEntry[] = scheduledClasses.map(
+      (c: ScheduledClass): ScheduleEntry => ({
+        key: `scheduled-${c.course_id}`,
+        date: c.datescheduled,
+        displayDate: format(new Date(c.datescheduled), 'MMMM d, yyyy'),
         status: 'CONFIRMED',
-      }));
+        organization: c.organizationname,
+        courseType: c.coursetypename,
+        location: c.location,
+        studentCount: c.studentcount,
+        studentsAttendance: c.studentsattendance,
+      })
+    );
 
-      console.log(
-        '[MyScheduleView] Processed availability entries:',
-        availabilityEntries
-      );
-      console.log('[MyScheduleView] Processed class entries:', classEntries);
+    // Combine and sort all entries
+    const allEntries = [...filteredAvailabilityEntries, ...classEntries].sort(
+      (a: ScheduleEntry, b: ScheduleEntry) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
 
-      const allEntries = [...availabilityEntries, ...classEntries].sort(
-        (a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()
-      );
-
-      console.log('[MyScheduleView] Final schedule entries:', allEntries);
-      setSchedule(allEntries);
-      setError(null);
-    } catch (err: any) {
-      if (err.response?.status === 401) {
-        handleUnauthorized();
-        return;
-      }
-      setError('Failed to load schedule data');
-      console.error('Error loading schedule data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    console.log('[MyScheduleView] Final combined schedule:', JSON.stringify(allEntries, null, 2));
+    return allEntries;
+  }, [availableDates, scheduledClasses, completedClasses]);
 
   const getScheduleForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    return schedule.find(entry => entry.date === dateStr);
+    return schedule.filter((entry: ScheduleEntry) => entry.date === dateStr);
   };
 
-  const CustomPickersDay = (pickersDayProps: any) => {
-    const { day, ...other } = pickersDayProps;
-    const scheduleEntry = getScheduleForDate(day);
-    const isSelected =
-      format(selectedDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
+  const CustomPickersDay = (props: PickersDayProps<Date>) => {
+    const { day, ...other } = props;
+    const dateStr = format(day, 'yyyy-MM-dd');
+    console.log('[CustomPickersDay] Rendering day:', dateStr);
+    
+    const isAvailable = availableDates.some((availability: AvailabilitySlot) => {
+      console.log('[CustomPickersDay] Checking availability:', {
+        availabilityDate: availability.date,
+        currentDate: dateStr,
+        matches: availability.date === dateStr
+      });
+      return availability.date === dateStr;
+    });
+    const isScheduled = scheduledClasses.some((c: ScheduledClass) => c.datescheduled === dateStr);
+    const isPastDate = day < new Date(new Date().setHours(0, 0, 0, 0));
+    
+    console.log('[CustomPickersDay] Status for', dateStr, {
+      isAvailable,
+      isScheduled,
+      isPastDate,
+      availableDates: JSON.stringify(availableDates)
+    });
+
+    // Color scheduled classes BLUE and available dates GREEN
+    let backgroundColor, hoverColor, textColor;
+
+    if (isScheduled) {
+      // Blue = Scheduled Classes
+      backgroundColor = theme.palette.primary.main;
+      hoverColor = theme.palette.primary.dark;
+      textColor = 'white';
+    } else if (isAvailable) {
+      // Green = Available
+      backgroundColor = theme.palette.success.main;
+      hoverColor = theme.palette.success.dark;
+      textColor = 'white';
+    } else {
+      // All other dates use default styling
+      backgroundColor = 'inherit';
+      hoverColor = theme.palette.action.hover;
+      textColor = 'inherit';
+    }
 
     return (
-      <Tooltip
-        title={
-          scheduleEntry
-            ? `${scheduleEntry.status}${scheduleEntry.organization ? ` - ${scheduleEntry.organization}` : ''}`
-            : ''
-        }
-        arrow
-      >
-        <PickersDay
-          {...other}
-          day={day}
-          selected={isSelected}
-          sx={{
-            backgroundColor: scheduleEntry
-              ? scheduleEntry.status === 'CONFIRMED'
-                ? `${theme.palette.primary.main}!important`
-                : `${theme.palette.success.main}!important`
-              : 'inherit',
-            color: scheduleEntry ? 'white!important' : 'inherit',
+      <PickersDay
+        {...other}
+        day={day}
+        disabled={isPastDate}
+        sx={{
+          '&.MuiPickersDay-root': {
+            backgroundColor: `${backgroundColor}!important`,
+            color: `${textColor}!important`,
+            cursor: isPastDate ? 'not-allowed' : 'pointer',
             '&:hover': {
-              backgroundColor: scheduleEntry
-                ? scheduleEntry.status === 'CONFIRMED'
-                  ? `${theme.palette.primary.dark}!important`
-                  : `${theme.palette.success.dark}!important`
-                : 'inherit',
+              backgroundColor: `${hoverColor}!important`,
             },
-          }}
-        />
-      </Tooltip>
+            '&.Mui-disabled': {
+              backgroundColor: `${backgroundColor}!important`,
+              color: `${textColor}!important`,
+              opacity: 0.7,
+            },
+          },
+        }}
+      />
     );
   };
 
@@ -187,8 +245,10 @@ const MyScheduleView: React.FC = () => {
     setCurrentMonth(date);
   };
 
-  const handleDateChange = (date: Date) => {
-    setSelectedDate(date);
+  const handleDateChange = (newDate: Date | null) => {
+    if (newDate) {
+      setSelectedDate(newDate);
+    }
   };
 
   if (loading) {
@@ -221,7 +281,7 @@ const MyScheduleView: React.FC = () => {
             <Typography variant='h5'>My Schedule</Typography>
             <Tooltip title='Refresh schedule data'>
               <IconButton
-                onClick={loadScheduleData}
+                onClick={loadData}
                 disabled={loading}
                 color='primary'
                 size='large'
@@ -244,28 +304,30 @@ const MyScheduleView: React.FC = () => {
 
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <DateCalendar
-                value={selectedDate}
-                onChange={newDate => handleDateChange(newDate || new Date())}
-                onMonthChange={newDate =>
-                  handleMonthChange(newDate || new Date())
-                }
-                slots={{
-                  day: CustomPickersDay,
-                }}
-                sx={{
-                  width: '100%',
-                  '.MuiPickersCalendarHeader-root': {
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    pl: 2,
-                    pr: 2,
-                  },
-                }}
-              />
-            </LocalizationProvider>
+            <Paper elevation={2} sx={{ p: 2 }}>
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <DateCalendar
+                  value={selectedDate}
+                  onChange={newDate => handleDateChange(newDate || new Date())}
+                  onMonthChange={newDate =>
+                    handleMonthChange(newDate || new Date())
+                  }
+                  slots={{
+                    day: CustomPickersDay,
+                  }}
+                  sx={{
+                    width: '100%',
+                    '& .MuiPickersCalendarHeader-root': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      pl: 2,
+                      pr: 2,
+                    },
+                  }}
+                />
+              </LocalizationProvider>
+            </Paper>
 
             {/* Legend Panel */}
             <Paper elevation={2} sx={{ p: 2, mt: 2 }}>
@@ -282,7 +344,7 @@ const MyScheduleView: React.FC = () => {
                       backgroundColor: theme.palette.success.main,
                     }}
                   />
-                  <Typography variant='body2'>🟢 Available</Typography>
+                  <Typography variant='body2' sx={{ fontWeight: 'bold' }}>Available</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Box
@@ -293,42 +355,7 @@ const MyScheduleView: React.FC = () => {
                       backgroundColor: theme.palette.primary.main,
                     }}
                   />
-                  <Typography variant='body2'>🔵 Scheduled Classes</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box
-                    sx={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: '50%',
-                      backgroundColor: theme.palette.warning.main,
-                    }}
-                  />
-                  <Typography variant='body2'>
-                    🟡 Partially Available
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box
-                    sx={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: '50%',
-                      backgroundColor: theme.palette.error.main,
-                    }}
-                  />
-                  <Typography variant='body2'>🔴 Unavailable/Booked</Typography>
-                </Box>
-                <Box
-                  sx={{
-                    mt: 1,
-                    pt: 1,
-                    borderTop: `1px solid ${theme.palette.divider}`,
-                  }}
-                >
-                  <Typography variant='caption' color='text.secondary'>
-                    Click on any date to view details
-                  </Typography>
+                  <Typography variant='body2'>Scheduled Classes</Typography>
                 </Box>
               </Box>
             </Paper>
@@ -336,38 +363,44 @@ const MyScheduleView: React.FC = () => {
           <Grid item xs={12} md={6}>
             <Paper
               elevation={2}
-              sx={{ p: 2, height: '100%', minHeight: '300px' }}
+              sx={{ 
+                p: 2, 
+                height: '100%', 
+                minHeight: '300px',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
             >
               <Typography variant='h6' gutterBottom>
                 {format(selectedDate, 'MMMM d, yyyy')}
               </Typography>
-              {selectedSchedule ? (
-                <Box>
+              {selectedSchedule.length > 0 ? (
+                <Box sx={{ flex: 1 }}>
                   <Chip
-                    label={selectedSchedule.status}
+                    label={selectedSchedule[0].status}
                     color={
-                      selectedSchedule.status === 'CONFIRMED'
+                      selectedSchedule[0].status === 'CONFIRMED'
                         ? 'primary'
                         : 'success'
                     }
                     sx={{ mb: 2 }}
                   />
-                  {selectedSchedule.status === 'CONFIRMED' && (
+                  {selectedSchedule[0].status === 'CONFIRMED' && (
                     <Box sx={{ mt: 2 }}>
                       <Typography variant='body1'>
                         <strong>Organization:</strong>{' '}
-                        {selectedSchedule.organization}
+                        {selectedSchedule[0].organization}
                       </Typography>
                       <Typography variant='body1'>
-                        <strong>Location:</strong> {selectedSchedule.location}
+                        <strong>Location:</strong> {selectedSchedule[0].location}
                       </Typography>
                       <Typography variant='body1'>
                         <strong>Class Type:</strong>{' '}
-                        {selectedSchedule.classType}
+                        {selectedSchedule[0].courseType}
                       </Typography>
-                      {selectedSchedule.notes && (
+                      {selectedSchedule[0].notes && (
                         <Typography variant='body1'>
-                          <strong>Notes:</strong> {selectedSchedule.notes}
+                          <strong>Notes:</strong> {selectedSchedule[0].notes}
                         </Typography>
                       )}
                     </Box>
@@ -397,9 +430,9 @@ const MyScheduleView: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {schedule.map(entry => (
+                  {schedule.map((entry, index) => (
                     <TableRow
-                      key={`${entry.date}-${entry.status}`}
+                      key={`${entry.date}-${entry.status}-${entry.organization || ''}-${entry.courseType || ''}-${entry.notes || ''}-${index}`}
                       onClick={() => setSelectedDate(parseISO(entry.date))}
                       sx={{
                         cursor: 'pointer',
@@ -415,7 +448,7 @@ const MyScheduleView: React.FC = () => {
                       </TableCell>
                       <TableCell>{entry.organization || '-'}</TableCell>
                       <TableCell>{entry.location || '-'}</TableCell>
-                      <TableCell>{entry.classType || '-'}</TableCell>
+                      <TableCell>{entry.courseType || '-'}</TableCell>
                       <TableCell>{entry.notes || '-'}</TableCell>
                       <TableCell>
                         <Chip

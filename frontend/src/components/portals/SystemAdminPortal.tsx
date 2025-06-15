@@ -25,6 +25,7 @@ import {
   Logout as LogoutIcon,
   Settings as SettingsIcon,
 } from '@mui/icons-material';
+import ErrorBoundary from '../common/ErrorBoundary';
 import SystemAdminDashboard from '../sysadmin/SystemAdminDashboard';
 import CourseManagement from '../sysadmin/CourseManagement';
 import UserManagement from '../sysadmin/UserManagement';
@@ -56,6 +57,10 @@ const SystemAdminPortal = () => {
       logout();
       navigate('/');
     }, 1500);
+  };
+
+  const handleError = (error: Error, errorInfo: any) => {
+    console.error('[SystemAdminPortal] Error caught by boundary:', error, errorInfo);
   };
 
   const menuItems = [
@@ -92,121 +97,158 @@ const SystemAdminPortal = () => {
   ];
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar
-        position='fixed'
-        sx={{ zIndex: theme => theme.zIndex.drawer + 1 }}
-      >
-        <Toolbar>
-          <SettingsIcon sx={{ mr: 2 }} />
-          <Typography variant='h6' noWrap component='div' sx={{ flexGrow: 1 }}>
-            System Administration Portal
-          </Typography>
-          <Typography variant='body1' noWrap sx={{ mr: 2 }}>
-            Welcome {user?.username || 'System Administrator'}!
-          </Typography>
-        </Toolbar>
-      </AppBar>
+    <ErrorBoundary context="system_admin_portal" onError={handleError}>
+      <Box sx={{ display: 'flex' }}>
+        <AppBar
+          position='fixed'
+          sx={{ zIndex: theme => theme.zIndex.drawer + 1 }}
+        >
+          <Toolbar>
+            <SettingsIcon sx={{ mr: 2 }} />
+            <Typography variant='h6' noWrap component='div' sx={{ flexGrow: 1 }}>
+              System Administration Portal
+            </Typography>
+            <Typography variant='body1' noWrap sx={{ mr: 2 }}>
+              Welcome {user?.username || 'System Administrator'}!
+            </Typography>
+          </Toolbar>
+        </AppBar>
 
-      <Drawer
-        variant='permanent'
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
+        <Drawer
+          variant='permanent'
+          sx={{
             width: drawerWidth,
-            boxSizing: 'border-box',
-          },
-        }}
-      >
-        <Toolbar />
-        <Box sx={{ overflow: 'auto' }}>
-          <List>
-            {menuItems.map(item => (
-              <ListItem
-                key={item.key}
-                component='div'
-                selected={location.pathname === item.path}
-                onClick={() => navigate(item.path)}
-                sx={{
-                  cursor: 'pointer',
-                  py: 1.5,
-                  backgroundColor:
-                    location.pathname === item.path
-                      ? 'primary.light'
-                      : 'transparent',
-                  color:
-                    location.pathname === item.path
-                      ? 'primary.contrastText'
-                      : 'inherit',
-                  '& .MuiListItemIcon-root': {
+            flexShrink: 0,
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              boxSizing: 'border-box',
+            },
+          }}
+        >
+          <Toolbar />
+          <Box sx={{ overflow: 'auto' }}>
+            <List>
+              {menuItems.map(item => (
+                <ListItem
+                  key={item.key}
+                  component='div'
+                  selected={location.pathname === item.path}
+                  onClick={() => navigate(item.path)}
+                  sx={{
+                    cursor: 'pointer',
+                    py: 1.5,
+                    backgroundColor:
+                      location.pathname === item.path
+                        ? 'primary.light'
+                        : 'transparent',
                     color:
                       location.pathname === item.path
                         ? 'primary.contrastText'
                         : 'inherit',
-                  },
+                    '& .MuiListItemIcon-root': {
+                      color:
+                        location.pathname === item.path
+                          ? 'primary.contrastText'
+                          : 'inherit',
+                    },
+                    '&:hover': {
+                      backgroundColor:
+                        location.pathname === item.path
+                          ? 'primary.main'
+                          : 'action.hover',
+                    },
+                  }}
+                >
+                  <ListItemIcon>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.label} />
+                </ListItem>
+              ))}
+              <Divider sx={{ my: 1 }} />
+              <ListItem
+                component='div'
+                onClick={handleLogout}
+                sx={{
+                  cursor: 'pointer',
+                  py: 1.5,
                   '&:hover': {
-                    backgroundColor:
-                      location.pathname === item.path
-                        ? 'primary.main'
-                        : 'action.hover',
+                    backgroundColor: 'action.hover',
                   },
                 }}
               >
-                <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.label} />
+                <ListItemIcon>
+                  <LogoutIcon />
+                </ListItemIcon>
+                <ListItemText primary='Logout' />
               </ListItem>
-            ))}
-            <Divider sx={{ my: 1 }} />
-            <ListItem
-              component='div'
-              onClick={handleLogout}
-              sx={{
-                cursor: 'pointer',
-                py: 1.5,
-                '&:hover': {
-                  backgroundColor: 'action.hover',
-                },
-              }}
-            >
-              <ListItemIcon>
-                <LogoutIcon />
-              </ListItemIcon>
-              <ListItemText primary='Logout' />
-            </ListItem>
-          </List>
+            </List>
+          </Box>
+        </Drawer>
+
+        <Box component='main' sx={{ flexGrow: 1, p: 3 }}>
+          <Toolbar />
+          <Container maxWidth='xl'>
+            <Routes>
+              <Route
+                path='/'
+                element={
+                  <ErrorBoundary context="system_admin_dashboard" onError={handleError}>
+                    <SystemAdminDashboard />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path='/courses'
+                element={
+                  <ErrorBoundary context="system_admin_courses" onError={handleError}>
+                    <CourseManagement />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path='/organizations'
+                element={
+                  <ErrorBoundary context="system_admin_organizations" onError={handleError}>
+                    <OrganizationManagement />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path='/users'
+                element={
+                  <ErrorBoundary context="system_admin_users" onError={handleError}>
+                    <UserManagement />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path='/vendors'
+                element={
+                  <ErrorBoundary context="system_admin_vendors" onError={handleError}>
+                    <VendorManagement />
+                  </ErrorBoundary>
+                }
+              />
+            </Routes>
+          </Container>
         </Box>
-      </Drawer>
 
-      <Box component='main' sx={{ flexGrow: 1, p: 3 }}>
-        <Toolbar />
-        <Container maxWidth='xl'>
-          <Routes>
-            <Route path='/' element={<SystemAdminDashboard />} />
-            <Route path='/courses' element={<CourseManagement />} />
-            <Route path='/organizations' element={<OrganizationManagement />} />
-            <Route path='/users' element={<UserManagement />} />
-            <Route path='/vendors' element={<VendorManagement />} />
-          </Routes>
-        </Container>
-      </Box>
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
           onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          variant='filled'
-          sx={{ width: '100%' }}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+          <Alert
+            onClose={() => setSnackbar({ ...snackbar, open: false })}
+            severity={snackbar.severity}
+            variant='filled'
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Box>
+    </ErrorBoundary>
   );
 };
 

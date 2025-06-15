@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import {
   Routes,
   Route,
@@ -17,6 +17,13 @@ import {
   Card,
   CardContent,
   Button,
+  TableCell,
+  TableRow,
+  Chip,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
 } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useInstructorData } from '../../hooks/useInstructorData';
@@ -28,19 +35,25 @@ import InstructorProfile from '../views/instructor/InstructorProfile';
 import analytics from '../../services/analytics';
 import { useToast } from '../../contexts/ToastContext';
 import { useQueryClient } from '@tanstack/react-query';
+import { tokenService } from '../../services/tokenService';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { formatDateWithoutTimezone } from '../../utils/dateUtils';
+import { Student } from '../../types/student';
+import { ScheduledClass } from '../../types/instructor';
+import api from '../../services/api';
 
 // Lazy load components for better performance (using TypeScript files)
 const InstructorDashboard = lazy(
-  () => import('../views/instructor/InstructorDashboard.tsx')
+  () => import('../portals/instructor/InstructorDashboard')
 );
 const MyClassesView = lazy(
-  () => import('../views/instructor/MyClassesView.tsx')
+  () => import('../views/instructor/MyClassesView')
 );
 const AttendanceView = lazy(
-  () => import('../views/instructor/AttendanceView.jsx')
+  () => import('../views/instructor/AttendanceView')
 );
 const InstructorArchiveTable = lazy(
-  () => import('../tables/InstructorArchiveTable.tsx')
+  () => import('../tables/InstructorArchiveTable')
 );
 
 // Loading component
@@ -57,10 +70,54 @@ const LoadingFallback = () => (
   </Box>
 );
 
+interface CombinedScheduleItem {
+  type: 'class' | 'availability';
+  displayDate: string;
+  status: string;
+  key: string;
+  organizationname?: string;
+  location?: string;
+  coursetypename?: string;
+  studentsregistered: number;
+  studentsattendance: number;
+  notes?: string;
+  start_time?: string;
+  end_time?: string;
+  course_id?: number;
+  max_students: number;
+  current_students: number;
+  originalData: any;
+}
+
+interface InstructorArchiveTableProps {
+  classes: ScheduledClass[];
+}
+
+const formatScheduleItem = (item: any): CombinedScheduleItem => {
+  return {
+    type: 'class',
+    displayDate: formatDateWithoutTimezone(item.datescheduled),
+    status: item.status || 'scheduled',
+    key: `${item.course_id}-${item.datescheduled}`,
+    organizationname: item.organizationname || 'Unassigned',
+    location: item.location || 'TBD',
+    coursetypename: item.coursetypename || 'CPR Class',
+    studentsregistered: Number(item.studentsregistered) || 0,
+    studentsattendance: Number(item.studentsattendance) || 0,
+    notes: item.notes || '',
+    start_time: item.start_time ? item.start_time.slice(0, 5) : '09:00',
+    end_time: item.end_time ? item.end_time.slice(0, 5) : '12:00',
+    course_id: item.course_id,
+    max_students: Number(item.max_students) || 10,
+    current_students: Number(item.current_students) || 0,
+    originalData: item
+  };
+};
+
 const InstructorPortal: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, user } = useAuth();
+  const { user, loading: authLoading, checkAuth } = useAuth();
   const { error: toastError } = useToast();
   const queryClient = useQueryClient();
   const {
@@ -71,28 +128,138 @@ const InstructorPortal: React.FC = () => {
     error,
     addAvailability,
     removeAvailability,
+    isAddingAvailability,
+    isRemovingAvailability,
     fetchClassStudents,
     updateAttendance,
     completeClass,
     loadData,
+    getClassDetails,
   } = useInstructorData();
+
+  const [errorState, setErrorState] = useState<string | null>(null);
+  const [successState, setSuccessState] = useState<string | null>(null);
+
+  const { data: classes = [], refetch: refetchClasses } = useQuery({
+    queryKey: ['instructor-classes'],
+    queryFn: async () => {
+      const response = await api.get('/instructor/classes');
+      return response.data.data.map(formatScheduleItem);
+    }
+  });
+
+  const updateAttendanceMutation = useMutation({
+    mutationFn: async ({ courseId, students }: { courseId: number; students: Student[] }) => {
+      const response = await api.put(`/instructor/classes/${courseId}/attendance`, { students });
+      return response.data;
+    },
+    onSuccess: () => {
+      refetchClasses();
+      setSuccessState('Attendance updated successfully');
+    },
+    onError: (error: any) => {
+      setErrorState(error.response?.data?.message || 'Failed to update attendance');
+    }
+  });
+
+  const handleAttendanceUpdate = async (courseId: number, students: Student[]) => {
+    await updateAttendanceMutation.mutateAsync({ courseId, students });
+  };
+
+  const fetchStudents = async (courseId: number): Promise<Student[]> => {
+    const response = await api.get(`/instructor/classes/${courseId}/students`);
+    return response.data.data;
+  };
+
+  // Handle class details error - only refresh if it's a 404 and we haven't already tried
+  const [hasRefreshed, setHasRefreshed] = React.useState(false);
+  useEffect(() => {
+    if (getClassDetails.error && !hasRefreshed) {
+      const error = getClassDetails.error as EnhancedError;
+      if (error.code === 'RES_3001') {  // RESOURCE_NOT_FOUND
+        setHasRefreshed(true);
+        loadData();
+      }
+    }
+  }, [getClassDetails.error, loadData, hasRefreshed]);
+
+  // Reset refresh flag when class details changes
+  useEffect(() => {
+    if (getClassDetails.data) {
+      setHasRefreshed(false);
+    }
+  }, [getClassDetails.data]);
+
+  // Combine scheduled classes and availability data
+  const combinedItems = React.useMemo<CombinedScheduleItem[]>(() => {
+    const items: CombinedScheduleItem[] = (scheduledClasses || []).map((classItem: any) => ({
+      type: 'class' as const,
+      displayDate: classItem.datescheduled,
+      key: `class-${classItem.course_id}`,
+      organizationname: classItem.organizationname,
+      location: classItem.location,
+      coursetypename: classItem.coursetypename,
+      studentsregistered: classItem.studentsregistered,
+      studentsattendance: classItem.studentsattendance,
+      notes: classItem.notes,
+      status: classItem.completed ? 'Completed' : 'Scheduled',
+      course_id: classItem.course_id,
+      max_students: classItem.max_students || 10,
+      current_students: classItem.current_students || 0,
+      originalData: classItem
+    }));
+    
+    // Add availability items
+    if (availableDates && Array.isArray(availableDates)) {
+      availableDates.forEach((availability) => {
+        if (availability && availability.date) {
+          // Ensure date is in local timezone
+          const date = new Date(availability.date + 'T00:00:00');
+          const localDate = date.toISOString().split('T')[0];
+          
+          items.push({
+            type: 'availability' as const,
+            displayDate: localDate,
+            status: availability.status || 'Available',
+            key: `availability-${localDate}`,
+            originalData: availability
+          });
+        }
+      });
+    }
+
+    // Sort by date
+    return items.sort((a: CombinedScheduleItem, b: CombinedScheduleItem) => {
+      const dateA = new Date(a.displayDate + 'T00:00:00');
+      const dateB = new Date(b.displayDate + 'T00:00:00');
+      return dateA.getTime() - dateB.getTime();
+    });
+  }, [scheduledClasses, availableDates]);
+
+  // Check authentication and load user data if needed
+  useEffect(() => {
+    const token = tokenService.getAccessToken();
+    if (token && !user && !authLoading) {
+      checkAuth();
+    }
+  }, [user, authLoading, checkAuth]);
 
   // Redirect if not authenticated
   useEffect(() => {
-    if (!isAuthenticated || !user) {
+    if (!user && !authLoading && !tokenService.getAccessToken()) {
       navigate('/login');
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [user, authLoading, navigate]);
 
   // Analytics: Track user and page views
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (user) {
       analytics.setUser(user.id || user.username, {
         role: user.role,
         portal: 'instructor',
       });
     }
-  }, [isAuthenticated, user]);
+  }, [user]);
 
   useEffect(() => {
     const currentView = getCurrentView();
@@ -116,7 +283,7 @@ const InstructorPortal: React.FC = () => {
     return pathSegments[pathSegments.length - 1] || 'dashboard';
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <InstructorLayout currentView={getCurrentView()} onRefresh={loadData}>
         <LoadingFallback />
@@ -160,6 +327,7 @@ const InstructorPortal: React.FC = () => {
                     <InstructorDashboard
                       scheduledClasses={scheduledClasses}
                       availableDates={availableDates}
+                      completedClasses={completedClasses}
                     />
                   </ErrorBoundary>
                 }
@@ -169,17 +337,10 @@ const InstructorPortal: React.FC = () => {
                 element={
                   <ErrorBoundary onError={handleError}>
                     <AvailabilityView
-                      availableDates={Array.from(availableDates)}
-                      scheduledClasses={scheduledClasses}
-                      onAddAvailability={async date => {
-                        analytics.trackAvailabilityAction('add', date);
-                        return await addAvailability(date);
-                      }}
-                      onRemoveAvailability={async date => {
-                        analytics.trackAvailabilityAction('remove', date);
-                        return await removeAvailability(date);
-                      }}
-                      onRefresh={loadData}
+                      availableDates={availableDates}
+                      onAddAvailability={addAvailability}
+                      onRemoveAvailability={removeAvailability}
+                      isLoading={isAddingAvailability || isRemovingAvailability}
                     />
                   </ErrorBoundary>
                 }
@@ -188,121 +349,11 @@ const InstructorPortal: React.FC = () => {
                 path='/classes'
                 element={
                   <ErrorBoundary onError={handleError}>
-                    <Box>
-                      {/* Debug section - remove this after fixing the issue */}
-                      <Box
-                        sx={{
-                          mb: 2,
-                          p: 2,
-                          bgcolor: 'grey.100',
-                          borderRadius: 1,
-                        }}
-                      >
-                        <Typography variant='subtitle2' gutterBottom>
-                          Debug Tools
-                        </Typography>
-                        <Button
-                          variant='outlined'
-                          size='small'
-                          onClick={() => {
-                            queryClient.resetQueries();
-                            queryClient.clear();
-                            loadData();
-                            toastError('Cache cleared - refreshing data...');
-                          }}
-                        >
-                          Clear All Cache & Refresh
-                        </Button>
-                      </Box>
-
-                      <MyClassesView
-                        combinedItems={(() => {
-                          // Get dates that already have scheduled classes
-                          const scheduledDates = new Set(
-                            scheduledClasses.map((sc: any) => sc.datescheduled)
-                          );
-
-                          // Debug log to see what's in availableDates
-                          console.log(
-                            '[InstructorPortal] Available dates:',
-                            Array.from(availableDates)
-                          );
-                          console.log(
-                            '[InstructorPortal] Scheduled dates:',
-                            Array.from(scheduledDates)
-                          );
-
-                          return [
-                            // Add scheduled classes (backend now excludes completed ones)
-                            ...scheduledClasses.map((sc: any) => ({
-                              ...sc,
-                              type: 'class' as const,
-                              key: `class-${sc.course_id}`,
-                              displayDate: sc.datescheduled,
-                              organizationname: sc.organizationname,
-                              location: sc.location,
-                              coursenumber: sc.course_id.toString(),
-                              coursetypename: sc.coursetypename,
-                              studentsregistered: sc.studentcount,
-                              studentsattendance: sc.studentsattendance,
-                              notes: '',
-                              status: 'Scheduled',
-                            })),
-                            // Add availability dates ONLY if they don't conflict with scheduled classes
-                            ...Array.from(availableDates)
-                              .filter(date => !scheduledDates.has(date))
-                              .map(date => ({
-                                type: 'availability' as const,
-                                key: `availability-${date}`,
-                                displayDate: date,
-                                organizationname: '',
-                                location: '',
-                                coursenumber: '',
-                                coursetypename: '',
-                                studentsregistered: undefined,
-                                studentsattendance: undefined,
-                                notes: '',
-                                status: 'Available',
-                                course_id: undefined,
-                              })),
-                          ].sort(
-                            (a, b) =>
-                              new Date(a.displayDate).getTime() -
-                              new Date(b.displayDate).getTime()
-                          );
-                        })()}
-                        onAttendanceClick={item => {
-                          analytics.trackClassAction(
-                            'view_attendance',
-                            item.course_id
-                          );
-                          navigate(`/instructor/attendance`);
-                        }}
-                        onMarkCompleteClick={async classItem => {
-                          analytics.trackClassAction(
-                            'mark_complete',
-                            classItem.course_id
-                          );
-                          try {
-                            await completeClass(classItem.course_id || 0);
-                            analytics.trackClassAction(
-                              'completed_successfully',
-                              classItem.course_id
-                            );
-                            loadData();
-                          } catch (error: any) {
-                            // Display user-friendly error message
-                            const errorMessage =
-                              error.suggestion ||
-                              error.userMessage ||
-                              error.message ||
-                              'Failed to complete class. Please try again.';
-                            toastError(errorMessage);
-                            console.error('Failed to complete class:', error);
-                          }
-                        }}
-                      />
-                    </Box>
+                    <MyClassesView
+                      combinedSchedule={combinedItems}
+                      onCompleteClass={completeClass}
+                      onRemoveAvailability={removeAvailability}
+                    />
                   </ErrorBoundary>
                 }
               />
@@ -311,13 +362,9 @@ const InstructorPortal: React.FC = () => {
                 element={
                   <ErrorBoundary onError={handleError}>
                     <AttendanceView
-                      onAttendanceUpdate={(studentId, attendance) => {
-                        analytics.trackInstructorAction('update_attendance', {
-                          studentId,
-                          attendance,
-                        });
-                        return loadData();
-                      }}
+                      classes={scheduledClasses}
+                      onFetchStudents={fetchClassStudents}
+                      onUpdateAttendance={updateAttendance}
                     />
                   </ErrorBoundary>
                 }
@@ -326,15 +373,9 @@ const InstructorPortal: React.FC = () => {
                 path='/archive'
                 element={
                   <ErrorBoundary onError={handleError}>
-                    <InstructorArchiveTable courses={completedClasses} />
-                  </ErrorBoundary>
-                }
-              />
-              <Route
-                path='/toast-demo'
-                element={
-                  <ErrorBoundary onError={handleError}>
-                    <ToastDemo />
+                    <InstructorArchiveTable
+                      classes={completedClasses}
+                    />
                   </ErrorBoundary>
                 }
               />
@@ -342,7 +383,7 @@ const InstructorPortal: React.FC = () => {
                 path='/profile'
                 element={
                   <ErrorBoundary onError={handleError}>
-                    <InstructorProfile />
+                    <InstructorProfile user={user} />
                   </ErrorBoundary>
                 }
               />

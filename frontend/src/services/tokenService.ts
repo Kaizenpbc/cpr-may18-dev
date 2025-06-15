@@ -1,45 +1,50 @@
 console.log('Initializing tokenService');
 
 const ACCESS_TOKEN_KEY = 'accessToken';
-const REFRESH_TOKEN_KEY = 'refreshToken';
 const LAST_LOCATION_KEY = 'lastLocation';
 
 /**
  * Token service that handles access token storage and retrieval.
  * This is kept separate from authService to avoid circular dependencies.
  */
-export const tokenService = {
+class TokenService {
   /**
-   * Gets the current access token from localStorage.
+   * Gets the current access token from sessionStorage.
    * @returns The current access token or null if not found
    */
   getAccessToken(): string | null {
-    return localStorage.getItem(ACCESS_TOKEN_KEY);
-  },
+    const token = sessionStorage.getItem(ACCESS_TOKEN_KEY);
+    console.log('[TRACE] Token service - Getting access token:', !!token);
+    return token;
+  }
 
   /**
-   * Sets the access token in localStorage.
+   * Sets the access token in sessionStorage.
    * @param token - The access token to store
    */
   setAccessToken(token: string): void {
-    localStorage.setItem(ACCESS_TOKEN_KEY, token);
-  },
+    console.log('[TRACE] Token service - Setting access token');
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+  }
 
   /**
-   * Gets the current refresh token from localStorage.
-   * @returns The current refresh token or null if not found
+   * Gets the current refresh token from cookies.
+   * Note: This is handled by the browser automatically.
+   * @returns Always returns null as the refresh token is in an HTTP-only cookie
    */
-  getRefreshToken(): string | null {
-    return localStorage.getItem(REFRESH_TOKEN_KEY);
-  },
+  getRefreshToken(): null {
+    console.log('[TRACE] Token service - Getting refresh token (HTTP-only cookie)');
+    return null; // Refresh token is managed by HTTP-only cookies
+  }
 
   /**
-   * Sets the refresh token in localStorage.
-   * @param token - The refresh token to store
+   * Sets the refresh token.
+   * Note: This is handled by the backend via HTTP-only cookies.
    */
-  setRefreshToken(token: string): void {
-    localStorage.setItem(REFRESH_TOKEN_KEY, token);
-  },
+  setRefreshToken(): void {
+    console.log('[TRACE] Token service - Setting refresh token (HTTP-only cookie)');
+    // No-op: refresh token is managed by HTTP-only cookies
+  }
 
   /**
    * Saves the current location for restoration after login
@@ -52,55 +57,55 @@ export const tokenService = {
       !location.includes('/forgot-password') &&
       !location.includes('/reset-password')
     ) {
-      localStorage.setItem(LAST_LOCATION_KEY, location);
+      console.log('[TRACE] Token service - Saving current location:', location);
+      sessionStorage.setItem(LAST_LOCATION_KEY, location);
     }
-  },
+  }
 
   /**
    * Gets the saved location for restoration after login
    * @returns The saved location or null
    */
   getSavedLocation(): string | null {
-    return localStorage.getItem(LAST_LOCATION_KEY);
-  },
+    const location = sessionStorage.getItem(LAST_LOCATION_KEY);
+    console.log('[TRACE] Token service - Getting saved location:', location);
+    return location;
+  }
 
   /**
    * Clears the saved location
    */
   clearSavedLocation(): void {
-    localStorage.removeItem(LAST_LOCATION_KEY);
-  },
+    console.log('[TRACE] Token service - Clearing saved location');
+    sessionStorage.removeItem(LAST_LOCATION_KEY);
+  }
 
   /**
-   * Clears both access and refresh tokens from localStorage.
-   * This version does NOT force redirect - let React Router handle navigation
+   * Clears all tokens from storage.
    */
   clearTokens(): void {
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    // Note: We do NOT clear all localStorage or force navigation
-    // This allows the app to maintain state and handle routing properly
-  },
+    console.log('[TRACE] Token service - Clearing tokens');
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+  }
 
   /**
-   * Checks if both access and refresh tokens exist in localStorage.
+   * Checks if both access and refresh tokens exist in sessionStorage.
    * @returns true if both tokens exist, false otherwise
    */
   hasTokens(): boolean {
-    return !!(
-      localStorage.getItem(ACCESS_TOKEN_KEY) &&
-      localStorage.getItem(REFRESH_TOKEN_KEY)
-    );
-  },
+    const hasToken = !!this.getAccessToken();
+    console.log('[TRACE] Token service - Checking if tokens exist:', hasToken);
+    return hasToken;
+  }
 
   /**
    * Gets the authorization header with the current access token
    */
   getAuthHeader() {
     const token = this.getAccessToken();
-    console.log('[TRACE] Getting auth header - Token exists:', !!token);
+    console.log('[TRACE] Token service - Getting auth header - Token exists:', !!token);
     return token ? { Authorization: `Bearer ${token}` } : {};
-  },
+  }
 
   /**
    * Force clear all authentication and redirect to login
@@ -108,20 +113,22 @@ export const tokenService = {
    * This is the only method that should force navigation
    */
   forceLogout(): void {
+    console.log('[TRACE] Token service - Force logout');
     // Save current location before clearing
     this.saveCurrentLocation(window.location.pathname);
 
     // Clear tokens
     this.clearTokens();
 
-    // Clear all localStorage and sessionStorage
-    localStorage.clear();
+    // Clear all sessionStorage
     sessionStorage.clear();
 
     // Force a hard refresh to login
     window.location.href = '/login';
-  },
-};
+  }
+}
+
+export const tokenService = new TokenService();
 
 console.log('TokenService initialized');
 

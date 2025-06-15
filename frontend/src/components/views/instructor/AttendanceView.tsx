@@ -68,7 +68,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
   const loadTodaysClasses = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/v1/instructor/classes/today');
+      const response = await api.get<ApiResponse<ScheduledClass[]>>('/instructor/classes/today');
       setTodaysClasses(response.data.data);
 
       // Auto-select the first class if only one exists

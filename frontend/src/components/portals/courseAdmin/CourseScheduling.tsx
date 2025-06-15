@@ -12,10 +12,25 @@ import {
   MenuItem,
   Alert,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { api } from '../../../services/api';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
+import { useQueryClient } from '@tanstack/react-query';
+import { Cancel as CancelIcon } from '@mui/icons-material';
+import { useQuery } from '@tanstack/react-query';
+import { formatDateWithoutTimezone } from '../../../utils/dateUtils';
 
 interface Course {
   id: number;
@@ -27,6 +42,7 @@ interface Course {
   organization: string;
   status: string;
   instructor?: string;
+  registered_students?: number;
 }
 
 const CourseScheduling = () => {
@@ -34,21 +50,59 @@ const CourseScheduling = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { showSuccess, showError } = useSnackbar();
+  const queryClient = useQueryClient();
+
+  // State for cancel dialog
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [courseToCancel, setCourseToCancel] = useState<Course | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+
+  // Fetch courses with React Query
+  const { data: coursesData = [] } = useQuery({
+    queryKey: ['courses'],
+    queryFn: async () => {
+      const response = await api.get('/courses');
+      return response.data.data;
+    },
+    refetchInterval: 30000, // Poll every 30 seconds
+  });
 
   useEffect(() => {
-    fetchCourses();
-  }, []);
+    setCourses(coursesData);
+  }, [coursesData]);
 
-  const fetchCourses = async () => {
+  const handleCancelClick = (course: Course) => {
+    setCourseToCancel(course);
+    setCancelReason('');
+    setCancelDialogOpen(true);
+  };
+
+  const handleCancelClose = () => {
+    setCancelDialogOpen(false);
+    setCourseToCancel(null);
+    setCancelReason('');
+  };
+
+  const handleCancelSubmit = async () => {
+    if (!courseToCancel || !cancelReason.trim()) {
+      showError('Please provide a reason for cancellation');
+      return;
+    }
+
     try {
-      setLoading(true);
-      const response = await api.get('/api/v1/courses');
-      setCourses(response.data.data);
-    } catch (err) {
-      setError('Failed to fetch courses');
-      showError('Failed to fetch courses');
-    } finally {
-      setLoading(false);
+      await api.put(`/api/v1/courses/${courseToCancel.id}/cancel`, {
+        reason: cancelReason,
+      });
+
+      showSuccess('Course cancelled successfully');
+      
+      // Refresh all relevant data
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+      
+      handleCancelClose();
+    } catch (err: any) {
+      console.error('Error cancelling course:', err);
+      showError(err.response?.data?.error?.message || 'Failed to cancel course');
     }
   };
 
@@ -64,57 +118,97 @@ const CourseScheduling = () => {
         </Alert>
       )}
 
-      {loading ? (
-        <Box display='flex' justifyContent='center' p={3}>
-          <CircularProgress />
-        </Box>
-      ) : (
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant='h6' gutterBottom>
-                Upcoming Courses
-              </Typography>
-              {courses.length === 0 ? (
-                <Typography color='textSecondary'>
-                  No courses scheduled
-                </Typography>
-              ) : (
-                courses.map(course => (
-                  <Box
-                    key={course.id}
-                    sx={{ mb: 2, p: 2, border: '1px solid #eee' }}
-                  >
-                    <Typography variant='subtitle1'>
-                      {course.courseType}
-                    </Typography>
-                    <Typography variant='body2' color='textSecondary'>
-                      Date: {new Date(course.date).toLocaleDateString()}
-                    </Typography>
-                    <Typography variant='body2' color='textSecondary'>
-                      Time: {course.startTime} - {course.endTime}
-                    </Typography>
-                    <Typography variant='body2' color='textSecondary'>
-                      Location: {course.location}
-                    </Typography>
-                    <Typography variant='body2' color='textSecondary'>
-                      Organization: {course.organization}
-                    </Typography>
-                    <Typography variant='body2' color='textSecondary'>
-                      Status: {course.status}
-                    </Typography>
-                    {course.instructor && (
-                      <Typography variant='body2' color='textSecondary'>
-                        Instructor: {course.instructor}
-                      </Typography>
-                    )}
-                  </Box>
-                ))
-              )}
-            </Paper>
-          </Grid>
-        </Grid>
-      )}
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Date</TableCell>
+              <TableCell>Type of Course</TableCell>
+              <TableCell>Organization</TableCell>
+              <TableCell>Location</TableCell>
+              <TableCell>Instructor</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {courses.map((course: any) => (
+              <TableRow key={course.id}>
+                <TableCell>
+                  {formatDateWithoutTimezone(course.scheduled_date)}
+                </TableCell>
+                <TableCell>{course.course_type}</TableCell>
+                <TableCell>{course.organization_name}</TableCell>
+                <TableCell>{course.location}</TableCell>
+                <TableCell>{course.instructor_name || 'Not Assigned'}</TableCell>
+                <TableCell>{course.status}</TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      size="small"
+                      startIcon={<CancelIcon />}
+                      onClick={() => handleCancelClick(course)}
+                    >
+                      Cancel Course
+                    </Button>
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* Cancel Course Dialog */}
+      <Dialog
+        open={cancelDialogOpen}
+        onClose={handleCancelClose}
+        maxWidth='sm'
+        fullWidth
+      >
+        <DialogTitle>Cancel Course</DialogTitle>
+        <DialogContent>
+          <Typography variant='subtitle1' gutterBottom sx={{ mb: 2 }}>
+            Course Name: {courseToCancel?.courseType}
+            <br />
+            Organization: {courseToCancel?.organization}
+            <br />
+            Location: {courseToCancel?.location}
+            <br />
+            Students: {courseToCancel?.registered_students || 0}
+          </Typography>
+
+          <Typography variant='body2' color='error' sx={{ mb: 2 }}>
+            Are you sure you want to cancel this course? This action cannot be
+            undone.
+          </Typography>
+
+          <TextField
+            label='Reason for Cancellation'
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            fullWidth
+            multiline
+            rows={4}
+            required
+            placeholder='Please provide a detailed reason for cancelling this course...'
+            sx={{ mt: 2 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelClose}>Cancel</Button>
+          <Button
+            onClick={handleCancelSubmit}
+            variant='contained'
+            color='error'
+            disabled={!cancelReason.trim()}
+          >
+            Cancel Course
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

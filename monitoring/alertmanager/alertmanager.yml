@@ -1,0 +1,300 @@
+# ===============================================
+# AlertManager Configuration for CPR Training System
+# ===============================================
+
+global:
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'alerts@cpr-training.com'
+  smtp_auth_username: '{{ env "ALERTMANAGER_SMTP_USER" }}'
+  smtp_auth_password: '{{ env "ALERTMANAGER_SMTP_PASSWORD" }}'
+  smtp_require_tls: true
+  
+  # Slack webhook URL (set via environment variable)
+  slack_api_url: ${SLACK_WEBHOOK_URL}
+  
+  # Default template paths
+  templates:
+    - '/etc/alertmanager/templates/*.tmpl'
+
+# ===============================================
+# Alert Routing Configuration
+# ===============================================
+route:
+  # Default receiver for all alerts
+  receiver: 'default-notifications'
+  
+  # Group alerts by cluster, service, and alertname
+  group_by: ['cluster', 'service', 'alertname']
+  
+  # Wait time before sending initial notification
+  group_wait: 30s
+  
+  # Wait time before sending additional notifications for new alerts in group
+  group_interval: 5m
+  
+  # Wait time before sending a notification again if it has already been sent successfully
+  repeat_interval: 4h
+  
+  # Child routes for specific alert routing
+  routes:
+    # ===============================================
+    # Critical Alerts - Immediate Response
+    # ===============================================
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      group_interval: 2m
+      repeat_interval: 30m
+      routes:
+        # Platform team critical alerts
+        - match:
+            team: platform
+          receiver: 'platform-critical'
+        
+        # Security team critical alerts
+        - match:
+            team: security
+          receiver: 'security-critical'
+    
+    # ===============================================
+    # Warning Alerts - Standard Response
+    # ===============================================
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 60s
+      group_interval: 10m
+      repeat_interval: 2h
+      routes:
+        # Platform team warnings
+        - match:
+            team: platform
+          receiver: 'platform-warnings'
+        
+        # Operations team warnings
+        - match:
+            team: operations
+          receiver: 'operations-warnings'
+        
+        # Accounting team warnings
+        - match:
+            team: accounting
+          receiver: 'accounting-warnings'
+        
+        # Security team warnings
+        - match:
+            team: security
+          receiver: 'security-warnings'
+    
+    # ===============================================
+    # Info Alerts - Low Priority
+    # ===============================================
+    - match:
+        severity: info
+      receiver: 'info-alerts'
+      group_wait: 300s
+      group_interval: 1h
+      repeat_interval: 12h
+    
+    # ===============================================
+    # Maintenance Alerts - Separate Channel
+    # ===============================================
+    - match:
+        service: maintenance
+      receiver: 'maintenance-alerts'
+      group_wait: 60s
+      repeat_interval: 24h
+
+# ===============================================
+# Alert Suppression Rules
+# ===============================================
+inhibit_rules:
+  # Suppress warning alerts when critical alerts are firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['service', 'instance']
+  
+  # Suppress info alerts when warning or critical alerts are firing
+  - source_match_re:
+      severity: 'critical|warning'
+    target_match:
+      severity: 'info'
+    equal: ['service', 'instance']
+  
+  # Suppress database connection alerts when backend is down
+  - source_match:
+      alertname: 'CPRBackendDown'
+    target_match:
+      alertname: 'DatabaseConnectionFailure'
+    equal: ['instance']
+
+# ===============================================
+# Notification Receivers
+# ===============================================
+receivers:
+  # ===============================================
+  # Default Notifications
+  # ===============================================
+  - name: 'default-notifications'
+    email_configs:
+      - to: 'alerts@cpr-training.com'
+        subject: '[CPR-Training] {{ .GroupLabels.alertname }} - {{ .Status | toUpper }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Impact: {{ .Annotations.impact }}
+          Instance: {{ .Labels.instance }}
+          Service: {{ .Labels.service }}
+          Severity: {{ .Labels.severity }}
+          
+          {{ if .Annotations.runbook }}
+          Runbook: {{ .Annotations.runbook }}
+          {{ end }}
+          
+          {{ end }}
+    
+    slack_configs:
+      - channel: '#alerts-general'
+        title: 'CPR Training Alert - {{ .Status | toUpper }}'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          *Impact:* {{ .Annotations.impact }}
+          *Instance:* {{ .Labels.instance }}
+          *Service:* {{ .Labels.service }}
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+
+  # ===============================================
+  # Critical Alert Receivers
+  # ===============================================
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'critical-alerts@cpr-training.com, platform-team@cpr-training.com'
+        subject: '🚨 [CRITICAL] {{ .GroupLabels.alertname }} - CPR Training System'
+        body: |
+          CRITICAL ALERT DETECTED
+          
+          {{ range .Alerts }}
+          🚨 {{ .Annotations.summary }}
+          
+          📝 Description: {{ .Annotations.description }}
+          💥 Impact: {{ .Annotations.impact }}
+          🖥️  Instance: {{ .Labels.instance }}
+          🔧 Service: {{ .Labels.service }}
+          ⏰ Started: {{ .StartsAt }}
+          
+          {{ if .Annotations.runbook }}
+          📚 Runbook: {{ .Annotations.runbook }}
+          {{ end }}
+          
+          This is a CRITICAL alert requiring IMMEDIATE attention.
+          {{ end }}
+    
+    slack_configs:
+      - channel: '#alerts-critical'
+        title: '🚨 CRITICAL ALERT - CPR Training System'
+        text: |
+          <!channel>
+          {{ range .Alerts }}
+          *🚨 {{ .Annotations.summary }}*
+          
+          *Description:* {{ .Annotations.description }}
+          *Impact:* {{ .Annotations.impact }}
+          *Instance:* {{ .Labels.instance }}
+          *Service:* {{ .Labels.service }}
+          {{ if .Annotations.runbook }}
+          *Runbook:* {{ .Annotations.runbook }}
+          {{ end }}
+          {{ end }}
+        color: 'danger'
+        send_resolved: true
+
+  # ===============================================
+  # Team-Specific Receivers
+  # ===============================================
+  - name: 'platform-critical'
+    email_configs:
+      - to: 'platform-team@cpr-training.com'
+        subject: '🚨 [PLATFORM CRITICAL] {{ .GroupLabels.alertname }}'
+    slack_configs:
+      - channel: '#platform-alerts'
+        title: '🚨 Platform Critical Alert'
+        color: 'danger'
+
+  - name: 'security-critical'
+    email_configs:
+      - to: 'security-team@cpr-training.com'
+        subject: '🔒 [SECURITY CRITICAL] {{ .GroupLabels.alertname }}'
+    slack_configs:
+      - channel: '#security-alerts'
+        title: '🔒 Security Critical Alert'
+        color: 'danger'
+
+  - name: 'platform-warnings'
+    slack_configs:
+      - channel: '#platform-alerts'
+        title: '⚠️ Platform Warning'
+        color: 'warning'
+
+  - name: 'operations-warnings'
+    email_configs:
+      - to: 'operations-team@cpr-training.com'
+        subject: '⚠️ [OPERATIONS] {{ .GroupLabels.alertname }}'
+    slack_configs:
+      - channel: '#operations-alerts'
+        title: '⚠️ Operations Warning'
+        color: 'warning'
+
+  - name: 'accounting-warnings'
+    email_configs:
+      - to: 'accounting-team@cpr-training.com'
+        subject: '💰 [ACCOUNTING] {{ .GroupLabels.alertname }}'
+    slack_configs:
+      - channel: '#accounting-alerts'
+        title: '💰 Accounting Alert'
+        color: 'warning'
+
+  - name: 'security-warnings'
+    email_configs:
+      - to: 'security-team@cpr-training.com'
+        subject: '🔒 [SECURITY] {{ .GroupLabels.alertname }}'
+    slack_configs:
+      - channel: '#security-alerts'
+        title: '🔒 Security Warning'
+        color: 'warning'
+
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'warnings@cpr-training.com'
+        subject: '⚠️ [WARNING] {{ .GroupLabels.alertname }}'
+    slack_configs:
+      - channel: '#alerts-warnings'
+        title: '⚠️ System Warning'
+        color: 'warning'
+
+  - name: 'info-alerts'
+    slack_configs:
+      - channel: '#alerts-info'
+        title: 'ℹ️ System Information'
+        color: 'good'
+
+  - name: 'maintenance-alerts'
+    email_configs:
+      - to: 'maintenance@cpr-training.com'
+        subject: '🔧 [MAINTENANCE] {{ .GroupLabels.alertname }}'
+    slack_configs:
+      - channel: '#maintenance'
+        title: '🔧 Maintenance Alert'
+        color: '#439FE0'
+
+# ===============================================
+# Alert Templates (Optional Enhancement)
+# ===============================================
+templates:
+  - '/etc/alertmanager/templates/default.tmpl' 

@@ -3,289 +3,146 @@ import {
   verifyAccessToken,
   verifyRefreshToken,
   generateTokens,
+  TokenPayload
 } from '../utils/jwtUtils';
 import { extractTokenFromHeader } from '../utils/jwtUtils';
 import { ApiResponseBuilder } from '../utils/apiResponse';
 import { errorCodes } from '../utils/errorHandler';
 import { AppError } from '../utils/errorHandler';
+import jwt from 'jsonwebtoken';
+
+const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'access_secret';
+const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh_secret';
 
 declare global {
   namespace Express {
     interface Request {
-      user?: {
-        userId: string;
-        username: string;
-        role?: string;
-        organizationId?: number;
-      };
+      user?: TokenPayload;
     }
   }
 }
 
 // Role-based authentication middleware
-export const requireRole = (allowedRoles: string[]) => {
+export const requireRole = (roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user || !req.user.role) {
-      return res
-        .status(403)
-        .json(
-          ApiResponseBuilder.error(
-            errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
-            'Access denied: No role specified'
-          )
-        );
+    if (!req.user?.role) {
+      return res.status(403).json({ message: 'No role specified' });
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
-      return res
-        .status(403)
-        .json(
-          ApiResponseBuilder.error(
-            errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
-            'Access denied: Insufficient privileges'
-          )
-        );
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
     }
 
     next();
   };
 };
 
-export const authenticateToken = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  console.log('[Debug] authMiddleware - Authenticating request:', req.path);
-  console.log('[Debug] authMiddleware - Headers:', req.headers);
-
-  // Handle preflight requests
+export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
+  // Skip authentication for preflight requests
   if (req.method === 'OPTIONS') {
-    res.header(
-      'Access-Control-Allow-Methods',
-      'GET, POST, PUT, DELETE, OPTIONS'
-    );
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    return res.status(200).send();
-  }
-
-  const token = extractTokenFromHeader(req);
-  console.log(
-    '[Debug] authMiddleware - Extracted token:',
-    token ? 'present' : 'not present'
-  );
-
-  if (!token) {
-    console.log('[Debug] authMiddleware - No token provided');
-    // Try to refresh using refresh token
-    const refreshToken = req.cookies.refreshToken;
-    console.log(
-      '[Debug] authMiddleware - Refresh token from cookies:',
-      refreshToken ? 'present' : 'not present'
-    );
-
-    if (!refreshToken) {
-      console.log('[Debug] authMiddleware - No refresh token found');
-      return res
-        .status(401)
-        .json(
-          ApiResponseBuilder.error(
-            errorCodes.AUTH_TOKEN_INVALID,
-            'No token provided'
-          )
-        );
-    }
-
-    try {
-      console.log(
-        '[Debug] authMiddleware - Attempting refresh with cookie token'
-      );
-      const payload = verifyRefreshToken(refreshToken);
-      console.log(
-        '[Debug] authMiddleware - Refresh token valid for user:',
-        payload.username
-      );
-
-      // Fetch fresh user data from database to ensure we have current role and organizationId
-      const { pool } = await import('../config/database');
-      const result = await pool.query(
-        'SELECT id, username, role, organization_id FROM users WHERE id = $1',
-        [parseInt(payload.userId, 10)]
-      );
-
-      if (result.rows.length === 0) {
-        console.log('[Debug] authMiddleware - User not found in database');
-        res.clearCookie('refreshToken');
-        return res
-          .status(401)
-          .json(
-            ApiResponseBuilder.error(
-              errorCodes.AUTH_TOKEN_INVALID,
-              'User not found'
-            )
-          );
-      }
-
-      const user = result.rows[0];
-      console.log('[Debug] authMiddleware - Fresh user data:', {
-        username: user.username,
-        role: user.role,
-        organizationId: user.organization_id,
-      });
-
-      const tokens = generateTokens({
-        userId: user.id,
-        username: user.username,
-        role: user.role,
-        organizationId: user.organization_id,
-      });
-      console.log('[Debug] authMiddleware - Generated new tokens');
-
-      // Set new tokens
-      res.cookie('refreshToken', tokens.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax', // Changed from 'strict' to 'lax' to allow cross-site requests
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
-
-      // Set user for this request with fresh data
-      req.user = {
-        userId: user.id.toString(),
-        username: user.username,
-        role: user.role,
-        organizationId: user.organization_id,
-      };
-
-      // Set new access token in response header
-      res.setHeader('Authorization', `Bearer ${tokens.accessToken}`);
-
-      console.log('[Debug] authMiddleware - Token refresh successful');
-      // Continue with the request
-      return next();
-    } catch (error) {
-      console.error('[Debug] authMiddleware - Refresh token invalid:', error);
-      // Clear the invalid refresh token
-      res.clearCookie('refreshToken');
-      return res
-        .status(401)
-        .json(
-          ApiResponseBuilder.error(
-            errorCodes.AUTH_TOKEN_INVALID,
-            'Invalid refresh token'
-          )
-        );
-    }
+    return next();
   }
 
   try {
-    console.log('[Debug] authMiddleware - Verifying access token');
-    const payload = verifyAccessToken(token);
-    req.user = payload;
-    console.log(
-      '[Debug] authMiddleware - Token verified successfully for user:',
-      payload.username
-    );
-    next();
-  } catch (error) {
-    console.error('[Debug] authMiddleware - Access token invalid:', error);
-    // If access token is invalid, try to refresh
-    const refreshToken = req.cookies.refreshToken;
-    console.log(
-      '[Debug] authMiddleware - Refresh token from cookies:',
-      refreshToken ? 'present' : 'not present'
-    );
+    console.log('[TRACE] Auth middleware - Request headers:', {
+      authorization: req.headers.authorization ? 'present' : 'missing',
+      cookie: req.headers.cookie ? 'present' : 'missing'
+    });
 
-    if (!refreshToken) {
-      console.log('[Debug] authMiddleware - No refresh token found');
-      return res
-        .status(401)
-        .json(
-          ApiResponseBuilder.error(
-            errorCodes.AUTH_TOKEN_INVALID,
-            'Invalid token'
-          )
-        );
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      console.log('[TRACE] Auth middleware - No token provided');
+      return res.status(401).json({ 
+        success: false,
+        error: {
+          code: errorCodes.AUTH_TOKEN_MISSING,
+          message: 'No token provided'
+        }
+      });
     }
 
     try {
-      console.log('[Debug] authMiddleware - Verifying refresh token');
-      const payload = verifyRefreshToken(refreshToken);
-      console.log(
-        '[Debug] authMiddleware - Refresh token valid for user:',
-        payload.username
-      );
+      console.log('[TRACE] Auth middleware - Verifying token');
+      const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET) as TokenPayload;
+      console.log('[TRACE] Auth middleware - Token verified, user:', {
+        id: decoded.id,
+        userId: decoded.userId,
+        username: decoded.username,
+        role: decoded.role
+      });
 
-      // Fetch fresh user data from database to ensure we have current role and organizationId
-      const { pool } = await import('../config/database');
-      const result = await pool.query(
-        'SELECT id, username, role, organization_id FROM users WHERE id = $1',
-        [parseInt(payload.userId, 10)]
-      );
-
-      if (result.rows.length === 0) {
-        console.log('[Debug] authMiddleware - User not found in database');
-        res.clearCookie('refreshToken');
-        return res
-          .status(401)
-          .json(
-            ApiResponseBuilder.error(
-              errorCodes.AUTH_TOKEN_INVALID,
-              'User not found'
-            )
-          );
+      req.user = {
+        id: decoded.id,
+        userId: decoded.userId,
+        username: decoded.username,
+        role: decoded.role,
+        organizationId: decoded.organizationId,
+        organizationName: decoded.organizationName,
+        sessionId: decoded.sessionId
+      };
+      next();
+    } catch (err) {
+      console.log('[TRACE] Auth middleware - Token verification failed:', err);
+      // Token is invalid or expired, try to refresh
+      const refreshToken = req.cookies.refreshToken;
+      if (!refreshToken) {
+        console.log('[TRACE] Auth middleware - No refresh token available');
+        return res.status(401).json({ 
+          success: false,
+          error: {
+            code: errorCodes.AUTH_TOKEN_INVALID,
+            message: 'Token expired and no refresh token available'
+          }
+        });
       }
 
-      const user = result.rows[0];
-      console.log('[Debug] authMiddleware - Fresh user data:', {
-        username: user.username,
-        role: user.role,
-        organizationId: user.organization_id,
-      });
+      try {
+        console.log('[TRACE] Auth middleware - Attempting token refresh');
+        const decoded = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET) as TokenPayload;
+        const { accessToken, refreshToken: newRefreshToken } = generateTokens(decoded);
 
-      const tokens = generateTokens({
-        userId: user.id,
-        username: user.username,
-        role: user.role,
-        organizationId: user.organization_id,
-      });
-      console.log('[Debug] authMiddleware - Generated new tokens');
+        // Set new tokens
+        res.setHeader('x-access-token', accessToken);
+        res.cookie('refreshToken', newRefreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
 
-      // Set new tokens
-      res.cookie('refreshToken', tokens.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax', // Changed from 'strict' to 'lax' to allow cross-site requests
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
-
-      // Set user for this request with fresh data
-      req.user = {
-        userId: user.id.toString(),
-        username: user.username,
-        role: user.role,
-        organizationId: user.organization_id,
-      };
-
-      // Set new access token in response header
-      res.setHeader('Authorization', `Bearer ${tokens.accessToken}`);
-
-      console.log('[Debug] authMiddleware - Token refresh successful');
-      // Continue with the request
-      next();
-    } catch (error) {
-      console.error('[Debug] authMiddleware - Refresh token invalid:', error);
-      // Clear the invalid refresh token
-      res.clearCookie('refreshToken');
-      return res
-        .status(401)
-        .json(
-          ApiResponseBuilder.error(
-            errorCodes.AUTH_TOKEN_INVALID,
-            'Invalid refresh token'
-          )
-        );
+        console.log('[TRACE] Auth middleware - Token refresh successful');
+        req.user = {
+          id: decoded.id,
+          userId: decoded.userId,
+          username: decoded.username,
+          role: decoded.role,
+          organizationId: decoded.organizationId,
+          organizationName: decoded.organizationName,
+          sessionId: decoded.sessionId
+        };
+        next();
+      } catch (refreshErr) {
+        console.log('[TRACE] Auth middleware - Token refresh failed:', refreshErr);
+        return res.status(401).json({ 
+          success: false,
+          error: {
+            code: errorCodes.AUTH_TOKEN_INVALID,
+            message: 'Invalid refresh token'
+          }
+        });
+      }
     }
+  } catch (error) {
+    console.error('[TRACE] Auth middleware - Unexpected error:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: {
+        code: errorCodes.INTERNAL_SERVER_ERROR,
+        message: 'Internal server error'
+      }
+    });
   }
 };
 

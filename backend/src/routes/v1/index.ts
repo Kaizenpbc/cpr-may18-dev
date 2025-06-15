@@ -1,22 +1,32 @@
-import { Router } from 'express';
-import type { Request, Response } from 'express';
-import { asyncHandler } from '../../utils/errorHandler';
-import { ApiResponseBuilder } from '../../utils/apiResponse';
-import { AppError, errorCodes } from '../../utils/errorHandler';
-import bcrypt from 'bcryptjs';
-import { pool } from '../../config/database';
-import { generateTokens } from '../../utils/jwtUtils';
-import {
-  authenticateToken,
-  requireRole,
-  authorizeRoles,
-} from '../../middleware/authMiddleware';
-import { PDFService } from '../../services/pdfService';
-import { emailService } from '../../services/emailService';
-import emailTemplatesRouter from './emailTemplates';
-import { cacheService } from '../../services/cacheService';
+import { Router, Request, Response } from 'express';
+import { asyncHandler } from '../../utils/errorHandler.js';
+import { ApiResponseBuilder } from '../../utils/apiResponse.js';
+import { AppError, errorCodes } from '../../utils/errorHandler.js';
+import { pool } from '../../config/database.js';
+import { generateToken } from '../../utils/jwtUtils.js';
+import { authenticateToken, requireRole, authorizeRoles } from '../../middleware/authMiddleware.js';
+import { sessionAuth } from '../../middleware/sessionAuth.js';
+import { generateWeeklySchedulePDF } from '../../services/pdfService.ts';
+import { emailService } from '../../services/emailService.js';
+import emailTemplatesRouter from './emailTemplates.js';
+import { cacheService } from '../../services/cacheService.js';
+import healthRouter from './health.js';
+import cacheRouter from './cache.js';
+import instructorRouter from '../../routes/instructor.js';
+import { Server } from 'socket.io';
+import { createServer } from 'http';
+import { PDFService } from '../../services/pdfService.ts';
 
 const router = Router();
+
+// Mount health routes
+router.use('/health', healthRouter);
+
+// Mount cache routes
+router.use('/cache', cacheRouter);
+
+// Mount instructor routes
+router.use('/instructors', instructorRouter);
 
 console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
 
@@ -81,7 +91,6 @@ router.get(
 router.use('/dashboard', authenticateToken);
 router.use('/organization', authenticateToken);
 router.use('/courses', authenticateToken);
-router.use('/instructors', authenticateToken);
 
 // Example route with error handling
 router.get(
@@ -278,10 +287,17 @@ router.get(
     try {
       // Use cached course types
       const courseTypes = await cacheService.getCourseTypes();
+      // Transform the response to match frontend expectations
+      const transformedCourseTypes = courseTypes.map(type => ({
+        coursetypeid: type.id,
+        coursetypename: type.name,
+        description: type.description,
+        duration_minutes: type.duration_minutes
+      }));
 
       res.json({
         success: true,
-        data: courseTypes,
+        data: transformedCourseTypes,
         cached: true,
       });
     } catch (error) {
@@ -344,10 +360,21 @@ router.post(
         ]
       );
 
+      const newCourse = result.rows[0];
+
+      // Emit event for new course request
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('newCourseRequest', {
+          type: 'new_course_request',
+          data: newCourse
+        });
+      }
+
       return res.json({
         success: true,
         message: 'Course request submitted successfully! Status: Pending',
-        course: result.rows[0],
+        course: newCourse,
       });
     } catch (error: any) {
       console.error('Error creating course request:', error);
@@ -755,36 +782,66 @@ router.get(
 // Course admin endpoints for managing course requests
 router.get(
   '/courses/pending',
+  authenticateToken,
   asyncHandler(async (_req: Request, res: Response) => {
     try {
-      const result = await pool.query(
-        `SELECT 
-        cr.id,
-        cr.date_requested,
-        cr.scheduled_date,
-        cr.location,
-        cr.registered_students,
-        cr.notes,
-        cr.status,
-        cr.created_at,
-        ct.name as course_type,
+      const result = await pool.query(`
+      SELECT 
+        cr.*,
+        ct.name as course_type_name,
         o.name as organization_name,
-        u.username as instructor_name
-       FROM course_requests cr
-       JOIN class_types ct ON cr.course_type_id = ct.id
-       JOIN organizations o ON cr.organization_id = o.id
-       LEFT JOIN users u ON cr.instructor_id = u.id
-       WHERE cr.status = 'pending'
-       ORDER BY cr.created_at ASC`
+        i.first_name as instructor_first_name,
+        i.last_name as instructor_last_name
+      FROM course_requests cr
+      LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN organizations o ON cr.organization_id = o.id
+      LEFT JOIN users i ON cr.instructor_id = i.id
+      WHERE cr.status IN ('pending', 'past_due')
+      ORDER BY 
+        CASE 
+          WHEN cr.status = 'past_due' THEN 0
+          ELSE 1
+        END,
+        cr.scheduled_date ASC
+    `);
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Error fetching pending courses:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  })
+);
+
+// Update reminder timestamp endpoint
+router.post(
+  '/courses/:id/update-reminder',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      
+      const result = await pool.query(
+        `UPDATE course_requests 
+         SET last_reminder_at = CURRENT_TIMESTAMP 
+         WHERE id = $1 
+         RETURNING *`,
+        [id]
       );
 
-      return res.json(ApiResponseBuilder.success(result.rows));
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.NOT_FOUND,
+          'Course request not found'
+        );
+      }
+
+      return res.json(ApiResponseBuilder.success(result.rows[0]));
     } catch (error: any) {
-      console.error('Error fetching pending courses:', error);
+      console.error('Error updating reminder timestamp:', error);
       throw new AppError(
         500,
         errorCodes.DB_QUERY_ERROR,
-        'Failed to fetch pending courses'
+        'Failed to update reminder timestamp'
       );
     }
   })
@@ -937,12 +994,15 @@ router.put(
         // Update course request status to cancelled and add reason to notes
         const courseUpdateResult = await client.query(
           `UPDATE course_requests 
-         SET status = 'cancelled', 
-             notes = CASE 
-               WHEN notes IS NULL OR notes = '' THEN $2
-               ELSE notes || E'\n\n[CANCELLED] ' || $2
-             END,
-             updated_at = CURRENT_TIMESTAMP
+         SET status = CASE 
+           WHEN scheduled_date < CURRENT_DATE THEN 'past_due'
+           ELSE 'cancelled'
+         END, 
+         notes = CASE 
+           WHEN notes IS NULL OR notes = '' THEN $2
+           ELSE notes || E'\n\n[CANCELLED] ' || $2
+         END,
+         updated_at = CURRENT_TIMESTAMP
          WHERE id = $1 
          RETURNING *`,
           [id, reason]
@@ -1172,6 +1232,29 @@ router.put(
       try {
         await client.query('BEGIN');
 
+        // Check if instructor is already assigned to another course at the same time
+        const existingAssignmentCheck = await client.query(
+          `SELECT id FROM course_requests 
+           WHERE instructor_id = $1 
+           AND confirmed_date = CURRENT_DATE
+           AND status = 'confirmed'
+           AND id != $2
+           AND (
+             (confirmed_start_time <= $3 AND confirmed_end_time > $3)
+             OR (confirmed_start_time < $4 AND confirmed_end_time >= $4)
+             OR (confirmed_start_time >= $3 AND confirmed_end_time <= $4)
+           )`,
+          [instructorId, id, startTime, endTime]
+        );
+
+        if (existingAssignmentCheck.rows.length > 0) {
+          throw new AppError(
+            400,
+            errorCodes.VALIDATION_ERROR,
+            'Instructor is already assigned to another course during this time slot'
+          );
+        }
+
         // Get instructor details
         const instructorResult = await client.query(
           'SELECT email, username as instructor_name FROM users WHERE id = $1',
@@ -1191,16 +1274,16 @@ router.put(
         // Update course request with instructor and mark as confirmed
         const courseUpdateResult = await client.query(
           `UPDATE course_requests 
-         SET instructor_id = $1, 
-             status = 'confirmed', 
-             confirmed_date = CURRENT_DATE,
-             confirmed_start_time = $2,
-             confirmed_end_time = $3,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $4 
-         RETURNING *, 
-           (SELECT name FROM organizations WHERE id = organization_id) as organization_name,
-           (SELECT name FROM class_types WHERE id = course_type_id) as course_type_name`,
+           SET instructor_id = $1, 
+               status = 'confirmed', 
+               confirmed_date = CURRENT_DATE,
+               confirmed_start_time = $2,
+               confirmed_end_time = $3,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $4 
+           RETURNING *, 
+             (SELECT name FROM organizations WHERE id = organization_id) as organization_name,
+             (SELECT name FROM class_types WHERE id = course_type_id) as course_type_name`,
           [instructorId, startTime, endTime, id]
         );
 
@@ -1214,34 +1297,31 @@ router.put(
 
         const courseRequest = courseUpdateResult.rows[0];
 
-        // Get organization email
-        const orgResult = await client.query(
-          'SELECT contact_email FROM organizations WHERE id = $1',
-          [courseRequest.organization_id]
+        // Remove instructor's availability for the scheduled date
+        await client.query(
+          'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date = CURRENT_DATE',
+          [instructorId]
         );
 
-        const organizationEmail = orgResult.rows[0]?.contact_email;
-
-        // Create corresponding entry in classes table
+        // Create a new class entry
         const classInsertResult = await client.query(
           `INSERT INTO classes (
-          instructor_id, 
-          type_id, 
-          date, 
-          start_time, 
-          end_time, 
-          location, 
-          max_students, 
-          current_students,
-          status,
-          created_at,
-          updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 0, 'scheduled', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        RETURNING *`,
+            instructor_id, 
+            type_id, 
+            date, 
+            start_time, 
+            end_time, 
+            location, 
+            max_students, 
+            current_students,
+            status,
+            created_at,
+            updated_at
+          ) VALUES ($1, $2, CURRENT_DATE, $3, $4, $5, $6, 0, 'scheduled', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          RETURNING *`,
           [
             instructorId,
             courseRequest.course_type_id,
-            courseRequest.scheduled_date,
             startTime,
             endTime,
             courseRequest.location,
@@ -1250,32 +1330,6 @@ router.put(
         );
 
         await client.query('COMMIT');
-
-        // Send email notifications
-        const emailDetails = {
-          courseType: courseRequest.course_type_name,
-          date: courseRequest.scheduled_date,
-          startTime: startTime,
-          endTime: endTime,
-          location: courseRequest.location,
-          organization: courseRequest.organization_name,
-          students: courseRequest.registered_students,
-          instructorName: instructor.instructor_name,
-        };
-
-        // Send email to instructor
-        await emailService.sendCourseAssignedNotification(
-          instructor.email,
-          emailDetails
-        );
-
-        // Send email to organization if email is available
-        if (organizationEmail) {
-          await emailService.sendCourseScheduledToOrganization(
-            organizationEmail,
-            emailDetails
-          );
-        }
 
         return res.json({
           success: true,
@@ -1567,63 +1621,79 @@ router.get(
 // Get instructor statistics for dashboard
 router.get(
   '/admin/instructor-stats',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
+    const { month } = req.query;
+    const instructorId = req.user?.userId;
+
+    console.log('[Instructor Stats] Request params:', { month, instructorId });
+
+    if (!instructorId) {
+      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor ID is required');
+    }
+
     try {
-      const { month } = req.query; // Format: YYYY-MM
-
-      // If month is provided, filter by that month, otherwise get all-time stats
-      let dateFilter = '';
-      let params: any[] = [];
-
-      if (month) {
-        const startDate = `${month}-01`;
-        const endDate = new Date(
-          new Date(startDate).getFullYear(),
-          new Date(startDate).getMonth() + 1,
-          0
+      console.log('[Instructor Stats] Executing query with params:', [instructorId, month]);
+      const result = await pool.query(`
+        SELECT 
+          COUNT(DISTINCT cr.id) as total_courses,
+          COUNT(DISTINCT CASE WHEN cr.status = 'completed' THEN cr.id END) as completed_courses,
+          COUNT(DISTINCT CASE WHEN cr.status = 'confirmed' THEN cr.id END) as scheduled_courses,
+          COUNT(DISTINCT CASE WHEN cr.status = 'cancelled' THEN cr.id END) as cancelled_courses
+        FROM course_requests cr
+        JOIN classes c ON cr.id = c.course_request_id
+        WHERE c.instructor_id = $1
+        AND (
+          DATE_TRUNC('month', COALESCE(cr.scheduled_date, cr.confirmed_date)) = DATE_TRUNC('month', $2::date)
+          OR (cr.scheduled_date IS NULL AND cr.confirmed_date IS NULL)
         )
-          .toISOString()
-          .split('T')[0];
-        dateFilter = `AND (cr.confirmed_date IS NULL OR (cr.confirmed_date >= $1 AND cr.confirmed_date <= $2))`;
-        params = [startDate, endDate];
-      }
+      `, [instructorId, month]);
 
-      const result = await pool.query(
-        `SELECT 
-        u.id as instructor_id,
-        u.username as instructor_name,
-        u.email,
-        COUNT(CASE WHEN cr.status = 'completed' THEN 1 END) as courses_completed,
-        COUNT(CASE WHEN cr.status = 'confirmed' THEN 1 END) as courses_scheduled,
-        COUNT(cr.id) as total_courses,
-        CASE 
-          WHEN COUNT(CASE WHEN cr.status = 'confirmed' THEN 1 END) > 0 THEN
-            ROUND((COUNT(CASE WHEN cr.status = 'completed' THEN 1 END)::DECIMAL / 
-                   COUNT(CASE WHEN cr.status = 'confirmed' THEN 1 END)) * 100, 1)
-          ELSE 0
-        END as completion_rate,
-        MAX(cr.completed_at)::date as last_course_date,
-        CASE 
-          WHEN COUNT(CASE WHEN cr.status = 'completed' THEN 1 END) > 0 THEN
-            ROUND(AVG(CASE WHEN cr.status = 'completed' THEN cr.registered_students END), 1)
-          ELSE 0
-        END as avg_students_per_course
-       FROM users u
-       LEFT JOIN course_requests cr ON u.id = cr.instructor_id ${dateFilter}
-       WHERE u.role = 'instructor'
-       GROUP BY u.id, u.username, u.email
-       ORDER BY u.username`,
-        params
-      );
+      console.log('[Instructor Stats] Query result:', result.rows[0]);
+      return res.json(ApiResponseBuilder.success(result.rows[0]));
+    } catch (error) {
+      console.error('[Instructor Stats] Detailed error:', error);
+      throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch instructor stats');
+    }
+  })
+);
 
-      return res.json(ApiResponseBuilder.success(result.rows));
-    } catch (error: any) {
-      console.error('Error fetching instructor statistics:', error);
-      throw new AppError(
-        500,
-        errorCodes.DB_QUERY_ERROR,
-        'Failed to fetch instructor statistics'
-      );
+// Dashboard summary endpoint
+router.get(
+  '/admin/dashboard-summary',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    const { month } = req.query;
+    const instructorId = req.user?.userId;
+
+    console.log('[Dashboard Summary] Request params:', { month, instructorId });
+
+    if (!instructorId) {
+      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor ID is required');
+    }
+
+    try {
+      console.log('[Dashboard Summary] Executing query with params:', [instructorId, month]);
+      const result = await pool.query(`
+        SELECT 
+          COUNT(DISTINCT cr.id) as total_courses,
+          COUNT(DISTINCT CASE WHEN cr.status = 'completed' THEN cr.id END) as completed_courses,
+          COUNT(DISTINCT CASE WHEN cr.status = 'confirmed' THEN cr.id END) as scheduled_courses,
+          COUNT(DISTINCT CASE WHEN cr.status = 'cancelled' THEN cr.id END) as cancelled_courses
+        FROM course_requests cr
+        JOIN classes c ON cr.id = c.course_request_id
+        WHERE c.instructor_id = $1
+        AND (
+          DATE_TRUNC('month', COALESCE(cr.scheduled_date, cr.confirmed_date)) = DATE_TRUNC('month', $2::date)
+          OR (cr.scheduled_date IS NULL AND cr.confirmed_date IS NULL)
+        )
+      `, [instructorId, month]);
+
+      console.log('[Dashboard Summary] Query result:', result.rows[0]);
+      return res.json(ApiResponseBuilder.success(result.rows[0]));
+    } catch (error) {
+      console.error('[Dashboard Summary] Detailed error:', error);
+      throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch dashboard summary');
     }
   })
 );
@@ -5136,13 +5206,37 @@ router.get(
 // Add availability date
 router.post(
   '/instructor/availability',
-  authenticateToken,
+  authenticateToken, // Use pure JWT authentication
   asyncHandler(async (req: Request, res: Response) => {
     try {
+      console.log('🔐 [AVAILABILITY] POST request received:', {
+        headers: {
+          authorization: req.headers.authorization ? '[REDACTED]' : 'missing',
+          'user-agent': req.headers['user-agent'],
+        },
+        user: req.user,
+        body: req.body,
+        timestamp: new Date().toISOString()
+      });
+
       const { date } = req.body;
       const instructorId = req.user?.userId;
 
+      console.log('🔐 [AVAILABILITY] Extracted data:', {
+        date,
+        instructorId,
+        userId: req.user?.userId,
+        username: req.user?.username,
+        role: req.user?.role,
+        timestamp: new Date().toISOString()
+      });
+
       if (!instructorId) {
+        console.error('❌ [AVAILABILITY] Instructor ID not found in request:', {
+          user: req.user,
+          headers: req.headers,
+          timestamp: new Date().toISOString()
+        });
         throw new AppError(
           401,
           errorCodes.AUTH_TOKEN_INVALID,
@@ -5156,7 +5250,17 @@ router.post(
         [instructorId]
       );
 
+      console.log('🔐 [AVAILABILITY] Database query result:', {
+        found: instructorResult.rows.length > 0,
+        instructorId,
+        timestamp: new Date().toISOString()
+      });
+
       if (instructorResult.rows.length === 0) {
+        console.error('❌ [AVAILABILITY] Instructor not found in database:', {
+          instructorId,
+          timestamp: new Date().toISOString()
+        });
         throw new AppError(
           404,
           errorCodes.RESOURCE_NOT_FOUND,
@@ -5172,6 +5276,13 @@ router.post(
         [instructorId, date]
       );
 
+      console.log('✅ [AVAILABILITY] Successfully added availability:', {
+        instructorId,
+        date,
+        email: instructorEmail,
+        timestamp: new Date().toISOString()
+      });
+
       // Send email confirmation
       await emailService.sendAvailabilityConfirmation(instructorEmail, date);
 
@@ -5181,7 +5292,12 @@ router.post(
         })
       );
     } catch (error: any) {
-      console.error('Error adding availability:', error);
+      console.error('❌ [AVAILABILITY] Error adding availability:', {
+        error: error.message,
+        code: error.code,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       throw new AppError(
         500,
         errorCodes.DB_QUERY_ERROR,
@@ -5194,13 +5310,37 @@ router.post(
 // Remove availability date
 router.delete(
   '/instructor/availability/:date',
-  authenticateToken,
+  authenticateToken, // Use pure JWT authentication
   asyncHandler(async (req: Request, res: Response) => {
     try {
+      console.log('🔐 [AVAILABILITY] DELETE request received:', {
+        headers: {
+          authorization: req.headers.authorization ? '[REDACTED]' : 'missing',
+          'user-agent': req.headers['user-agent'],
+        },
+        user: req.user,
+        params: req.params,
+        timestamp: new Date().toISOString()
+      });
+
       const { date } = req.params;
       const instructorId = req.user?.userId;
 
+      console.log('🔐 [AVAILABILITY] Extracted data:', {
+        date,
+        instructorId,
+        userId: req.user?.userId,
+        username: req.user?.username,
+        role: req.user?.role,
+        timestamp: new Date().toISOString()
+      });
+
       if (!instructorId) {
+        console.error('❌ [AVAILABILITY] Instructor ID not found in request:', {
+          user: req.user,
+          headers: req.headers,
+          timestamp: new Date().toISOString()
+        });
         throw new AppError(
           401,
           errorCodes.AUTH_TOKEN_INVALID,
@@ -5214,7 +5354,17 @@ router.delete(
         [instructorId]
       );
 
+      console.log('🔐 [AVAILABILITY] Database query result:', {
+        found: instructorResult.rows.length > 0,
+        instructorId,
+        timestamp: new Date().toISOString()
+      });
+
       if (instructorResult.rows.length === 0) {
+        console.error('❌ [AVAILABILITY] Instructor not found in database:', {
+          instructorId,
+          timestamp: new Date().toISOString()
+        });
         throw new AppError(
           404,
           errorCodes.RESOURCE_NOT_FOUND,
@@ -5230,6 +5380,13 @@ router.delete(
         [instructorId, date]
       );
 
+      console.log('✅ [AVAILABILITY] Successfully removed availability:', {
+        instructorId,
+        date,
+        email: instructorEmail,
+        timestamp: new Date().toISOString()
+      });
+
       // Send email confirmation
       await emailService.sendAvailabilityConfirmation(instructorEmail, date);
 
@@ -5239,7 +5396,12 @@ router.delete(
         })
       );
     } catch (error: any) {
-      console.error('Error removing availability:', error);
+      console.error('❌ [AVAILABILITY] Error removing availability:', {
+        error: error.message,
+        code: error.code,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       throw new AppError(
         500,
         errorCodes.DB_QUERY_ERROR,
@@ -5256,5 +5418,303 @@ router.use(
   authorizeRoles(['admin', 'courseAdmin']),
   emailTemplatesRouter
 );
+
+// Get instructor availability (admin)
+router.get(
+  '/instructors/:id/availability',
+  authenticateToken,
+  requireRole(['admin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const instructorId = parseInt(id, 10);
+
+      if (!instructorId) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Invalid instructor ID'
+        );
+      }
+
+      const result = await pool.query(
+        `SELECT id, instructor_id, date::text, status, created_at, updated_at 
+         FROM instructor_availability 
+         WHERE instructor_id = $1 
+         AND date >= CURRENT_DATE 
+         AND (status = 'available' OR status IS NULL)
+         ORDER BY date`,
+        [instructorId]
+      );
+
+      const formattedResponse = result.rows.map(row => ({
+        id: row.id.toString(),
+        instructor_id: row.instructor_id.toString(),
+        date: row.date.split('T')[0],
+        status: row.status || 'available',
+      }));
+
+      return res.json(ApiResponseBuilder.success(formattedResponse));
+    } catch (error: any) {
+      console.error('Error fetching instructor availability:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch instructor availability'
+      );
+    }
+  })
+);
+
+// Get instructor schedule (admin)
+router.get(
+  '/instructors/:id/schedule',
+  authenticateToken,
+  requireRole(['admin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const instructorId = parseInt(id, 10);
+
+      if (!instructorId) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Invalid instructor ID'
+        );
+      }
+
+      const result = await pool.query(
+        `WITH instructor_classes AS (
+          -- Get regular classes
+          SELECT 
+            c.id,
+            c.date as datescheduled,
+            c.start_time,
+            c.end_time,
+            c.status,
+            c.location,
+            c.max_students,
+            c.current_students,
+            c.type_id,
+            NULL as organization_id,
+            NULL as notes,
+            NULL as registered_students
+          FROM classes c
+          WHERE c.instructor_id = $1 
+          AND c.date >= CURRENT_DATE 
+          AND c.status != 'completed'
+          
+          UNION
+          
+          -- Get confirmed course requests
+          SELECT 
+            cr.id,
+            cr.confirmed_date as datescheduled,
+            cr.confirmed_start_time as start_time,
+            cr.confirmed_end_time as end_time,
+            cr.status,
+            cr.location,
+            cr.registered_students as max_students,
+            0 as current_students,
+            cr.course_type_id as type_id,
+            cr.organization_id,
+            cr.notes,
+            cr.registered_students
+          FROM course_requests cr
+          WHERE cr.instructor_id = $1
+          AND cr.confirmed_date >= CURRENT_DATE
+          AND cr.status = 'confirmed'
+        )
+        SELECT 
+          ic.id as course_id,
+          ic.datescheduled::text,
+          ic.start_time::text,
+          ic.end_time::text,
+          ic.status,
+          ic.location,
+          ic.max_students,
+          ic.current_students,
+          ct.name as coursetypename,
+          COALESCE(o.name, 'Unassigned') as organizationname,
+          COALESCE(ic.notes, '') as notes,
+          COALESCE(ic.registered_students, ic.max_students, 0) as studentcount
+        FROM instructor_classes ic
+        LEFT JOIN class_types ct ON ic.type_id = ct.id
+        LEFT JOIN organizations o ON ic.organization_id = o.id
+        ORDER BY ic.datescheduled, ic.start_time`,
+        [instructorId]
+      );
+
+      const formattedData = result.rows.map(row => ({
+        id: row.course_id.toString(),
+        type: row.coursetypename,
+        date: row.datescheduled,
+        time: `${row.start_time} - ${row.end_time}`,
+        location: row.location,
+        instructor_id: instructorId.toString(),
+        max_students: row.max_students,
+        current_students: row.current_students,
+        status: row.status,
+        organization: row.organizationname,
+        notes: row.notes,
+        studentcount: row.studentcount
+      }));
+
+      return res.json(ApiResponseBuilder.success(formattedData));
+    } catch (error: any) {
+      console.error('Error fetching instructor schedule:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch instructor schedule'
+      );
+    }
+  })
+);
+
+// Get cancelled courses
+router.get('/courses/cancelled', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        cr.*,
+        ct.name as course_type_name,
+        o.name as organization_name,
+        i.first_name as instructor_first_name,
+        i.last_name as instructor_last_name
+      FROM course_requests cr
+      LEFT JOIN course_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN organizations o ON cr.organization_id = o.id
+      LEFT JOIN instructors i ON cr.instructor_id = i.id
+      WHERE cr.is_cancelled = true
+      ORDER BY cr.cancelled_at DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching cancelled courses:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Cancel a course
+router.post('/courses/:id/cancel', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+
+  try {
+    const result = await pool.query(`
+      UPDATE course_requests
+      SET 
+        is_cancelled = true,
+        cancelled_at = CURRENT_TIMESTAMP,
+        cancellation_reason = $1,
+        status = 'cancelled'
+      WHERE id = $2
+      RETURNING *
+    `, [reason, id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Course request not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error cancelling course:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update course scheduled date
+router.put('/courses/:id/schedule', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { scheduled_date } = req.body;
+
+  try {
+    // Validate the new date is not in the past
+    const newDate = new Date(scheduled_date);
+    const now = new Date();
+    if (newDate < now) {
+      return res.status(400).json({ error: 'Cannot schedule a course in the past' });
+    }
+
+    // Update the course schedule
+    const result = await pool.query(`
+      UPDATE course_requests cr
+      SET 
+        scheduled_date = $1,
+        updated_at = CURRENT_TIMESTAMP
+      FROM course_types ct
+      LEFT JOIN organizations o ON cr.organization_id = o.id
+      LEFT JOIN instructors i ON cr.instructor_id = i.id
+      WHERE cr.id = $2
+      AND cr.course_type_id = ct.id
+      RETURNING 
+        cr.*,
+        ct.name as course_type_name,
+        o.name as organization_name,
+        o.id as organization_id,
+        i.first_name as instructor_first_name,
+        i.last_name as instructor_last_name
+    `, [scheduled_date, id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Course request not found' });
+    }
+
+    // Return the updated course with all necessary information
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating course schedule:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create course_types table
+console.log('📚 Creating course_types table...');
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS course_types (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    duration INTEGER NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+console.log('✅ Course_types table created successfully');
+
+// Insert default course types
+console.log('📝 Inserting default course types...');
+await pool.query(`
+  INSERT INTO course_types (name, description, duration, price)
+  VALUES 
+    ('CPR Basic', 'Basic CPR certification course', 4, 99.99),
+    ('CPR Advanced', 'Advanced CPR certification course', 6, 149.99),
+    ('First Aid', 'First Aid certification course', 4, 89.99)
+  ON CONFLICT (name) DO NOTHING;
+`);
+console.log('✅ Default course types inserted successfully');
+
+// SSE endpoint for real-time updates
+router.get('/events', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  // Send initial connection message
+  res.write('data: {"type": "connected"}\n\n');
+
+  // Keep the connection alive
+  const keepAlive = setInterval(() => {
+    res.write('data: {"type": "ping"}\n\n');
+  }, 30000);
+
+  // Clean up on client disconnect
+  req.on('close', () => {
+    clearInterval(keepAlive);
+  });
+});
 
 export default router;

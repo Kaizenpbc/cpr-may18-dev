@@ -1,24 +1,61 @@
 const isDevelopment = import.meta.env.DEV;
 
+// Log suppression configuration
+const LOG_CONFIG = {
+  suppressAll: false,
+  suppressApiLogs: true,  // Suppress API request/response logs
+  suppressDebugLogs: true, // Suppress debug logs
+  suppressDeepTrace: true, // Suppress deep trace logs
+  suppressInfoLogs: true,  // Suppress info logs
+  allowedDomains: ['nswma.gov.jm'],
+};
+
+// Check if message should be suppressed
+const shouldSuppress = (message: string) => {
+  if (LOG_CONFIG.suppressAll) return true;
+  
+  if (LOG_CONFIG.suppressApiLogs && (
+    message.includes('[API]') || 
+    message.includes('📤') || 
+    message.includes('📥')
+  )) return true;
+  
+  if (LOG_CONFIG.suppressDebugLogs && (
+    message.includes('[DEBUG]') ||
+    message.includes('availableDates') ||
+    message.includes('combinedSchedule')
+  )) return true;
+  
+  if (LOG_CONFIG.suppressDeepTrace && message.includes('[DEEP TRACE]')) return true;
+  
+  if (LOG_CONFIG.suppressInfoLogs && message.includes('[INFO]')) return true;
+  
+  return false;
+};
+
 const logger = {
   debug: (...args) => {
-    if (isDevelopment) {
-      console.debug(...args);
+    if (isDevelopment && !shouldSuppress(args.join(' '))) {
+      console.debug('[DEBUG]', ...args);
     }
   },
 
   info: (...args) => {
-    if (isDevelopment) {
-      console.info(...args);
+    if (isDevelopment && !shouldSuppress(args.join(' '))) {
+      console.info('[INFO]', ...args);
     }
   },
 
   warn: (...args) => {
-    console.warn(...args);
+    if (!shouldSuppress(args.join(' '))) {
+      console.warn('[WARN]', ...args);
+    }
   },
 
   error: (...args) => {
-    console.error(...args);
+    if (!shouldSuppress(args.join(' '))) {
+      console.error('[ERROR]', ...args);
+    }
   },
 
   // Format error objects for better logging
@@ -43,6 +80,14 @@ const logger = {
       };
     }
   },
+
+  // Configure logging behavior
+  configure: (config: Partial<typeof LOG_CONFIG>) => {
+    Object.assign(LOG_CONFIG, config);
+  },
+
+  // Get current logging configuration
+  getConfig: () => ({ ...LOG_CONFIG }),
 };
 
 export default logger;
