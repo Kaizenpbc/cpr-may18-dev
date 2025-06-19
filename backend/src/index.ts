@@ -1,394 +1,434 @@
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import cookieParser from 'cookie-parser';
-import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { errorHandler } from './utils/errorHandler';
-import v1Routes from './routes/v1';
-import authRoutes from './routes/v1/auth';
-import apiRoutes from './routes/v1/index';
-import databaseRoutes from './routes/v1/database';
-import healthRoutes from './routes/v1/health';
-import {
-  apiLimiter,
-  authLimiter,
-  registerLimiter,
-} from './middleware/rateLimiter';
-import {
-  sanitizeInput,
-  detectMaliciousInput,
-} from './middleware/inputSanitizer';
-import { authenticateToken, requireRole } from './middleware/authMiddleware';
-import path from 'path';
-import holidaysRoutes from './routes/holidays';
-import { initializeDatabase } from './config/database';
-import { ScheduledJobsService } from './services/scheduledJobs';
-import morgan from 'morgan';
-import cron from 'node-cron';
-import {
-  redisManager,
-  ensureRedisConnection,
-  closeRedisConnection,
-} from './config/redis';
-import prometheusMiddleware, { metricsHandler } from './middleware/prometheus';
-import instructorRoutes from './routes/instructor';
-import studentRoutes from './routes/v1/student';
-import organizationRoutes from './routes/v1/organization';
+import helmet from 'helmet';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import fs from 'fs';
+import path from 'path';
+import emailTemplatesRouter from './routes/emailTemplates.js';
 
-console.log('🚀 [STARTUP] Starting backend server initialization...', new Date().toISOString());
+const execAsync = promisify(exec);
+
+// Logging setup
+const logDir = path.join(process.cwd(), 'logs');
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
+
+const logFile = path.join(logDir, 'app.log');
+const errorLogFile = path.join(logDir, 'error.log');
+
+// Logging functions
+function writeToLog(message: string, level: 'INFO' | 'ERROR' | 'WARN' | 'DEBUG' = 'INFO') {
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] [${level}] ${message}\n`;
+  
+  // Write to console
+  console.log(logEntry.trim());
+  
+  // Write to file
+  try {
+    fs.appendFileSync(logFile, logEntry);
+  } catch (error) {
+    console.error('Failed to write to log file:', error);
+  }
+}
+
+function writeErrorToLog(error: any, context?: string) {
+  const timestamp = new Date().toISOString();
+  const errorMessage = context ? `${context}: ${error.message || error}` : error.message || error;
+  const stackTrace = error.stack || '';
+  const logEntry = `[${timestamp}] [ERROR] ${errorMessage}\n${stackTrace}\n`;
+  
+  // Write to console
+  console.error(logEntry.trim());
+  
+  // Write to error file
+  try {
+    fs.appendFileSync(errorLogFile, logEntry);
+  } catch (writeError) {
+    console.error('Failed to write to error log file:', writeError);
+  }
+}
+
+// Request logging middleware
+const requestLogger = (req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now();
+  const { method, url, ip, headers } = req;
+  
+  // Log incoming request
+  writeToLog(`📥 INCOMING REQUEST: ${method} ${url} from ${ip}`, 'INFO');
+  writeToLog(`📋 Headers: ${JSON.stringify({
+    'user-agent': headers['user-agent'],
+    'content-type': headers['content-type'],
+    'authorization': headers.authorization ? '[REDACTED]' : 'none'
+  })}`, 'DEBUG');
+  
+  // Log request body for non-GET requests (excluding sensitive data)
+  if (method !== 'GET' && req.body) {
+    const sanitizedBody = { ...req.body };
+    if (sanitizedBody.password) sanitizedBody.password = '[REDACTED]';
+    if (sanitizedBody.token) sanitizedBody.token = '[REDACTED]';
+    writeToLog(`📦 Request body: ${JSON.stringify(sanitizedBody)}`, 'DEBUG');
+  }
+  
+  // Override res.json to log responses
+  const originalJson = res.json;
+  res.json = function(data: any) {
+    const duration = Date.now() - start;
+    const statusCode = res.statusCode;
+    
+    // Log response
+    writeToLog(`📤 RESPONSE: ${method} ${url} - ${statusCode} (${duration}ms)`, 'INFO');
+    
+    if (statusCode >= 400) {
+      writeToLog(`❌ Error response: ${JSON.stringify(data)}`, 'ERROR');
+    } else if (url.includes('/auth/login') || url.includes('/auth/register')) {
+      writeToLog(`🔐 Auth response: ${JSON.stringify({ success: data.success || false, message: data.message || 'No message' })}`, 'INFO');
+    }
+    
+    return originalJson.call(this, data);
+  };
+  
+  next();
+};
+
+// Authentication logging middleware
+const authLogger = (req: Request, res: Response, next: NextFunction) => {
+  const { url, method } = req;
+  
+  // Log authentication attempts
+  if (url.includes('/auth/login')) {
+    writeToLog(`🔐 LOGIN ATTEMPT: ${method} ${url}`, 'INFO');
+  } else if (url.includes('/auth/register')) {
+    writeToLog(`📝 REGISTRATION ATTEMPT: ${method} ${url}`, 'INFO');
+  } else if (url.includes('/auth/logout')) {
+    writeToLog(`🚪 LOGOUT ATTEMPT: ${method} ${url}`, 'INFO');
+  }
+  
+  // Log protected route access
+  if (req.user) {
+    writeToLog(`👤 PROTECTED ROUTE ACCESS: ${method} ${url} by user ${req.user.userId} (${req.user.role})`, 'INFO');
+  }
+  
+  next();
+};
+
+// Error logging middleware
+const errorLogger = (error: any, req: Request, res: Response, next: NextFunction) => {
+  writeErrorToLog(error, `Request failed: ${req.method} ${req.url}`);
+  next(error);
+};
+
+// Function to kill process on port 3001
+async function killProcessOnPort(port: number): Promise<void> {
+  try {
+    console.log(`🔪 Attempting to kill process on port ${port}...`);
+    
+    // For Windows - get all processes using the port
+    const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
+    const lines = stdout.split('\n').filter(line => line.trim());
+    
+    let killedAny = false;
+    for (const line of lines) {
+      const parts = line.trim().split(/\s+/);
+      if (parts.length >= 5) {
+        const pid = parts[4];
+        if (pid && pid !== '0' && !isNaN(parseInt(pid))) {
+          try {
+            console.log(`🔪 Killing process ${pid}...`);
+            await execAsync(`taskkill /F /PID ${pid}`);
+            console.log(`✅ Successfully killed process ${pid}`);
+            killedAny = true;
+          } catch (killError) {
+            console.log(`⚠️ Could not kill process ${pid}: ${killError}`);
+          }
+        }
+      }
+    }
+    
+    if (killedAny) {
+      // Wait longer for the port to be released
+      console.log(`⏳ Waiting 3 seconds for port ${port} to be released...`);
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Verify port is free
+      try {
+        const { stdout: checkOutput } = await execAsync(`netstat -ano | findstr :${port}`);
+        if (checkOutput.trim()) {
+          console.log(`⚠️ Port ${port} is still in use after kill attempt`);
+        } else {
+          console.log(`✅ Port ${port} is now available`);
+        }
+      } catch (checkError) {
+        console.log(`✅ Port ${port} appears to be available (no processes found)`);
+      }
+    } else {
+      console.log(`ℹ️ No processes found on port ${port}`);
+    }
+  } catch (error) {
+    console.log(`ℹ️ No process found on port ${port} or already killed`);
+  }
+}
+
+console.log('1. Starting application...');
 
 // Load environment variables
-console.log('📝 [STARTUP] Loading environment variables...');
+console.log('2. Loading environment variables...');
 const result = dotenv.config();
-console.log(
-  'Environment loading result:',
-  result.error
-    ? 'Error loading .env file'
-    : 'Environment variables loaded successfully'
-);
-console.log('Current working directory:', process.cwd());
+if (result.error) {
+  console.error('❌ Failed to load .env file:', result.error);
+  process.exit(1);
+}
+console.log('✅ Environment variables loaded');
 
-// Set Redis to disabled by default
-process.env.REDIS_ENABLED = 'false';
-console.log('🔴 [REDIS] Redis disabled by default');
-
-// Log only non-sensitive environment info
-console.log('Environment info:', {
+// Log environment info
+console.log('3. Environment info:', {
   NODE_ENV: process.env.NODE_ENV || 'development',
-  PORT: process.env.PORT || '3001',
-  DB_HOST: process.env.DB_HOST,
-  DB_PORT: process.env.DB_PORT,
-  DB_NAME: process.env.DB_NAME,
-  FRONTEND_URL: process.env.FRONTEND_URL,
-  REDIS_ENABLED: process.env.REDIS_ENABLED,
+  PORT: process.env.PORT || '3002',
 });
 
-console.log('🔧 [STARTUP] Creating Express app...');
+// Create Express app
+console.log('4. Creating Express app...');
 const app = express();
+console.log('✅ Express app created');
+
+// Create HTTP server
+console.log('5. Creating HTTP server...');
 const httpServer = createServer(app);
+console.log('✅ HTTP server created');
+
+// Create Socket.IO server
+console.log('6. Creating Socket.IO server...');
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    methods: ['GET', 'POST']
-  }
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://192.168.2.105:5173', 'http://192.168.2.105:5174'],
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
+  path: '/socket.io',
+  transports: ['websocket', 'polling'],
+  allowEIO3: true,
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
+console.log('✅ Socket.IO server created');
 
-// ===============================================
-// Prometheus Metrics (Early in middleware stack)
-// ===============================================
-app.use(prometheusMiddleware);
-
-console.log('🌐 [STARTUP] Setting up CORS configuration...');
-// CORS configuration
+// Basic CORS
+console.log('7. Setting up CORS...');
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
-    'http://localhost:5174'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-access-token']
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://192.168.2.105:5173', 'http://192.168.2.105:5174'],
+  credentials: true
 }));
+console.log('✅ CORS configured');
 
 // Security Headers Middleware
-console.log('🛡️ [STARTUP] Setting up security headers...');
-app.use(
-  helmet({
-    // Content Security Policy
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", 'data:', 'https:'],
-        connectSrc: [
-          "'self'",
-          'http://localhost:3001',
-          'http://localhost:5173',
-          'http://localhost:5174'
-        ],
-        frameSrc: ["'none'"],
-        objectSrc: ["'none'"],
-        mediaSrc: ["'self'"],
-        workerSrc: ["'none'"],
-      },
-    },
-
-    // HTTP Strict Transport Security
-    hsts: {
-      maxAge: 31536000, // 1 year
-      includeSubDomains: true,
-      preload: true,
-    },
-
-    // X-Frame-Options
-    frameguard: {
-      action: 'deny',
-    },
-
-    // X-Content-Type-Options
-    noSniff: true,
-
-    // X-XSS-Protection
-    xssFilter: true,
-
-    // Referrer Policy
-    referrerPolicy: {
-      policy: ['no-referrer', 'strict-origin-when-cross-origin'],
-    },
-
-    // Remove X-Powered-By header
-    hidePoweredBy: true,
-
-    // Cross-Origin Embedder Policy
-    crossOriginEmbedderPolicy: false, // Disabled for development
-
-    // Cross-Origin Opener Policy
-    crossOriginOpenerPolicy: {
-      policy: 'same-origin-allow-popups',
-    },
-
-    // Cross-Origin Resource Policy
-    crossOriginResourcePolicy: {
-      policy: 'cross-origin',
-    },
-  })
-);
-
-console.log('📦 [STARTUP] Setting up middleware...');
-// Body parsing middleware
-app.use(express.json());
-app.use(cookieParser());
-
-// Input Sanitization Middleware
-console.log('🧼 [STARTUP] Setting up input sanitization...');
-app.use(detectMaliciousInput); // Detect malicious patterns first
-app.use(sanitizeInput); // Sanitize all inputs
-
-// Rate limiting middleware
-console.log('🚦 [STARTUP] Setting up rate limiting...');
-
-// JSON parsing error handler - after express.json()
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  if (err instanceof SyntaxError && 'body' in err) {
-    console.error('JSON parsing error:', err);
-    return res.status(400).json({
-      success: false,
-      error: {
-        code: 'INVALID_JSON',
-        message: 'Invalid JSON payload',
-      },
-    });
-  }
-  next(err);
-});
-
-console.log('🛣️ [STARTUP] Setting up routes...');
-// Routes
+console.log('8. Setting up security headers...');
 try {
-  console.log('   - Setting up auth routes...');
-  app.use('/api/v1/auth', authRoutes);
-  console.log('     ✅ Auth routes registered at /api/v1/auth');
-
-  console.log('   - Setting up health routes...');
-  app.use('/api/v1/health', healthRoutes);
-  console.log('     ✅ Health routes registered at /api/v1/health');
-
-  console.log('   - Setting up database routes...');
-  app.use('/api/v1/database', databaseRoutes);
-  console.log('     ✅ Database routes registered at /api/v1/database');
-
-  console.log('   - Setting up holidays routes...');
-  app.use('/api/v1/holidays', holidaysRoutes);
-  console.log('     ✅ Holidays routes registered at /api/v1/holidays');
-
-  console.log('   - Setting up instructor routes...');
-  app.use('/api/v1/instructor', authenticateToken, instructorRoutes);
-  console.log('     ✅ Instructor routes registered at /api/v1/instructor');
-
-  console.log('   - Setting up student routes...');
-  app.use('/api/v1/student', authenticateToken, studentRoutes);
-  console.log('     ✅ Student routes registered at /api/v1/student');
-
-  console.log('   - Setting up organization routes...');
-  app.use('/api/v1/organization', authenticateToken, organizationRoutes);
-  console.log('     ✅ Organization routes registered at /api/v1/organization');
-
-  console.log('   - Setting up v1 routes...');
-  app.use('/api/v1', v1Routes);
-  console.log('     ✅ V1 routes registered at /api/v1');
-
-  console.log('✅ All routes registered successfully');
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          connectSrc: ["'self'", 'http://localhost:3002', 'http://localhost:5173', 'http://localhost:5174', 'ws://localhost:3002', 'ws://192.168.2.105:3002'],
+        },
+      },
+      hsts: false,
+      frameguard: false,
+      noSniff: true,
+      xssFilter: true,
+      referrerPolicy: false,
+      hidePoweredBy: true,
+      crossOriginEmbedderPolicy: false,
+      crossOriginOpenerPolicy: false,
+      crossOriginResourcePolicy: false,
+    })
+  );
+  console.log('✅ Security headers configured');
 } catch (error) {
-  console.error('❌ Failed to set up routes:', error);
+  console.error('❌ Failed to set up security headers:', error);
   process.exit(1);
 }
 
-console.log('🚫 [STARTUP] Setting up 404 handler...');
-// 404 handler for unmatched routes
-app.use((req: Request, res: Response) => {
-  console.error(
-    `[404 ERROR] Route not found: ${req.method} ${req.originalUrl}`
-  );
-  console.error(`  Available base paths: /api/v1/*`);
-  res.status(404).json({
-    success: false,
-    error: {
-      code: 'ROUTE_NOT_FOUND',
-      message: `Route not found: ${req.method} ${req.originalUrl}`,
-      suggestion: 'Check if the route exists and the method is correct',
-    },
-    meta: {
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-    },
+// Parse JSON bodies
+app.use(express.json());
+
+// Add logging middleware
+writeToLog('🔧 Setting up logging middleware...', 'INFO');
+app.use(requestLogger);
+app.use(authLogger);
+writeToLog('✅ Logging middleware configured', 'INFO');
+
+// Basic health check route
+console.log('9. Setting up health check route...');
+app.get('/api/v1/health', (req: Request, res: Response) => {
+  writeToLog('🏥 Health check requested', 'INFO');
+  res.json({ status: 'ok' });
+});
+console.log('✅ Health check route configured');
+
+// Auth routes
+console.log('10. Setting up auth routes...');
+import authRoutes from './routes/v1/auth.js';
+app.use('/api/v1/auth', authRoutes);
+console.log('✅ Auth routes configured');
+
+// Instructor routes
+console.log('11. Setting up instructor routes...');
+import instructorRoutes from './routes/v1/instructor.js';
+app.use('/api/v1/instructor', instructorRoutes);
+console.log('✅ Instructor routes configured');
+
+// V1 API routes (includes /instructors endpoint)
+console.log('11a. Setting up v1 API routes...');
+import v1Routes from './routes/v1/index.js';
+app.use('/api/v1', v1Routes);
+console.log('✅ V1 API routes configured');
+
+// Email templates routes
+console.log('11b. Setting up email templates routes...');
+app.use('/api/v1/email-templates', emailTemplatesRouter);
+console.log('✅ Email templates routes configured');
+
+// SSE endpoint
+console.log('12. Setting up SSE endpoint...');
+app.get('/api/v1/events', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  const sendEvent = (data: any) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  // Send initial connection message
+  sendEvent({ type: 'connected', timestamp: new Date().toISOString() });
+
+  // Handle client disconnect
+  req.on('close', () => {
+    writeToLog('SSE client disconnected', 'INFO');
   });
 });
+console.log('✅ SSE endpoint configured');
 
-console.log('⚠️ [STARTUP] Setting up error handler...');
-// Error handling
-app.use(errorHandler);
+// Add error logging middleware (must be last)
+// writeToLog('🔧 Setting up error logging middleware...', 'INFO');
+// app.use(errorLogger);
+// writeToLog('✅ Error logging middleware configured', 'INFO');
 
 // Socket.IO connection handling
+console.log('13. Setting up Socket.IO handlers...');
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  console.log('Socket.IO client connected:', socket.id);
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    console.log('Socket.IO client disconnected:', socket.id);
+  });
+
+  socket.on('error', (error) => {
+    console.error('Socket.IO error:', error);
   });
 });
-
-// Make io accessible to routes
-app.set('io', io);
-
-// Schedule cleanup job for expired sessions
-cron.schedule('0 2 * * *', async () => {
-  console.log('🔐 [SESSION CLEANUP] Running scheduled session cleanup...');
-  try {
-    await ensureRedisConnection();
-    const { sessionManager } = await import('./services/sessionManager');
-    const cleanedCount = await sessionManager.cleanupExpiredSessions();
-    console.log(
-      `✅ [SESSION CLEANUP] Cleaned up ${cleanedCount} expired sessions`
-    );
-  } catch (error) {
-    console.error('❌ [SESSION CLEANUP] Failed to cleanup sessions:', error);
-  }
-});
-
-// Schedule overdue invoice check (TODO: implement when invoice service is available)
-// cron.schedule('0 1 * * *', async () => {
-//   console.log('📊 [SCHEDULED JOB] Running daily overdue invoice check...');
-//   try {
-//     const result = await checkOverdueInvoices();
-//     console.log(`📊 [SCHEDULED JOB] Overdue invoice check completed. Updated ${result.updatedCount} invoices.`);
-//   } catch (error) {
-//     console.error('❌ [SCHEDULED JOB] Overdue invoice check failed:', error);
-//   }
-// });
-
-// Graceful shutdown handling
-async function gracefulShutdown(signal: string): Promise<void> {
-  console.log(
-    `\n🔴 [SHUTDOWN] Received ${signal}, initiating graceful shutdown...`
-  );
-
-  try {
-    // Close Redis connection
-    await closeRedisConnection();
-    console.log('✅ [SHUTDOWN] Redis connection closed');
-
-    // Close database connections would go here if needed
-    console.log('✅ [SHUTDOWN] Graceful shutdown completed');
-
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ [SHUTDOWN] Error during graceful shutdown:', error);
-    process.exit(1);
-  }
-}
-
-// Register shutdown handlers
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-// Handle uncaught exceptions
-process.on('uncaughtException', error => {
-  console.error('❌ [FATAL] Uncaught Exception:', error);
-  gracefulShutdown('uncaughtException');
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error(
-    '❌ [FATAL] Unhandled Rejection at:',
-    promise,
-    'reason:',
-    reason
-  );
-  gracefulShutdown('unhandledRejection');
-});
+console.log('✅ Socket.IO handlers configured');
 
 // Start server
-async function startServer(): Promise<void> {
+console.log('14. Starting server...');
+const port = parseInt(process.env.PORT || '3002', 10);
+console.log(`Attempting to start server on port ${port}...`);
+
+const startServer = async (retryCount = 0) => {
   try {
-    // Initialize database
-    console.log('🗄️ [DATABASE] Initializing database...');
-    await initializeDatabase();
-    console.log('✅ [DATABASE] Database initialized successfully');
+    if (retryCount > 0) {
+      console.log(`🔄 Retry attempt ${retryCount} - killing process on port ${port}...`);
+      await killProcessOnPort(port);
+      // Add extra delay between retries
+      console.log(`⏳ Waiting 2 seconds before retry...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } else {
+      await killProcessOnPort(port);
+    }
 
-    // Start HTTP server
-    const port = process.env.PORT || 3001;
-    httpServer.listen(port, async () => {
-      console.log('\n' + '='.repeat(80));
-      console.log('🚀 CPR Training Management System - Backend Server');
-      console.log('='.repeat(80));
-      console.log(`📍 Server running on: http://localhost:${port}`);
-      console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(
-        `🔒 Security Features: Rate Limiting, Security Headers, Input Sanitization`
-      );
-      console.log(`🔐 Session Management: JWT Only (Redis disabled)`);
-      console.log(`⚡ Health Check: http://localhost:${port}/api/v1/health`);
-      console.log(`📊 API Base: http://localhost:${port}/api/v1`);
-      console.log('='.repeat(80));
-      console.log('✅ Server is ready to accept connections');
-      console.log('='.repeat(80) + '\n');
-
-      // Start scheduled jobs
-      console.log('🕐 [STARTUP] Starting scheduled jobs...');
-      const scheduledJobs = ScheduledJobsService.getInstance();
-      scheduledJobs.startAllJobs();
+    httpServer.listen(port, '0.0.0.0', () => {
+      console.log(`✅ Server is now listening on http://0.0.0.0:${port}`);
+      console.log(`Try accessing http://localhost:${port}/api/v1/health`);
     });
 
-    // Handle server errors
-    httpServer.on('error', (error: any) => {
-      console.error('❌ [SERVER ERROR] Failed to start server:', error);
-      if (error.code === 'EADDRINUSE') {
-        console.error(`❌ [SERVER ERROR] Port ${port} is already in use`);
-        console.error(
-          '💡 [SUGGESTION] Try stopping other processes or use a different port'
-        );
-        console.error(
-          '💡 [SUGGESTION] Or set PORT environment variable to use a different port'
-        );
+    httpServer.on('error', async (error: Error) => {
+      console.error('❌ Server error:', error);
+      if (error.message.includes('EADDRINUSE') && retryCount < 2) {
+        console.log(`🔄 Port ${port} still in use, retrying... (attempt ${retryCount + 1})`);
+        httpServer.close();
+        // Longer delay between retries
+        setTimeout(() => startServer(retryCount + 1), 5000);
+        return;
+      }
+      
+      if (error.message.includes('EADDRINUSE')) {
+        console.error(`🚨 Port ${port} is still in use after ${retryCount + 1} cleanup attempts.`);
+        console.error(`💡 Try manually killing the process or use a different port.`);
+        console.error(`💡 You can run: netstat -ano | findstr :${port} to see what's using the port`);
+        console.error(`💡 Or try: taskkill /F /IM node.exe to kill all Node.js processes`);
       }
       process.exit(1);
     });
 
-    // Set server timeout to 30 seconds
-    httpServer.timeout = 30000;
+    httpServer.on('listening', () => {
+      const address = httpServer.address();
+      if (address && typeof address === 'object') {
+        console.log(`✅ Server bound to ${address.address}:${address.port}`);
+        console.log(`Address type: ${address.family}`);
+      }
+      
+      // Success message
+      console.log('\n🎉 ========================================');
+      console.log('🎉 BACKEND SERVER STARTED SUCCESSFULLY!');
+      console.log('🎉 ========================================');
+      console.log(`🌐 Server URL: http://localhost:${port}`);
+      console.log(`🔌 Health Check: http://localhost:${port}/api/v1/health`);
+      console.log(`📡 WebSocket: ws://localhost:${port}/socket.io/`);
+      console.log('🎉 ========================================\n');
+    });
   } catch (error) {
-    console.error('❌ [STARTUP] Failed to start server:', error);
+    writeErrorToLog(error, 'Server startup failed');
     process.exit(1);
   }
-}
+};
 
-// Start the application
-startServer().catch(error => {
-  console.error('❌ [STARTUP] Application startup failed:', error);
+// Process handlers
+console.log('15. Setting up process handlers...');
+process.on('SIGINT', () => {
+  writeToLog('🛑 Received SIGINT, shutting down gracefully...', 'INFO');
+  httpServer.close(() => {
+    writeToLog('✅ Server closed', 'INFO');
+    process.exit(0);
+  });
+});
+
+process.on('SIGTERM', () => {
+  writeToLog('🛑 Received SIGTERM, shutting down gracefully...', 'INFO');
+  httpServer.close(() => {
+    writeToLog('✅ Server closed', 'INFO');
+    process.exit(0);
+  });
+});
+
+process.on('uncaughtException', (error) => {
+  writeErrorToLog(error, 'Uncaught Exception');
   process.exit(1);
 });
+
+process.on('unhandledRejection', (reason, promise) => {
+  writeErrorToLog(reason, `Unhandled Rejection at ${promise}`);
+  process.exit(1);
+});
+console.log('✅ Process handlers configured');
+
+// Start the server
+startServer();
