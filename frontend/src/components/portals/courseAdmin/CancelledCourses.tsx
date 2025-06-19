@@ -52,7 +52,7 @@ const CancelledCourses: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {cancelledCourses?.map((course: any) => (
+            {cancelledCourses?.data?.map((course: any) => (
               <TableRow key={course.id}>
                 <TableCell>{course.course_type_name}</TableCell>
                 <TableCell>{course.organization_name}</TableCell>
@@ -63,6 +63,15 @@ const CancelledCourses: React.FC = () => {
                 <TableCell>{course.registered_students}</TableCell>
               </TableRow>
             ))}
+            {(!cancelledCourses?.data || cancelledCourses.data.length === 0) && (
+              <TableRow>
+                <TableCell colSpan={7} align="center">
+                  <Typography variant="body2" color="textSecondary">
+                    No cancelled courses found
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </TableContainer>

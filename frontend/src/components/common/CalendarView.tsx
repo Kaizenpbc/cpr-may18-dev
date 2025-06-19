@@ -14,6 +14,7 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
 import HolidayVillageIcon from '@mui/icons-material/HolidayVillage';
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 const CalendarView = ({
   currentDate,
@@ -331,7 +332,7 @@ const CalendarView = ({
                         fontSize: '0.9rem',
                       }}
                     >
-                      {date.getDate()}
+                      {formatDisplayDate(date)}
                     </Typography>
                     {statusIcon}
                   </Box>

@@ -19,16 +19,9 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import EmailIcon from '@mui/icons-material/Email';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import PreviewIcon from '@mui/icons-material/Preview';
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 // Helper functions (copied from AccountsReceivableTable - consider moving to utils)
-const formatDate = dateString => {
-  if (!dateString) return '-';
-  try {
-    return new Date(dateString).toLocaleDateString();
-  } catch (e) {
-    return 'Invalid Date';
-  }
-};
 const formatCurrency = amount => {
   if (amount == null || isNaN(amount)) return '$0.00';
   return `$${parseFloat(amount).toFixed(2)}`;
@@ -253,10 +246,10 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
                 </strong>
               </TableCell>
               <TableCell>
-                {formatDate(invoice.invoicedate || invoice.invoice_date)}
+                {formatDisplayDate(invoice.invoicedate || invoice.invoice_date)}
               </TableCell>
               <TableCell>
-                {formatDate(invoice.duedate || invoice.due_date)}
+                {formatDisplayDate(invoice.duedate || invoice.due_date)}
               </TableCell>
               <TableCell>
                 <MuiLink
@@ -273,7 +266,7 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
               <TableCell>{invoice.course_type_name || '-'}</TableCell>
               <TableCell>{invoice.location || '-'}</TableCell>
               <TableCell>
-                {formatDate(invoice.date_completed || invoice.course_date)}
+                {formatDisplayDate(invoice.date_completed || invoice.course_date)}
               </TableCell>
               <TableCell align='center'>
                 {invoice.students_billed || '-'}

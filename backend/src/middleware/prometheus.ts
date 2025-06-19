@@ -9,41 +9,58 @@ import client from 'prom-client';
 const register = new client.Registry();
 
 // Add default metrics (CPU, memory, etc.)
-client.collectDefaultMetrics({
-  register,
-  prefix: 'cpr_',
-});
+try {
+  client.collectDefaultMetrics({
+    register,
+    prefix: 'cpr_',
+  });
+  console.log('✅ Default metrics collection configured');
+} catch (error) {
+  console.warn('⚠️ Failed to collect default metrics:', error);
+}
 
 // ===============================================
 // HTTP Metrics
 // ===============================================
 
-const httpRequestDuration = new client.Histogram({
+// Initialize metrics with default values
+let httpRequestDuration: client.Histogram = new client.Histogram({
   name: 'cpr_http_request_duration_seconds',
   help: 'Duration of HTTP requests in seconds',
   labelNames: ['method', 'route', 'status_code', 'portal'],
   buckets: [0.1, 0.5, 1, 2, 5],
 });
 
-const httpRequestsTotal = new client.Counter({
+let httpRequestsTotal: client.Counter = new client.Counter({
   name: 'cpr_http_requests_total',
   help: 'Total number of HTTP requests',
   labelNames: ['method', 'route', 'status_code', 'portal'],
 });
 
-const httpRequestSize = new client.Histogram({
+let httpRequestSize: client.Histogram = new client.Histogram({
   name: 'cpr_http_request_size_bytes',
   help: 'Size of HTTP requests in bytes',
   labelNames: ['method', 'route'],
   buckets: [100, 1000, 10000, 100000, 1000000],
 });
 
-const httpResponseSize = new client.Histogram({
+let httpResponseSize: client.Histogram = new client.Histogram({
   name: 'cpr_http_response_size_bytes',
   help: 'Size of HTTP responses in bytes',
   labelNames: ['method', 'route', 'status_code'],
   buckets: [100, 1000, 10000, 100000, 1000000],
 });
+
+try {
+  // Register HTTP metrics
+  register.registerMetric(httpRequestDuration);
+  register.registerMetric(httpRequestsTotal);
+  register.registerMetric(httpRequestSize);
+  register.registerMetric(httpResponseSize);
+  console.log('✅ HTTP metrics configured');
+} catch (error) {
+  console.warn('⚠️ Failed to configure HTTP metrics:', error);
+}
 
 // ===============================================
 // Business Metrics
@@ -169,10 +186,6 @@ const billingCycleTime = new client.Histogram({
 // Register all metrics
 // ===============================================
 
-register.registerMetric(httpRequestDuration);
-register.registerMetric(httpRequestsTotal);
-register.registerMetric(httpRequestSize);
-register.registerMetric(httpResponseSize);
 register.registerMetric(coursesTotal);
 register.registerMetric(studentsTotal);
 register.registerMetric(instructorsTotal);
@@ -198,50 +211,66 @@ register.registerMetric(billingCycleTime);
 /**
  * Main Prometheus metrics middleware
  */
-export function prometheusMiddleware(req: Request, res: Response, next: NextFunction) {
-  const start = Date.now();
-  
-  // Track request size
-  const requestSize = parseInt(req.headers['content-length'] || '0', 10);
-  
-  // Determine portal from URL
-  const portal = getPortalFromUrl(req.originalUrl);
-  
-  // Override res.end to capture response metrics
-  const originalEnd = res.end;
-  res.end = function(chunk?: any, encoding?: any, cb?: any) {
-    const duration = (Date.now() - start) / 1000;
-    const route = getRoutePattern(req.route?.path || req.path);
-    const statusCode = res.statusCode.toString();
-    
-    // Record HTTP metrics
-    httpRequestDuration
-      .labels(req.method, route, statusCode, portal)
-      .observe(duration);
-    
-    httpRequestsTotal
-      .labels(req.method, route, statusCode, portal)
-      .inc();
-    
-    if (requestSize > 0) {
-      httpRequestSize
-        .labels(req.method, route)
-        .observe(requestSize);
+export const prometheusMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const start = Date.now();
+    const originalSend = res.send;
+
+    // Override send to capture response size
+    res.send = function (body: any): Response {
+      try {
+        if (httpResponseSize) {
+          const size = Buffer.byteLength(JSON.stringify(body));
+          httpResponseSize
+            .labels(req.method, getRoutePattern(req.path), res.statusCode.toString())
+            .observe(size);
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to record response size:', error);
+      }
+      return originalSend.call(this, body);
+    };
+
+    // Record request size
+    try {
+      if (httpRequestSize) {
+        const size = Buffer.byteLength(JSON.stringify(req.body));
+        httpRequestSize.labels(req.method, getRoutePattern(req.path)).observe(size);
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to record request size:', error);
     }
-    
-    // Track response size
-    if (chunk) {
-      const responseSize = Buffer.byteLength(chunk);
-      httpResponseSize
-        .labels(req.method, route, statusCode)
-        .observe(responseSize);
-    }
-    
-    return originalEnd.call(this, chunk, encoding, cb);
-  };
-  
-  next();
-}
+
+    // Record metrics after response
+    res.on('finish', () => {
+      try {
+        if (httpRequestDuration && httpRequestsTotal) {
+          const duration = (Date.now() - start) / 1000;
+          const portal = getPortalFromUrl(req.originalUrl);
+
+          httpRequestDuration
+            .labels(req.method, getRoutePattern(req.path), res.statusCode.toString(), portal)
+            .observe(duration);
+
+          httpRequestsTotal
+            .labels(req.method, getRoutePattern(req.path), res.statusCode.toString(), portal)
+            .inc();
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to record request metrics:', error);
+      }
+    });
+
+    next();
+  } catch (error) {
+    console.warn('⚠️ Prometheus middleware error:', error);
+    next(); // Continue on error
+  }
+};
 
 /**
  * Metrics endpoint handler

@@ -12,18 +12,11 @@ import {
   Tooltip,
   IconButton,
 } from '@mui/material';
+import { formatDisplayDate } from '../../utils/dateUtils';
 // Import necessary icons if actions are added later
 // import VisibilityIcon from '@mui/icons-material/Visibility';
 
 // Reusable helper functions (Consider moving to utils)
-const formatDate = dateString => {
-  if (!dateString) return '-';
-  try {
-    return new Date(dateString).toLocaleDateString();
-  } catch (e) {
-    return 'Invalid Date';
-  }
-};
 const getStatusChipColor = status => {
   switch (status?.toLowerCase()) {
     case 'completed':
@@ -92,8 +85,8 @@ const OrgCourseHistoryTable = ({ courses = [] }) => {
               hover
               sx={{ backgroundColor: index % 2 !== 0 ? '#f9f9f9' : 'inherit' }}
             >
-              <TableCell>{formatDate(course.daterequested)}</TableCell>
-              <TableCell>{formatDate(course.datescheduled)}</TableCell>
+              <TableCell>{formatDisplayDate(course.daterequested)}</TableCell>
+              <TableCell>{formatDisplayDate(course.datescheduled)}</TableCell>
               <TableCell>{course.coursenumber || '-'}</TableCell>
               <TableCell>{course.coursetypename || '-'}</TableCell>
               <TableCell>{course.location || '-'}</TableCell>

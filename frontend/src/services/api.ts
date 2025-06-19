@@ -26,6 +26,23 @@ const api = axios.create({
 // Add request interceptor
 api.interceptors.request.use(
   (config) => {
+    // Add auth token to all requests
+    const token = tokenService.getAccessToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Ensure proper JSON formatting for request data
+    if (config.data && typeof config.data === 'object') {
+      try {
+        // Validate JSON data
+        JSON.stringify(config.data);
+      } catch (error) {
+        console.error('❌ [API REQUEST ERROR] Invalid JSON data:', error);
+        return Promise.reject(new Error('Invalid JSON data in request'));
+      }
+    }
+
     console.log('\n🚀 [API REQUEST]', {
       method: config.method?.toUpperCase(),
       url: config.url,
@@ -88,13 +105,23 @@ const extractLegacyData = <T>(response: { data: ApiResponse<T> }): T => {
 export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
   console.log('[Debug] api.ts - Fetching dashboard data');
   try {
-    const token = tokenService.getAccessToken();
-    console.log('[Debug] api.ts - Auth token present:', !!token);
-    console.log('[Debug] api.ts - Base URL:', API_URL);
-    console.log('[Debug] api.ts - Endpoint:', '/dashboard');
-    const response =
-      await api.get<ApiResponse<DashboardMetrics>>('/dashboard');
-    const data = extractLegacyData(response);
+    // Get current date in YYYY-MM-DD format
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const currentDate = `${year}-${month}-${day}`;
+
+    const [instructorStats, dashboardSummary] = await Promise.all([
+      api.get<ApiResponse<any>>(`/admin/instructor-stats?month=${currentDate}`),
+      api.get<ApiResponse<any>>(`/admin/dashboard-summary?month=${currentDate}`)
+    ]);
+
+    const data = {
+      instructorStats: extractLegacyData(instructorStats),
+      dashboardSummary: extractLegacyData(dashboardSummary)
+    };
+
     console.log('[Debug] api.ts - Dashboard data received:', data);
     return data;
   } catch (error) {
@@ -177,7 +204,7 @@ export const organizationApi = {
 
 // Student endpoints
 export const studentApi = {
-  getSchedule: () => api.get('/api/v1/student/schedule'),
+  getSchedule: () => api.get('/api/v1/student/classes'),
   enrollInClass: (classId: number) =>
     api.post(`/api/v1/student/enroll/${classId}`),
   withdrawFromClass: (classId: number) =>
@@ -426,27 +453,27 @@ export const emailTemplateApi = {
     const queryString = params
       ? `?${new URLSearchParams(params).toString()}`
       : '';
-    const url = `/api/v1/email-templates${queryString}`;
+    const url = `/email-templates${queryString}`;
     console.log('[emailTemplateApi.getAll] Making request to:', url);
     return api.get(url);
   },
-  getById: (id: number) => api.get(`/api/v1/email-templates/${id}`),
-  create: (data: any) => api.post('/api/v1/email-templates', data),
+  getById: (id: number) => api.get(`/email-templates/${id}`),
+  create: (data: any) => api.post('/email-templates', data),
   update: (id: number, data: any) =>
-    api.put(`/api/v1/email-templates/${id}`, data),
-  delete: (id: number) => api.delete(`/api/v1/email-templates/${id}`),
+    api.put(`/email-templates/${id}`, data),
+  delete: (id: number) => api.delete(`/email-templates/${id}`),
   preview: (id: number, variables: any) =>
-    api.post(`/api/v1/email-templates/${id}/preview`, { variables }),
+    api.post(`/email-templates/${id}/preview`, { variables }),
   sendTest: (id: number, recipientEmail: string, variables: any) =>
-    api.post(`/api/v1/email-templates/${id}/test`, {
+    api.post(`/email-templates/${id}/test`, {
       recipientEmail,
       variables,
     }),
   clone: (id: number, newName: string) =>
-    api.post(`/api/v1/email-templates/${id}/clone`, { name: newName }),
+    api.post(`/email-templates/${id}/clone`, { name: newName }),
   getEventTriggers: () =>
-    api.get('/api/v1/email-templates/meta/event-triggers'),
-  getTemplateVariables: () => api.get('/api/v1/email-templates/meta/variables'),
+    api.get('/email-templates/meta/event-triggers'),
+  getTemplateVariables: () => api.get('/email-templates/meta/variables'),
 };
 
 export default api;

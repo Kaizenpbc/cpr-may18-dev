@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Typography,
@@ -32,11 +32,28 @@ import {
   AccessTime as TimeIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { tokenService } from '../../../services/tokenService';
+import { fetchDashboardData } from '../../../services/api';
 
 interface InstructorDashboardProps {
   scheduledClasses?: any[];
   availableDates?: Set<string>;
   completedClasses?: any[];
+}
+
+interface DashboardData {
+  instructorStats: {
+    total_courses: number;
+    completed_courses: number;
+    scheduled_courses: number;
+    cancelled_courses: number;
+  };
+  dashboardSummary: {
+    total_courses: number;
+    completed_courses: number;
+    scheduled_courses: number;
+    cancelled_courses: number;
+  };
 }
 
 const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
@@ -47,6 +64,22 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        const data = await fetchDashboardData();
+        setDashboardData(data);
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load dashboard data. Please try again later.');
+      }
+    };
+
+    loadDashboardData();
+  }, []);
 
   // Calculate statistics
   const totalClasses = scheduledClasses.length;
@@ -83,6 +116,12 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
         </Typography>
       </Box>
 
+      {error && (
+        <Box sx={{ mb: 4 }}>
+          <Typography color="error">{error}</Typography>
+        </Box>
+      )}
+
       {/* Quick Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
@@ -93,7 +132,9 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                   <ClassIcon />
                 </Avatar>
                 <Box>
-                  <Typography variant="h6">{totalClasses}</Typography>
+                  <Typography variant="h6">
+                    {dashboardData?.instructorStats.total_courses || 0}
+                  </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Total Classes
                   </Typography>
@@ -110,7 +151,9 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                   <ScheduleIcon />
                 </Avatar>
                 <Box>
-                  <Typography variant="h6">{upcomingClasses.length}</Typography>
+                  <Typography variant="h6">
+                    {dashboardData?.instructorStats.scheduled_courses || 0}
+                  </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Upcoming Classes
                   </Typography>
@@ -127,9 +170,11 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                   <PeopleIcon />
                 </Avatar>
                 <Box>
-                  <Typography variant="h6">{totalStudents}</Typography>
+                  <Typography variant="h6">
+                    {dashboardData?.instructorStats.completed_courses || 0}
+                  </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Total Students
+                    Completed Classes
                   </Typography>
                 </Box>
               </Box>
@@ -144,9 +189,11 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                   <CalendarIcon />
                 </Avatar>
                 <Box>
-                  <Typography variant="h6">{availableDates.size}</Typography>
+                  <Typography variant="h6">
+                    {dashboardData?.instructorStats.cancelled_courses || 0}
+                  </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Available Dates
+                    Cancelled Classes
                   </Typography>
                 </Box>
               </Box>

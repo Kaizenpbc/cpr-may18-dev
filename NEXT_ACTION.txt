@@ -1,0 +1,29 @@
+# NEXT ACTION
+
+## Current State
+- Vite dev server starts, but no JavaScript (including minimal test.js) is being served or executed.
+- index.html loads, Vite HMR client connects, but no app code runs and no errors are shown.
+- Backend server is running and reachable.
+- All troubleshooting steps (clean install, cache clear, minimal test, different ports) have been tried.
+
+## Next Action After Restart
+1. **Restart your laptop.**
+2. Open a terminal and navigate to your project directory:
+   ```
+   cd C:\Users\gerog\Documents\cpr-may18-dev\frontend
+   ```
+3. Start the Vite dev server with debug logging:
+   ```
+   npx vite --port 5173 --debug
+   ```
+4. Open your browser and go to:
+   - http://localhost:5173/
+   - http://localhost:5173/index.html
+5. Check if you see either your app or the message 'Test JS Loaded'.
+6. If you still see a blank page or nothing loads:
+   - Check the browser Network tab for `/src/test.js` or `/src/main.tsx`.
+   - Check the Console for any errors.
+7. If the problem persists, try creating a new Vite project in a new directory to see if the issue is system-wide.
+
+---
+**Bring this file or your notes back to the next session for continued troubleshooting!** 

@@ -16,15 +16,7 @@ import {
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CancelIcon from '@mui/icons-material/Cancel';
 import logger from '../../utils/logger';
-
-const formatDate = dateString => {
-  if (!dateString) return '-';
-  try {
-    return new Date(dateString).toLocaleDateString();
-  } catch (e) {
-    return 'Invalid Date';
-  }
-};
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 const ScheduledCoursesTable = ({
   courses,
@@ -76,8 +68,8 @@ const ScheduledCoursesTable = ({
                 hover
                 sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
               >
-                <TableCell>{formatDate(course.systemdate)}</TableCell>
-                <TableCell>{formatDate(course.datescheduled)}</TableCell>
+                <TableCell>{formatDisplayDate(course.systemdate)}</TableCell>
+                <TableCell>{formatDisplayDate(course.date)}</TableCell>
                 <TableCell>{course.coursenumber || '-'}</TableCell>
                 <TableCell>{course.organizationname || '-'}</TableCell>
                 <TableCell>{course.location || '-'}</TableCell>

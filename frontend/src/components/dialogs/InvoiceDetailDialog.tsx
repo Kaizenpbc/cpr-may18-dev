@@ -17,17 +17,12 @@ import * as api from '../../services/api'; // Adjust path as needed
 import EmailIcon from '@mui/icons-material/Email';
 import logger from '../../utils/logger';
 import { getInvoiceDetails } from '../../services/invoiceService';
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 // Helper function to format currency
 const formatCurrency = amount => {
   if (amount == null) return 'N/A';
   return `$${parseFloat(amount).toFixed(2)}`;
-};
-
-// Helper function to format dates
-const formatDate = dateString => {
-  if (!dateString) return 'N/A';
-  return new Date(dateString).toLocaleDateString();
 };
 
 const InvoiceDetailDialog = ({
@@ -169,12 +164,12 @@ const InvoiceDetailDialog = ({
               <Grid xs={6} md={3}>
                 <Typography variant='body2'>
                   <strong>Invoice Date:</strong>{' '}
-                  {formatDate(invoice.invoicedate)}
+                  {formatDisplayDate(invoice.invoicedate)}
                 </Typography>
               </Grid>
               <Grid xs={6} md={3}>
                 <Typography variant='body2'>
-                  <strong>Due Date:</strong> {formatDate(invoice.duedate)}
+                  <strong>Due Date:</strong> {formatDisplayDate(invoice.duedate)}
                 </Typography>
               </Grid>
               <Grid xs={6} md={3}>
@@ -222,7 +217,7 @@ const InvoiceDetailDialog = ({
               <Grid xs={12} sm={6}>
                 <Typography variant='body2'>
                   <strong>Date Completed:</strong>{' '}
-                  {formatDate(invoice.datecompleted)}
+                  {formatDisplayDate(invoice.datecompleted)}
                 </Typography>
               </Grid>
               <Grid xs={12} sm={6}>

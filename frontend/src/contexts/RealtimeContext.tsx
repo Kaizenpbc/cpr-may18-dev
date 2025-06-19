@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
+import { WS_URL } from '../config';
 
 interface RealtimeContextType {
   isConnected: boolean;
@@ -12,7 +13,14 @@ const RealtimeContext = createContext<RealtimeContextType>({
   lastUpdate: null,
 });
 
-export const useRealtime = () => useContext(RealtimeContext);
+// Move useRealtime hook before the provider
+export function useRealtime() {
+  const context = useContext(RealtimeContext);
+  if (context === undefined) {
+    throw new Error('useRealtime must be used within a RealtimeProvider');
+  }
+  return context;
+}
 
 export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -22,15 +30,24 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // WebSocket setup
   useEffect(() => {
-    const socketInstance = io(import.meta.env.VITE_API_URL || 'http://localhost:3001', {
+    const socketInstance = io(WS_URL, {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      path: '/socket.io',
+      transports: ['websocket', 'polling'],
+      withCredentials: true,
+      autoConnect: true
     });
 
     socketInstance.on('connect', () => {
       console.log('WebSocket connected');
       setIsConnected(true);
+    });
+
+    socketInstance.on('connect_error', (error) => {
+      console.error('WebSocket connection error:', error);
+      setIsConnected(false);
     });
 
     socketInstance.on('disconnect', () => {
@@ -56,7 +73,8 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // SSE setup as fallback
   useEffect(() => {
     if (!isConnected) {
-      const eventSource = new EventSource(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/v1/events`);
+      console.log('Setting up SSE fallback...');
+      const eventSource = new EventSource(`${WS_URL}/api/v1/events`);
 
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
@@ -72,6 +90,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       };
 
       return () => {
+        console.log('Cleaning up SSE connection...');
         eventSource.close();
       };
     }

@@ -2,19 +2,22 @@ import { Request, Response, NextFunction } from 'express';
 import joi from 'joi';
 import { body, validationResult, matchedData } from 'express-validator';
 import validator from 'validator';
-import xss from 'xss';
 
-// XSS sanitization configuration
-const xssOptions = {
-  whiteList: {}, // No HTML tags allowed
-  stripIgnoreTag: true, // Remove tags instead of escaping
-  stripIgnoreTagBody: ['script'], // Remove script tag content
-};
+// Basic XSS sanitization without external package
+function basicXssSanitize(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
 
 /**
  * Sanitizes a string value by:
  * 1. Trimming whitespace
- * 2. Removing XSS attempts
+ * 2. Basic XSS protection
  * 3. Escaping SQL injection patterns
  */
 export function sanitizeString(input: string): string {
@@ -22,20 +25,25 @@ export function sanitizeString(input: string): string {
     return String(input);
   }
 
-  // Basic sanitization
-  let sanitized = input.trim();
+  try {
+    // Basic sanitization
+    let sanitized = input.trim();
 
-  // XSS protection
-  sanitized = xss(sanitized, xssOptions);
+    // Basic XSS protection
+    sanitized = basicXssSanitize(sanitized);
 
-  // Additional SQL injection pattern removal
-  sanitized = sanitized.replace(/['";\\]/g, ''); // Remove common SQL injection chars
-  sanitized = sanitized.replace(
-    /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|UNION|OR|AND)\b)/gi,
-    ''
-  );
+    // Additional SQL injection pattern removal
+    sanitized = sanitized.replace(/['";\\]/g, ''); // Remove common SQL injection chars
+    sanitized = sanitized.replace(
+      /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|UNION|OR|AND)\b)/gi,
+      ''
+    );
 
-  return sanitized;
+    return sanitized;
+  } catch (error) {
+    console.error('Error in string sanitization:', error);
+    return input.trim(); // Fallback to basic trimming
+  }
 }
 
 /**
@@ -314,54 +322,134 @@ export const detectMaliciousInput = (
   res: Response,
   next: NextFunction
 ): Response | void => {
-  const allInput = JSON.stringify({
-    body: req.body,
-    query: req.query,
-    params: req.params,
-  });
-
-  // Check for SQL injection patterns
-  for (const pattern of sqlInjectionPatterns) {
-    if (pattern.test(allInput)) {
-      console.error('🚨 [SECURITY ALERT] SQL injection attempt detected:', {
-        ip: req.ip,
-        path: req.path,
-        userAgent: req.get('User-Agent'),
-        timestamp: new Date().toISOString(),
-        pattern: pattern.source,
-      });
-
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'MALICIOUS_INPUT_DETECTED',
-          message: 'Potentially malicious input detected',
-        },
-      });
+  try {
+    // Check body
+    if (req.body) {
+      const bodyStr = JSON.stringify(req.body);
+      for (const pattern of sqlInjectionPatterns) {
+        if (pattern.test(bodyStr)) {
+          console.error('🚨 [SECURITY ALERT] SQL injection attempt detected in body:', {
+            ip: req.ip,
+            path: req.path,
+            userAgent: req.get('User-Agent'),
+            timestamp: new Date().toISOString(),
+            pattern: pattern.source,
+          });
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'MALICIOUS_INPUT_DETECTED',
+              message: 'Potentially malicious input detected in request body',
+            },
+          });
+        }
+      }
+      for (const pattern of xssPatterns) {
+        if (pattern.test(bodyStr)) {
+          console.error('🚨 [SECURITY ALERT] XSS attempt detected in body:', {
+            ip: req.ip,
+            path: req.path,
+            userAgent: req.get('User-Agent'),
+            timestamp: new Date().toISOString(),
+            pattern: pattern.source,
+          });
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'MALICIOUS_INPUT_DETECTED',
+              message: 'Potentially malicious input detected in request body',
+            },
+          });
+        }
+      }
     }
-  }
 
-  // Check for XSS patterns
-  for (const pattern of xssPatterns) {
-    if (pattern.test(allInput)) {
-      console.error('🚨 [SECURITY ALERT] XSS attempt detected:', {
-        ip: req.ip,
-        path: req.path,
-        userAgent: req.get('User-Agent'),
-        timestamp: new Date().toISOString(),
-        pattern: pattern.source,
-      });
-
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'MALICIOUS_INPUT_DETECTED',
-          message: 'Potentially malicious input detected',
-        },
-      });
+    // Check query params
+    if (req.query) {
+      const queryStr = JSON.stringify(req.query);
+      for (const pattern of sqlInjectionPatterns) {
+        if (pattern.test(queryStr)) {
+          console.error('🚨 [SECURITY ALERT] SQL injection attempt detected in query:', {
+            ip: req.ip,
+            path: req.path,
+            userAgent: req.get('User-Agent'),
+            timestamp: new Date().toISOString(),
+            pattern: pattern.source,
+          });
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'MALICIOUS_INPUT_DETECTED',
+              message: 'Potentially malicious input detected in query parameters',
+            },
+          });
+        }
+      }
+      for (const pattern of xssPatterns) {
+        if (pattern.test(queryStr)) {
+          console.error('🚨 [SECURITY ALERT] XSS attempt detected in query:', {
+            ip: req.ip,
+            path: req.path,
+            userAgent: req.get('User-Agent'),
+            timestamp: new Date().toISOString(),
+            pattern: pattern.source,
+          });
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'MALICIOUS_INPUT_DETECTED',
+              message: 'Potentially malicious input detected in query parameters',
+            },
+          });
+        }
+      }
     }
-  }
 
-  console.log('✅ [SECURITY CHECK] No malicious patterns detected');
-  next();
+    // Check URL params
+    if (req.params) {
+      const paramsStr = JSON.stringify(req.params);
+      for (const pattern of sqlInjectionPatterns) {
+        if (pattern.test(paramsStr)) {
+          console.error('🚨 [SECURITY ALERT] SQL injection attempt detected in params:', {
+            ip: req.ip,
+            path: req.path,
+            userAgent: req.get('User-Agent'),
+            timestamp: new Date().toISOString(),
+            pattern: pattern.source,
+          });
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'MALICIOUS_INPUT_DETECTED',
+              message: 'Potentially malicious input detected in URL parameters',
+            },
+          });
+        }
+      }
+      for (const pattern of xssPatterns) {
+        if (pattern.test(paramsStr)) {
+          console.error('🚨 [SECURITY ALERT] XSS attempt detected in params:', {
+            ip: req.ip,
+            path: req.path,
+            userAgent: req.get('User-Agent'),
+            timestamp: new Date().toISOString(),
+            pattern: pattern.source,
+          });
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'MALICIOUS_INPUT_DETECTED',
+              message: 'Potentially malicious input detected in URL parameters',
+            },
+          });
+        }
+      }
+    }
+
+    console.log('✅ [SECURITY CHECK] No malicious patterns detected');
+    next();
+  } catch (error) {
+    console.error('❌ [SECURITY ERROR] Error in malicious input detection:', error);
+    next(); // Continue on error to avoid blocking legitimate requests
+  }
 };

@@ -33,6 +33,7 @@ import type { Class, Availability, ApiResponse } from '../../../types/api';
 import api, { instructorApi } from '../../../api/index';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 interface AvailabilityViewProps {
   availableDates?: (string | AvailabilitySlot)[];

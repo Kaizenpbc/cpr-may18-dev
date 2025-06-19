@@ -26,6 +26,7 @@ import {
   Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { CombinedScheduleItem } from '../../../types/instructor';
+import { formatDisplayDate } from '../../../utils/dateUtils';
 
 interface MyClassesViewProps {
   combinedSchedule?: CombinedScheduleItem[];
@@ -45,18 +46,6 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
     open: false,
     date: '',
   });
-
-  // Format date helper
-  const formatDate = (dateString: string) => {
-    // Create date in local timezone
-    const date = new Date(dateString + 'T00:00:00');
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
 
   const handleDeleteClick = (date: string) => {
     setDeleteDialog({
@@ -236,9 +225,9 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
                 </TableCell>
               </TableRow>
             ) : (
-              combinedSchedule.map((item) => (
-                <TableRow key={item.key} hover>
-                  <TableCell>{formatDate(item.displayDate)}</TableCell>
+              combinedSchedule.map((item, index) => (
+                <TableRow key={`${item.type}-${item.course_id || item.originalData?.id || index}`} hover>
+                  <TableCell>{formatDisplayDate(item.displayDate)}</TableCell>
                   <TableCell>{item.type === 'class' ? item.organizationname : ''}</TableCell>
                   <TableCell>{item.type === 'class' ? item.location : ''}</TableCell>
                   <TableCell>{item.type === 'class' ? item.coursenumber : ''}</TableCell>
@@ -270,17 +259,13 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
                         </IconButton>
                       </Tooltip>
                     )}
-                    {item.type === 'class' && (
-                      <Tooltip title='View Details'>
-                        <IconButton>
-                          <VisibilityIcon />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                    {item.type === 'availability' && (
+                    {item.type === 'availability' && onRemoveAvailability && (
                       <Tooltip title='Remove Availability'>
-                        <IconButton onClick={() => handleDeleteClick(item.displayDate)}>
-                          <DeleteIcon color="error" />
+                        <IconButton 
+                          onClick={() => handleDeleteClick(item.displayDate)}
+                          color='error'
+                        >
+                          <DeleteIcon />
                         </IconButton>
                       </Tooltip>
                     )}
@@ -299,7 +284,7 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
         <DialogTitle>Remove Availability</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to remove your availability for {formatDate(deleteDialog.date)}?
+            Are you sure you want to remove your availability for {formatDisplayDate(deleteDialog.date)}?
             {(() => {
               const today = new Date();
               const targetDate = new Date(deleteDialog.date);

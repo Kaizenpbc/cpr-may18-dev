@@ -53,18 +53,9 @@ function App() {
                 <Route path='/recover-password' element={<RecoverPassword />} />
                 <Route path='/forgot-password' element={<ForgotPassword />} />
                 <Route path='/reset-password' element={<ResetPassword />} />
+                <Route path='/' element={<Navigate to="/login" replace />} />
 
                 {/* Protected routes */}
-                <Route
-                  path='/'
-                  element={
-                    <PrivateRoute>
-                      <Navigate to="/login" replace />
-                    </PrivateRoute>
-                  }
-                />
-
-                {/* Role-specific portals */}
                 <Route
                   path='/instructor/*'
                   element={

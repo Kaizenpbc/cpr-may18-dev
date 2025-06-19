@@ -16,7 +16,7 @@ import {
   Button,
 } from '@mui/material';
 import * as api from '../../services/api';
-import { formatDate } from '../../utils/formatters';
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 // Helper to get default date range (e.g., current month)
 const getDefaultDateRange = () => {

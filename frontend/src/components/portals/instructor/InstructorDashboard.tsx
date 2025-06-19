@@ -25,6 +25,7 @@ import {
   AccessTime as TimeIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { formatDisplayDate } from '../../../utils/dateUtils';
 
 interface InstructorDashboardProps {
   scheduledClasses?: any[];
@@ -42,23 +43,12 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
   // Calculate statistics
   const totalClasses = scheduledClasses.length;
   const upcomingClasses = scheduledClasses.filter(
-    (cls) => new Date(cls.datescheduled) > new Date()
+    (cls) => new Date(cls.date) > new Date()
   );
   const todayClasses = scheduledClasses.filter(
     (cls) =>
-      new Date(cls.datescheduled).toDateString() === new Date().toDateString()
+      new Date(cls.date).toDateString() === new Date().toDateString()
   );
-
-  // Format date helper
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  };
 
   return (
     <Box>
@@ -146,7 +136,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <TimeIcon fontSize="small" />
                             <Typography variant="body2">
-                              {formatDate(cls.datescheduled)}
+                              {formatDisplayDate(cls.date)}
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

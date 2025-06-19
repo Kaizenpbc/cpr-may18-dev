@@ -46,10 +46,10 @@ const ScheduledClassesView = ({ scheduledClasses, onAttendanceClick }) => {
                 <TableCell>{course.coursenumber}</TableCell>
                 <TableCell>{course.coursetypename}</TableCell>
                 <TableCell>
-                  {format(new Date(course.datescheduled), 'MMM d, yyyy')}
+                  {format(new Date(course.date), 'MMM d, yyyy')}
                 </TableCell>
                 <TableCell>
-                  {format(new Date(course.datescheduled), 'h:mm a')}
+                  {format(new Date(course.date), 'h:mm a')}
                 </TableCell>
                 <TableCell>{course.location}</TableCell>
                 <TableCell>{course.studentcount}</TableCell>

@@ -6,17 +6,16 @@ console.log('Loading Vite config');
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react() as any],
+  plugins: [react()],
   server: {
     host: true,
-    port: 5172,
+    port: 5173,
     proxy: {
-      '/api/v1': {
-        target: 'http://localhost:3001',
+      '/api': {
+        target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false,
-        ws: true
-      }
+      },
     }
   },
   resolve: {

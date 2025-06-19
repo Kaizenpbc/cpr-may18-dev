@@ -16,6 +16,7 @@ import {
   CheckCircle as CompletedIcon,
   Person as PersonIcon,
 } from '@mui/icons-material';
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 interface InstructorArchiveTableProps {
   courses: any[];
@@ -27,45 +28,6 @@ interface InstructorArchiveTableProps {
 const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
   courses = [],
 }) => {
-  const formatDate = (dateString?: string): string => {
-    if (!dateString) return '-';
-    try {
-      // Handle date strings that might have timezone issues
-      // If the date string contains 'T', it's already in ISO format
-      if (dateString.includes('T')) {
-        // Extract just the date part to avoid timezone conversion
-        const datePart = dateString.split('T')[0];
-        const [year, month, day] = datePart.split('-');
-        // Create date in local timezone to avoid UTC conversion
-        const date = new Date(
-          parseInt(year),
-          parseInt(month) - 1,
-          parseInt(day)
-        );
-        return date.toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        });
-      } else {
-        // For dates without time component, parse directly
-        const [year, month, day] = dateString.split('-');
-        const date = new Date(
-          parseInt(year),
-          parseInt(month) - 1,
-          parseInt(day)
-        );
-        return date.toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        });
-      }
-    } catch (error) {
-      return dateString;
-    }
-  };
-
   const formatTime = (timeString?: string): string => {
     if (!timeString) return '';
     return timeString.slice(0, 5); // Convert "09:00:00" to "09:00"
@@ -167,7 +129,7 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
                   >
                     <TableCell sx={{ backgroundColor: rowColor }}>
                       <Typography variant='body2' fontWeight='medium'>
-                        {formatDate(course.datescheduled)}
+                        {formatDisplayDate(course.datescheduled)}
                       </Typography>
                     </TableCell>
 
@@ -223,7 +185,7 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
 
                     <TableCell sx={{ backgroundColor: rowColor }}>
                       <Typography variant='body2' color='text.secondary'>
-                        {formatDate(
+                        {formatDisplayDate(
                           course.date_completed || course.completion_date
                         )}
                       </Typography>

@@ -190,6 +190,7 @@ const initializeDatabase = async () => {
     console.log('✅ Accountant user created successfully');
 
     // Create class_types table if it doesn't exist
+    console.log('📚 Creating class_types table...');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS class_types (
         id SERIAL PRIMARY KEY,
@@ -200,17 +201,7 @@ const initializeDatabase = async () => {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
-
-    // Insert default class types if none exist
-    await pool.query(`
-      INSERT INTO class_types (name, description, duration_minutes)
-      VALUES 
-        ('Basic CPR', 'Basic CPR certification course', 120),
-        ('Advanced CPR', 'Advanced CPR certification course', 180),
-        ('First Aid', 'Basic first aid certification', 120),
-        ('BLS', 'Basic Life Support certification', 240)
-      ON CONFLICT (name) DO NOTHING;
-    `);
+    console.log('✅ Class_types table created successfully');
 
     // Create instructor_availability table if it doesn't exist
     console.log('📅 Creating instructor_availability table...');
@@ -219,13 +210,90 @@ const initializeDatabase = async () => {
         id SERIAL PRIMARY KEY,
         instructor_id INTEGER NOT NULL REFERENCES users(id),
         date DATE NOT NULL,
-        status VARCHAR(50) DEFAULT 'available',
+        status VARCHAR(50) NOT NULL DEFAULT 'available',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(instructor_id, date)
       );
     `);
     console.log('✅ Instructor_availability table created successfully');
+
+    // Create classes table if it doesn't exist
+    console.log('📝 Creating classes table...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS classes (
+        id SERIAL PRIMARY KEY,
+        class_type_id INTEGER REFERENCES class_types(id),
+        instructor_id INTEGER REFERENCES users(id),
+        organization_id INTEGER REFERENCES organizations(id),
+        start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+        end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'scheduled',
+        location TEXT,
+        max_students INTEGER,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Classes table created successfully');
+
+    // Create class_students table if it doesn't exist
+    console.log('👥 Creating class_students table...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS class_students (
+        id SERIAL PRIMARY KEY,
+        class_id INTEGER REFERENCES classes(id),
+        student_id INTEGER REFERENCES users(id),
+        attendance VARCHAR(50) DEFAULT 'registered',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(class_id, student_id)
+      );
+    `);
+    console.log('✅ Class_students table created successfully');
+
+    // Insert default class types if none exist
+    console.log('📊 Inserting default class types...');
+    await pool.query(`
+      INSERT INTO class_types (name, description, duration_minutes)
+      VALUES 
+        ('CPR Basic', 'Basic CPR certification course', 180),
+        ('CPR Advanced', 'Advanced CPR certification course', 240),
+        ('First Aid', 'First Aid certification course', 120)
+      ON CONFLICT (name) DO NOTHING;
+    `);
+    console.log('✅ Default class types inserted successfully');
+
+    // Insert some sample classes
+    console.log('📅 Inserting sample classes...');
+    await pool.query(`
+      WITH inserted_class AS (
+        INSERT INTO classes (class_type_id, instructor_id, organization_id, start_time, end_time, status, location, max_students)
+        SELECT 
+          ct.id,
+          (SELECT id FROM users WHERE username = 'instructor'),
+          1,
+          NOW() + interval '1 day',
+          NOW() + interval '1 day' + interval '3 hours',
+          'scheduled',
+          'Main Training Room',
+          10
+        FROM class_types ct
+        WHERE ct.name = 'CPR Basic'
+        RETURNING id
+      )
+      INSERT INTO class_students (class_id, student_id, attendance)
+      SELECT 
+        ic.id,
+        u.id,
+        'registered'
+      FROM inserted_class ic
+      CROSS JOIN (
+        SELECT id FROM users WHERE role = 'student' LIMIT 3
+      ) u
+      ON CONFLICT DO NOTHING;
+    `);
+    console.log('✅ Sample classes and enrollments inserted successfully');
 
     // Create course_requests table if it doesn't exist
     console.log('📋 Creating course_requests table...');
@@ -394,38 +462,6 @@ const initializeDatabase = async () => {
       END $$;
     `);
     console.log('✅ Date field migration completed');
-
-    // Create classes table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS classes (
-        id SERIAL PRIMARY KEY,
-        instructor_id INTEGER NOT NULL REFERENCES users(id),
-        date DATE NOT NULL,
-        start_time TIME NOT NULL,
-        end_time TIME NOT NULL,
-        location VARCHAR(255),
-        status VARCHAR(20) NOT NULL DEFAULT 'scheduled',
-        max_students INTEGER NOT NULL DEFAULT 10,
-        current_students INTEGER NOT NULL DEFAULT 0,
-        type_id INTEGER REFERENCES class_types(id),
-        completed_at TIMESTAMP WITH TIME ZONE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // Create enrollments table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS enrollments (
-        id SERIAL PRIMARY KEY,
-        class_id INTEGER NOT NULL REFERENCES classes(id),
-        student_id INTEGER NOT NULL REFERENCES users(id),
-        status VARCHAR(20) NOT NULL DEFAULT 'enrolled',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(class_id, student_id)
-      );
-    `);
 
     // Create certifications table if it doesn't exist
     await pool.query(`

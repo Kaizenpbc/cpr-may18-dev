@@ -9,7 +9,11 @@ router.get('/classes', authenticateToken, requireRole(['student']), async (req, 
   try {
     const userId = req.user.id;
     const result = await pool.query(
-      'SELECT * FROM classes WHERE student_id = $1',
+      `SELECT c.*, ct.name as type, ct.description, 
+              ct.duration_minutes
+       FROM classes c
+       JOIN class_types ct ON c.class_type_id = ct.id
+       WHERE c.student_id = $1`,
       [userId]
     );
     res.json(result.rows);
@@ -24,7 +28,12 @@ router.get('/upcoming-classes', authenticateToken, requireRole(['student']), asy
   try {
     const userId = req.user.id;
     const result = await pool.query(
-      'SELECT * FROM classes WHERE student_id = $1 AND start_time > NOW() ORDER BY start_time ASC',
+      `SELECT c.*, ct.name as type, ct.description, 
+              ct.duration_minutes
+       FROM classes c
+       JOIN class_types ct ON c.class_type_id = ct.id
+       WHERE c.student_id = $1 AND c.start_time > NOW() 
+       ORDER BY c.start_time ASC`,
       [userId]
     );
     res.json(result.rows);
@@ -39,7 +48,12 @@ router.get('/completed-classes', authenticateToken, requireRole(['student']), as
   try {
     const userId = req.user.id;
     const result = await pool.query(
-      'SELECT * FROM classes WHERE student_id = $1 AND end_time < NOW() ORDER BY end_time DESC',
+      `SELECT c.*, ct.name as type, ct.description, 
+              ct.duration_minutes
+       FROM classes c
+       JOIN class_types ct ON c.class_type_id = ct.id
+       WHERE c.student_id = $1 AND c.end_time < NOW() 
+       ORDER BY c.end_time DESC`,
       [userId]
     );
     res.json(result.rows);

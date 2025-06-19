@@ -20,10 +20,10 @@ import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import PaymentIcon from '@mui/icons-material/Payment';
 import EmailIcon from '@mui/icons-material/Email';
 import {
-  formatDate,
   formatCurrency,
   getStatusChipColor,
 } from '../../utils/formatters';
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 const CompletedCoursesTable = ({
   courses,
@@ -129,8 +129,8 @@ const CompletedCoursesTable = ({
               hover
               sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
             >
-              <TableCell>{formatDate(course.systemdate)}</TableCell>
-              <TableCell>{formatDate(course.datescheduled)}</TableCell>
+              <TableCell>{formatDisplayDate(course.systemdate)}</TableCell>
+              <TableCell>{formatDisplayDate(course.datescheduled)}</TableCell>
               <TableCell>{course.coursenumber || '-'}</TableCell>
               <TableCell>{course.organizationname || '-'}</TableCell>
               <TableCell>{course.location || '-'}</TableCell>

@@ -44,7 +44,7 @@ import InstructorDashboard from './InstructorDashboard';
 import AdminViewStudentsDialog from '../../dialogs/AdminViewStudentsDialog';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRealtime } from '../../../contexts/RealtimeContext';
-import { formatDateWithoutTimezone } from '../../../utils/dateUtils';
+import { formatDisplayDate } from '../../../utils/dateUtils';
 
 console.log('[InstructorManagement] Module loaded');
 
@@ -292,17 +292,6 @@ const InstructorManagement: React.FC = () => {
     }
   };
 
-  // Format date helper
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString + 'T00:00:00');
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
   // Render schedule dialog content
   const renderScheduleDialogContent = () => {
     if (!viewingInstructor) return null;
@@ -336,7 +325,7 @@ const InstructorManagement: React.FC = () => {
               ) : (
                 instructorSchedule.map((item) => (
                   <TableRow key={item.key}>
-                    <TableCell>{formatDate(item.displayDate)}</TableCell>
+                    <TableCell>{formatDisplayDate(item.displayDate)}</TableCell>
                     <TableCell>
                       {item.type === 'class' ? 'Class' : 'Availability'}
                     </TableCell>
@@ -379,7 +368,7 @@ const InstructorManagement: React.FC = () => {
 
         if (response.data.data.length === 0) {
           setError(
-            `No instructors are available on ${formatDateWithoutTimezone(course.scheduled_date)}. Instructors must mark their availability for this date.`
+            `No instructors are available on ${formatDisplayDate(course.scheduled_date)}. Instructors must mark their availability for this date.`
           );
         }
       } catch (err: any) {
@@ -529,7 +518,7 @@ const InstructorManagement: React.FC = () => {
   ) => {
     if (
       !window.confirm(
-        `Are you sure you want to remove this availability record for ${formatDateWithoutTimezone(date)}? This will also remove any unconfirmed classes for this date.`
+        `Are you sure you want to remove this availability record for ${formatDisplayDate(date)}? This will also remove any unconfirmed classes for this date.`
       )
     )
       return;
@@ -625,7 +614,7 @@ const InstructorManagement: React.FC = () => {
           // Current instructor not available on new date
           setEditScheduleData(prev => ({ ...prev, instructorId: '' }));
           setError(
-            `Current instructor is not available on ${formatDateWithoutTimezone(newDate)}. Please select a different instructor.`
+            `Current instructor is not available on ${formatDisplayDate(newDate)}. Please select a different instructor.`
           );
         }
 
@@ -817,11 +806,11 @@ const InstructorManagement: React.FC = () => {
               {pendingCourses.map(course => (
                 <TableRow key={course.id}>
                   <TableCell>
-                    {formatDateWithoutTimezone(course.date_requested)}
+                    {formatDisplayDate(course.date_requested)}
                   </TableCell>
                   <TableCell>
                     {course.scheduled_date
-                      ? formatDateWithoutTimezone(course.scheduled_date)
+                      ? formatDisplayDate(course.scheduled_date)
                       : '-'}
                   </TableCell>
                   <TableCell>{course.organization_name}</TableCell>
@@ -966,7 +955,7 @@ const InstructorManagement: React.FC = () => {
                         instructor.availability_date !==
                           'No availability set' ? (
                           <Chip
-                            label={formatDateWithoutTimezone(
+                            label={formatDisplayDate(
                               instructor.availability_date
                             )}
                             size='small'
@@ -1115,17 +1104,17 @@ const InstructorManagement: React.FC = () => {
               {confirmedCourses.map(course => (
                 <TableRow key={course.id}>
                   <TableCell>
-                    {formatDateWithoutTimezone(course.date_requested)}
+                    {formatDisplayDate(course.date_requested)}
                   </TableCell>
                   <TableCell>
                     {course.scheduled_date
-                      ? formatDateWithoutTimezone(course.scheduled_date)
+                      ? formatDisplayDate(course.scheduled_date)
                       : '-'}
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2' fontWeight='medium'>
                       {course.confirmed_date
-                        ? formatDateWithoutTimezone(course.confirmed_date)
+                        ? formatDisplayDate(course.confirmed_date)
                         : '-'}
                     </Typography>
                     {course.confirmed_start_time &&
@@ -1240,12 +1229,12 @@ const InstructorManagement: React.FC = () => {
               {completedCourses.map(course => (
                 <TableRow key={course.id}>
                   <TableCell>
-                    {formatDateWithoutTimezone(course.date_requested)}
+                    {formatDisplayDate(course.date_requested)}
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2' fontWeight='medium'>
                       {course.confirmed_date
-                        ? formatDateWithoutTimezone(course.confirmed_date)
+                        ? formatDisplayDate(course.confirmed_date)
                         : '-'}
                     </Typography>
                     {course.confirmed_start_time &&
@@ -1508,7 +1497,7 @@ const InstructorManagement: React.FC = () => {
             <br />
             Scheduled Date:{' '}
             {selectedCourse?.scheduled_date
-              ? formatDateWithoutTimezone(selectedCourse.scheduled_date)
+              ? formatDisplayDate(selectedCourse.scheduled_date)
               : 'Not set'}
           </Typography>
 
@@ -1517,7 +1506,7 @@ const InstructorManagement: React.FC = () => {
               <Alert severity='warning'>
                 No instructors are available for{' '}
                 {selectedCourse?.scheduled_date
-                  ? formatDateWithoutTimezone(selectedCourse.scheduled_date)
+                  ? formatDisplayDate(selectedCourse.scheduled_date)
                   : 'this date'}
                 .
                 <br />
@@ -1537,7 +1526,7 @@ const InstructorManagement: React.FC = () => {
                 }
                 fullWidth
                 required
-                helperText={`${availableInstructors.length} instructor(s) available on ${formatDateWithoutTimezone(selectedCourse?.scheduled_date)}`}
+                helperText={`${availableInstructors.length} instructor(s) available on ${formatDisplayDate(selectedCourse?.scheduled_date)}`}
               >
                 <MenuItem value=''>Select an instructor</MenuItem>
                 {availableInstructors.map(instructor => (
@@ -1720,7 +1709,7 @@ const InstructorManagement: React.FC = () => {
         <DialogContent>
           <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle1" gutterBottom>
-              Current Schedule: {selectedCourse && formatDateWithoutTimezone(selectedCourse.scheduled_date)}
+              Current Schedule: {selectedCourse && formatDisplayDate(selectedCourse.scheduled_date)}
             </Typography>
             <TextField
               type="datetime-local"

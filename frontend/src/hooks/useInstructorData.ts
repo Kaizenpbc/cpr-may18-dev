@@ -17,10 +17,11 @@ export interface ApiResponse<T> {
 export interface ScheduledClass {
   course_id: number;
   id: number;
-  datescheduled: string;
+  date: string;
   completed: boolean;
   organizationname: string;
   coursetypename: string;
+  course_name?: string;
   location: string;
   studentcount: number;
   studentsattendance: number;
@@ -746,7 +747,7 @@ export const useInstructorData = () => {
     const scheduledItems = scheduledClasses.map((c: ScheduledClass) => {
       console.log('[TRACE] Processing scheduled class:', JSON.stringify(c, null, 2));
       return {
-        displayDate: c.datescheduled,
+        displayDate: c.date,
         key: `scheduled-${c.id}`,
         status: 'scheduled',
         organization: c.organizationname || '',

@@ -15,7 +15,8 @@ import {
   Alert,
 } from '@mui/material';
 import { Receipt as InvoiceIcon } from '@mui/icons-material';
-import { formatDate, formatCurrency } from '../../utils/formatters';
+import { formatCurrency } from '../../utils/formatters';
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 const ReadyForBillingTable = ({
   courses,
@@ -83,7 +84,7 @@ const ReadyForBillingTable = ({
         <TableBody>
           {courses.map(course => (
             <TableRow key={course.course_id}>
-              <TableCell>{formatDate(course.date_completed)}</TableCell>
+              <TableCell>{formatDisplayDate(course.date_completed)}</TableCell>
               <TableCell>
                 <Typography variant='body2' fontWeight='medium'>
                   {course.organization_name}

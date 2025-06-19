@@ -3,10 +3,10 @@ import { asyncHandler } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
 import { pool } from '../../config/database.js';
-import { generateToken } from '../../utils/jwtUtils.js';
+import { generateTokens } from '../../utils/jwtUtils.js';
 import { authenticateToken, requireRole, authorizeRoles } from '../../middleware/authMiddleware.js';
-import { sessionAuth } from '../../middleware/sessionAuth.js';
-import { generateWeeklySchedulePDF } from '../../services/pdfService.ts';
+import { authenticateSession } from '../../middleware/sessionAuth.js';
+import { PDFService } from '../../services/pdfService.js';
 import { emailService } from '../../services/emailService.js';
 import emailTemplatesRouter from './emailTemplates.js';
 import { cacheService } from '../../services/cacheService.js';
@@ -15,7 +15,6 @@ import cacheRouter from './cache.js';
 import instructorRouter from '../../routes/instructor.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
-import { PDFService } from '../../services/pdfService.ts';
 
 const router = Router();
 
@@ -388,75 +387,68 @@ router.post(
 );
 
 // Get organization's courses
-router.get(
-  '/organization/courses',
-  asyncHandler(async (req: Request, res: Response) => {
-    try {
-      const organizationId = req.user?.organizationId;
+router.get('/organization/courses', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+    const organizationId = req.user?.organizationId;
+    const filterOrgId = req.query.organization_id ? parseInt(req.query.organization_id as string) : null;
 
-      if (!organizationId) {
-        throw new AppError(
-          400,
-          errorCodes.VALIDATION_ERROR,
-          'User must be associated with an organization'
-        );
-      }
+    // For admin users, allow filtering by organization_id
+    if (userRole === 'admin') {
+      const query = filterOrgId 
+        ? 'SELECT * FROM course_request_details WHERE organization_id = $1 ORDER BY created_at DESC'
+        : 'SELECT * FROM course_request_details ORDER BY created_at DESC';
+      
+      const result = await pool.query(query, filterOrgId ? [filterOrgId] : []);
+      
+      return res.json({
+        success: true,
+        data: result.rows,
+        meta: {
+          timestamp: new Date().toISOString(),
+          version: '1.0.0'
+        }
+      });
+    }
 
-      const result = await pool.query(
-        `SELECT 
-        cr.id,
-        cr.date_requested,
-        cr.scheduled_date,
-        cr.location,
-        cr.registered_students,
-        cr.notes,
-        cr.status,
-        cr.confirmed_date,
-        cr.confirmed_start_time,
-        cr.confirmed_end_time,
-        cr.created_at,
-        ct.name as course_type,
-        u.username as instructor_name,
-        o.name as organization_name,
-        COALESCE(cs.student_count, 0) as actual_students,
-        COALESCE(cs.attended_count, 0) as students_attended
-       FROM course_requests cr
-       JOIN class_types ct ON cr.course_type_id = ct.id
-       JOIN organizations o ON cr.organization_id = o.id
-       LEFT JOIN users u ON cr.instructor_id = u.id
-       LEFT JOIN (
-         SELECT 
-           course_request_id, 
-           COUNT(*) as student_count,
-           COUNT(CASE WHEN attended = true THEN 1 END) as attended_count
-         FROM course_students
-         GROUP BY course_request_id
-       ) cs ON cr.id = cs.course_request_id
-       WHERE cr.organization_id = $1
-       ORDER BY cr.created_at DESC`,
-        [organizationId]
-      );
-
-      // Update registered_students with actual count if students have been uploaded
-      const courses = result.rows.map(row => ({
-        ...row,
-        registered_students:
-          row.actual_students > 0
-            ? row.actual_students
-            : row.registered_students,
-      }));
-
-      return res.json(ApiResponseBuilder.success(courses));
-    } catch (error: any) {
-      console.error('Error fetching organization courses:', error);
+    // For organization users, only show their organization's courses
+    if (!organizationId) {
       throw new AppError(
-        500,
-        errorCodes.DB_QUERY_ERROR,
-        'Failed to fetch courses'
+        'User is not associated with any organization',
+        403,
+        'AUTH_403'
       );
     }
-  })
-);
+
+    const result = await pool.query(
+      'SELECT * FROM course_request_details WHERE organization_id = $1 ORDER BY created_at DESC',
+      [organizationId]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows,
+      meta: {
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching organization courses:', error);
+    if (error instanceof AppError) {
+      res.status(error.statusCode).json({
+        success: false,
+        error: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
+});
 
 // Organization Analytics Endpoints
 
@@ -786,28 +778,24 @@ router.get(
   asyncHandler(async (_req: Request, res: Response) => {
     try {
       const result = await pool.query(`
-      SELECT 
-        cr.*,
-        ct.name as course_type_name,
-        o.name as organization_name,
-        i.first_name as instructor_first_name,
-        i.last_name as instructor_last_name
-      FROM course_requests cr
-      LEFT JOIN class_types ct ON cr.course_type_id = ct.id
-      LEFT JOIN organizations o ON cr.organization_id = o.id
-      LEFT JOIN users i ON cr.instructor_id = i.id
-      WHERE cr.status IN ('pending', 'past_due')
-      ORDER BY 
-        CASE 
-          WHEN cr.status = 'past_due' THEN 0
-          ELSE 1
-        END,
-        cr.scheduled_date ASC
-    `);
-      res.json(result.rows);
+        SELECT *
+        FROM course_request_details
+        WHERE status IN ('pending', 'past_due')
+        ORDER BY 
+          CASE 
+            WHEN status = 'past_due' THEN 0
+            ELSE 1
+          END,
+          scheduled_date ASC
+      `);
+      return res.json(ApiResponseBuilder.success(result.rows));
     } catch (error) {
       console.error('Error fetching pending courses:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch pending courses'
+      );
     }
   })
 );
@@ -830,7 +818,7 @@ router.post(
       if (result.rows.length === 0) {
         throw new AppError(
           404,
-          errorCodes.NOT_FOUND,
+          errorCodes.RESOURCE_NOT_FOUND,
           'Course request not found'
         );
       }
@@ -853,49 +841,14 @@ router.get(
   asyncHandler(async (_req: Request, res: Response) => {
     try {
       const result = await pool.query(
-        `SELECT 
-        cr.id,
-        cr.date_requested,
-        cr.scheduled_date,
-        cr.location,
-        cr.registered_students,
-        cr.notes,
-        cr.status,
-        cr.confirmed_date,
-        cr.confirmed_start_time,
-        cr.confirmed_end_time,
-        cr.created_at,
-        ct.name as course_type,
-        o.name as organization_name,
-        u.username as instructor_name,
-        COALESCE(cs.student_count, 0) as actual_students,
-        COALESCE(cs.attended_count, 0) as students_attended
-       FROM course_requests cr
-       JOIN class_types ct ON cr.course_type_id = ct.id
-       JOIN organizations o ON cr.organization_id = o.id
-       LEFT JOIN users u ON cr.instructor_id = u.id
-       LEFT JOIN (
-         SELECT 
-           course_request_id, 
-           COUNT(*) as student_count,
-           COUNT(CASE WHEN attended = true THEN 1 END) as attended_count
-         FROM course_students
-         GROUP BY course_request_id
-       ) cs ON cr.id = cs.course_request_id
-       WHERE cr.status = 'confirmed'
-       ORDER BY cr.confirmed_date ASC, cr.confirmed_start_time ASC`
+        `SELECT * FROM course_request_details WHERE status = 'confirmed' ORDER BY confirmed_date ASC, confirmed_start_time ASC`
       );
 
-      // Update registered_students with actual count if students have been uploaded
-      const courses = result.rows.map(row => ({
-        ...row,
-        registered_students:
-          row.actual_students > 0
-            ? row.actual_students
-            : row.registered_students,
-      }));
+      // registered_students logic (if needed) can be handled here if you want to keep it
+      // If you want to keep the logic that updates registered_students with actual count if students have been uploaded, you can add it here
+      // Otherwise, just return result.rows
 
-      return res.json(ApiResponseBuilder.success(courses));
+      return res.json(ApiResponseBuilder.success(result.rows));
     } catch (error: any) {
       console.error('Error fetching confirmed courses:', error);
       throw new AppError(
@@ -913,52 +866,14 @@ router.get(
   asyncHandler(async (_req: Request, res: Response) => {
     try {
       const result = await pool.query(
-        `SELECT 
-        cr.id,
-        cr.date_requested,
-        cr.scheduled_date,
-        cr.location,
-        cr.registered_students,
-        cr.notes,
-        cr.status,
-        cr.confirmed_date,
-        cr.confirmed_start_time,
-        cr.confirmed_end_time,
-        cr.completed_at,
-        cr.created_at,
-        cr.ready_for_billing,
-        cr.ready_for_billing_at,
-        ct.name as course_type,
-        o.name as organization_name,
-        u.username as instructor_name,
-        COALESCE(cs.student_count, 0) as actual_students,
-        COALESCE(cs.attended_count, 0) as students_attended
-       FROM course_requests cr
-       JOIN class_types ct ON cr.course_type_id = ct.id
-       JOIN organizations o ON cr.organization_id = o.id
-       LEFT JOIN users u ON cr.instructor_id = u.id
-       LEFT JOIN (
-         SELECT 
-           course_request_id, 
-           COUNT(*) as student_count,
-           COUNT(CASE WHEN attended = true THEN 1 END) as attended_count
-         FROM course_students
-         GROUP BY course_request_id
-       ) cs ON cr.id = cs.course_request_id
-       WHERE cr.status = 'completed'
-       ORDER BY cr.completed_at DESC`
+        `SELECT * FROM course_request_details WHERE status = 'completed' ORDER BY completed_at DESC`
       );
 
-      // Update registered_students with actual count if students have been uploaded
-      const courses = result.rows.map(row => ({
-        ...row,
-        registered_students:
-          row.actual_students > 0
-            ? row.actual_students
-            : row.registered_students,
-      }));
+      // registered_students logic (if needed) can be handled here if you want to keep it
+      // If you want to keep the logic that updates registered_students with actual count if students have been uploaded, you can add it here
+      // Otherwise, just return result.rows
 
-      return res.json(ApiResponseBuilder.success(courses));
+      return res.json(ApiResponseBuilder.success(result.rows));
     } catch (error: any) {
       console.error('Error fetching completed courses:', error);
       throw new AppError(
@@ -1632,22 +1547,43 @@ router.get(
       throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor ID is required');
     }
 
+    if (!month) {
+      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Month parameter is required (format: YYYY-MM)');
+    }
+
     try {
-      console.log('[Instructor Stats] Executing query with params:', [instructorId, month]);
+      // Parse the month to get start and end dates
+      const startDate = `${month}-01`;
+      const endDate = new Date(
+        new Date(startDate).getFullYear(),
+        new Date(startDate).getMonth() + 1,
+        0
+      ).toISOString().split('T')[0];
+
+      console.log('[Instructor Stats] Executing query with params:', [instructorId, startDate, endDate]);
       const result = await pool.query(`
         SELECT 
           COUNT(DISTINCT cr.id) as total_courses,
           COUNT(DISTINCT CASE WHEN cr.status = 'completed' THEN cr.id END) as completed_courses,
           COUNT(DISTINCT CASE WHEN cr.status = 'confirmed' THEN cr.id END) as scheduled_courses,
-          COUNT(DISTINCT CASE WHEN cr.status = 'cancelled' THEN cr.id END) as cancelled_courses
+          COUNT(DISTINCT CASE WHEN cr.status = 'cancelled' THEN cr.id END) as cancelled_courses,
+          COALESCE(SUM(cs.student_count), 0) as total_students,
+          COALESCE(SUM(cs.attended_count), 0) as students_attended
         FROM course_requests cr
-        JOIN classes c ON cr.id = c.course_request_id
-        WHERE c.instructor_id = $1
+        LEFT JOIN (
+          SELECT 
+            course_request_id,
+            COUNT(*) as student_count,
+            COUNT(CASE WHEN attended = true THEN 1 END) as attended_count
+          FROM course_students
+          GROUP BY course_request_id
+        ) cs ON cr.id = cs.course_request_id
+        WHERE cr.instructor_id = $1
         AND (
-          DATE_TRUNC('month', COALESCE(cr.scheduled_date, cr.confirmed_date)) = DATE_TRUNC('month', $2::date)
-          OR (cr.scheduled_date IS NULL AND cr.confirmed_date IS NULL)
+          (cr.scheduled_date >= $2 AND cr.scheduled_date <= $3)
+          OR (cr.confirmed_date >= $2 AND cr.confirmed_date <= $3)
         )
-      `, [instructorId, month]);
+      `, [instructorId, startDate, endDate]);
 
       console.log('[Instructor Stats] Query result:', result.rows[0]);
       return res.json(ApiResponseBuilder.success(result.rows[0]));
@@ -1664,30 +1600,104 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     const { month } = req.query;
-    const instructorId = req.user?.userId;
+    const user = req.user;
 
-    console.log('[Dashboard Summary] Request params:', { month, instructorId });
+    console.log('[Dashboard Summary] Request params:', { month, userId: user?.userId, role: user?.role });
 
-    if (!instructorId) {
-      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor ID is required');
+    if (!month) {
+      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Month parameter is required (format: YYYY-MM)');
     }
 
     try {
-      console.log('[Dashboard Summary] Executing query with params:', [instructorId, month]);
-      const result = await pool.query(`
-        SELECT 
-          COUNT(DISTINCT cr.id) as total_courses,
-          COUNT(DISTINCT CASE WHEN cr.status = 'completed' THEN cr.id END) as completed_courses,
-          COUNT(DISTINCT CASE WHEN cr.status = 'confirmed' THEN cr.id END) as scheduled_courses,
-          COUNT(DISTINCT CASE WHEN cr.status = 'cancelled' THEN cr.id END) as cancelled_courses
-        FROM course_requests cr
-        JOIN classes c ON cr.id = c.course_request_id
-        WHERE c.instructor_id = $1
-        AND (
-          DATE_TRUNC('month', COALESCE(cr.scheduled_date, cr.confirmed_date)) = DATE_TRUNC('month', $2::date)
-          OR (cr.scheduled_date IS NULL AND cr.confirmed_date IS NULL)
-        )
-      `, [instructorId, month]);
+      // Parse the month to get start and end dates
+      const startDate = `${month}-01`;
+      const endDate = new Date(
+        new Date(startDate).getFullYear(),
+        new Date(startDate).getMonth() + 1,
+        0
+      ).toISOString().split('T')[0];
+
+      let result;
+      
+      if (user?.role === 'instructor') {
+        // Instructor-specific stats
+        if (!user.userId) {
+          throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor ID is required');
+        }
+
+        console.log('[Dashboard Summary] Executing instructor query with params:', [user.userId, startDate, endDate]);
+        result = await pool.query(`
+          SELECT 
+            COUNT(DISTINCT cr.id) as total_courses,
+            COUNT(DISTINCT CASE WHEN cr.status = 'completed' THEN cr.id END) as completed_courses,
+            COUNT(DISTINCT CASE WHEN cr.status = 'confirmed' THEN cr.id END) as scheduled_courses,
+            COUNT(DISTINCT CASE WHEN cr.status = 'cancelled' THEN cr.id END) as cancelled_courses,
+            COALESCE(SUM(cs.student_count), 0) as total_students,
+            COALESCE(SUM(cs.attended_count), 0) as students_attended,
+            CASE 
+              WHEN COUNT(DISTINCT cr.id) > 0 THEN 
+                ROUND((COUNT(DISTINCT CASE WHEN cr.status = 'completed' THEN cr.id END) * 100.0 / COUNT(DISTINCT cr.id)), 1)
+              ELSE 0 
+            END as completion_rate,
+            CASE 
+              WHEN COALESCE(SUM(cs.student_count), 0) > 0 THEN 
+                ROUND((COALESCE(SUM(cs.attended_count), 0) * 100.0 / COALESCE(SUM(cs.student_count), 0)), 1)
+              ELSE 0 
+            END as attendance_rate
+          FROM course_requests cr
+          LEFT JOIN (
+            SELECT 
+              course_request_id,
+              COUNT(*) as student_count,
+              COUNT(CASE WHEN attended = true THEN 1 END) as attended_count
+            FROM course_students
+            GROUP BY course_request_id
+          ) cs ON cr.id = cs.course_request_id
+          WHERE cr.instructor_id = $1
+          AND (
+            (cr.scheduled_date >= $2 AND cr.scheduled_date <= $3)
+            OR (cr.confirmed_date >= $2 AND cr.confirmed_date <= $3)
+          )
+        `, [user.userId, startDate, endDate]);
+      } else if (user?.role === 'admin') {
+        // Admin overview stats
+        console.log('[Dashboard Summary] Executing admin query with params:', [startDate, endDate]);
+        result = await pool.query(`
+          SELECT 
+            COUNT(DISTINCT u.id) as total_instructors,
+            COUNT(cr.id) as total_courses_this_month,
+            COUNT(CASE WHEN cr.status = 'completed' THEN 1 END) as total_completed_this_month,
+            CASE 
+              WHEN COUNT(DISTINCT u.id) > 0 THEN 
+                ROUND(COUNT(cr.id)::DECIMAL / COUNT(DISTINCT u.id), 1)
+              ELSE 0 
+            END as avg_courses_per_instructor,
+            COALESCE(SUM(cs.student_count), 0) as total_students_this_month,
+            COALESCE(SUM(cs.attended_count), 0) as total_attended_this_month,
+            CASE 
+              WHEN COALESCE(SUM(cs.student_count), 0) > 0 THEN 
+                ROUND((COALESCE(SUM(cs.attended_count), 0) * 100.0 / COALESCE(SUM(cs.student_count), 0)), 1)
+              ELSE 0 
+            END as overall_attendance_rate
+          FROM users u
+          LEFT JOIN course_requests cr ON u.id = cr.instructor_id 
+            AND (
+              (cr.scheduled_date >= $1 AND cr.scheduled_date <= $2)
+              OR (cr.confirmed_date >= $1 AND cr.confirmed_date <= $2)
+            )
+          LEFT JOIN (
+            SELECT 
+              course_request_id,
+              COUNT(*) as student_count,
+              COUNT(CASE WHEN attended = true THEN 1 END) as attended_count
+            FROM course_students
+            GROUP BY course_request_id
+          ) cs ON cr.id = cs.course_request_id
+          WHERE u.role = 'instructor'
+        `, [startDate, endDate]);
+      } else {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin or instructor role required.');
+      }
 
       console.log('[Dashboard Summary] Query result:', result.rows[0]);
       return res.json(ApiResponseBuilder.success(result.rows[0]));
@@ -2008,59 +2018,7 @@ router.delete(
   })
 );
 
-// Get dashboard summary for the month
-router.get(
-  '/admin/dashboard-summary',
-  asyncHandler(async (req: Request, res: Response) => {
-    try {
-      const { month } = req.query; // Format: YYYY-MM
 
-      if (!month) {
-        throw new AppError(
-          400,
-          errorCodes.VALIDATION_ERROR,
-          'Month parameter is required (format: YYYY-MM)'
-        );
-      }
-
-      // Parse the month to get start and end dates
-      const startDate = `${month}-01`;
-      const endDate = new Date(
-        new Date(startDate).getFullYear(),
-        new Date(startDate).getMonth() + 1,
-        0
-      )
-        .toISOString()
-        .split('T')[0];
-
-      const summaryResult = await pool.query(
-        `SELECT 
-        COUNT(DISTINCT u.id) as total_instructors,
-        COUNT(cr.id) as total_courses_this_month,
-        COUNT(CASE WHEN cr.status = 'completed' THEN 1 END) as total_completed_this_month,
-        CASE 
-          WHEN COUNT(DISTINCT u.id) > 0 THEN 
-            ROUND(COUNT(cr.id)::DECIMAL / COUNT(DISTINCT u.id), 1)
-          ELSE 0 
-        END as avg_courses_per_instructor
-      FROM users u
-      LEFT JOIN course_requests cr ON u.id = cr.instructor_id 
-        AND cr.confirmed_date >= $1 
-        AND cr.confirmed_date <= $2
-      WHERE u.role = 'instructor'`,
-        [startDate, endDate]
-      );
-
-      res.json({
-        success: true,
-        data: summaryResult.rows[0],
-      });
-    } catch (error) {
-      console.error('Error fetching dashboard summary:', error);
-      throw error;
-    }
-  })
-);
 
 router.get(
   '/admin/logs',
@@ -3040,7 +2998,7 @@ router.post(
 
       // Import and trigger the scheduled job
       const { ScheduledJobsService } = await import(
-        '../../services/scheduledJobs'
+        '../../services/scheduledJobs.js'
       );
       const scheduledJobs = ScheduledJobsService.getInstance();
       await scheduledJobs.triggerOverdueUpdate();
@@ -3075,7 +3033,7 @@ router.post(
 
       // Import and trigger the email reminders
       const { ScheduledJobsService } = await import(
-        '../../services/scheduledJobs'
+        '../../services/scheduledJobs.js'
       );
       const scheduledJobs = ScheduledJobsService.getInstance();
       await scheduledJobs.triggerEmailReminders();
@@ -5577,23 +5535,29 @@ router.get(
 router.get('/courses/cancelled', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT 
-        cr.*,
-        ct.name as course_type_name,
-        o.name as organization_name,
-        i.first_name as instructor_first_name,
-        i.last_name as instructor_last_name
-      FROM course_requests cr
-      LEFT JOIN course_types ct ON cr.course_type_id = ct.id
-      LEFT JOIN organizations o ON cr.organization_id = o.id
-      LEFT JOIN instructors i ON cr.instructor_id = i.id
-      WHERE cr.is_cancelled = true
-      ORDER BY cr.cancelled_at DESC
+      SELECT * FROM course_request_details WHERE is_cancelled = true ORDER BY cancelled_at DESC
     `);
-    res.json(result.rows);
+    res.json({
+      success: true,
+      data: result.rows,
+      meta: {
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+      }
+    });
   } catch (error) {
     console.error('Error fetching cancelled courses:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DB_5001',
+        message: 'Failed to fetch cancelled courses'
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+      }
+    });
   }
 });
 
@@ -5603,25 +5567,74 @@ router.post('/courses/:id/cancel', authenticateToken, async (req, res) => {
   const { reason } = req.body;
 
   try {
+    // Update the course request
     const result = await pool.query(`
       UPDATE course_requests
       SET 
         is_cancelled = true,
         cancelled_at = CURRENT_TIMESTAMP,
         cancellation_reason = $1,
-        status = 'cancelled'
+        status = 'cancelled',
+        updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
-      RETURNING *
+      RETURNING id
     `, [reason, id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Course request not found' });
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'DB_4001',
+          message: 'Course request not found'
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          version: '1.0.0'
+        }
+      });
     }
 
-    res.json(result.rows[0]);
+    // Get the updated course details from the view
+    const courseDetails = await pool.query(`
+      SELECT * FROM course_request_details WHERE id = $1
+    `, [id]);
+
+    if (courseDetails.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'DB_4001',
+          message: 'Course details not found'
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          version: '1.0.0'
+        }
+      });
+    }
+
+    // Return the updated course with all necessary information
+    res.json({
+      success: true,
+      data: courseDetails.rows[0],
+      meta: {
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+      }
+    });
   } catch (error) {
     console.error('Error cancelling course:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DB_4002',
+        message: 'Failed to cancel course'
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+      }
+    });
   }
 });
 
@@ -5635,38 +5648,84 @@ router.put('/courses/:id/schedule', authenticateToken, async (req, res) => {
     const newDate = new Date(scheduled_date);
     const now = new Date();
     if (newDate < now) {
-      return res.status(400).json({ error: 'Cannot schedule a course in the past' });
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VAL_4001',
+          message: 'Cannot schedule a course in the past'
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          version: '1.0.0'
+        }
+      });
     }
 
     // Update the course schedule
     const result = await pool.query(`
-      UPDATE course_requests cr
+      UPDATE course_requests
       SET 
         scheduled_date = $1,
         updated_at = CURRENT_TIMESTAMP
-      FROM course_types ct
-      LEFT JOIN organizations o ON cr.organization_id = o.id
-      LEFT JOIN instructors i ON cr.instructor_id = i.id
-      WHERE cr.id = $2
-      AND cr.course_type_id = ct.id
-      RETURNING 
-        cr.*,
-        ct.name as course_type_name,
-        o.name as organization_name,
-        o.id as organization_id,
-        i.first_name as instructor_first_name,
-        i.last_name as instructor_last_name
+      WHERE id = $2
+      RETURNING *
     `, [scheduled_date, id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Course request not found' });
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'DB_4001',
+          message: 'Course request not found'
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          version: '1.0.0'
+        }
+      });
+    }
+
+    // Get the updated course details from the view
+    const courseDetails = await pool.query(`
+      SELECT * FROM course_request_details WHERE id = $1
+    `, [id]);
+
+    if (courseDetails.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'DB_4001',
+          message: 'Course details not found'
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          version: '1.0.0'
+        }
+      });
     }
 
     // Return the updated course with all necessary information
-    res.json(result.rows[0]);
+    res.json({
+      success: true,
+      data: courseDetails.rows[0],
+      meta: {
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+      }
+    });
   } catch (error) {
     console.error('Error updating course schedule:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DB_4002',
+        message: 'Failed to update course schedule'
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+      }
+    });
   }
 });
 
@@ -5716,5 +5775,125 @@ router.get('/events', (req: Request, res: Response) => {
     clearInterval(keepAlive);
   });
 });
+
+router.get('/accounting/billing-queue', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT * FROM course_request_details 
+      WHERE status = 'completed' AND is_billed = false 
+      ORDER BY completed_at DESC
+    `);
+    res.json({
+      success: true,
+      data: result.rows,
+      meta: {
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching billing queue:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DB_5001',
+        message: 'Failed to fetch billing queue'
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+      }
+    });
+  }
+});
+
+// Get upcoming courses
+router.get(
+  '/courses/upcoming',
+  authenticateToken,
+  asyncHandler(async (_req: Request, res: Response) => {
+    try {
+      const result = await pool.query(`
+        SELECT * 
+        FROM course_request_details 
+        WHERE status = 'confirmed' 
+        AND confirmed_date >= CURRENT_DATE
+        ORDER BY confirmed_date ASC, confirmed_start_time ASC
+      `);
+
+      return res.json(ApiResponseBuilder.success(result.rows));
+    } catch (error: any) {
+      console.error('Error fetching upcoming courses:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch upcoming courses'
+      );
+    }
+  })
+);
+
+// Get past courses
+router.get(
+  '/courses/past',
+  authenticateToken,
+  asyncHandler(async (_req: Request, res: Response) => {
+    try {
+      const result = await pool.query(`
+        SELECT * 
+        FROM course_request_details 
+        WHERE status = 'completed' 
+        AND completed_at < CURRENT_DATE
+        ORDER BY completed_at DESC
+      `);
+
+      return res.json(ApiResponseBuilder.success(result.rows));
+    } catch (error: any) {
+      console.error('Error fetching past courses:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch past courses'
+      );
+    }
+  })
+);
+
+// Get active courses
+router.get(
+  '/courses/active',
+  authenticateToken,
+  asyncHandler(async (_req: Request, res: Response) => {
+    try {
+      const result = await pool.query(`
+        SELECT 
+          crd.*,
+          o.name as organization_name,
+          u.username as instructor_name,
+          ct.name as course_type_name,
+          (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = crd.id) as actual_student_count
+        FROM course_request_details crd
+        LEFT JOIN organizations o ON crd.organization_id = o.id
+        LEFT JOIN users u ON crd.instructor_id = u.id
+        LEFT JOIN class_types ct ON crd.course_type_id = ct.id
+        WHERE crd.status = 'confirmed'
+        AND crd.confirmed_date >= CURRENT_DATE
+        AND crd.is_cancelled = false
+        ORDER BY 
+          crd.confirmed_date ASC,
+          crd.confirmed_start_time ASC
+      `);
+
+      return res.json(ApiResponseBuilder.success(result.rows));
+    } catch (error: any) {
+      console.error('Error fetching active courses:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch active courses'
+      );
+    }
+  })
+);
 
 export default router;

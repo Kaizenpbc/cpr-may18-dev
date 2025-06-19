@@ -16,17 +16,7 @@ import {
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EventIcon from '@mui/icons-material/Event';
 import CancelIcon from '@mui/icons-material/Cancel';
-
-// Helper function to format date string
-const formatDate = dateString => {
-  if (!dateString) return '-';
-  try {
-    // Format date only, not time
-    return new Date(dateString).toLocaleDateString();
-  } catch (e) {
-    return 'Invalid Date';
-  }
-};
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 const PendingCoursesTable = ({
   courses,
@@ -66,8 +56,8 @@ const PendingCoursesTable = ({
               hover
               sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
             >
-              <TableCell>{formatDate(course.systemdate)}</TableCell>
-              <TableCell>{formatDate(course.daterequested)}</TableCell>
+              <TableCell>{formatDisplayDate(course.systemdate)}</TableCell>
+              <TableCell>{formatDisplayDate(course.daterequested)}</TableCell>
               <TableCell>{course.coursenumber || '-'}</TableCell>
               <TableCell>{course.organizationname || '-'}</TableCell>
               <TableCell>{course.location || '-'}</TableCell>

@@ -44,7 +44,7 @@ import api from '../../services/api';
 
 // Lazy load components for better performance (using TypeScript files)
 const InstructorDashboard = lazy(
-  () => import('../portals/instructor/InstructorDashboard')
+  () => import('./instructor/InstructorDashboard')
 );
 const MyClassesView = lazy(
   () => import('../views/instructor/MyClassesView')
@@ -117,7 +117,7 @@ const formatScheduleItem = (item: any): CombinedScheduleItem => {
 const InstructorPortal: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, loading: authLoading, checkAuth } = useAuth();
+  const { user, loading: authLoading, checkAuth, logout } = useAuth();
   const { error: toastError } = useToast();
   const queryClient = useQueryClient();
   const {
@@ -139,6 +139,16 @@ const InstructorPortal: React.FC = () => {
 
   const [errorState, setErrorState] = useState<string | null>(null);
   const [successState, setSuccessState] = useState<string | null>(null);
+
+  // Temporary logout function for testing
+  const handleTestLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   const { data: classes = [], refetch: refetchClasses } = useQuery({
     queryKey: ['instructor-classes'],
@@ -192,36 +202,41 @@ const InstructorPortal: React.FC = () => {
 
   // Combine scheduled classes and availability data
   const combinedItems = React.useMemo<CombinedScheduleItem[]>(() => {
-    const items: CombinedScheduleItem[] = (scheduledClasses || []).map((classItem: any) => ({
-      type: 'class' as const,
-      displayDate: classItem.datescheduled,
-      key: `class-${classItem.course_id}`,
-      organizationname: classItem.organizationname,
-      location: classItem.location,
-      coursetypename: classItem.coursetypename,
-      studentsregistered: classItem.studentsregistered,
-      studentsattendance: classItem.studentsattendance,
-      notes: classItem.notes,
-      status: classItem.completed ? 'Completed' : 'Scheduled',
-      course_id: classItem.course_id,
-      max_students: classItem.max_students || 10,
-      current_students: classItem.current_students || 0,
-      originalData: classItem
-    }));
-    
+    const items: CombinedScheduleItem[] = [];
+
+    // Add class items
+    if (scheduledClasses && Array.isArray(scheduledClasses)) {
+      scheduledClasses.forEach((classItem: any) => {
+        items.push({
+          type: 'class' as const,
+          displayDate: classItem.datescheduled,
+          status: classItem.status || 'scheduled',
+          key: `class-${classItem.course_id}`,
+          organizationname: classItem.organizationname,
+          location: classItem.location,
+          coursetypename: classItem.coursetypename,
+          studentsregistered: Number(classItem.studentsregistered) || 0,
+          studentsattendance: Number(classItem.studentsattendance) || 0,
+          notes: classItem.notes || '',
+          start_time: classItem.start_time,
+          end_time: classItem.end_time,
+          course_id: classItem.course_id,
+          max_students: Number(classItem.max_students) || 10,
+          current_students: Number(classItem.current_students) || 0,
+          originalData: classItem
+        });
+      });
+    }
+
     // Add availability items
     if (availableDates && Array.isArray(availableDates)) {
       availableDates.forEach((availability) => {
         if (availability && availability.date) {
-          // Ensure date is in local timezone
-          const date = new Date(availability.date + 'T00:00:00');
-          const localDate = date.toISOString().split('T')[0];
-          
           items.push({
             type: 'availability' as const,
-            displayDate: localDate,
+            displayDate: availability.date,
             status: availability.status || 'Available',
-            key: `availability-${localDate}`,
+            key: `availability-${availability.date}`,
             originalData: availability
           });
         }
@@ -230,8 +245,8 @@ const InstructorPortal: React.FC = () => {
 
     // Sort by date
     return items.sort((a: CombinedScheduleItem, b: CombinedScheduleItem) => {
-      const dateA = new Date(a.displayDate + 'T00:00:00');
-      const dateB = new Date(b.displayDate + 'T00:00:00');
+      const dateA = new Date(a.displayDate);
+      const dateB = new Date(b.displayDate);
       return dateA.getTime() - dateB.getTime();
     });
   }, [scheduledClasses, availableDates]);
@@ -314,6 +329,18 @@ const InstructorPortal: React.FC = () => {
     <ErrorBoundary onError={handleError}>
       <InstructorLayout currentView={getCurrentView()} onRefresh={loadData}>
         <Container maxWidth='lg'>
+          {/* Temporary logout button for testing */}
+          <Box sx={{ mb: 2, mt: 2, textAlign: 'center' }}>
+            <Button
+              variant="outlined"
+              color="secondary"
+              onClick={handleTestLogout}
+              sx={{ mb: 2 }}
+            >
+              🚪 Test Logout (Go to Login Page)
+            </Button>
+          </Box>
+          
           <Suspense fallback={<LoadingFallback />}>
             <Routes>
               <Route

@@ -1,39 +1,85 @@
-import { isSameDay } from 'date-fns';
+import { isSameDay, format, parseISO } from 'date-fns';
 
 /**
- * Format a date string or Date object into a readable format
- * @param {string|Date} date - The date to format
- * @returns {string} Formatted date string (e.g., "January 1, 2024")
+ * Standard date format constants
  */
-export const formatDate = date => {
+export const DATE_FORMATS = {
+  DISPLAY: 'MMM d, yyyy',    // e.g., "Jan 1, 2024"
+  SHORT: 'MM/dd/yyyy',       // e.g., "01/01/2024"
+  ISO: 'yyyy-MM-dd',         // e.g., "2024-01-01"
+  LONG: 'MMMM d, yyyy',      // e.g., "January 1, 2024"
+} as const;
+
+/**
+ * Format a date string or Date object into a standardized display format
+ * @param {string|Date} date - The date to format
+ * @returns {string} Formatted date string (e.g., "Jan 1, 2024")
+ */
+export const formatDisplayDate = (date: string | Date): string => {
   if (!date) return '';
-
-  const d = new Date(date);
-  if (isNaN(d.getTime())) return '';
-
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  
+  try {
+    const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    if (isNaN(dateObj.getTime())) return '';
+    return format(dateObj, DATE_FORMATS.DISPLAY);
+  } catch (error) {
+    console.error('Error formatting display date:', error);
+    return '';
+  }
 };
 
 /**
  * Format a date string or Date object into a short format
  * @param {string|Date} date - The date to format
- * @returns {string} Formatted date string (e.g., "Jan 1, 2024")
+ * @returns {string} Formatted date string (e.g., "01/01/2024")
  */
-export const formatShortDate = date => {
+export const formatShortDate = (date: string | Date): string => {
   if (!date) return '';
+  
+  try {
+    const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    if (isNaN(dateObj.getTime())) return '';
+    return format(dateObj, DATE_FORMATS.SHORT);
+  } catch (error) {
+    console.error('Error formatting short date:', error);
+    return '';
+  }
+};
 
-  const d = new Date(date);
-  if (isNaN(d.getTime())) return '';
+/**
+ * Format a date string or Date object into ISO format
+ * @param {string|Date} date - The date to format
+ * @returns {string} Formatted date string (e.g., "2024-01-01")
+ */
+export const formatISODate = (date: string | Date): string => {
+  if (!date) return '';
+  
+  try {
+    const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    if (isNaN(dateObj.getTime())) return '';
+    return format(dateObj, DATE_FORMATS.ISO);
+  } catch (error) {
+    console.error('Error formatting ISO date:', error);
+    return '';
+  }
+};
 
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+/**
+ * Format a date string or Date object into a long format
+ * @param {string|Date} date - The date to format
+ * @returns {string} Formatted date string (e.g., "January 1, 2024")
+ */
+export const formatLongDate = (date: string | Date): string => {
+  if (!date) return '';
+  
+  try {
+    const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    if (isNaN(dateObj.getTime())) return '';
+    return format(dateObj, DATE_FORMATS.LONG);
+  } catch (error) {
+    console.error('Error formatting long date:', error);
+    return '';
+  }
 };
 
 /**

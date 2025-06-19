@@ -27,6 +27,7 @@ import { Refresh } from '@mui/icons-material';
 import { useInstructorData, AvailabilitySlot, ScheduledClass } from '../../../hooks/useInstructorData';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 interface ScheduleEntry {
   key: string;
@@ -133,7 +134,7 @@ const MyScheduleView: React.FC = () => {
         return {
           key: `available-${availability.id}`,
           date: availability.date,
-          displayDate: format(new Date(availability.date), 'MMMM d, yyyy'),
+          displayDate: formatDisplayDate(availability.date),
           status: 'AVAILABLE',
           organization: 'Available',
           courseType: 'Available',
@@ -149,14 +150,14 @@ const MyScheduleView: React.FC = () => {
     const classEntries: ScheduleEntry[] = scheduledClasses.map(
       (c: ScheduledClass): ScheduleEntry => ({
         key: `scheduled-${c.course_id}`,
-        date: c.datescheduled,
-        displayDate: format(new Date(c.datescheduled), 'MMMM d, yyyy'),
+        date: c.date,
+        displayDate: formatDisplayDate(c.date),
         status: 'CONFIRMED',
-        organization: c.organizationname,
-        courseType: c.coursetypename,
-        location: c.location,
-        studentCount: c.studentcount,
-        studentsAttendance: c.studentsattendance,
+        organization: c.organizationname || 'Unassigned',
+        courseType: c.course_name || c.coursetypename || 'CPR Class',
+        location: c.location || 'TBD',
+        studentCount: c.studentcount || 0,
+        studentsAttendance: c.studentsattendance || 0,
       })
     );
 
@@ -171,7 +172,13 @@ const MyScheduleView: React.FC = () => {
 
   const getScheduleForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    return schedule.filter((entry: ScheduleEntry) => entry.date === dateStr);
+    return schedule.filter((entry: ScheduleEntry) => {
+      // Handle both ISO date strings and simple date strings
+      const entryDate = entry.date.includes('T') 
+        ? format(parseISO(entry.date), 'yyyy-MM-dd')
+        : entry.date;
+      return entryDate === dateStr;
+    });
   };
 
   const CustomPickersDay = (props: PickersDayProps<Date>) => {
@@ -180,14 +187,27 @@ const MyScheduleView: React.FC = () => {
     console.log('[CustomPickersDay] Rendering day:', dateStr);
     
     const isAvailable = availableDates.some((availability: AvailabilitySlot) => {
+      // Handle both ISO date strings and simple date strings
+      const availabilityDate = availability.date.includes('T') 
+        ? format(parseISO(availability.date), 'yyyy-MM-dd')
+        : availability.date;
       console.log('[CustomPickersDay] Checking availability:', {
         availabilityDate: availability.date,
+        parsedAvailabilityDate: availabilityDate,
         currentDate: dateStr,
-        matches: availability.date === dateStr
+        matches: availabilityDate === dateStr
       });
-      return availability.date === dateStr;
+      return availabilityDate === dateStr;
     });
-    const isScheduled = scheduledClasses.some((c: ScheduledClass) => c.datescheduled === dateStr);
+    
+    const isScheduled = scheduledClasses.some((c: ScheduledClass) => {
+      // Handle both ISO date strings and simple date strings
+      const classDate = c.date.includes('T') 
+        ? format(parseISO(c.date), 'yyyy-MM-dd')
+        : c.date;
+      return classDate === dateStr;
+    });
+    
     const isPastDate = day < new Date(new Date().setHours(0, 0, 0, 0));
     
     console.log('[CustomPickersDay] Status for', dateStr, {
@@ -372,7 +392,7 @@ const MyScheduleView: React.FC = () => {
               }}
             >
               <Typography variant='h6' gutterBottom>
-                {format(selectedDate, 'MMMM d, yyyy')}
+                {formatDisplayDate(selectedDate)}
               </Typography>
               {selectedSchedule.length > 0 ? (
                 <Box sx={{ flex: 1 }}>
@@ -433,18 +453,30 @@ const MyScheduleView: React.FC = () => {
                   {schedule.map((entry, index) => (
                     <TableRow
                       key={`${entry.date}-${entry.status}-${entry.organization || ''}-${entry.courseType || ''}-${entry.notes || ''}-${index}`}
-                      onClick={() => setSelectedDate(parseISO(entry.date))}
+                      onClick={() => {
+                        // Handle both ISO date strings and simple date strings
+                        const entryDate = entry.date.includes('T') 
+                          ? parseISO(entry.date)
+                          : parseISO(entry.date + 'T00:00:00');
+                        setSelectedDate(entryDate);
+                      }}
                       sx={{
                         cursor: 'pointer',
                         '&:hover': { backgroundColor: 'action.hover' },
-                        backgroundColor:
-                          format(selectedDate, 'yyyy-MM-dd') === entry.date
+                        backgroundColor: (() => {
+                          // Handle both ISO date strings and simple date strings
+                          const entryDate = entry.date.includes('T') 
+                            ? format(parseISO(entry.date), 'yyyy-MM-dd')
+                            : entry.date;
+                          const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+                          return entryDate === selectedDateStr
                             ? 'action.selected'
-                            : 'inherit',
+                            : 'inherit';
+                        })(),
                       }}
                     >
                       <TableCell>
-                        {format(parseISO(entry.date), 'MMM dd, yyyy')}
+                        {formatDisplayDate(entry.date)}
                       </TableCell>
                       <TableCell>{entry.organization || '-'}</TableCell>
                       <TableCell>{entry.location || '-'}</TableCell>

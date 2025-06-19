@@ -12,16 +12,7 @@ import {
   Box,
 } from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
-
-// Helper function to format date string
-const formatDate = dateString => {
-  if (!dateString) return '-';
-  try {
-    return new Date(dateString).toLocaleDateString();
-  } catch (e) {
-    return 'Invalid Date';
-  }
-};
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 const InstructorDashboardTable = ({
   data,
@@ -134,7 +125,7 @@ const InstructorDashboardTable = ({
                 }}
               >
                 <TableCell>{item.instructorName || '-'}</TableCell>
-                <TableCell>{formatDate(item.date)}</TableCell>
+                <TableCell>{formatDisplayDate(item.scheduled_datetime)}</TableCell>
                 <TableCell>{courseNumber}</TableCell>
                 <TableCell>{item.organizationName || '-'}</TableCell>
                 <TableCell>{item.location || '-'}</TableCell>

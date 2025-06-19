@@ -1,0 +1,1 @@
+document.getElementById('root').innerText = 'Test JS Loaded'; 

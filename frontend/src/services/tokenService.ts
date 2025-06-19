@@ -15,7 +15,8 @@ class TokenService {
   getAccessToken(): string | null {
     const token = sessionStorage.getItem(ACCESS_TOKEN_KEY);
     console.log('[TRACE] Token service - Getting access token:', !!token);
-    return token;
+    // Return token without 'Bearer ' prefix if it exists
+    return token ? token.replace('Bearer ', '') : null;
   }
 
   /**
@@ -24,7 +25,9 @@ class TokenService {
    */
   setAccessToken(token: string): void {
     console.log('[TRACE] Token service - Setting access token');
-    sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+    // Ensure token is properly formatted
+    const formattedToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, formattedToken);
   }
 
   /**

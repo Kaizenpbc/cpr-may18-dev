@@ -23,17 +23,37 @@ import {
   Block as BlockIcon,
 } from '@mui/icons-material';
 import logger from '../../utils/logger';
+import { formatDisplayDate } from '../../utils/dateUtils';
 
-const getStatusChipColor = status => {
+interface Course {
+  id: string | number;
+  date: string;
+  course_type: string;
+  location: string;
+  students_registered: number;
+  status: string;
+  instructor: string;
+  notes?: string;
+}
+
+interface OrganizationCoursesTableProps {
+  courses: Course[];
+  onViewStudentsClick?: (courseId: string | number) => void;
+  onUploadStudentsClick?: (courseId: string | number) => void;
+  sortOrder?: 'asc' | 'desc';
+  sortBy?: string;
+}
+
+const getStatusChipColor = (status: string): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
   switch (status?.toLowerCase()) {
-    case 'confirmed':
+    case 'scheduled':
+      return 'primary';
+    case 'completed':
       return 'success';
-    case 'pending':
-      return 'warning';
     case 'cancelled':
       return 'error';
-    case 'completed':
-      return 'info';
+    case 'pending':
+      return 'warning';
     default:
       return 'default';
   }
@@ -105,13 +125,12 @@ const getUploadTooltip = course => {
   return 'Upload Student List (CSV)';
 };
 
-const OrganizationCoursesTable = ({
-  courses,
+const OrganizationCoursesTable: React.FC<OrganizationCoursesTableProps> = ({
+  courses = [],
   onViewStudentsClick,
   onUploadStudentsClick,
   sortOrder,
   sortBy,
-  onSortRequest,
 }) => {
   logger.info('OrganizationCoursesTable rendering with courses:', courses);
 
@@ -133,20 +152,12 @@ const OrganizationCoursesTable = ({
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell sx={{ fontWeight: 'bold' }}>Date Requested</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Scheduled Date</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Confirmed Date</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Confirmed Time</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Course Name</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Course Type</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Location</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-              Students Registered
-            </TableCell>
-            <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-              Students Attended
-            </TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Instructor</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Students</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Instructor</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Notes</TableCell>
             <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
               Class Management
@@ -154,27 +165,16 @@ const OrganizationCoursesTable = ({
           </TableRow>
         </TableHead>
         <TableBody>
-          {courses.map(course => {
+          {courses.map((course: Course) => {
             const uploadDisabled = isUploadDisabled(course);
             const uploadTooltip = getUploadTooltip(course);
 
             return (
               <TableRow key={course.id} hover>
-                <TableCell>{formatDate(course.date_requested)}</TableCell>
-                <TableCell>{formatDate(course.scheduled_date)}</TableCell>
-                <TableCell>
-                  {course.confirmed_date
-                    ? formatDate(course.confirmed_date)
-                    : '-'}
-                </TableCell>
-                <TableCell>
-                  {course.confirmed_start_time
-                    ? formatTime(course.confirmed_start_time)
-                    : '-'}
-                </TableCell>
+                <TableCell>{formatDisplayDate(course.date)}</TableCell>
                 <TableCell>{course.course_type || '-'}</TableCell>
                 <TableCell>{course.location || '-'}</TableCell>
-                <TableCell align='center'>
+                <TableCell>
                   <Box
                     sx={{
                       display: 'flex',
@@ -185,35 +185,9 @@ const OrganizationCoursesTable = ({
                   >
                     <RegisteredIcon fontSize='small' color='primary' />
                     <Typography variant='body2' color='primary.main'>
-                      {course.registered_students || 0}
+                      {course.students_registered || 0}
                     </Typography>
                   </Box>
-                </TableCell>
-                <TableCell align='center'>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 0.5,
-                    }}
-                  >
-                    <AttendedIcon fontSize='small' color='success' />
-                    <Typography variant='body2' color='success.main'>
-                      {course.students_attended || 0}
-                    </Typography>
-                  </Box>
-                </TableCell>
-                <TableCell>
-                  {course.instructor_name ? (
-                    <Typography variant='body2' color='primary'>
-                      {course.instructor_name}
-                    </Typography>
-                  ) : (
-                    <Typography variant='body2' color='textSecondary'>
-                      Not assigned
-                    </Typography>
-                  )}
                 </TableCell>
                 <TableCell>
                   <Chip
@@ -222,6 +196,7 @@ const OrganizationCoursesTable = ({
                     size='small'
                   />
                 </TableCell>
+                <TableCell>{course.instructor || '-'}</TableCell>
                 <TableCell>
                   {course.notes ? (
                     <Tooltip title={course.notes}>

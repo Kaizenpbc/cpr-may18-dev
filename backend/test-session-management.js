@@ -76,7 +76,7 @@ async function testLogin() {
   try {
     const loginData = {
       username: 'admin',
-      password: 'admin123'
+      password: 'test123'
     };
     
     console.log(chalk.cyan('   📋 Attempting login with enhanced session management...'));
