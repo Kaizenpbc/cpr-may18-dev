@@ -1,119 +1,209 @@
 import React from 'react';
 import {
   Box,
+  Container,
   Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Chip,
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  AppBar,
+  Toolbar,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
-import api from '../../../services/api';
+import {
+  Dashboard as DashboardIcon,
+  ListAlt as CoursesIcon,
+  Receipt as BillingIcon,
+  Person as ProfileIcon,
+  Analytics as AnalyticsIcon,
+  Logout as LogoutIcon,
+} from '@mui/icons-material';
+import OrganizationLayout from './OrganizationLayout';
+import OrganizationDashboard from './views/OrganizationDashboard';
+import OrganizationCourses from './views/OrganizationCourses';
+import OrganizationBilling from './views/OrganizationBilling';
+import OrganizationProfile from './views/OrganizationProfile';
+import OrganizationAnalytics from './views/OrganizationAnalytics';
 
-const OrganizationPortal: React.FC = () => {
-  const { data: courses, isLoading, error } = useQuery({
-    queryKey: ['organizationCourses'],
-    queryFn: async () => {
-      const response = await api.get('/courses/organization');
-      return response.data;
-    },
-  });
+// TypeScript interfaces
+interface User {
+  id: number;
+  username: string;
+  role: string;
+  organizationId: number;
+  organizationName: string;
+}
 
-  // Function to get status color based on course status
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'past_due':
-        return 'error';
-      case 'cancelled':
-        return 'error';
-      case 'confirmed':
-        return 'success';
-      case 'completed':
-        return 'success';
+interface OrganizationData {
+  id: number;
+  name: string;
+  contact_email: string;
+  contact_phone: string;
+  address: string;
+  total_courses: number;
+  total_students: number;
+  active_instructors: number;
+}
+
+interface Course {
+  id: string | number;
+  date_requested: string;
+  course_type_name: string;
+  location: string;
+  students_registered: number;
+  status: string;
+  instructor: string;
+  notes?: string;
+}
+
+interface Invoice {
+  id: number;
+  invoice_number: string;
+  created_at: string;
+  due_date: string;
+  amount: number;
+  status: string;
+  students_billed: number;
+  paid_date?: string;
+  location: string;
+  course_type_name: string;
+  course_date: string;
+  course_request_id: number;
+  amount_paid: number;
+  balance_due: number;
+}
+
+interface BillingSummary {
+  total_invoices: number;
+  pending_invoices: number;
+  overdue_invoices: number;
+  paid_invoices: number;
+  payment_submitted: number;
+  total_amount: number;
+  pending_amount: number;
+  overdue_amount: number;
+  paid_amount: number;
+  recent_invoices: Invoice[];
+}
+
+interface OrganizationPortalProps {
+  user: User | null;
+  organizationData: OrganizationData | undefined;
+  courses: Course[];
+  invoices: Invoice[];
+  billingSummary: BillingSummary | undefined;
+  loading: boolean;
+  error: string | null;
+  currentView: string;
+  onViewChange: (view: string) => void;
+  onLogout: () => void;
+}
+
+const drawerWidth = 240;
+
+const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
+  user,
+  organizationData,
+  courses,
+  invoices,
+  billingSummary,
+  loading,
+  error,
+  currentView,
+  onViewChange,
+  onLogout,
+}) => {
+  // Navigation items
+  const navigationItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
+    { id: 'courses', label: 'My Courses', icon: <CoursesIcon /> },
+    { id: 'billing', label: 'Bills Payable', icon: <BillingIcon /> },
+    { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
+    { id: 'analytics', label: 'Analytics', icon: <AnalyticsIcon /> },
+  ];
+
+  // Render current view
+  const renderCurrentView = () => {
+    if (loading) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+          <CircularProgress />
+        </Box>
+      );
+    }
+
+    if (error) {
+      return (
+        <Box sx={{ p: 3 }}>
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        </Box>
+      );
+    }
+
+    switch (currentView) {
+      case 'dashboard':
+        return (
+          <OrganizationDashboard
+            organizationData={organizationData}
+            courses={courses}
+            billingSummary={billingSummary}
+          />
+        );
+      case 'courses':
+        return (
+          <OrganizationCourses
+            courses={courses}
+          />
+        );
+      case 'billing':
+        return (
+          <OrganizationBilling
+            invoices={invoices}
+            billingSummary={billingSummary}
+          />
+        );
+      case 'profile':
+        return (
+          <OrganizationProfile
+            organizationData={organizationData}
+          />
+        );
+      case 'analytics':
+        return (
+          <OrganizationAnalytics
+            courses={courses}
+            invoices={invoices}
+            organizationData={organizationData}
+          />
+        );
       default:
-        return 'warning';
+        return (
+          <Box sx={{ p: 3 }}>
+            <Typography variant="h6">View not found</Typography>
+          </Box>
+        );
     }
   };
-
-  // Function to get status label based on course status
-  const getStatusLabel = (course: any) => {
-    if (isCoursePastScheduledDate(course)) {
-      return 'Past Due';
-    }
-    return course.status.charAt(0).toUpperCase() + course.status.slice(1);
-  };
-
-  // Function to check if course is past scheduled date
-  const isCoursePastScheduledDate = (course: any) => {
-    const scheduledDate = new Date(course.scheduled_date);
-    const today = new Date();
-    // Set both dates to midnight for accurate day comparison
-    scheduledDate.setHours(0, 0, 0, 0);
-    today.setHours(0, 0, 0, 0);
-    // Return true if today is after the scheduled date
-    return today > scheduledDate;
-  };
-
-  if (isLoading) {
-    return <Typography>Loading courses...</Typography>;
-  }
-
-  if (error) {
-    return <Typography color="error">Error loading courses</Typography>;
-  }
 
   return (
-    <Box>
-      <Typography variant="h5" gutterBottom>
-        Organization Courses
-      </Typography>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Course Type</TableCell>
-              <TableCell>Scheduled Date</TableCell>
-              <TableCell>Location</TableCell>
-              <TableCell>Students</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Notes</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {courses?.map((course: any) => (
-              <TableRow key={course.id}>
-                <TableCell>{course.course_type_name}</TableCell>
-                <TableCell>{course.scheduled_date}</TableCell>
-                <TableCell>{course.location}</TableCell>
-                <TableCell>{course.registered_students}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={getStatusLabel(course)}
-                    color={getStatusColor(course.status)}
-                    size='small'
-                  />
-                </TableCell>
-                <TableCell>
-                  {isCoursePastScheduledDate(course) ? (
-                    <Typography color="error" variant="body2">
-                      Course is past due and needs to be cancelled
-                    </Typography>
-                  ) : course.status === 'pending' ? (
-                    <Typography color="warning" variant="body2">
-                      Awaiting instructor assignment
-                    </Typography>
-                  ) : null}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Box>
+    <OrganizationLayout
+      user={user}
+      currentView={currentView}
+      onViewChange={onViewChange}
+      onLogout={onLogout}
+      navigationItems={navigationItems}
+      drawerWidth={drawerWidth}
+    >
+      <Box sx={{ flexGrow: 1, p: 3 }}>
+        {renderCurrentView()}
+      </Box>
+    </OrganizationLayout>
   );
 };
 

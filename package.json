@@ -13,6 +13,7 @@
     "monitor": "node monitor-servers.js",
     "monitor:clean": "npm run dev:clean && node monitor-servers.js",
     "stop": "npm run cleanup && npm run kill-ports && npm run check-ports",
+    "test": "echo 'No tests configured yet'",
     "prepare": "husky"
   },
   "workspaces": [
