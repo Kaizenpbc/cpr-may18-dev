@@ -62,25 +62,13 @@ const InstructorDashboardContainer: React.FC = () => {
       setScheduledClasses(classes);
       setCompletedClasses(completed);
 
-      // Convert availability data to Set for efficient lookup
-      const availableDatesSet = new Set(
-        availability
-          .filter((item: AvailabilityData) => item.available)
-          .map((item: AvailabilityData) => item.date)
+      // Convert availability data to Set for easy lookup
+      const availableDatesSet = new Set<string>(
+        Array.isArray(availability) 
+          ? availability.map((item: any) => item.date).filter(Boolean)
+          : []
       );
       setAvailableDates(availableDatesSet);
-
-      // Calculate stats
-      const upcomingClasses = classes.filter(
-        (cls: ClassData) => new Date(cls.date) > new Date()
-      );
-
-      setStats({
-        total_courses: classes.length,
-        scheduled_courses: upcomingClasses.length,
-        completed_courses: completed.length,
-        cancelled_courses: 0 // This would need to come from the API if available
-      });
 
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -90,9 +78,28 @@ const InstructorDashboardContainer: React.FC = () => {
     }
   };
 
-  const todayClasses = scheduledClasses.filter(
-    (cls) => new Date(cls.date).toDateString() === new Date().toDateString()
-  );
+  // Calculate statistics
+  const totalClasses = Array.isArray(scheduledClasses) ? scheduledClasses.length : 0;
+  const completedClassesCount = Array.isArray(completedClasses) ? completedClasses.length : 0;
+  const availableDatesCount = availableDates.size;
+
+  // Filter today's classes
+  const today = new Date().toISOString().split('T')[0];
+  const todaysClasses = Array.isArray(scheduledClasses) 
+    ? scheduledClasses.filter((cls: ClassData) => cls.date === today)
+    : [];
+
+  // Prepare stats object
+  const stats = {
+    total_courses: totalClasses,
+    scheduled_courses: Array.isArray(scheduledClasses) ? scheduledClasses.length : 0,
+    completed_courses: completedClassesCount,
+    cancelled_courses: 0
+  };
+
+  const todayClasses = Array.isArray(scheduledClasses) 
+    ? scheduledClasses.filter((cls) => new Date(cls.date).toDateString() === new Date().toDateString())
+    : [];
 
   if (loading) {
     return (
