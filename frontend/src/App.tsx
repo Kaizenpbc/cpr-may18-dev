@@ -14,6 +14,7 @@ import AccountingPortal from './components/portals/AccountingPortal';
 import SystemAdminPortal from './components/portals/SystemAdminPortal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import RecoverPassword from './pages/RecoverPassword';
+import TestCSV from './pages/TestCSV';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RealtimeProvider } from './contexts/RealtimeContext';
 
@@ -50,6 +51,7 @@ function App() {
               <Route path='/recover-password' element={<RecoverPassword />} />
               <Route path='/forgot-password' element={<ForgotPassword />} />
               <Route path='/reset-password' element={<ResetPassword />} />
+              <Route path='/test-csv' element={<TestCSV />} />
               <Route path='/' element={<Navigate to="/login" replace />} />
 
               {/* Protected routes */}
