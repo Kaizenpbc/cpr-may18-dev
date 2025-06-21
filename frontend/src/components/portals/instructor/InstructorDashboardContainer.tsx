@@ -32,12 +32,6 @@ const InstructorDashboardContainer: React.FC = () => {
   const [scheduledClasses, setScheduledClasses] = useState<ClassData[]>([]);
   const [completedClasses, setCompletedClasses] = useState<ClassData[]>([]);
   const [availableDates, setAvailableDates] = useState<Set<string>>(new Set());
-  const [stats, setStats] = useState<DashboardStats>({
-    total_courses: 0,
-    scheduled_courses: 0,
-    completed_courses: 0,
-    cancelled_courses: 0
-  });
 
   useEffect(() => {
     fetchDashboardData();
@@ -83,20 +77,6 @@ const InstructorDashboardContainer: React.FC = () => {
   const completedClassesCount = Array.isArray(completedClasses) ? completedClasses.length : 0;
   const availableDatesCount = availableDates.size;
 
-  // Filter today's classes
-  const today = new Date().toISOString().split('T')[0];
-  const todaysClasses = Array.isArray(scheduledClasses) 
-    ? scheduledClasses.filter((cls: ClassData) => cls.date === today)
-    : [];
-
-  // Prepare stats object
-  const stats = {
-    total_courses: totalClasses,
-    scheduled_courses: Array.isArray(scheduledClasses) ? scheduledClasses.length : 0,
-    completed_courses: completedClassesCount,
-    cancelled_courses: 0
-  };
-
   const todayClasses = Array.isArray(scheduledClasses) 
     ? scheduledClasses.filter((cls) => new Date(cls.date).toDateString() === new Date().toDateString())
     : [];
@@ -127,7 +107,12 @@ const InstructorDashboardContainer: React.FC = () => {
     <Box>
       <WelcomeHeader />
       
-      <DashboardStats stats={stats} />
+      <DashboardStats stats={{
+        total_courses: totalClasses,
+        scheduled_courses: Array.isArray(scheduledClasses) ? scheduledClasses.length : 0,
+        completed_courses: completedClassesCount,
+        cancelled_courses: 0
+      }} />
 
       <TodayClassesList classes={todayClasses} />
       
