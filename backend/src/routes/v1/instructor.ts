@@ -40,9 +40,9 @@ router.get('/test-classes', async (req, res) => {
 });
 
 // Get instructor's availability
-router.get('/availability', async (req, res) => {
+router.get('/availability', authenticateToken, requireRole(['instructor']), async (req, res) => {
   try {
-    const userId = 2; // Hardcode for testing
+    const userId = req.user.id;
     const result = await pool.query(
       `SELECT id, instructor_id, date, status, created_at, updated_at
        FROM instructor_availability

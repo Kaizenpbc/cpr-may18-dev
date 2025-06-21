@@ -12,14 +12,16 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { NetworkProvider } from './contexts/NetworkContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import ToastContainer from './components/common/ToastContainer';
 import theme from './theme';
 import App from './App';
 import './index.css';
 
-console.log('[TRACE] main.tsx: After imports');
+console.log('[DEEP TRACE] main.tsx: After imports');
 
 // Add global error handler for development
 if (import.meta.env.DEV) {
+  console.log('[DEEP TRACE] Setting up global error handlers');
   window.onerror = (msg, url, line, col, error) => {
     console.error('[Global Error]', { msg, url, line, col, error });
     return false;
@@ -30,6 +32,7 @@ if (import.meta.env.DEV) {
   });
 }
 
+console.log('[DEEP TRACE] Creating QueryClient');
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -44,17 +47,19 @@ const handleRootError = (error: Error, errorInfo: any) => {
 };
 
 try {
-  console.log('[TRACE] main.tsx: Looking for root element');
+  console.log('[DEEP TRACE] main.tsx: Looking for root element');
   const rootElement = document.getElementById('root');
   if (!rootElement) {
-    console.error('[TRACE] main.tsx: Root element not found');
+    console.error('[DEEP TRACE] main.tsx: Root element not found');
     throw new Error('Root element not found');
   }
+  console.log('[DEEP TRACE] Root element found:', rootElement);
 
-  console.log('[TRACE] main.tsx: Creating React root');
+  console.log('[DEEP TRACE] main.tsx: Creating React root');
   const root = ReactDOM.createRoot(rootElement);
+  console.log('[DEEP TRACE] React root created successfully');
 
-  console.log('[TRACE] main.tsx: Starting render');
+  console.log('[DEEP TRACE] main.tsx: Starting render');
   root.render(
     <React.StrictMode>
       <ErrorBoundary context="root_application" onError={handleRootError} showDetails={true}>
@@ -72,6 +77,7 @@ try {
                   <NetworkProvider>
                     <ToastProvider>
                       <App />
+                      <ToastContainer />
                     </ToastProvider>
                   </NetworkProvider>
                 </AuthProvider>
@@ -83,9 +89,9 @@ try {
     </React.StrictMode>
   );
 
-  console.log('[TRACE] main.tsx: Initial render complete');
+  console.log('[DEEP TRACE] main.tsx: Initial render complete');
 } catch (error) {
-  console.error('[TRACE] main.tsx: Fatal Error', error);
+  console.error('[DEEP TRACE] main.tsx: Fatal Error', error);
   document.body.innerHTML = `
     <div style="color: red; padding: 20px;">
       <h1>Error</h1>

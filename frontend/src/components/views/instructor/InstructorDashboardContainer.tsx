@@ -34,6 +34,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { tokenService } from '../../../services/tokenService';
 import { fetchDashboardData } from '../../../services/api';
+import DashboardStats from '../../instructor/DashboardStats';
 
 interface InstructorDashboardProps {
   scheduledClasses?: any[];
@@ -121,6 +122,9 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
           <Typography color="error">{error}</Typography>
         </Box>
       )}
+
+      {/* NEW COMPONENT FOR TESTING */}
+      <DashboardStats stats={dashboardData?.instructorStats || null} />
 
       {/* Quick Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -257,12 +261,18 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
 
       {/* Upcoming Classes */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Upcoming Classes
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">Upcoming Classes</Typography>
+          <Button
+            endIcon={<ArrowForwardIcon />}
+            onClick={() => navigate('/instructor/classes')}
+          >
+            View All
+          </Button>
+        </Box>
         <Paper variant="outlined">
           <List>
-            {upcomingClasses.slice(0, 5).map((cls, index) => (
+            {upcomingClasses.slice(0, 5).map((cls) => (
               <React.Fragment key={cls.course_id}>
                 <ListItem>
                   <ListItemText
@@ -276,25 +286,17 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                     }
                     secondary={
                       <Box sx={{ mt: 1 }}>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                          }}
-                        >
-                          <LocationIcon fontSize="small" color="action" />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CalendarIcon fontSize="small" color="action" />
                           <Typography variant="body2">
-                            {cls.location}
+                            {formatDate(cls.datescheduled)}
                           </Typography>
                         </Box>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                          }}
-                        >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <LocationIcon fontSize="small" color="action" />
+                          <Typography variant="body2">{cls.location}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <GroupIcon fontSize="small" color="action" />
                           <Typography variant="body2">
                             {cls.studentcount} Students
@@ -304,25 +306,26 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                     }
                   />
                   <ListItemSecondaryAction>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Chip label={formatDate(cls.datescheduled)} />
-                      <IconButton onClick={() => navigate('/instructor/schedule')}>
-                        <ArrowForwardIcon />
-                      </IconButton>
-                    </Box>
+                    <Button
+                      variant="outlined"
+                      onClick={() => navigate(`/instructor/classes/${cls.course_id}`)}
+                    >
+                      View Details
+                    </Button>
                   </ListItemSecondaryAction>
                 </ListItem>
-                {index < upcomingClasses.length - 1 && <Divider />}
+                <Divider />
               </React.Fragment>
             ))}
+            {upcomingClasses.length === 0 && (
+              <ListItem>
+                <ListItemText
+                  primary="No upcoming classes"
+                  secondary="Check back later for new class assignments"
+                />
+              </ListItem>
+            )}
           </List>
-          {upcomingClasses.length === 0 && (
-            <Box sx={{ p: 2, textAlign: 'center' }}>
-              <Typography color="text.secondary">
-                No upcoming classes in your schedule.
-              </Typography>
-            </Box>
-          )}
         </Paper>
       </Box>
 
@@ -332,11 +335,13 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
           Quick Actions
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                  <EventAvailableIcon color="primary" />
+                  <Avatar sx={{ bgcolor: 'primary.main' }}>
+                    <EventAvailableIcon />
+                  </Avatar>
                   <Typography variant="subtitle1">Set Availability</Typography>
                   <Button
                     variant="contained"
@@ -349,11 +354,13 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                  <AssignmentIcon color="info" />
+                  <Avatar sx={{ bgcolor: 'info.main' }}>
+                    <AssignmentIcon />
+                  </Avatar>
                   <Typography variant="subtitle1">View Archive</Typography>
                   <Button
                     variant="contained"
@@ -366,18 +373,39 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                  <DownloadIcon color="success" />
+                  <Avatar sx={{ bgcolor: 'success.main' }}>
+                    <DownloadIcon />
+                  </Avatar>
                   <Typography variant="subtitle1">Download Reports</Typography>
                   <Button
                     variant="contained"
                     fullWidth
-                    onClick={() => navigate('/reports')}
+                    onClick={() => navigate('/instructor/reports')}
                   >
-                    View Reports
+                    Generate Reports
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <Avatar sx={{ bgcolor: 'warning.main' }}>
+                    <PeopleIcon />
+                  </Avatar>
+                  <Typography variant="subtitle1">Student Management</Typography>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={() => navigate('/instructor/students')}
+                  >
+                    View Students
                   </Button>
                 </Box>
               </CardContent>
@@ -389,4 +417,4 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
   );
 };
 
-export default InstructorDashboard; 
+export default InstructorDashboard;

@@ -216,9 +216,13 @@ const BillsPayableView = () => {
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: '100%', overflow: 'hidden' }}>
       <Typography
-        variant={{ xs: 'h5', sm: 'h4' }}
+        variant="h4"
         gutterBottom
-        sx={{ mb: { xs: 2, sm: 3 }, fontWeight: 'bold' }}
+        sx={{ 
+          mb: { xs: 2, sm: 3 }, 
+          fontWeight: 'bold',
+          fontSize: { xs: '1.5rem', sm: '2.125rem' }
+        }}
       >
         Bills Payable
       </Typography>
@@ -245,9 +249,10 @@ const BillsPayableView = () => {
               >
                 <Box sx={{ flex: 1 }}>
                   <Typography
-                    variant={{ xs: 'h5', sm: 'h6' }}
+                    variant="h6"
                     component='div'
                     fontWeight='bold'
+                    sx={{ fontSize: { xs: '1.5rem', sm: '1.25rem' } }}
                   >
                     {summary?.pending_invoices || 0}
                   </Typography>
@@ -263,7 +268,7 @@ const BillsPayableView = () => {
                 />
               </Box>
               <Typography
-                variant={{ xs: 'h6', sm: 'h6' }}
+                variant="h6"
                 sx={{ mt: 1 }}
                 fontWeight='medium'
               >
@@ -293,9 +298,10 @@ const BillsPayableView = () => {
               >
                 <Box sx={{ flex: 1 }}>
                   <Typography
-                    variant={{ xs: 'h5', sm: 'h6' }}
+                    variant="h6"
                     component='div'
                     fontWeight='bold'
+                    sx={{ fontSize: { xs: '1.5rem', sm: '1.25rem' } }}
                   >
                     {summary?.overdue_invoices || 0}
                   </Typography>
@@ -311,7 +317,7 @@ const BillsPayableView = () => {
                 />
               </Box>
               <Typography
-                variant={{ xs: 'h6', sm: 'h6' }}
+                variant="h6"
                 sx={{ mt: 1 }}
                 fontWeight='medium'
               >
@@ -341,9 +347,10 @@ const BillsPayableView = () => {
               >
                 <Box sx={{ flex: 1 }}>
                   <Typography
-                    variant={{ xs: 'h5', sm: 'h6' }}
+                    variant="h6"
                     component='div'
                     fontWeight='bold'
+                    sx={{ fontSize: { xs: '1.5rem', sm: '1.25rem' } }}
                   >
                     {summary?.payment_submitted || 0}
                   </Typography>
@@ -382,9 +389,10 @@ const BillsPayableView = () => {
               >
                 <Box sx={{ flex: 1 }}>
                   <Typography
-                    variant={{ xs: 'h5', sm: 'h6' }}
+                    variant="h6"
                     component='div'
                     fontWeight='bold'
+                    sx={{ fontSize: { xs: '1.5rem', sm: '1.25rem' } }}
                   >
                     {summary?.paid_invoices || 0}
                   </Typography>
@@ -398,7 +406,7 @@ const BillsPayableView = () => {
                 <PaidIcon sx={{ fontSize: { xs: 32, sm: 40 }, opacity: 0.8 }} />
               </Box>
               <Typography
-                variant={{ xs: 'h6', sm: 'h6' }}
+                variant="h6"
                 sx={{ mt: 1 }}
                 fontWeight='medium'
               >

@@ -5,7 +5,7 @@ const LOG_CONFIG = {
   suppressAll: false,
   suppressApiLogs: true,  // Suppress API request/response logs
   suppressDebugLogs: true, // Suppress debug logs
-  suppressDeepTrace: true, // Suppress deep trace logs
+  suppressDeepTrace: false, // Enable deep trace logs
   suppressInfoLogs: true,  // Suppress info logs
   allowedDomains: ['nswma.gov.jm'],
 };

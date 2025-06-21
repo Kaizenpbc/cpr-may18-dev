@@ -12,7 +12,8 @@
     "dev": "npm run dev:clean && node dev.js",
     "monitor": "node monitor-servers.js",
     "monitor:clean": "npm run dev:clean && node monitor-servers.js",
-    "stop": "npm run cleanup && npm run kill-ports && npm run check-ports"
+    "stop": "npm run cleanup && npm run kill-ports && npm run check-ports",
+    "prepare": "husky"
   },
   "workspaces": [
     "frontend",
@@ -23,6 +24,8 @@
     "axios": "^1.9.0",
     "chalk": "^4.1.2",
     "concurrently": "^9.1.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2",
     "playwright": "^1.53.0"
   },
   "dependencies": {

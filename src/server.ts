@@ -9,7 +9,6 @@ import authRoutes from './routes/v1/auth';
 import { apiLimiter, authLimiter, registerLimiter } from './middleware/rateLimiter';
 import { authenticateToken } from './middleware/authMiddleware';
 import path from 'path';
-import instructorRoutes from './routes/instructor';
 import holidaysRoutes from './routes/holidays';
 
 // Load environment variables
@@ -44,7 +43,6 @@ app.use('/api/v1/auth/register', registerLimiter);
 // Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1', v1Routes);
-app.use('/api/v1/instructor', instructorRoutes);
 app.use('/api/v1/holidays', holidaysRoutes);
 
 // Protected routes

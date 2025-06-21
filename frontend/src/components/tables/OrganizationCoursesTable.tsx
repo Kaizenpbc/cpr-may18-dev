@@ -27,8 +27,8 @@ import { formatDisplayDate } from '../../utils/dateUtils';
 
 interface Course {
   id: string | number;
-  date: string;
-  course_type: string;
+  date_requested: string;
+  course_type_name: string;
   location: string;
   students_registered: number;
   status: string;
@@ -171,8 +171,8 @@ const OrganizationCoursesTable: React.FC<OrganizationCoursesTableProps> = ({
 
             return (
               <TableRow key={course.id} hover>
-                <TableCell>{formatDisplayDate(course.date)}</TableCell>
-                <TableCell>{course.course_type || '-'}</TableCell>
+                <TableCell>{formatDisplayDate(course.date_requested)}</TableCell>
+                <TableCell>{course.course_type_name || '-'}</TableCell>
                 <TableCell>{course.location || '-'}</TableCell>
                 <TableCell>
                   <Box

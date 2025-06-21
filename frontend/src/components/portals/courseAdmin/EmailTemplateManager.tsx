@@ -50,11 +50,10 @@ import {
 } from '@mui/icons-material';
 import Editor from '@monaco-editor/react';
 import { emailTemplateApi } from '../../../services/api';
-import { useSnackbar } from '../../../contexts/SnackbarContext';
+import { useToast } from '../../../contexts/ToastContext';
 
 interface EmailTemplate {
-  _id?: string;
-  id?: number | string; // Backend uses id
+  id?: number;
   name: string;
   key: string;
   subject: string;
@@ -147,7 +146,7 @@ const EmailTemplateManager: React.FC = () => {
   const [previewVariables, setPreviewVariables] = useState<
     Record<string, string>
   >({});
-  const { showSuccess, showError } = useSnackbar();
+  const { showToast } = useToast();
 
   // Form state for editing
   const [formData, setFormData] = useState<EmailTemplate>({
@@ -175,6 +174,11 @@ const EmailTemplateManager: React.FC = () => {
         '[EmailTemplateManager] Error calling fetchTemplates from useEffect:',
         error
       );
+      showToast({
+        type: 'error',
+        message: 'Failed to load email templates on initial load.',
+        priority: 'normal',
+      });
     });
     console.log('[EmailTemplateManager] About to call fetchMetadata');
     fetchMetadata().catch(error => {
@@ -182,6 +186,11 @@ const EmailTemplateManager: React.FC = () => {
         '[EmailTemplateManager] Error calling fetchMetadata from useEffect:',
         error
       );
+      showToast({
+        type: 'error',
+        message: 'Failed to load template metadata.',
+        priority: 'normal',
+      });
     });
   }, []);
 
@@ -198,6 +207,11 @@ const EmailTemplateManager: React.FC = () => {
         '[EmailTemplateManager] Error refetching templates on filter change:',
         error
       );
+      showToast({
+        type: 'error',
+        message: 'Failed to refetch templates after filter change.',
+        priority: 'normal',
+      });
     });
   }, [categoryFilter, searchTerm]);
 
@@ -219,6 +233,7 @@ const EmailTemplateManager: React.FC = () => {
     currentCategoryFilter?: string,
     currentSearchTerm?: string
   ) => {
+    setLoading(true);
     try {
       const effectiveCategoryFilter =
         currentCategoryFilter !== undefined
@@ -268,22 +283,14 @@ const EmailTemplateManager: React.FC = () => {
           response.data ? Object.keys(response.data) : 'null'
         );
 
-        const templatesData = response.data.data || response.data;
-        console.log('[EmailTemplateManager] Templates data:', templatesData);
-        console.log(
-          '[EmailTemplateManager] Templates count:',
-          templatesData?.length || 0
-        );
+        const rawTemplates = response.data.templates || response.data.data || [];
+        console.log('[EmailTemplateManager] Raw templates from API:', rawTemplates);
 
-        // Map backend format to frontend format
-        const mappedTemplates = templatesData.map((template: any) => ({
-          ...template,
-          htmlContent: template.body, // Backend uses 'body', frontend uses 'htmlContent'
-          _id: template.id?.toString(), // Ensure _id is a string
-          subCategory: template.subCategory || '', // Map subCategory
-          eventTriggers: template.eventTriggers || [], // Provide default empty array
-          availableVariables: template.availableVariables || [], // Provide default empty array
-          description: template.description || '', // Provide default empty string
+        const mappedTemplates = rawTemplates.map((t: any) => ({
+          ...t,
+          htmlContent: t.htmlContent || t.body,
+          eventTriggers: t.eventTriggers || [],
+          availableVariables: t.availableVariables || [],
         }));
 
         console.log(
@@ -301,9 +308,7 @@ const EmailTemplateManager: React.FC = () => {
           '[EmailTemplateManager] Error fetching templates:',
           error
         );
-        showError('Failed to fetch email templates');
-      } finally {
-        setLoading(false);
+        showToast({ type: 'error', message: 'Failed to fetch templates', priority: 'normal' });
       }
     } catch (outerError) {
       console.error(
@@ -316,12 +321,14 @@ const EmailTemplateManager: React.FC = () => {
         stack: (outerError as any)?.stack,
         name: (outerError as any)?.name,
       });
+    } finally {
       setLoading(false);
     }
   };
 
   const fetchMetadata = async () => {
     try {
+      console.log('[EmailTemplateManager] Fetching metadata...');
       const [triggersResponse, variablesResponse] = await Promise.all([
         emailTemplateApi.getEventTriggers(),
         emailTemplateApi.getTemplateVariables(),
@@ -329,7 +336,12 @@ const EmailTemplateManager: React.FC = () => {
       setEventTriggers(triggersResponse.data.data || triggersResponse.data);
       setCommonVariables(variablesResponse.data.data || variablesResponse.data);
     } catch (error) {
-      console.error('Failed to fetch metadata:', error);
+      console.error('[EmailTemplateManager] Error fetching metadata:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to fetch template metadata.',
+        priority: 'normal',
+      });
     }
   };
 
@@ -386,59 +398,75 @@ const EmailTemplateManager: React.FC = () => {
         requestData
       );
 
-      if (selectedTemplate?._id) {
-        await emailTemplateApi.update(
-          parseInt(selectedTemplate._id),
-          requestData
-        );
-        showSuccess('Template updated successfully');
+      if (selectedTemplate?.id) {
+        // Update existing template
+        await emailTemplateApi.update(selectedTemplate.id, formData);
+        showToast({
+          type: 'success',
+          message: 'Template updated successfully!',
+          priority: 'normal',
+        });
       } else {
-        await emailTemplateApi.create(requestData);
-        showSuccess('Template created successfully');
+        // Create new template
+        await emailTemplateApi.create(formData);
+        showToast({
+          type: 'success',
+          message: 'Template created successfully!',
+          priority: 'normal',
+        });
       }
       setEditDialogOpen(false);
-      fetchTemplates(categoryFilter, searchTerm);
-    } catch (error: any) {
-      console.error('[EmailTemplateManager] Error saving template:', error);
-      const errorMessage =
-        error.response?.data?.error?.message ||
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        error.message ||
-        'Failed to save template';
-      showError(errorMessage);
+      fetchTemplates(categoryFilter, searchTerm); // Refetch templates
+    } catch (error) {
+      console.error('Error saving template:', error);
+      showToast({
+        type: 'error',
+        message:
+          (error as any).response?.data?.error?.message || 'Failed to save template',
+        priority: 'normal',
+      });
     }
   };
 
-  const handleDeleteTemplate = async (templateId: string) => {
+  const handleDeleteTemplate = async (templateId: number) => {
     if (window.confirm('Are you sure you want to delete this template?')) {
       try {
-        await emailTemplateApi.delete(parseInt(templateId));
-        showSuccess('Template deleted successfully');
-        fetchTemplates(categoryFilter, searchTerm);
-      } catch (error: any) {
-        const errorMessage =
-          error.response?.data?.error?.message ||
-          error.response?.data?.message ||
-          error.response?.data?.error ||
-          'Failed to delete template';
-        showError(errorMessage);
+        await emailTemplateApi.delete(templateId);
+        fetchTemplates(categoryFilter, searchTerm); // Refetch templates
+        showToast({
+          type: 'success',
+          message: 'Template deleted successfully!',
+          priority: 'normal',
+        });
+      } catch (error) {
+        console.error('Error deleting template:', error);
+        showToast({
+          type: 'error',
+          message:
+            (error as any).response?.data?.error?.message || 'Failed to delete template',
+          priority: 'normal',
+        });
       }
     }
   };
 
-  const handleCloneTemplate = async (templateId: string, newName: string) => {
+  const handleCloneTemplate = async (templateId: number, newName: string) => {
     try {
-      await emailTemplateApi.clone(parseInt(templateId), newName);
-      showSuccess('Template cloned successfully');
-      fetchTemplates(categoryFilter, searchTerm);
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error?.message ||
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        'Failed to clone template';
-      showError(errorMessage);
+      await emailTemplateApi.clone(templateId, newName);
+      fetchTemplates(categoryFilter, searchTerm); // Refetch templates
+      showToast({
+        type: 'success',
+        message: `Template cloned successfully as "${newName}"!`,
+        priority: 'normal',
+      });
+    } catch (error) {
+      console.error('Error cloning template:', error);
+      showToast({
+        type: 'error',
+        message:
+          (error as any).response?.data?.error?.message || 'Failed to clone template',
+        priority: 'normal',
+      });
     }
   };
 
@@ -453,24 +481,23 @@ const EmailTemplateManager: React.FC = () => {
   };
 
   const handleTestEmail = async () => {
-    if (!selectedTemplate || !testEmail) return;
-
+    if (!selectedTemplate) return;
     try {
-      await emailTemplateApi.sendTest(
-        parseInt(selectedTemplate._id!),
-        testEmail,
-        previewVariables
-      );
-      showSuccess('Test email sent successfully');
+      await emailTemplateApi.sendTest(selectedTemplate.id, testEmail, previewVariables);
+      showToast({
+        type: 'success',
+        message: `Test email sent to ${testEmail}`,
+        priority: 'normal',
+      });
       setTestDialogOpen(false);
-      setTestEmail('');
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error?.message ||
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        'Failed to send test email';
-      showError(errorMessage);
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      showToast({
+        type: 'error',
+        message:
+          (error as any).response?.data?.error?.message || 'Failed to send test email',
+        priority: 'normal',
+      });
     }
   };
 
@@ -509,7 +536,7 @@ const EmailTemplateManager: React.FC = () => {
   };
 
   const renderTemplateCard = (template: EmailTemplate) => (
-    <Card key={template._id} sx={{ height: '100%' }}>
+    <Card key={template.id} sx={{ height: '100%' }}>
       <CardContent>
         <Box
           sx={{
@@ -598,7 +625,7 @@ const EmailTemplateManager: React.FC = () => {
         </IconButton>
         <IconButton
           size='small'
-          onClick={() => handleDeleteTemplate(template._id!)}
+          onClick={() => handleDeleteTemplate(template.id!)}
           title={
             template.isSystem
               ? 'Cannot Delete System Template'
@@ -608,99 +635,65 @@ const EmailTemplateManager: React.FC = () => {
         >
           <DeleteIcon />
         </IconButton>
+        <IconButton
+          size='small'
+          onClick={() => handleCloneTemplate(template.id!, `${template.name} (Copy)`)}
+          title='Clone Template'
+        >
+          <CloneIcon />
+        </IconButton>
+        <IconButton
+          size='small'
+          onClick={() => handlePreviewTemplate(template)}
+          title='Preview Template'
+        >
+          <PreviewIcon />
+        </IconButton>
+        <IconButton
+          size='small'
+          onClick={() => {
+            setSelectedTemplate(template);
+            setTestDialogOpen(true);
+          }}
+          title='Send Test Email'
+        >
+          <SendIcon />
+        </IconButton>
       </CardActions>
     </Card>
   );
 
   const filteredTemplates = templates.filter(template => {
-    console.log(
-      `[EmailTemplateManager] Filtering template "${template.name}": category="${template.category}", categoryFilter="${categoryFilter}"`
-    );
-
     if (categoryFilter !== 'all' && template.category !== categoryFilter) {
-      console.log(
-        `[EmailTemplateManager] Template "${template.name}" filtered out by category: ${template.category} !== ${categoryFilter}`
-      );
       return false;
     }
-
     if (
       searchTerm &&
       !template.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      !template.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      !(template.description || '').toLowerCase().includes(searchTerm.toLowerCase())
     ) {
-      console.log(
-        `[EmailTemplateManager] Template "${template.name}" filtered out by search term: "${searchTerm}"`
-      );
       return false;
     }
-
-    console.log(
-      `[EmailTemplateManager] Template "${template.name}" passed all filters`
-    );
     return true;
   });
 
   // Sort the filtered templates
   const sortedTemplates = [...filteredTemplates].sort((a, b) => {
     let comparison = 0;
+    
+    const valA = a[sortBy as keyof EmailTemplate];
+    const valB = b[sortBy as keyof EmailTemplate];
 
-    switch (sortBy) {
-      case 'name':
-        comparison = a.name.localeCompare(b.name);
-        break;
-      case 'category':
-        comparison = a.category.localeCompare(b.category);
-        break;
-      case 'subCategory':
-        const subCatA = a.subCategory || '';
-        const subCatB = b.subCategory || '';
-        comparison = subCatA.localeCompare(subCatB);
-        break;
-      case 'subject':
-        comparison = a.subject.localeCompare(b.subject);
-        break;
-      case 'updated':
-        const dateA = new Date(a.updatedAt || a.createdAt || 0);
-        const dateB = new Date(b.updatedAt || b.createdAt || 0);
-        comparison = dateA.getTime() - dateB.getTime();
-        break;
-      case 'status':
-        comparison = a.isActive === b.isActive ? 0 : a.isActive ? -1 : 1;
-        break;
-      case 'system':
-        comparison = a.isSystem === b.isSystem ? 0 : a.isSystem ? -1 : 1;
-        break;
-      default:
-        comparison = a.name.localeCompare(b.name);
+    if (typeof valA === 'string' && typeof valB === 'string') {
+      comparison = valA.localeCompare(valB);
+    } else if (typeof valA === 'boolean' && typeof valB === 'boolean') {
+      comparison = valA === valB ? 0 : valA ? -1 : 1;
+    } else if (valA instanceof Date && valB instanceof Date) {
+      comparison = valA.getTime() - valB.getTime();
     }
-
+    
     return sortOrder === 'asc' ? comparison : -comparison;
   });
-
-  console.log('[EmailTemplateManager] Total templates:', templates.length);
-  console.log(
-    '[EmailTemplateManager] Filtered templates:',
-    filteredTemplates.length
-  );
-  console.log(
-    '[EmailTemplateManager] Sorted templates:',
-    sortedTemplates.length
-  );
-  console.log('[EmailTemplateManager] Current categoryFilter:', categoryFilter);
-  console.log('[EmailTemplateManager] Current searchTerm:', searchTerm);
-  console.log(
-    '[EmailTemplateManager] Current sortBy:',
-    sortBy,
-    'order:',
-    sortOrder
-  );
-  if (sortedTemplates.length > 0) {
-    console.log(
-      '[EmailTemplateManager] First sorted template:',
-      sortedTemplates[0]
-    );
-  }
 
   return (
     <Paper elevation={3} sx={{ p: 3, mt: 3 }}>
@@ -724,216 +717,144 @@ const EmailTemplateManager: React.FC = () => {
 
       <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
         <TextField
-          placeholder='Search templates...'
+          label='Search templates...'
+          variant='outlined'
+          size='small'
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          size='small'
           sx={{ flexGrow: 1 }}
         />
-        <FormControl size='small' sx={{ minWidth: 150 }}>
+        <FormControl variant='outlined' size='small' sx={{ minWidth: 200 }}>
           <InputLabel>Category</InputLabel>
           <Select
             value={categoryFilter}
-            onChange={e => {
-              const newCategory = e.target.value;
-              console.log(
-                '[EmailTemplateManager] Category dropdown changed from:',
-                categoryFilter,
-                'to:',
-                newCategory
-              );
-              setCategoryFilter(newCategory);
-            }}
+            onChange={e => setCategoryFilter(e.target.value as string)}
             label='Category'
           >
             <MenuItem value='all'>All Categories</MenuItem>
-            <MenuItem value='Instructor'>Instructor</MenuItem>
-            <MenuItem value='Organization'>Organization</MenuItem>
-            <MenuItem value='Course Admin'>Course Admin</MenuItem>
-            <MenuItem value='Accountant'>Accountant</MenuItem>
-            <MenuItem value='Sys Admin'>Sys Admin</MenuItem>
-            <MenuItem value='Other'>Other</MenuItem>
+            {Object.keys(categoryOptions).map(cat => (
+              <MenuItem key={cat} value={cat}>
+                {cat}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
         <ToggleButtonGroup
           value={viewMode}
           exclusive
           onChange={(_, newMode) => newMode && setViewMode(newMode)}
+          aria-label='view mode'
           size='small'
         >
-          <ToggleButton value='grid'>Grid</ToggleButton>
-          <ToggleButton value='table'>Table</ToggleButton>
+          <ToggleButton value='grid' aria-label='grid view'>
+            Grid
+          </ToggleButton>
+          <ToggleButton value='table' aria-label='table view'>
+            Table
+          </ToggleButton>
         </ToggleButtonGroup>
       </Box>
 
-      {/* Filter Status and Results */}
-      <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+      <Box sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 1, mb: 2 }}>
         <Typography variant='body2' color='text.secondary'>
           Showing {sortedTemplates.length} of {templates.length} templates
-          {categoryFilter !== 'all' && (
-            <Chip
-              label={`Category: ${categoryFilter}`}
-              size='small'
-              sx={{ ml: 1 }}
-              onDelete={() => setCategoryFilter('all')}
-            />
-          )}
-          {searchTerm && (
-            <Chip
-              label={`Search: "${searchTerm}"`}
-              size='small'
-              sx={{ ml: 1 }}
-              onDelete={() => setSearchTerm('')}
-            />
-          )}
         </Typography>
       </Box>
 
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
           <CircularProgress />
         </Box>
-      ) : viewMode === 'grid' ? (
-        <Grid container spacing={3}>
-          {sortedTemplates.map(template => (
-            <Grid item xs={12} md={6} lg={4} key={template._id}>
-              {renderTemplateCard(template)}
-            </Grid>
-          ))}
-        </Grid>
       ) : (
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === 'name'}
-                    direction={sortBy === 'name' ? sortOrder : 'asc'}
-                    onClick={() => handleColumnSort('name')}
-                  >
-                    Name
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === 'category'}
-                    direction={sortBy === 'category' ? sortOrder : 'asc'}
-                    onClick={() => handleColumnSort('category')}
-                  >
-                    Category
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === 'subCategory'}
-                    direction={sortBy === 'subCategory' ? sortOrder : 'asc'}
-                    onClick={() => handleColumnSort('subCategory')}
-                  >
-                    Sub-Category
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === 'subject'}
-                    direction={sortBy === 'subject' ? sortOrder : 'asc'}
-                    onClick={() => handleColumnSort('subject')}
-                  >
-                    Subject
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === 'status'}
-                    direction={sortBy === 'status' ? sortOrder : 'asc'}
-                    onClick={() => handleColumnSort('status')}
-                  >
-                    Status
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === 'updated'}
-                    direction={sortBy === 'updated' ? sortOrder : 'asc'}
-                    onClick={() => handleColumnSort('updated')}
-                  >
-                    Last Updated
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
+        <>
+          {viewMode === 'grid' ? (
+            <Grid container spacing={3}>
               {sortedTemplates.map(template => (
-                <TableRow key={template._id}>
-                  <TableCell>
-                    {template.name}
-                    {template.isSystem && (
-                      <Chip label='System' size='small' sx={{ ml: 1 }} />
-                    )}
-                  </TableCell>
-                  <TableCell>{template.category}</TableCell>
-                  <TableCell>{template.subCategory}</TableCell>
-                  <TableCell>{template.subject}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={template.isActive ? 'Active' : 'Inactive'}
-                      size='small'
-                      color={template.isActive ? 'success' : 'default'}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {template.updatedAt ? (
-                      <Typography variant='caption' color='text.secondary'>
-                        {new Date(template.updatedAt).toLocaleDateString()}
-                      </Typography>
-                    ) : (
-                      <Typography variant='caption' color='text.secondary'>
-                        -
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <IconButton
-                        size='small'
-                        onClick={() => handleEditTemplate(template)}
-                        title={
-                          template.isSystem
-                            ? 'Edit System Template'
-                            : 'Edit Template'
-                        }
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size='small'
-                        onClick={() => handleDeleteTemplate(template._id!)}
-                        title={
-                          template.isSystem
-                            ? 'Cannot Delete System Template'
-                            : 'Delete Template'
-                        }
-                        disabled={template.isSystem}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                  </TableCell>
-                </TableRow>
+                <Grid item xs={12} sm={6} md={4} key={template.id}>
+                  {renderTemplateCard(template)}
+                </Grid>
               ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+            </Grid>
+          ) : (
+            <TableContainer>
+              <Table stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sortDirection={sortBy === 'name' ? sortOrder : false}>
+                      <TableSortLabel
+                        active={sortBy === 'name'}
+                        direction={sortBy === 'name' ? sortOrder : 'asc'}
+                        onClick={() => handleColumnSort('name')}
+                      >
+                        Name
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>Category</TableCell>
+                    <TableCell>Subject</TableCell>
+                    <TableCell>Last Updated</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sortedTemplates.map(template => (
+                    <TableRow key={template.id}>
+                      <TableCell>{template.name}</TableCell>
+                      <TableCell>
+                        {template.category}
+                        {template.subCategory && ` (${template.subCategory})`}
+                      </TableCell>
+                      <TableCell>{template.subject}</TableCell>
+                      <TableCell>
+                        {template.updatedAt
+                          ? new Date(template.updatedAt).toLocaleDateString()
+                          : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={template.isActive ? 'Active' : 'Inactive'}
+                          size='small'
+                          color={template.isActive ? 'success' : 'default'}
+                        />
+                         {template.isSystem && <Chip label='System' size='small' sx={{ml: 1}}/>}
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          <IconButton
+                            size='small'
+                            onClick={() => handleEditTemplate(template)}
+                            title='Edit'
+                          >
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton
+                            size='small'
+                            onClick={() => handleDeleteTemplate(template.id!)}
+                            disabled={template.isSystem}
+                            title='Delete'
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                          <IconButton
+                            size='small'
+                            onClick={() => handleCloneTemplate(template.id!, `${template.name} (Copy)`)}
+                            title='Clone'
+                          >
+                            <CloneIcon />
+                          </IconButton>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </>
       )}
 
       {/* Edit/Create Dialog */}
-      <Dialog
-        open={editDialogOpen}
-        onClose={() => setEditDialogOpen(false)}
-        maxWidth='lg'
-        fullWidth
-      >
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth='md' fullWidth>
         <DialogTitle>
           {selectedTemplate ? 'Edit Email Template' : 'Create Email Template'}
         </DialogTitle>
@@ -1155,14 +1076,8 @@ const EmailTemplateManager: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
       {/* Preview Dialog */}
-      <Dialog
-        open={previewDialogOpen}
-        onClose={() => setPreviewDialogOpen(false)}
-        maxWidth='md'
-        fullWidth
-      >
+      <Dialog open={previewDialogOpen} onClose={() => setPreviewDialogOpen(false)} maxWidth='lg' fullWidth>
         <DialogTitle>
           Template Preview
           <Typography variant='caption' display='block' color='text.secondary'>
@@ -1242,14 +1157,8 @@ const EmailTemplateManager: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
       {/* Test Email Dialog */}
-      <Dialog
-        open={testDialogOpen}
-        onClose={() => setTestDialogOpen(false)}
-        maxWidth='sm'
-        fullWidth
-      >
+      <Dialog open={testDialogOpen} onClose={() => setTestDialogOpen(false)}>
         <DialogTitle>Send Test Email</DialogTitle>
         <DialogContent>
           <TextField

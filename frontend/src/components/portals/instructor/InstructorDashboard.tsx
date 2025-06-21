@@ -26,6 +26,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { formatDisplayDate } from '../../../utils/dateUtils';
+import DashboardStats from '../../instructor/DashboardStats';
 
 interface InstructorDashboardProps {
   scheduledClasses?: any[];
@@ -62,54 +63,14 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
         </Typography>
       </Box>
 
-      {/* Quick Stats */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={4}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <ClassIcon color="primary" />
-                <Box>
-                  <Typography variant="h6">{totalClasses}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Classes
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={4}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <ScheduleIcon color="info" />
-                <Box>
-                  <Typography variant="h6">{upcomingClasses.length}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Upcoming Classes
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={4}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <CalendarIcon color="warning" />
-                <Box>
-                  <Typography variant="h6">{availableDates.size}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Available Dates
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      <DashboardStats
+        stats={{
+          total_courses: totalClasses,
+          scheduled_courses: upcomingClasses.length,
+          completed_courses: completedClasses.length,
+          cancelled_courses: 0
+        }}
+      />
 
       {/* Today's Classes */}
       <Box sx={{ mb: 4 }}>
