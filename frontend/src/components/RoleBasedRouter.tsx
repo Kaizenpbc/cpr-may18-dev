@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { CircularProgress, Box, Typography } from '@mui/material';
 import InstructorPortal from '../components/portals/InstructorPortal';
-import OrganizationPortal from '../components/portals/OrganizationPortal';
+import OrganizationPortalContainer from '../components/portals/organization/OrganizationPortalContainer';
 import CourseAdminPortal from '../components/portals/courseAdmin/CourseAdminPortal';
 import SuperAdminPortal from '../components/portals/SuperAdminPortal';
 import AccountingPortal from '../components/portals/AccountingPortal';
@@ -77,7 +77,7 @@ const RoleBasedRouter: React.FC = () => {
     case 'instructor':
       return <InstructorPortal />;
     case 'organization':
-      return <OrganizationPortal />;
+      return <OrganizationPortalContainer />;
     case 'admin':
       return <CourseAdminPortal />;
     case 'accountant':

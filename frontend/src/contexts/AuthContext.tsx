@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { tokenService } from '../services/tokenService';
-import { api } from '../services/api';
+import api from '../services/api';
 
 interface User {
   id: number;

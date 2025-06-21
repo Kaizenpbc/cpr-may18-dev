@@ -21,6 +21,7 @@ import {
   Person as ProfileIcon,
   Analytics as AnalyticsIcon,
   Logout as LogoutIcon,
+  Event as EventIcon,
 } from '@mui/icons-material';
 import OrganizationLayout from './OrganizationLayout';
 import OrganizationDashboard from './views/OrganizationDashboard';
@@ -28,6 +29,7 @@ import OrganizationCourses from './views/OrganizationCourses';
 import OrganizationBilling from './views/OrganizationBilling';
 import OrganizationProfile from './views/OrganizationProfile';
 import OrganizationAnalytics from './views/OrganizationAnalytics';
+import ScheduleCourseForm from '../../forms/ScheduleCourseForm';
 
 // TypeScript interfaces
 interface User {
@@ -121,10 +123,18 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'courses', label: 'My Courses', icon: <CoursesIcon /> },
+    { id: 'schedule', label: 'Schedule a Course', icon: <EventIcon /> },
     { id: 'billing', label: 'Bills Payable', icon: <BillingIcon /> },
     { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
     { id: 'analytics', label: 'Analytics', icon: <AnalyticsIcon /> },
   ];
+
+  // Handle course scheduled
+  const handleCourseScheduled = () => {
+    // Refresh courses data
+    // This will trigger a refetch of the courses query
+    window.location.reload(); // Simple approach - you could also use React Query's invalidateQueries
+  };
 
   // Render current view
   const renderCurrentView = () => {
@@ -160,6 +170,10 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
           <OrganizationCourses
             courses={courses}
           />
+        );
+      case 'schedule':
+        return (
+          <ScheduleCourseForm onCourseScheduled={handleCourseScheduled} />
         );
       case 'billing':
         return (

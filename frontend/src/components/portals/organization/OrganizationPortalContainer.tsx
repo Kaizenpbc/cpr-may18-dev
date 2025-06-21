@@ -109,7 +109,9 @@ const OrganizationPortalContainer: React.FC = () => {
   const { data: organizationData, isLoading: orgLoading } = useQuery({
     queryKey: ['organization-data', user?.organizationId],
     queryFn: async () => {
-      const response = await api.get('/organization/profile');
+      const response = await api.get('/organization/profile', {
+        params: { _t: Date.now() }
+      });
       return response.data;
     },
     enabled: !!user?.organizationId,
@@ -118,8 +120,10 @@ const OrganizationPortalContainer: React.FC = () => {
   const { data: courses, isLoading: coursesLoading } = useQuery({
     queryKey: ['organization-courses', user?.organizationId],
     queryFn: async () => {
-      const response = await api.get('/organization/courses');
-      return Array.isArray(response.data) ? response.data : [];
+      const response = await api.get('/organization/courses', {
+        params: { _t: Date.now() }
+      });
+      return Array.isArray(response.data.data) ? response.data.data : [];
     },
     enabled: !!user?.organizationId,
   });
@@ -127,7 +131,9 @@ const OrganizationPortalContainer: React.FC = () => {
   const { data: billingSummary, isLoading: billingLoading } = useQuery({
     queryKey: ['organization-billing-summary', user?.organizationId],
     queryFn: async () => {
-      const response = await api.get('/api/v1/organization/billing-summary');
+      const response = await api.get('/organization/billing-summary', {
+        params: { _t: Date.now() }
+      });
       return response.data.data;
     },
     enabled: !!user?.organizationId,
@@ -136,7 +142,9 @@ const OrganizationPortalContainer: React.FC = () => {
   const { data: invoices, isLoading: invoicesLoading } = useQuery({
     queryKey: ['organization-invoices', user?.organizationId],
     queryFn: async () => {
-      const response = await api.get('/api/v1/organization/invoices');
+      const response = await api.get('/organization/invoices', {
+        params: { _t: Date.now() }
+      });
       return response.data.data;
     },
     enabled: !!user?.organizationId,

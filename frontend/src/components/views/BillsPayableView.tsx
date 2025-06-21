@@ -64,7 +64,7 @@ const BillsPayableView = () => {
   const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['organization-billing-summary'],
     queryFn: async () => {
-      const response = await api.get('/api/v1/organization/billing-summary');
+      const response = await api.get('/organization/billing-summary');
       return response.data.data;
     },
   });
@@ -90,7 +90,7 @@ const BillsPayableView = () => {
         params.status = statusMap[selectedTab];
       }
 
-      const response = await api.get('/api/v1/organization/invoices', {
+      const response = await api.get('/organization/invoices', {
         params,
       });
       return response.data.data;
@@ -101,7 +101,7 @@ const BillsPayableView = () => {
   const submitPaymentMutation = useMutation({
     mutationFn: async ({ invoiceId, paymentData }) => {
       const response = await api.post(
-        `/api/v1/organization/invoices/${invoiceId}/payment-submission`,
+        `/organization/invoices/${invoiceId}/payment-submission`,
         paymentData
       );
       return response.data;

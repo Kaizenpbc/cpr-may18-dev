@@ -7,7 +7,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import RoleBasedRouter from './components/RoleBasedRouter';
 import InstructorPortal from './components/portals/InstructorPortal';
-import OrganizationPortal from './components/portals/OrganizationPortal';
+import OrganizationPortal from './components/portals/organization/OrganizationPortalContainer';
 import CourseAdminPortal from './components/portals/courseAdmin/CourseAdminPortal';
 import SuperAdminPortal from './components/portals/SuperAdminPortal';
 import AccountingPortal from './components/portals/AccountingPortal';

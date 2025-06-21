@@ -2,11 +2,10 @@
 // React Error Handling Hook
 // ===============================================
 
-import { useCallback } from 'react';
-import { ErrorContext, StandardError, EnhancedError } from '../types/errors';
-import ApiErrorHandler from '../utils/ApiErrorHandler';
-import ErrorLogger from '../services/ErrorLogger';
-import { useSnackbar } from '../contexts/SnackbarContext';
+import React, { useCallback, useMemo } from 'react';
+import { ApiErrorHandler } from '../utils/ApiErrorHandler';
+import { ErrorLogger } from '../utils/ErrorLogger';
+import { StandardError, EnhancedError, ErrorContext } from '../types/errors';
 
 interface UseErrorHandlerOptions {
   enableLogging?: boolean;
@@ -39,16 +38,19 @@ export const useErrorHandler = (options: UseErrorHandlerOptions = {}): ErrorHand
     context: defaultContext = {},
   } = options;
 
-  const { showSnackbar } = useSnackbar();
+  // Mock showSnackbar function - this should be replaced with actual implementation
+  const showSnackbar = useCallback((message: string, severity: 'error' | 'warning' | 'info' = 'error') => {
+    console.log(`[${severity.toUpperCase()}] ${message}`);
+  }, []);
 
   /**
-   * Main error handling function
+   * Handle general errors
    */
   const handleError = useCallback(
     (error: unknown, context?: Partial<ErrorContext>): StandardError => {
       const errorContext: ErrorContext = {
-        service: 'Frontend',
-        method: 'Unknown',
+        service: 'Unknown',
+        method: 'unknown',
         ...defaultContext,
         ...context,
       };
@@ -57,7 +59,7 @@ export const useErrorHandler = (options: UseErrorHandlerOptions = {}): ErrorHand
 
       // Log error if enabled
       if (enableLogging) {
-        ErrorLogger.logError(standardError).catch(loggingError =>
+        ErrorLogger.logError(standardError, errorContext).catch(loggingError =>
           console.warn('[useErrorHandler] Failed to log error:', loggingError)
         );
       }
@@ -73,23 +75,23 @@ export const useErrorHandler = (options: UseErrorHandlerOptions = {}): ErrorHand
   );
 
   /**
-   * Enhanced error handling with categorization
+   * Handle enhanced errors with additional context
    */
   const handleEnhancedError = useCallback(
     (error: unknown, context?: Partial<ErrorContext>): EnhancedError => {
       const errorContext: ErrorContext = {
-        service: 'Frontend',
-        method: 'Unknown',
+        service: 'Unknown',
+        method: 'unknown',
         ...defaultContext,
         ...context,
       };
 
       const enhancedError = ApiErrorHandler.handleEnhancedError(error, errorContext);
 
-      // Log error if enabled
+      // Log enhanced error if enabled
       if (enableLogging) {
-        ErrorLogger.logError(enhancedError).catch(loggingError =>
-          console.warn('[useErrorHandler] Failed to log error:', loggingError)
+        ErrorLogger.logEnhancedError(enhancedError, errorContext).catch(loggingError =>
+          console.warn('[useErrorHandler] Failed to log enhanced error:', loggingError)
         );
       }
 
@@ -233,22 +235,6 @@ export const useErrorHandler = (options: UseErrorHandlerOptions = {}): ErrorHand
     getRetryDelay,
     showErrorNotification,
   };
-};
-
-/**
- * Higher-order component for automatic error handling
- */
-export const withErrorHandler = <P extends object>(
-  Component: React.ComponentType<P>,
-  options?: UseErrorHandlerOptions
-) => {
-  const WrappedComponent = (props: P & { errorHandler?: ErrorHandlerResult }) => {
-    const errorHandler = useErrorHandler(options);
-    return <Component {...props} errorHandler={errorHandler} />;
-  };
-
-  WrappedComponent.displayName = `withErrorHandler(${Component.displayName || Component.name})`;
-  return WrappedComponent;
 };
 
 /**

@@ -4,7 +4,7 @@ import DashboardStats from '../../instructor/DashboardStats';
 import WelcomeHeader from '../../instructor/WelcomeHeader';
 import TodayClassesList from '../../instructor/TodayClassesList';
 import QuickActionsGrid from '../../instructor/QuickActionsGrid';
-import { api } from '../../../services/api';
+import api from '../../../services/api';
 
 interface ClassData {
   id: number;

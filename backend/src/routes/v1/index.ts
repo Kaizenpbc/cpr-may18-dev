@@ -13,6 +13,7 @@ import { cacheService } from '../../services/cacheService.js';
 import healthRouter from './health.js';
 import cacheRouter from './cache.js';
 import instructorRouter from '../../routes/instructor.js';
+import organizationRouter from './organization.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 
@@ -26,6 +27,9 @@ router.use('/cache', cacheRouter);
 
 // Mount instructor routes
 router.use('/instructors', instructorRouter);
+
+// Mount organization routes
+router.use('/organization', organizationRouter);
 
 console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
 
@@ -88,7 +92,6 @@ router.get(
 
 // Protected routes
 router.use('/dashboard', authenticateToken);
-router.use('/organization', authenticateToken);
 router.use('/courses', authenticateToken);
 
 // Example route with error handling
@@ -312,6 +315,7 @@ router.get(
 // Organization course request endpoints
 router.post(
   '/organization/course-request',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const {
@@ -455,6 +459,7 @@ router.get('/organization/courses', authenticateToken, async (req, res) => {
 // Course Request Analytics
 router.get(
   '/organization/analytics/course-requests',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const organizationId = req.user?.organizationId;
