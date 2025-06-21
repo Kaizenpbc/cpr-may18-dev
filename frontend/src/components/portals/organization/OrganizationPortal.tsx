@@ -136,6 +136,20 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
     window.location.reload(); // Simple approach - you could also use React Query's invalidateQueries
   };
 
+  // Handle view students click
+  const handleViewStudentsClick = (courseId: string | number) => {
+    console.log('View students for course:', courseId);
+    // TODO: Implement view students functionality
+    // This could open a dialog or navigate to a student list view
+  };
+
+  // Handle upload students click
+  const handleUploadStudentsClick = (courseId: string | number) => {
+    console.log('Upload students for course:', courseId);
+    // TODO: Implement upload students functionality
+    // This could open a file upload dialog
+  };
+
   // Render current view
   const renderCurrentView = () => {
     if (loading) {
@@ -169,6 +183,8 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
         return (
           <OrganizationCourses
             courses={courses}
+            onViewStudentsClick={handleViewStudentsClick}
+            onUploadStudentsClick={handleUploadStudentsClick}
           />
         );
       case 'schedule':

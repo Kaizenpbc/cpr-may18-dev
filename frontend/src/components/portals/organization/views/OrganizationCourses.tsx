@@ -16,7 +16,14 @@ import {
   Select,
   MenuItem,
   Grid,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
+import {
+  Visibility as ViewIcon,
+  Upload as UploadIcon,
+  Block as BlockIcon,
+} from '@mui/icons-material';
 
 // TypeScript interfaces
 interface Course {
@@ -28,13 +35,20 @@ interface Course {
   status: string;
   instructor: string;
   notes?: string;
+  confirmed_date?: string;
 }
 
 interface OrganizationCoursesProps {
   courses: Course[];
+  onViewStudentsClick?: (courseId: string | number) => void;
+  onUploadStudentsClick?: (courseId: string | number) => void;
 }
 
-const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({ courses }) => {
+const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({ 
+  courses, 
+  onViewStudentsClick, 
+  onUploadStudentsClick 
+}) => {
   // Get status color for courses
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -52,6 +66,52 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({ courses }) =>
   // Get status label
   const getStatusLabel = (status: string) => {
     return status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
+  };
+
+  // Helper function to check if upload should be disabled
+  const isUploadDisabled = (course: Course) => {
+    // Disable if course is completed or cancelled
+    if (['completed', 'cancelled'].includes(course.status?.toLowerCase())) {
+      return true;
+    }
+
+    // Disable if it's the day of the class (confirmed_date)
+    if (course.confirmed_date) {
+      const today = new Date();
+      const classDate = new Date(course.confirmed_date);
+
+      // Set both dates to start of day for accurate comparison
+      today.setHours(0, 0, 0, 0);
+      classDate.setHours(0, 0, 0, 0);
+
+      // Disable uploads on or after the class date
+      return classDate <= today;
+    }
+
+    return false;
+  };
+
+  // Helper function to get upload tooltip message
+  const getUploadTooltip = (course: Course) => {
+    if (['completed', 'cancelled'].includes(course.status?.toLowerCase())) {
+      return `Cannot upload students - Course is ${course.status?.toLowerCase()}`;
+    }
+
+    if (course.confirmed_date) {
+      const today = new Date();
+      const classDate = new Date(course.confirmed_date);
+
+      today.setHours(0, 0, 0, 0);
+      classDate.setHours(0, 0, 0, 0);
+
+      if (classDate < today) {
+        return 'Cannot upload students - Class has already occurred';
+      } else if (classDate.getTime() === today.getTime()) {
+        return "Cannot upload students - It's the day of the class";
+      }
+    }
+
+    return 'Upload Student List (CSV)';
   };
 
   return (
@@ -111,37 +171,96 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({ courses }) =>
                 <TableCell>Instructor</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Notes</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {courses.map((course) => (
-                <TableRow key={course.id}>
-                  <TableCell>{course.course_type_name}</TableCell>
-                  <TableCell>
-                    {new Date(course.date_requested).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>{course.location}</TableCell>
-                  <TableCell>{course.students_registered}</TableCell>
-                  <TableCell>{course.instructor || 'TBD'}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={getStatusLabel(course.status)}
-                      color={getStatusColor(course.status)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {course.notes && (
-                      <Typography variant="body2" color="text.secondary">
-                        {course.notes}
-                      </Typography>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {courses.map((course) => {
+                const uploadDisabled = isUploadDisabled(course);
+                const uploadTooltip = getUploadTooltip(course);
+
+                return (
+                  <TableRow key={course.id}>
+                    <TableCell>{course.course_type_name}</TableCell>
+                    <TableCell>
+                      {new Date(course.date_requested).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>{course.location}</TableCell>
+                    <TableCell>{course.students_registered}</TableCell>
+                    <TableCell>{course.instructor || 'TBD'}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={getStatusLabel(course.status)}
+                        color={getStatusColor(course.status)}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {course.notes && (
+                        <Typography variant="body2" color="text.secondary">
+                          {course.notes}
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                        <Tooltip title={uploadTooltip}>
+                          <span>
+                            <IconButton
+                              onClick={() => onUploadStudentsClick && onUploadStudentsClick(course.id)}
+                              size="small"
+                              color={uploadDisabled ? 'default' : 'primary'}
+                              disabled={uploadDisabled}
+                              sx={{
+                                bgcolor: uploadDisabled
+                                  ? 'action.disabledBackground'
+                                  : 'primary.light',
+                                '&:hover': {
+                                  bgcolor: uploadDisabled
+                                    ? 'action.disabledBackground'
+                                    : 'primary.main',
+                                  color: uploadDisabled
+                                    ? 'action.disabled'
+                                    : 'white',
+                                },
+                                '&.Mui-disabled': {
+                                  bgcolor: 'action.disabledBackground',
+                                  color: 'action.disabled',
+                                },
+                              }}
+                            >
+                              {uploadDisabled ? (
+                                <BlockIcon fontSize="small" />
+                              ) : (
+                                <UploadIcon fontSize="small" />
+                              )}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title="View Student List">
+                          <IconButton
+                            onClick={() => onViewStudentsClick && onViewStudentsClick(course.id)}
+                            size="small"
+                            color="secondary"
+                            sx={{
+                              bgcolor: 'secondary.light',
+                              '&:hover': {
+                                bgcolor: 'secondary.main',
+                                color: 'white',
+                              },
+                            }}
+                          >
+                            <ViewIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               {courses.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} align="center">
+                  <TableCell colSpan={8} align="center">
                     No courses found
                   </TableCell>
                 </TableRow>
