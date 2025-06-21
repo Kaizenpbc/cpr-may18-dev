@@ -44,7 +44,7 @@ import api from '../../services/api';
 
 // Lazy load components for better performance (using TypeScript files)
 const InstructorDashboard = lazy(
-  () => import('./instructor/InstructorDashboard')
+  () => import('./instructor/InstructorDashboardContainer')
 );
 const MyClassesView = lazy(
   () => import('../views/instructor/MyClassesView')
@@ -351,11 +351,7 @@ const InstructorPortal: React.FC = () => {
                 path='/dashboard'
                 element={
                   <ErrorBoundary onError={handleError}>
-                    <InstructorDashboard
-                      scheduledClasses={scheduledClasses}
-                      availableDates={availableDates}
-                      completedClasses={completedClasses}
-                    />
+                    <InstructorDashboard />
                   </ErrorBoundary>
                 }
               />

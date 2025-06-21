@@ -6,13 +6,15 @@ console.log('Loading Vite config');
 export default defineConfig({
     plugins: [react()],
     server: {
-        host: true,
+        host: 'localhost',
         port: 5173,
+        strictPort: true,
         proxy: {
             '/api': {
                 target: 'http://localhost:3001',
-                changeOrigin: true
-            }
+                changeOrigin: true,
+                secure: false,
+            },
         }
     },
     resolve: {
