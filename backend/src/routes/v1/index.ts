@@ -1470,6 +1470,111 @@ router.post(
   })
 );
 
+// Upload students for a course (alternative endpoint for CSV upload)
+router.post(
+  '/organization/upload-students',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { courseRequestId, students } = req.body;
+      const organizationId = req.user?.organizationId;
+
+      if (!organizationId) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'User must be associated with an organization'
+        );
+      }
+
+      if (!courseRequestId) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Course request ID is required'
+        );
+      }
+
+      if (!students || !Array.isArray(students) || students.length === 0) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Students array is required and must not be empty'
+        );
+      }
+
+      // Verify the course belongs to this organization
+      const courseCheck = await pool.query(
+        'SELECT id FROM course_requests WHERE id = $1 AND organization_id = $2',
+        [courseRequestId, organizationId]
+      );
+
+      if (courseCheck.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Course not found or not authorized'
+        );
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query('BEGIN');
+
+        // First, delete existing students for this course (replace operation)
+        await client.query(
+          'DELETE FROM course_students WHERE course_request_id = $1',
+          [courseRequestId]
+        );
+
+        // Insert new students
+        let insertedCount = 0;
+        for (const student of students) {
+          const { firstName, lastName, email } = student;
+
+          if (!firstName || !lastName) {
+            continue; // Skip invalid entries
+          }
+
+          await client.query(
+            `INSERT INTO course_students (course_request_id, first_name, last_name, email)
+           VALUES ($1, $2, $3, $4)`,
+            [courseRequestId, firstName.trim(), lastName.trim(), email?.trim() || null]
+          );
+          insertedCount++;
+        }
+
+        // Update the registered_students count in course_requests table
+        await client.query(
+          'UPDATE course_requests SET registered_students = $1 WHERE id = $2',
+          [insertedCount, courseRequestId]
+        );
+
+        await client.query('COMMIT');
+
+        return res.json({
+          success: true,
+          message: `Successfully uploaded ${insertedCount} students to the course.`,
+          data: { studentsUploaded: insertedCount },
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    } catch (error: any) {
+      console.error('Error uploading course students:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to upload course students'
+      );
+    }
+  })
+);
+
 // Admin endpoints to view specific instructor data
 router.get(
   '/instructors/:id/schedule',

@@ -2,7 +2,22 @@
 
 CREATE OR REPLACE VIEW course_request_details AS
 SELECT
-  cr.*,
+  cr.id,
+  cr.organization_id,
+  cr.course_type_id,
+  cr.date_requested,
+  cr.scheduled_date,
+  cr.location,
+  cr.registered_students as students_registered,
+  cr.notes,
+  cr.status,
+  cr.instructor_id,
+  cr.confirmed_date,
+  cr.confirmed_start_time,
+  cr.confirmed_end_time,
+  cr.completed_at,
+  cr.created_at,
+  cr.updated_at,
   o.name AS organization_name,
   ct.name AS course_type_name,
   u.username AS instructor_username,

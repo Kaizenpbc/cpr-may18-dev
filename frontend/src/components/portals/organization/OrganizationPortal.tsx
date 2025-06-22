@@ -24,6 +24,7 @@ import {
   Event as EventIcon,
   School as CoursesIconAlt,
 } from '@mui/icons-material';
+import { useQueryClient } from '@tanstack/react-query';
 import OrganizationLayout from './OrganizationLayout';
 import OrganizationDashboard from './views/OrganizationDashboard';
 import OrganizationCourses from './views/OrganizationCourses';
@@ -121,6 +122,8 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
   onViewChange,
   onLogout,
 }) => {
+  const queryClient = useQueryClient();
+  
   // State for CSV upload dialog
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<string | number | null>(null);
@@ -165,8 +168,10 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
     console.log('[TRACE] OrganizationPortal - Selected course ID:', selectedCourseId);
     console.log('[TRACE] OrganizationPortal - Upload data:', data);
     console.log('[TRACE] OrganizationPortal - CSV upload successful for course:', selectedCourseId, data);
-    // TODO: Send data to backend API
-    // For now, just log the data
+    
+    // Refresh the courses data to show updated student count
+    queryClient.invalidateQueries({ queryKey: ['organization-courses', user?.organizationId] });
+    
     console.log('[TRACE] OrganizationPortal - Closing dialog and resetting state');
     setCsvDialogOpen(false);
     setSelectedCourseId(null);

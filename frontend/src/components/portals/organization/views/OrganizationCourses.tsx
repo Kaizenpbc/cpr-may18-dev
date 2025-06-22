@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -18,12 +18,24 @@ import {
   Grid,
   IconButton,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  CircularProgress,
 } from '@mui/material';
 import {
   Visibility as ViewIcon,
   Upload as UploadIcon,
   Block as BlockIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
+import { api } from '../../../../services/api';
 
 // TypeScript interfaces
 interface Course {
@@ -38,6 +50,15 @@ interface Course {
   confirmed_date?: string;
 }
 
+interface Student {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  attended?: boolean;
+  attendance_marked?: boolean;
+}
+
 interface OrganizationCoursesProps {
   courses: Course[];
   onViewStudentsClick?: (courseId: string | number) => void;
@@ -49,6 +70,13 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
   onViewStudentsClick, 
   onUploadStudentsClick 
 }) => {
+  // State for student list dialog
+  const [studentDialogOpen, setStudentDialogOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [studentError, setStudentError] = useState<string | null>(null);
+
   // Get status color for courses
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -112,6 +140,36 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
     }
 
     return 'Upload Student List (CSV)';
+  };
+
+  // Handle view students click
+  const handleViewStudentsClick = async (course: Course) => {
+    setSelectedCourse(course);
+    setStudentDialogOpen(true);
+    setLoadingStudents(true);
+    setStudentError(null);
+
+    try {
+      const response = await api.get(`/organization/courses/${course.id}/students`);
+      if (response.data.success) {
+        setStudents(response.data.data || []);
+      } else {
+        setStudentError('Failed to load students');
+      }
+    } catch (error: any) {
+      console.error('Error fetching students:', error);
+      setStudentError(error.response?.data?.error?.message || 'Failed to load students');
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  // Handle close student dialog
+  const handleCloseStudentDialog = () => {
+    setStudentDialogOpen(false);
+    setSelectedCourse(null);
+    setStudents([]);
+    setStudentError(null);
   };
 
   return (
@@ -186,7 +244,7 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
                       {new Date(course.date_requested).toLocaleDateString()}
                     </TableCell>
                     <TableCell>{course.location}</TableCell>
-                    <TableCell>{course.students_registered}</TableCell>
+                    <TableCell>{course.students_registered || 0}</TableCell>
                     <TableCell>{course.instructor || 'TBD'}</TableCell>
                     <TableCell>
                       <Chip
@@ -239,7 +297,7 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
                         </Tooltip>
                         <Tooltip title="View Student List">
                           <IconButton
-                            onClick={() => onViewStudentsClick && onViewStudentsClick(course.id)}
+                            onClick={() => handleViewStudentsClick(course)}
                             size="small"
                             color="secondary"
                             sx={{
@@ -269,6 +327,64 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
           </Table>
         </TableContainer>
       </Paper>
+
+      {/* Student List Dialog */}
+      <Dialog
+        open={studentDialogOpen}
+        onClose={handleCloseStudentDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">
+              Students for {selectedCourse?.course_type_name}
+            </Typography>
+            <IconButton onClick={handleCloseStudentDialog}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {loadingStudents ? (
+            <Box display="flex" justifyContent="center" p={3}>
+              <CircularProgress />
+            </Box>
+          ) : studentError ? (
+            <Typography color="error" sx={{ p: 2 }}>
+              {studentError}
+            </Typography>
+          ) : students.length === 0 ? (
+            <Typography color="text.secondary" sx={{ p: 2 }}>
+              No students have been uploaded for this course yet.
+            </Typography>
+          ) : (
+            <List>
+              {students.map((student, index) => (
+                <React.Fragment key={student.id}>
+                  <ListItem>
+                    <ListItemText
+                      primary={`${student.first_name} ${student.last_name}`}
+                      secondary={student.email}
+                    />
+                    {student.attendance_marked && (
+                      <Chip
+                        label={student.attended ? 'Attended' : 'No Show'}
+                        color={student.attended ? 'success' : 'error'}
+                        size="small"
+                      />
+                    )}
+                  </ListItem>
+                  {index < students.length - 1 && <Divider />}
+                </React.Fragment>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseStudentDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
