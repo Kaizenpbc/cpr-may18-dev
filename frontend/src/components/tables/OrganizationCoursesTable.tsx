@@ -30,7 +30,7 @@ interface Course {
   date_requested: string;
   course_type_name: string;
   location: string;
-  students_registered: number;
+  registered_students: number;
   status: string;
   instructor: string;
   notes?: string;
@@ -185,7 +185,7 @@ const OrganizationCoursesTable: React.FC<OrganizationCoursesTableProps> = ({
                   >
                     <RegisteredIcon fontSize='small' color='primary' />
                     <Typography variant='body2' color='primary.main'>
-                      {course.students_registered || 0}
+                      {course.registered_students || 0}
                     </Typography>
                   </Box>
                 </TableCell>

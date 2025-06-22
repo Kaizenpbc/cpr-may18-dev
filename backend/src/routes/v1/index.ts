@@ -393,7 +393,6 @@ router.post(
 // Get organization's courses
 router.get('/organization/courses', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.id;
     const userRole = req.user?.role;
     const organizationId = req.user?.organizationId;
     const filterOrgId = req.query.organization_id ? parseInt(req.query.organization_id as string) : null;
@@ -401,11 +400,9 @@ router.get('/organization/courses', authenticateToken, async (req, res) => {
     // For admin users, allow filtering by organization_id
     if (userRole === 'admin') {
       const query = filterOrgId 
-        ? 'SELECT * FROM course_request_details WHERE organization_id = $1 ORDER BY created_at DESC'
-        : 'SELECT * FROM course_request_details ORDER BY created_at DESC';
-      
+        ? `SELECT cr.*, ct.name as course_type_name FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id WHERE cr.organization_id = $1 ORDER BY cr.created_at DESC`
+        : `SELECT cr.*, ct.name as course_type_name FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id ORDER BY cr.created_at DESC`;
       const result = await pool.query(query, filterOrgId ? [filterOrgId] : []);
-      
       return res.json({
         success: true,
         data: result.rows,
@@ -418,15 +415,14 @@ router.get('/organization/courses', authenticateToken, async (req, res) => {
 
     // For organization users, only show their organization's courses
     if (!organizationId) {
-      throw new AppError(
-        'User is not associated with any organization',
-        403,
-        'AUTH_403'
-      );
+      return res.status(403).json({
+        success: false,
+        error: 'User is not associated with any organization'
+      });
     }
 
     const result = await pool.query(
-      'SELECT * FROM course_request_details WHERE organization_id = $1 ORDER BY created_at DESC',
+      `SELECT cr.*, ct.name as course_type_name FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id WHERE cr.organization_id = $1 ORDER BY cr.created_at DESC`,
       [organizationId]
     );
 
@@ -440,17 +436,10 @@ router.get('/organization/courses', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching organization courses:', error);
-    if (error instanceof AppError) {
-      res.status(error.statusCode).json({
-        success: false,
-        error: error.message
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: 'Internal server error'
-      });
-    }
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
   }
 });
 
@@ -776,22 +765,24 @@ router.get(
   })
 );
 
-// Course admin endpoints for managing course requests
+// Get pending courses
 router.get(
   '/courses/pending',
   authenticateToken,
   asyncHandler(async (_req: Request, res: Response) => {
     try {
       const result = await pool.query(`
-        SELECT *
-        FROM course_request_details
-        WHERE status IN ('pending', 'past_due')
+        SELECT cr.*, ct.name as course_type_name, o.name as organization_name
+        FROM course_requests cr
+        LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+        LEFT JOIN organizations o ON cr.organization_id = o.id
+        WHERE cr.status IN ('pending', 'past_due')
         ORDER BY 
           CASE 
-            WHEN status = 'past_due' THEN 0
+            WHEN cr.status = 'past_due' THEN 0
             ELSE 1
           END,
-          scheduled_date ASC
+          cr.scheduled_date ASC
       `);
       return res.json(ApiResponseBuilder.success(result.rows));
     } catch (error) {
@@ -846,12 +837,13 @@ router.get(
   asyncHandler(async (_req: Request, res: Response) => {
     try {
       const result = await pool.query(
-        `SELECT * FROM course_request_details WHERE status = 'confirmed' ORDER BY confirmed_date ASC, confirmed_start_time ASC`
+        `SELECT cr.*, ct.name as course_type_name, o.name as organization_name
+         FROM course_requests cr
+         LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+         LEFT JOIN organizations o ON cr.organization_id = o.id
+         WHERE cr.status = 'confirmed' 
+         ORDER BY cr.confirmed_date ASC, cr.confirmed_start_time ASC`
       );
-
-      // registered_students logic (if needed) can be handled here if you want to keep it
-      // If you want to keep the logic that updates registered_students with actual count if students have been uploaded, you can add it here
-      // Otherwise, just return result.rows
 
       return res.json(ApiResponseBuilder.success(result.rows));
     } catch (error: any) {
@@ -871,12 +863,13 @@ router.get(
   asyncHandler(async (_req: Request, res: Response) => {
     try {
       const result = await pool.query(
-        `SELECT * FROM course_request_details WHERE status = 'completed' ORDER BY completed_at DESC`
+        `SELECT cr.*, ct.name as course_type_name, o.name as organization_name
+         FROM course_requests cr
+         LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+         LEFT JOIN organizations o ON cr.organization_id = o.id
+         WHERE cr.status = 'completed' 
+         ORDER BY cr.completed_at DESC`
       );
-
-      // registered_students logic (if needed) can be handled here if you want to keep it
-      // If you want to keep the logic that updates registered_students with actual count if students have been uploaded, you can add it here
-      // Otherwise, just return result.rows
 
       return res.json(ApiResponseBuilder.success(result.rows));
     } catch (error: any) {

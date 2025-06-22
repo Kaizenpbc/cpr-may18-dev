@@ -816,7 +816,7 @@ const InstructorManagement: React.FC = () => {
                   <TableCell>{course.organization_name}</TableCell>
                   <TableCell>{course.location}</TableCell>
                   <TableCell>{course.course_type_name || course.course_type || '-'}</TableCell>
-                  <TableCell>{course.students_registered || 0}</TableCell>
+                  <TableCell>{course.registered_students || 0}</TableCell>
                   <TableCell>{course.notes}</TableCell>
                   <TableCell>
                     <Stack direction='row' spacing={1}>
@@ -1133,7 +1133,7 @@ const InstructorManagement: React.FC = () => {
                   <TableCell>{course.location}</TableCell>
                   <TableCell>{course.course_type_name || course.course_type || '-'}</TableCell>
                   <TableCell align='center'>
-                    {course.students_registered || 0}
+                    {course.registered_students || 0}
                   </TableCell>
                   <TableCell align='center'>
                     {course.students_attended || 0}
@@ -1253,7 +1253,7 @@ const InstructorManagement: React.FC = () => {
                   <TableCell>{course.location}</TableCell>
                   <TableCell>{course.course_type_name || course.course_type || '-'}</TableCell>
                   <TableCell align='center'>
-                    {course.students_registered || 0}
+                    {course.registered_students || 0}
                   </TableCell>
                   <TableCell align='center'>
                     {course.students_attended || 0}
@@ -1493,7 +1493,7 @@ const InstructorManagement: React.FC = () => {
             <br />
             Location: {selectedCourse?.location}
             <br />
-            Students: {selectedCourse?.students_registered || 0}
+            Students: {selectedCourse?.registered_students || 0}
             <br />
             Scheduled Date:{' '}
             {selectedCourse?.scheduled_date
@@ -1607,7 +1607,7 @@ const InstructorManagement: React.FC = () => {
             <br />
             Location: {courseToEdit?.location}
             <br />
-            Students: {courseToEdit?.students_registered || 0}
+            Students: {courseToEdit?.registered_students || 0}
           </Typography>
 
           <Stack spacing={2} sx={{ mt: 2 }}>

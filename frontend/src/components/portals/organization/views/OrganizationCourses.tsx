@@ -43,7 +43,7 @@ interface Course {
   date_requested: string;
   course_type_name: string;
   location: string;
-  students_registered: number;
+  registered_students: number;
   status: string;
   instructor: string;
   notes?: string;
@@ -255,7 +255,7 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
                       {new Date(course.date_requested).toLocaleDateString()}
                     </TableCell>
                     <TableCell>{course.location}</TableCell>
-                    <TableCell>{course.students_registered || 0}</TableCell>
+                    <TableCell>{course.registered_students || 0}</TableCell>
                     <TableCell>{course.instructor || 'TBD'}</TableCell>
                     <TableCell>
                       <Chip

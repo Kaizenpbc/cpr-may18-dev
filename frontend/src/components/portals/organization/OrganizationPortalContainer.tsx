@@ -26,7 +26,7 @@ interface Course {
   date_requested: string;
   course_type_name: string;
   location: string;
-  students_registered: number;
+  registered_students: number;
   status: string;
   instructor: string;
   notes?: string;

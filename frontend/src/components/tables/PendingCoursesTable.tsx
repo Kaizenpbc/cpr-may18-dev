@@ -63,7 +63,7 @@ const PendingCoursesTable = ({
               <TableCell>{course.location || '-'}</TableCell>
               <TableCell>{course.course_type_name || '-'}</TableCell>
               <TableCell align='center'>
-                {course.students_registered ?? '-'}
+                {course.registered_students ?? '-'}
               </TableCell>
               <TableCell>{course.notes || '-'}</TableCell>
               <TableCell>{course.status || '-'}</TableCell>

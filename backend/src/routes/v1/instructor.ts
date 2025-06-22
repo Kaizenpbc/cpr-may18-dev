@@ -15,20 +15,19 @@ router.get('/test', async (req, res) => {
   }
 });
 
-// Test endpoint to check classes query without auth
+// Test endpoint for classes
 router.get('/test-classes', async (req, res) => {
   try {
     const dbResult = await pool.query(
       `SELECT 
         c.id,
         c.instructor_id,
-        c.date,
         c.start_time,
         c.end_time,
         c.status,
         ct.name as course_name
        FROM classes c
-       JOIN class_types ct ON c.type_id = ct.id
+       JOIN class_types ct ON c.class_type_id = ct.id
        WHERE c.instructor_id = 2
        LIMIT 3`
     );
@@ -133,13 +132,11 @@ router.get('/classes', authenticateToken, requireRole(['instructor']), async (re
         c.id,
         c.id as course_id,
         c.instructor_id,
-        c.date,
         c.start_time,
         c.end_time,
         c.status,
         c.location,
         c.max_students,
-        c.current_students,
         CASE WHEN c.status = 'completed' THEN true ELSE false END as completed,
         c.created_at,
         c.updated_at,
@@ -147,19 +144,21 @@ router.get('/classes', authenticateToken, requireRole(['instructor']), async (re
         ct.name as coursetypename,
         'Unassigned' as organizationname,
         COALESCE(c.location, '') as notes,
-        COALESCE(c.current_students, 0) as studentcount,
+        0 as studentcount,
         0 as studentsattendance
        FROM classes c
-       JOIN class_types ct ON c.type_id = ct.id
+       JOIN class_types ct ON c.class_type_id = ct.id
        WHERE c.instructor_id = $1
-       ORDER BY c.date DESC, c.start_time DESC`,
+       ORDER BY c.start_time DESC, c.end_time DESC`,
       [userId]
     );
     console.log('[TRACE] Raw DB result:', JSON.stringify(dbResult.rows, null, 2));
     const result = dbResult.rows.map(row => {
-      // Only use the date field, do not process or combine with time
+      // Extract date from start_time for compatibility
+      const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
       return {
-        ...row
+        ...row,
+        date: date
       };
     });
     console.log('[TRACE] API response data:', JSON.stringify(result, null, 2));
@@ -179,13 +178,11 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor']),
         c.id,
         c.id as course_id,
         c.instructor_id,
-        c.date,
         c.start_time,
         c.end_time,
         c.status,
         c.location,
         c.max_students,
-        c.current_students,
         CASE WHEN c.status = 'completed' THEN true ELSE false END as completed,
         c.created_at,
         c.updated_at,
@@ -193,19 +190,21 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor']),
         ct.name as coursetypename,
         'Unassigned' as organizationname,
         COALESCE(c.location, '') as notes,
-        COALESCE(c.current_students, 0) as studentcount,
+        0 as studentcount,
         0 as studentsattendance
        FROM classes c
-       JOIN class_types ct ON c.type_id = ct.id
+       JOIN class_types ct ON c.class_type_id = ct.id
        WHERE c.instructor_id = $1 AND c.status = 'completed'
-       ORDER BY c.date DESC, c.start_time DESC`,
+       ORDER BY c.start_time DESC, c.end_time DESC`,
       [userId]
     );
     console.log('[TRACE] Raw DB result (completed):', JSON.stringify(dbResult2.rows, null, 2));
     const result2 = dbResult2.rows.map(row => {
-      // Only use the date field, do not process or combine with time
+      // Extract date from start_time for compatibility
+      const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
       return {
-        ...row
+        ...row,
+        date: date
       };
     });
     console.log('[TRACE] API response data (completed):', JSON.stringify(result2, null, 2));
@@ -228,13 +227,11 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor']), asy
         c.id,
         c.id as course_id,
         c.instructor_id,
-        c.date,
         c.start_time,
         c.end_time,
         c.status,
         c.location,
         c.max_students,
-        c.current_students,
         CASE WHEN c.status = 'completed' THEN true ELSE false END as completed,
         c.created_at,
         c.updated_at,
@@ -242,19 +239,21 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor']), asy
         ct.name as coursetypename,
         'Unassigned' as organizationname,
         COALESCE(c.location, '') as notes,
-        COALESCE(c.current_students, 0) as studentcount,
+        0 as studentcount,
         0 as studentsattendance
        FROM classes c
-       JOIN class_types ct ON c.type_id = ct.id
-       WHERE c.instructor_id = $1 AND c.date = $2
+       JOIN class_types ct ON c.class_type_id = ct.id
+       WHERE c.instructor_id = $1 AND DATE(c.start_time) = $2
        ORDER BY c.start_time ASC`,
       [userId, todayStr]
     );
     console.log('[TRACE] Raw DB result (today):', JSON.stringify(dbResult3.rows, null, 2));
     const result3 = dbResult3.rows.map(row => {
-      // Only use the date field, do not process or combine with time
+      // Extract date from start_time for compatibility
+      const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
       return {
-        ...row
+        ...row,
+        date: date
       };
     });
     console.log('[TRACE] API response data (today):', JSON.stringify(result3, null, 2));

@@ -38,7 +38,7 @@ interface Course {
   date_requested: string;
   course_type_name: string;
   location: string;
-  students_registered: number;
+  registered_students: number;
   status: string;
   instructor: string;
   notes?: string;
@@ -190,7 +190,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
                       <TableCell>{course.course_type_name}</TableCell>
                       <TableCell>{new Date(course.date_requested).toLocaleDateString()}</TableCell>
                       <TableCell>{course.location}</TableCell>
-                      <TableCell>{course.students_registered}</TableCell>
+                      <TableCell>{course.registered_students}</TableCell>
                       <TableCell>
                         <Chip
                           label={course.status}
