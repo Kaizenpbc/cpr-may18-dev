@@ -32,51 +32,88 @@ const CSVUploadDialog: React.FC<CSVUploadDialogProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('[TRACE] CSVUploadDialog - handleFileSelect called');
     const file = event.target.files?.[0];
+    console.log('[TRACE] CSVUploadDialog - Selected file:', file);
+    
     if (file) {
+      console.log('[TRACE] CSVUploadDialog - File details:', {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        lastModified: file.lastModified
+      });
+      
       if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+        console.log('[TRACE] CSVUploadDialog - File validation passed');
         setSelectedFile(file);
         setError(null);
       } else {
+        console.log('[TRACE] CSVUploadDialog - File validation failed');
         setError('Please select a valid CSV file');
         setSelectedFile(null);
       }
+    } else {
+      console.log('[TRACE] CSVUploadDialog - No file selected');
     }
   };
 
   const handleUpload = async () => {
+    console.log('[TRACE] CSVUploadDialog - handleUpload called');
+    console.log('[TRACE] CSVUploadDialog - Selected file:', selectedFile);
+    
     if (!selectedFile) {
+      console.log('[TRACE] CSVUploadDialog - No file selected, showing error');
       setError('Please select a file first');
       return;
     }
 
+    console.log('[TRACE] CSVUploadDialog - Starting upload process');
     setUploading(true);
     setError(null);
 
     try {
-      // For now, just read the file content
+      console.log('[TRACE] CSVUploadDialog - Reading file content...');
       const text = await selectedFile.text();
-      console.log('CSV content:', text);
+      console.log('[TRACE] CSVUploadDialog - File content read successfully');
+      console.log('[TRACE] CSVUploadDialog - Content length:', text.length);
+      console.log('[TRACE] CSVUploadDialog - Content preview:', text.substring(0, 200));
       
       // TODO: Parse CSV and send to backend
       // This is step 1 - just reading the file
       
-      onUploadSuccess?.({ fileName: selectedFile.name, content: text });
+      console.log('[TRACE] CSVUploadDialog - Calling onUploadSuccess callback');
+      const result = { fileName: selectedFile.name, content: text };
+      console.log('[TRACE] CSVUploadDialog - Result data:', result);
+      
+      onUploadSuccess?.(result);
+      console.log('[TRACE] CSVUploadDialog - Upload success callback completed');
+      
+      console.log('[TRACE] CSVUploadDialog - Closing dialog');
       onClose();
     } catch (err) {
+      console.error('[TRACE] CSVUploadDialog - Upload error:', err);
       setError('Failed to read file');
-      console.error('Upload error:', err);
     } finally {
+      console.log('[TRACE] CSVUploadDialog - Setting uploading to false');
       setUploading(false);
     }
   };
 
   const handleClose = () => {
+    console.log('[TRACE] CSVUploadDialog - handleClose called');
     setSelectedFile(null);
     setError(null);
     setUploading(false);
     onClose();
   };
+
+  console.log('[TRACE] CSVUploadDialog - Rendering with props:', {
+    open,
+    hasSelectedFile: !!selectedFile,
+    uploading,
+    error
+  });
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>

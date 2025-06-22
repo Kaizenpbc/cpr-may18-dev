@@ -151,18 +151,26 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
 
   // Handle upload students click
   const handleUploadStudentsClick = (courseId: string | number) => {
-    console.log('Upload students for course:', courseId);
+    console.log('[TRACE] OrganizationPortal - handleUploadStudentsClick called');
+    console.log('[TRACE] OrganizationPortal - Course ID:', courseId);
+    console.log('[TRACE] OrganizationPortal - Setting selected course ID and opening dialog');
     setSelectedCourseId(courseId);
     setCsvDialogOpen(true);
+    console.log('[TRACE] OrganizationPortal - Dialog should now be open');
   };
 
   // Handle CSV upload success
   const handleCSVUploadSuccess = (data: any) => {
-    console.log('CSV upload successful for course:', selectedCourseId, data);
+    console.log('[TRACE] OrganizationPortal - handleCSVUploadSuccess called');
+    console.log('[TRACE] OrganizationPortal - Selected course ID:', selectedCourseId);
+    console.log('[TRACE] OrganizationPortal - Upload data:', data);
+    console.log('[TRACE] OrganizationPortal - CSV upload successful for course:', selectedCourseId, data);
     // TODO: Send data to backend API
     // For now, just log the data
+    console.log('[TRACE] OrganizationPortal - Closing dialog and resetting state');
     setCsvDialogOpen(false);
     setSelectedCourseId(null);
+    console.log('[TRACE] OrganizationPortal - Upload process completed');
   };
 
   // Render current view
