@@ -268,6 +268,8 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
         onUploadSuccess={handleCSVUploadSuccess}
         title={`Upload Students for Course ${selectedCourseId}`}
         description="Select a CSV file containing student information (first_name, last_name, email)"
+        courseRequestId={selectedCourseId ? Number(selectedCourseId) : undefined}
+        organizationId={user?.organizationId}
       />
     </>
   );

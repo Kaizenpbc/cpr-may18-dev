@@ -95,7 +95,7 @@ const extractData = <T>(response: {
 
 // Helper function for legacy API responses (old format)
 const extractLegacyData = <T>(response: { data: ApiResponse<T> }): T => {
-  if (response.data.status === 'error') {
+  if (!response.data.success) {
     throw new Error(response.data.message || 'API Error');
   }
   return response.data.data;
@@ -117,9 +117,12 @@ export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
       api.get<ApiResponse<any>>(`/admin/dashboard-summary?month=${currentDate}`)
     ]);
 
-    const data = {
-      instructorStats: extractLegacyData(instructorStats),
-      dashboardSummary: extractLegacyData(dashboardSummary)
+    // Transform the data to match DashboardMetrics interface
+    const data: DashboardMetrics = {
+      upcomingClasses: extractLegacyData(dashboardSummary)?.upcomingClasses || 0,
+      totalStudents: extractLegacyData(dashboardSummary)?.totalStudents || 0,
+      completedClasses: extractLegacyData(dashboardSummary)?.completedClasses || 0,
+      recentClasses: extractLegacyData(dashboardSummary)?.recentClasses || []
     };
 
     console.log('[Debug] api.ts - Dashboard data received:', data);
@@ -200,6 +203,25 @@ export const organizationApi = {
     return extractData(response);
   },
   requestCourse: (data: any) => api.post('/organization/course-request', data),
+  
+  // Upload students for a course
+  uploadStudents: async (courseRequestId: number, students: any[]) => {
+    console.log('[TRACE] API - Uploading students for course:', courseRequestId);
+    console.log('[TRACE] API - Students data:', students);
+    
+    try {
+      const response = await api.post('/organization/upload-students', {
+        courseRequestId,
+        students
+      });
+      
+      console.log('[TRACE] API - Upload response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[TRACE] API - Upload error:', error);
+      throw error;
+    }
+  },
 };
 
 // Student endpoints
