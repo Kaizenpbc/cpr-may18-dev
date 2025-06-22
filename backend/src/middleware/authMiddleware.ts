@@ -85,51 +85,67 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       next();
     } catch (err) {
       console.log('[TRACE] Auth middleware - Token verification failed:', err);
-      // Token is invalid or expired, try to refresh
-      const refreshToken = req.cookies.refreshToken;
-      if (!refreshToken) {
-        console.log('[TRACE] Auth middleware - No refresh token available');
+      
+      // Check if it's a token expiration error
+      if (err instanceof jwt.TokenExpiredError) {
+        console.log('[TRACE] Auth middleware - Token expired, attempting refresh');
+        
+        // Safely access cookies with null check
+        const refreshToken = req.cookies?.refreshToken;
+        if (!refreshToken) {
+          console.log('[TRACE] Auth middleware - No refresh token available');
+          return res.status(401).json({ 
+            success: false,
+            error: {
+              code: errorCodes.AUTH_TOKEN_INVALID,
+              message: 'Token expired and no refresh token available'
+            }
+          });
+        }
+
+        try {
+          console.log('[TRACE] Auth middleware - Attempting token refresh');
+          const decoded = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET) as TokenPayload;
+          const { accessToken, refreshToken: newRefreshToken } = generateTokens(decoded);
+
+          // Set new tokens
+          res.setHeader('x-access-token', accessToken);
+          res.cookie('refreshToken', newRefreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+          });
+
+          console.log('[TRACE] Auth middleware - Token refresh successful');
+          req.user = {
+            id: decoded.id,
+            userId: decoded.userId,
+            username: decoded.username,
+            role: decoded.role,
+            organizationId: decoded.organizationId,
+            organizationName: decoded.organizationName,
+            sessionId: decoded.sessionId
+          };
+          next();
+        } catch (refreshErr) {
+          console.log('[TRACE] Auth middleware - Token refresh failed:', refreshErr);
+          return res.status(401).json({ 
+            success: false,
+            error: {
+              code: errorCodes.AUTH_TOKEN_INVALID,
+              message: 'Invalid refresh token'
+            }
+          });
+        }
+      } else {
+        // Token is invalid for other reasons
+        console.log('[TRACE] Auth middleware - Token invalid:', err);
         return res.status(401).json({ 
           success: false,
           error: {
             code: errorCodes.AUTH_TOKEN_INVALID,
-            message: 'Token expired and no refresh token available'
-          }
-        });
-      }
-
-      try {
-        console.log('[TRACE] Auth middleware - Attempting token refresh');
-        const decoded = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET) as TokenPayload;
-        const { accessToken, refreshToken: newRefreshToken } = generateTokens(decoded);
-
-        // Set new tokens
-        res.setHeader('x-access-token', accessToken);
-        res.cookie('refreshToken', newRefreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-        });
-
-        console.log('[TRACE] Auth middleware - Token refresh successful');
-        req.user = {
-          id: decoded.id,
-          userId: decoded.userId,
-          username: decoded.username,
-          role: decoded.role,
-          organizationId: decoded.organizationId,
-          organizationName: decoded.organizationName,
-          sessionId: decoded.sessionId
-        };
-        next();
-      } catch (refreshErr) {
-        console.log('[TRACE] Auth middleware - Token refresh failed:', refreshErr);
-        return res.status(401).json({ 
-          success: false,
-          error: {
-            code: errorCodes.AUTH_TOKEN_INVALID,
-            message: 'Invalid refresh token'
+            message: 'Invalid token'
           }
         });
       }
