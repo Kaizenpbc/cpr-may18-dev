@@ -213,7 +213,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
             <TableHead>
               <TableRow>
                 <TableCell>Invoice #</TableCell>
-                <TableCell>Course Type</TableCell>
+                <TableCell>Course Name</TableCell>
                 <TableCell>Course Date</TableCell>
                 <TableCell>Location</TableCell>
                 <TableCell>Students</TableCell>

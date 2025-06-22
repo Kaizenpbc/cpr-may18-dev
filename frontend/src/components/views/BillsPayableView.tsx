@@ -804,7 +804,7 @@ const BillsPayableView = () => {
                   </Typography>
                   <Box sx={{ mb: 2 }}>
                     <Typography variant='body2' color='text.secondary'>
-                      Course Type
+                      Course Name
                     </Typography>
                     <Typography variant='body1'>
                       {selectedInvoice.course_type_name}

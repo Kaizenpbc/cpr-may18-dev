@@ -177,7 +177,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Course Type</TableCell>
+                    <TableCell>Course Name</TableCell>
                     <TableCell>Date Requested</TableCell>
                     <TableCell>Location</TableCell>
                     <TableCell>Students</TableCell>

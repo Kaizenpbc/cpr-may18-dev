@@ -124,7 +124,7 @@ const PDFDemo = () => {
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant='body2' color='text.secondary'>
-                    Course Type:
+                    Course Name:
                   </Typography>
                   <Typography variant='body1' fontWeight='bold'>
                     Advanced CPR

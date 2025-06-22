@@ -72,7 +72,7 @@ const ReadyForBillingTable = ({
           <TableRow>
             <TableCell>Date Completed</TableCell>
             <TableCell>Organization</TableCell>
-            <TableCell>Course Type</TableCell>
+            <TableCell>Course Name</TableCell>
             <TableCell>Location</TableCell>
             <TableCell>Instructor</TableCell>
             <TableCell align='center'>Students Attended</TableCell>

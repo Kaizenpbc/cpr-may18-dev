@@ -144,22 +144,33 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
 
   // Handle view students click
   const handleViewStudentsClick = async (course: Course) => {
+    console.log('[TRACE] OrganizationCourses - handleViewStudentsClick called');
+    console.log('[TRACE] OrganizationCourses - Course:', course);
+    console.log('[TRACE] OrganizationCourses - Course ID:', course.id);
+    
     setSelectedCourse(course);
     setStudentDialogOpen(true);
     setLoadingStudents(true);
     setStudentError(null);
 
     try {
+      console.log('[TRACE] OrganizationCourses - Making API call to fetch students');
       const response = await api.get(`/organization/courses/${course.id}/students`);
+      console.log('[TRACE] OrganizationCourses - API response:', response);
+      
       if (response.data.success) {
+        console.log('[TRACE] OrganizationCourses - Setting students data:', response.data.data);
         setStudents(response.data.data || []);
       } else {
+        console.log('[TRACE] OrganizationCourses - API returned success: false');
         setStudentError('Failed to load students');
       }
     } catch (error: any) {
-      console.error('Error fetching students:', error);
+      console.error('[TRACE] OrganizationCourses - Error fetching students:', error);
+      console.error('[TRACE] OrganizationCourses - Error response:', error.response);
       setStudentError(error.response?.data?.error?.message || 'Failed to load students');
     } finally {
+      console.log('[TRACE] OrganizationCourses - Setting loading to false');
       setLoadingStudents(false);
     }
   };
@@ -222,7 +233,7 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Course Type</TableCell>
+                <TableCell>Course Name</TableCell>
                 <TableCell>Date Requested</TableCell>
                 <TableCell>Location</TableCell>
                 <TableCell>Students Registered</TableCell>

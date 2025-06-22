@@ -1,6 +1,6 @@
 export interface StudentData {
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   email?: string;
   phone?: string;
   organization_id?: number;
@@ -78,8 +78,8 @@ export const parseCSV = (csvContent: string, courseRequestId?: number, organizat
 
       // Create student object
       const student: StudentData = {
-        first_name: '',
-        last_name: '',
+        firstName: '',
+        lastName: '',
         organization_id: organizationId,
         course_request_id: courseRequestId
       };
@@ -90,10 +90,10 @@ export const parseCSV = (csvContent: string, courseRequestId?: number, organizat
         
         switch (header) {
           case 'first_name':
-            student.first_name = value;
+            student.firstName = value;
             break;
           case 'last_name':
-            student.last_name = value;
+            student.lastName = value;
             break;
           case 'email':
             student.email = value || undefined;
@@ -107,7 +107,7 @@ export const parseCSV = (csvContent: string, courseRequestId?: number, organizat
       });
 
       // Validate required fields
-      if (!student.first_name || !student.last_name) {
+      if (!student.firstName || !student.lastName) {
         errors.push(`Row ${rowNumber}: Missing required fields (first_name and last_name are required)`);
         return;
       }

@@ -137,7 +137,7 @@ function PricingRuleManager() {
               <TableRow>
                 <TableCell sx={{ fontWeight: 'bold' }}>ID</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>Organization</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Course Type</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Course Name</TableCell>
                 <TableCell align='right' sx={{ fontWeight: 'bold' }}>
                   Price
                 </TableCell>

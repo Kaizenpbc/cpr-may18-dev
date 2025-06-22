@@ -197,12 +197,12 @@ function PricingRuleDialog({ open, onClose, onSave, rule }) {
               </Grid2>
               <Grid2 xs={12} sm={6}>
                 <FormControl fullWidth>
-                  <InputLabel>Course Type</InputLabel>
+                  <InputLabel>Course Name</InputLabel>
                   <Select
                     value={formData.courseTypeId || ''}
                     onChange={handleChange}
                     name='courseTypeId'
-                    label='Course Type'
+                    label='Course Name'
                   >
                     {courseTypes.map(type => (
                       <MenuItem

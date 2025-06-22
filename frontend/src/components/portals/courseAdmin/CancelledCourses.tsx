@@ -42,7 +42,7 @@ const CancelledCourses: React.FC = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Course Type</TableCell>
+              <TableCell>Course Name</TableCell>
               <TableCell>Organization</TableCell>
               <TableCell>Scheduled Date</TableCell>
               <TableCell>Cancelled Date</TableCell>

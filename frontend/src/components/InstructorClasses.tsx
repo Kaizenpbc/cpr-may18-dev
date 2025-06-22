@@ -84,7 +84,7 @@ const InstructorClasses: React.FC<InstructorClassesProps> = ({
             <TableRow>
               <TableCell>Date</TableCell>
               <TableCell>Time</TableCell>
-              <TableCell>Course Type</TableCell>
+              <TableCell>Course Name</TableCell>
               <TableCell>Organization</TableCell>
               <TableCell>Status</TableCell>
             </TableRow>

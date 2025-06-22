@@ -206,7 +206,7 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
             <TableCell sx={{ fontWeight: 'bold' }}>Due Date</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Organization</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Course #</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Course Type</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Course Name</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Location</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Course Date</TableCell>
             <TableCell align='center' sx={{ fontWeight: 'bold' }}>

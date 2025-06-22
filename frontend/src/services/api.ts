@@ -70,13 +70,54 @@ api.interceptors.response.use(
     });
     return response;
   },
-  (error) => {
+  async (error) => {
     console.error('❌ [API RESPONSE ERROR]', {
       status: error.response?.status,
       statusText: error.response?.statusText,
       data: error.response?.data,
       message: error.message,
     });
+
+    // Handle 401 errors with automatic token refresh
+    if (error.response?.status === 401) {
+      const originalRequest = error.config;
+      
+      // Prevent infinite loops by checking if this is already a refresh attempt
+      if (originalRequest._retry) {
+        console.log('[AUTH] Token refresh failed, redirecting to login');
+        // Clear any stored tokens and redirect to login
+        localStorage.removeItem('accessToken');
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      originalRequest._retry = true;
+
+      try {
+        console.log('[AUTH] Attempting automatic token refresh');
+        const refreshResponse = await api.post('/auth/refresh');
+        
+        if (refreshResponse.data.success) {
+          console.log('[AUTH] Token refresh successful, retrying original request');
+          // The new access token is in the response body
+          const newAccessToken = refreshResponse.data.data?.accessToken;
+          if (newAccessToken) {
+            localStorage.setItem('accessToken', newAccessToken);
+            // Update the original request with the new token
+            originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+          }
+          
+          // Retry the original request
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
+        console.error('[AUTH] Token refresh failed:', refreshError);
+        // Clear tokens and redirect to login
+        localStorage.removeItem('accessToken');
+        window.location.href = '/login';
+      }
+    }
+
     return Promise.reject(error);
   }
 );

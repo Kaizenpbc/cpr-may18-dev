@@ -153,7 +153,7 @@ const OrganizationCoursesTable: React.FC<OrganizationCoursesTableProps> = ({
         <TableHead>
           <TableRow>
             <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Course Type</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Course Name</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Location</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Students</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>

@@ -77,7 +77,7 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
                 <TableCell
                   sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}
                 >
-                  Course Type
+                  Course Name
                 </TableCell>
                 <TableCell
                   sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}

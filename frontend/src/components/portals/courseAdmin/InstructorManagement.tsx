@@ -796,7 +796,7 @@ const InstructorManagement: React.FC = () => {
                 <TableCell>Scheduled Date</TableCell>
                 <TableCell>Organization</TableCell>
                 <TableCell>Location</TableCell>
-                <TableCell>Type of Course</TableCell>
+                <TableCell>Course Name</TableCell>
                 <TableCell>Students Registered</TableCell>
                 <TableCell>Notes</TableCell>
                 <TableCell>Actions</TableCell>
@@ -815,8 +815,8 @@ const InstructorManagement: React.FC = () => {
                   </TableCell>
                   <TableCell>{course.organization_name}</TableCell>
                   <TableCell>{course.location}</TableCell>
-                  <TableCell>{course.course_type}</TableCell>
-                  <TableCell>{course.registered_students}</TableCell>
+                  <TableCell>{course.course_type_name || course.course_type || '-'}</TableCell>
+                  <TableCell>{course.students_registered || 0}</TableCell>
                   <TableCell>{course.notes}</TableCell>
                   <TableCell>
                     <Stack direction='row' spacing={1}>
@@ -1131,9 +1131,9 @@ const InstructorManagement: React.FC = () => {
                   </TableCell>
                   <TableCell>{course.organization_name}</TableCell>
                   <TableCell>{course.location}</TableCell>
-                  <TableCell>{course.course_type}</TableCell>
+                  <TableCell>{course.course_type_name || course.course_type || '-'}</TableCell>
                   <TableCell align='center'>
-                    {course.registered_students}
+                    {course.students_registered || 0}
                   </TableCell>
                   <TableCell align='center'>
                     {course.students_attended || 0}
@@ -1251,9 +1251,9 @@ const InstructorManagement: React.FC = () => {
                   </TableCell>
                   <TableCell>{course.organization_name}</TableCell>
                   <TableCell>{course.location}</TableCell>
-                  <TableCell>{course.course_type}</TableCell>
+                  <TableCell>{course.course_type_name || course.course_type || '-'}</TableCell>
                   <TableCell align='center'>
-                    {course.registered_students}
+                    {course.students_registered || 0}
                   </TableCell>
                   <TableCell align='center'>
                     {course.students_attended || 0}
@@ -1487,13 +1487,13 @@ const InstructorManagement: React.FC = () => {
         <DialogTitle>Assign Instructor to Course</DialogTitle>
         <DialogContent>
           <Typography variant='subtitle1' gutterBottom sx={{ mb: 2 }}>
-            Course Name: {selectedCourse?.course_type}
+            Course Name: {selectedCourse?.course_type_name || selectedCourse?.course_type || '-'}
             <br />
             Organization: {selectedCourse?.organization_name}
             <br />
             Location: {selectedCourse?.location}
             <br />
-            Students: {selectedCourse?.registered_students}
+            Students: {selectedCourse?.students_registered || 0}
             <br />
             Scheduled Date:{' '}
             {selectedCourse?.scheduled_date
@@ -1601,13 +1601,13 @@ const InstructorManagement: React.FC = () => {
         <DialogTitle>Edit Course Schedule</DialogTitle>
         <DialogContent>
           <Typography variant='subtitle1' gutterBottom sx={{ mb: 2 }}>
-            Course Name: {courseToEdit?.course_type}
+            Course Name: {courseToEdit?.course_type_name || courseToEdit?.course_type || '-'}
             <br />
             Organization: {courseToEdit?.organization_name}
             <br />
             Location: {courseToEdit?.location}
             <br />
-            Students: {courseToEdit?.registered_students}
+            Students: {courseToEdit?.students_registered || 0}
           </Typography>
 
           <Stack spacing={2} sx={{ mt: 2 }}>
@@ -1697,7 +1697,7 @@ const InstructorManagement: React.FC = () => {
         onClose={handleViewStudentsClose}
         courseId={selectedCourseForStudents?.id || null}
         courseInfo={{
-          course_type: selectedCourseForStudents?.course_type,
+          course_type: selectedCourseForStudents?.course_type_name || selectedCourseForStudents?.course_type,
           organization_name: selectedCourseForStudents?.organization_name,
           location: selectedCourseForStudents?.location,
         }}

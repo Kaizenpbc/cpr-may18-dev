@@ -139,7 +139,7 @@ const CoursePricingManagement: React.FC = () => {
           💰 Course Pricing Setup
         </Typography>
         <Typography variant='subtitle1' color='textSecondary'>
-          Set pricing per student for different course types across
+          Set pricing per student for different course names across
           organizations
         </Typography>
       </Box>
@@ -184,7 +184,7 @@ const CoursePricingManagement: React.FC = () => {
                   <TableHead>
                     <TableRow>
                       <TableCell>
-                        <strong>Course Type</strong>
+                        <strong>Course Name</strong>
                       </TableCell>
                       <TableCell>
                         <strong>Description</strong>
@@ -304,9 +304,9 @@ const CoursePricingManagement: React.FC = () => {
         </Typography>
         <Typography variant='body2' sx={{ mb: 1 }}>
           • Click the edit icon to modify the price per student for any course
-          type • Pricing is organization-specific, allowing different rates for
+          name • Pricing is organization-specific, allowing different rates for
           different clients • All prices are in USD and represent the cost per
-          student for that course type • Changes take effect immediately and
+          student for that course name • Changes take effect immediately and
           will be used for future course billing
         </Typography>
         <Typography variant='body2' color='primary.main' fontWeight='medium'>

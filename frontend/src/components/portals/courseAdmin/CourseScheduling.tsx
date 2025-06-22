@@ -123,7 +123,7 @@ const CourseScheduling = () => {
           <TableHead>
             <TableRow>
               <TableCell>Date</TableCell>
-              <TableCell>Type of Course</TableCell>
+              <TableCell>Course Name</TableCell>
               <TableCell>Organization</TableCell>
               <TableCell>Location</TableCell>
               <TableCell>Instructor</TableCell>
@@ -137,7 +137,7 @@ const CourseScheduling = () => {
                 <TableCell>
                   {formatDateWithoutTimezone(course.scheduled_date)}
                 </TableCell>
-                <TableCell>{course.course_type}</TableCell>
+                <TableCell>{course.course_type_name || course.course_type || '-'}</TableCell>
                 <TableCell>{course.organization_name}</TableCell>
                 <TableCell>{course.location}</TableCell>
                 <TableCell>{course.instructor_name || 'Not Assigned'}</TableCell>

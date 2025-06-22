@@ -1323,6 +1323,7 @@ router.get(
 // Get students for a specific course (for organizations)
 router.get(
   '/organization/courses/:courseId/students',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { courseId } = req.params;
@@ -1382,6 +1383,7 @@ router.get(
 // Upload students for a specific course (for organizations)
 router.post(
   '/organization/courses/:courseId/students',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { courseId } = req.params;

@@ -38,7 +38,7 @@ const PendingCoursesTable = ({
             <TableCell sx={{ fontWeight: 'bold' }}>Course Number</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Organization</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Location</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Course Type</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Course Name</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>
               Students Registered
             </TableCell>
@@ -61,9 +61,9 @@ const PendingCoursesTable = ({
               <TableCell>{course.coursenumber || '-'}</TableCell>
               <TableCell>{course.organizationname || '-'}</TableCell>
               <TableCell>{course.location || '-'}</TableCell>
-              <TableCell>{course.coursenumber || '-'}</TableCell>
+              <TableCell>{course.course_type_name || '-'}</TableCell>
               <TableCell align='center'>
-                {course.studentsregistered ?? '-'}
+                {course.students_registered ?? '-'}
               </TableCell>
               <TableCell>{course.notes || '-'}</TableCell>
               <TableCell>{course.status || '-'}</TableCell>

@@ -184,7 +184,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Course Type</TableCell>
+                    <TableCell>Course Name</TableCell>
                     <TableCell>Count</TableCell>
                     <TableCell>Percentage</TableCell>
                   </TableRow>
@@ -260,7 +260,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Course Type</TableCell>
+                    <TableCell>Course Name</TableCell>
                     <TableCell>Date Requested</TableCell>
                     <TableCell>Location</TableCell>
                     <TableCell>Students</TableCell>

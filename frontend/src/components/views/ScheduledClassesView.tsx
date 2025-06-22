@@ -31,7 +31,7 @@ const ScheduledClassesView = ({ scheduledClasses, onAttendanceClick }) => {
           <TableHead>
             <TableRow>
               <TableCell>Course Number</TableCell>
-              <TableCell>Course Type</TableCell>
+              <TableCell>Course Name</TableCell>
               <TableCell>Date</TableCell>
               <TableCell>Time</TableCell>
               <TableCell>Location</TableCell>
