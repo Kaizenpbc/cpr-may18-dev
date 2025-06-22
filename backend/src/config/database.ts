@@ -302,14 +302,14 @@ const initializeDatabase = async () => {
         id SERIAL PRIMARY KEY,
         organization_id INTEGER NOT NULL REFERENCES organizations(id),
         course_type_id INTEGER NOT NULL REFERENCES class_types(id),
-        date_requested DATE NOT NULL,
-        scheduled_date DATE,
+        request_submitted_date DATE NOT NULL, -- When organization submitted the request (system date)
+        scheduled_date DATE, -- Organization's preferred date for the course
         location VARCHAR(255) NOT NULL,
         registered_students INTEGER NOT NULL DEFAULT 0,
         notes TEXT,
         status VARCHAR(50) NOT NULL DEFAULT 'pending',
         instructor_id INTEGER REFERENCES users(id),
-        confirmed_date DATE,
+        confirmed_date DATE, -- Actual date when admin assigns instructor (may differ from scheduled_date)
         confirmed_start_time TIME,
         confirmed_end_time TIME,
         completed_at TIMESTAMP WITH TIME ZONE,
@@ -319,11 +319,30 @@ const initializeDatabase = async () => {
     `);
     console.log('✅ Course_requests table created successfully');
 
-    // Migrate existing database: rename preferred_date to scheduled_date
+    // Migrate existing database: rename date_requested to request_submitted_date
     console.log('🔄 Migrating date fields...');
     await pool.query(`
       DO $$ 
       BEGIN 
+        -- Rename date_requested to request_submitted_date if it exists
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'course_requests' AND column_name = 'date_requested'
+        ) AND NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'course_requests' AND column_name = 'request_submitted_date'
+        ) THEN 
+          ALTER TABLE course_requests RENAME COLUMN date_requested TO request_submitted_date;
+        END IF;
+
+        -- Add request_submitted_date if it doesn't exist (for new installations)
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'course_requests' AND column_name = 'request_submitted_date'
+        ) THEN 
+          ALTER TABLE course_requests ADD COLUMN request_submitted_date DATE DEFAULT CURRENT_DATE;
+        END IF;
+
         -- Add scheduled_date if it doesn't exist
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns 

@@ -23,7 +23,8 @@ interface OrganizationData {
 
 interface Course {
   id: string | number;
-  date_requested: string;
+  request_submitted_date: string;
+  scheduled_date: string;
   course_type_name: string;
   location: string;
   registered_students: number;

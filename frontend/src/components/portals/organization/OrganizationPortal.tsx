@@ -56,7 +56,8 @@ interface OrganizationData {
 
 interface Course {
   id: string | number;
-  date_requested: string;
+  request_submitted_date: string; // When organization submitted the request
+  scheduled_date: string; // Organization's preferred date
   course_type_name: string;
   location: string;
   registered_students: number;

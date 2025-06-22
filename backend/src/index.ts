@@ -319,9 +319,68 @@ app.get('/api/v1/events', (req: Request, res: Response) => {
 console.log('✅ SSE endpoint configured');
 
 // Add error logging middleware (must be last)
-// writeToLog('🔧 Setting up error logging middleware...', 'INFO');
-// app.use(errorLogger);
-// writeToLog('✅ Error logging middleware configured', 'INFO');
+writeToLog('🔧 Setting up error logging middleware...', 'INFO');
+app.use(errorLogger);
+writeToLog('✅ Error logging middleware configured', 'INFO');
+
+// Global error handler (must be last)
+app.use((error: any, req: Request, res: Response, next: NextFunction) => {
+  writeErrorToLog(error, `Global error handler: ${req.method} ${req.url}`);
+  
+  // Handle AppError instances
+  if (error.name === 'AppError' || error.statusCode) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      error: {
+        code: error.code || 'INTERNAL_SERVER_ERROR',
+        message: error.message || 'An error occurred',
+        ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+      }
+    });
+  }
+  
+  // Handle JWT errors
+  if (error.name === 'JsonWebTokenError') {
+    return res.status(401).json({
+      success: false,
+      error: {
+        code: 'AUTH_TOKEN_INVALID',
+        message: 'Invalid token'
+      }
+    });
+  }
+  
+  if (error.name === 'TokenExpiredError') {
+    return res.status(401).json({
+      success: false,
+      error: {
+        code: 'AUTH_TOKEN_EXPIRED',
+        message: 'Token expired'
+      }
+    });
+  }
+  
+  // Handle validation errors
+  if (error.name === 'ValidationError') {
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: error.message || 'Validation failed'
+      }
+    });
+  }
+  
+  // Default error response
+  res.status(500).json({
+    success: false,
+    error: {
+      code: 'INTERNAL_SERVER_ERROR',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+    }
+  });
+});
 
 // Socket.IO connection handling
 console.log('13. Setting up Socket.IO handlers...');
@@ -340,38 +399,22 @@ console.log('✅ Socket.IO handlers configured');
 
 // Start server
 console.log('14. Starting server...');
-const port = parseInt(process.env.PORT || '3002', 10);
+const port = parseInt(process.env.PORT || '3001', 10); // Use 3001 as default backend port
 console.log(`Attempting to start server on port ${port}...`);
 
-const startServer = async (retryCount = 0) => {
+const startServer = async () => {
   try {
-    if (retryCount > 0) {
-      console.log(`🔄 Retry attempt ${retryCount} - killing process on port ${port}...`);
-      await killProcessOnPort(port);
-      // Add extra delay between retries
-      console.log(`⏳ Waiting 2 seconds before retry...`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    } else {
-      await killProcessOnPort(port);
-    }
+    await killProcessOnPort(port);
 
     httpServer.listen(port, '0.0.0.0', () => {
       console.log(`✅ Server is now listening on http://0.0.0.0:${port}`);
       console.log(`Try accessing http://localhost:${port}/api/v1/health`);
     });
 
-    httpServer.on('error', async (error: Error) => {
+    httpServer.on('error', (error: Error) => {
       console.error('❌ Server error:', error);
-      if (error.message.includes('EADDRINUSE') && retryCount < 2) {
-        console.log(`🔄 Port ${port} still in use, retrying... (attempt ${retryCount + 1})`);
-        httpServer.close();
-        // Longer delay between retries
-        setTimeout(() => startServer(retryCount + 1), 5000);
-        return;
-      }
-      
       if (error.message.includes('EADDRINUSE')) {
-        console.error(`🚨 Port ${port} is still in use after ${retryCount + 1} cleanup attempts.`);
+        console.error(`🚨 Port ${port} is already in use.`);
         console.error(`💡 Try manually killing the process or use a different port.`);
         console.error(`💡 You can run: netstat -ano | findstr :${port} to see what's using the port`);
         console.error(`💡 Or try: taskkill /F /IM node.exe to kill all Node.js processes`);
@@ -385,7 +428,6 @@ const startServer = async (retryCount = 0) => {
         console.log(`✅ Server bound to ${address.address}:${address.port}`);
         console.log(`Address type: ${address.family}`);
       }
-      
       // Success message
       console.log('\n🎉 ========================================');
       console.log('🎉 BACKEND SERVER STARTED SUCCESSFULLY!');

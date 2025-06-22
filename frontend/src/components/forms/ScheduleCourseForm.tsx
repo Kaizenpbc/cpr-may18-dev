@@ -192,11 +192,11 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
               helperText='This organization is automatically assigned based on your account'
             />
           </Grid>
-          {/* Date Requested (Auto-generated) */}
+          {/* Date Submitted (Auto-generated) */}
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              label='Date Requested'
+              label='Date Submitted'
               value={new Date().toLocaleDateString()}
               disabled
               variant='filled'

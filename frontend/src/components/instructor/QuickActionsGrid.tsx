@@ -10,7 +10,7 @@ import {
 import {
   EventAvailable as EventAvailableIcon,
   Assignment as AssignmentIcon,
-  People as PeopleIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -43,10 +43,10 @@ const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({
       color: 'info'
     },
     {
-      icon: <PeopleIcon />,
-      title: 'Student Management',
-      buttonText: 'View Students',
-      route: '/instructor/students',
+      icon: <DownloadIcon />,
+      title: 'Download Reports',
+      buttonText: 'Generate Reports',
+      route: '/instructor/reports',
       color: 'success'
     }
   ]
@@ -61,21 +61,36 @@ const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({
       <Grid container spacing={2}>
         {actions.map((action, index) => (
           <Grid item xs={12} sm={6} md={4} key={index}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ color: `${action.color}.main` }}>
-                    {action.icon}
-                  </Box>
-                  <Typography variant="subtitle1">{action.title}</Typography>
-                  <Button
-                    variant="contained"
-                    fullWidth
-                    onClick={() => navigate(action.route)}
-                  >
-                    {action.buttonText}
-                  </Button>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <CardContent sx={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'center', 
+                gap: 2,
+                flex: 1,
+                py: 3
+              }}>
+                <Box sx={{ 
+                  color: `${action.color}.main`,
+                  fontSize: '2.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  {action.icon}
                 </Box>
+                <Typography variant="subtitle1" sx={{ textAlign: 'center', fontWeight: 500 }}>
+                  {action.title}
+                </Typography>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  color={action.color}
+                  onClick={() => navigate(action.route)}
+                  sx={{ mt: 'auto' }}
+                >
+                  {action.buttonText}
+                </Button>
               </CardContent>
             </Card>
           </Grid>

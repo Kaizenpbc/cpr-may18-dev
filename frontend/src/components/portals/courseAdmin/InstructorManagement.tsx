@@ -792,8 +792,8 @@ const InstructorManagement: React.FC = () => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Date Requested</TableCell>
-                <TableCell>Scheduled Date</TableCell>
+                <TableCell>Date Submitted</TableCell>
+                <TableCell>Preferred Date</TableCell>
                 <TableCell>Organization</TableCell>
                 <TableCell>Location</TableCell>
                 <TableCell>Course Name</TableCell>
@@ -806,7 +806,7 @@ const InstructorManagement: React.FC = () => {
               {pendingCourses.map(course => (
                 <TableRow key={course.id}>
                   <TableCell>
-                    {formatDisplayDate(course.date_requested)}
+                    {formatDisplayDate(course.request_submitted_date)}
                   </TableCell>
                   <TableCell>
                     {course.scheduled_date
@@ -1086,7 +1086,7 @@ const InstructorManagement: React.FC = () => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Date Requested</TableCell>
+                <TableCell>Date Submitted</TableCell>
                 <TableCell>Scheduled Date</TableCell>
                 <TableCell>Confirmed Date</TableCell>
                 <TableCell>Organization</TableCell>
@@ -1104,7 +1104,7 @@ const InstructorManagement: React.FC = () => {
               {confirmedCourses.map(course => (
                 <TableRow key={course.id}>
                   <TableCell>
-                    {formatDisplayDate(course.date_requested)}
+                    {formatDisplayDate(course.request_submitted_date)}
                   </TableCell>
                   <TableCell>
                     {course.scheduled_date
@@ -1212,7 +1212,7 @@ const InstructorManagement: React.FC = () => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Date Requested</TableCell>
+                <TableCell>Date Submitted</TableCell>
                 <TableCell>Date Scheduled</TableCell>
                 <TableCell>Organization</TableCell>
                 <TableCell>Location</TableCell>
@@ -1229,7 +1229,7 @@ const InstructorManagement: React.FC = () => {
               {completedCourses.map(course => (
                 <TableRow key={course.id}>
                   <TableCell>
-                    {formatDisplayDate(course.date_requested)}
+                    {formatDisplayDate(course.request_submitted_date)}
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2' fontWeight='medium'>
@@ -1544,7 +1544,7 @@ const InstructorManagement: React.FC = () => {
               fullWidth
               disabled
               InputLabelProps={{ shrink: true }}
-              helperText='This is the date requested by the organization'
+              helperText='This is the date submitted by the organization'
             />
 
             <TextField

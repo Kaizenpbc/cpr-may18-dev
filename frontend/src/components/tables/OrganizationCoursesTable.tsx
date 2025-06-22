@@ -27,10 +27,12 @@ import { formatDisplayDate } from '../../utils/dateUtils';
 
 interface Course {
   id: string | number;
-  date_requested: string;
+  request_submitted_date: string; // When organization submitted the request
+  scheduled_date: string; // Organization's preferred date
   course_type_name: string;
   location: string;
   registered_students: number;
+  students_attended?: number;
   status: string;
   instructor: string;
   notes?: string;
@@ -86,10 +88,10 @@ const isUploadDisabled = course => {
     return true;
   }
 
-  // Disable if it's the day of the class (confirmed_date)
-  if (course.confirmed_date) {
+  // Disable if it's the day of the class (scheduled_date)
+  if (course.scheduled_date) {
     const today = new Date();
-    const classDate = new Date(course.confirmed_date);
+    const classDate = new Date(course.scheduled_date);
 
     // Set both dates to start of day for accurate comparison
     today.setHours(0, 0, 0, 0);
@@ -108,9 +110,9 @@ const getUploadTooltip = course => {
     return `Cannot upload students - Course is ${course.status?.toLowerCase()}`;
   }
 
-  if (course.confirmed_date) {
+  if (course.scheduled_date) {
     const today = new Date();
-    const classDate = new Date(course.confirmed_date);
+    const classDate = new Date(course.scheduled_date);
 
     today.setHours(0, 0, 0, 0);
     classDate.setHours(0, 0, 0, 0);
@@ -152,13 +154,15 @@ const OrganizationCoursesTable: React.FC<OrganizationCoursesTableProps> = ({
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Date Submitted</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Date Scheduled</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Course Name</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Location</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Students</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Students Registered</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Students Attended</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Notes</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Instructor</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Notes</TableCell>
             <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
               Class Management
             </TableCell>
@@ -171,7 +175,8 @@ const OrganizationCoursesTable: React.FC<OrganizationCoursesTableProps> = ({
 
             return (
               <TableRow key={course.id} hover>
-                <TableCell>{formatDisplayDate(course.date_requested)}</TableCell>
+                <TableCell>{formatDisplayDate(course.request_submitted_date)}</TableCell>
+                <TableCell>{formatDisplayDate(course.scheduled_date)}</TableCell>
                 <TableCell>{course.course_type_name || '-'}</TableCell>
                 <TableCell>{course.location || '-'}</TableCell>
                 <TableCell>
@@ -190,6 +195,34 @@ const OrganizationCoursesTable: React.FC<OrganizationCoursesTableProps> = ({
                   </Box>
                 </TableCell>
                 <TableCell>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 0.5,
+                    }}
+                  >
+                    <AttendedIcon fontSize='small' color='success' />
+                    <Typography variant='body2' color='success.main'>
+                      {course.students_attended || 0}
+                    </Typography>
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Typography
+                    variant='body2'
+                    sx={{
+                      maxWidth: 150,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {course.notes || '-'}
+                  </Typography>
+                </TableCell>
+                <TableCell>
                   <Chip
                     label={course.status || 'Unknown'}
                     color={getStatusChipColor(course.status)}
@@ -197,25 +230,6 @@ const OrganizationCoursesTable: React.FC<OrganizationCoursesTableProps> = ({
                   />
                 </TableCell>
                 <TableCell>{course.instructor || '-'}</TableCell>
-                <TableCell>
-                  {course.notes ? (
-                    <Tooltip title={course.notes}>
-                      <Typography
-                        variant='body2'
-                        sx={{
-                          maxWidth: 100,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {course.notes}
-                      </Typography>
-                    </Tooltip>
-                  ) : (
-                    '-'
-                  )}
-                </TableCell>
                 <TableCell>
                   <Box
                     sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}

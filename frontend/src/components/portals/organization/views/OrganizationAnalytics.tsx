@@ -34,7 +34,8 @@ interface OrganizationData {
 
 interface Course {
   id: string | number;
-  date_requested: string;
+  request_submitted_date: string;
+  scheduled_date: string;
   course_type_name: string;
   location: string;
   registered_students: number;
@@ -261,7 +262,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
                 <TableHead>
                   <TableRow>
                     <TableCell>Course Name</TableCell>
-                    <TableCell>Date Requested</TableCell>
+                    <TableCell>Date Submitted</TableCell>
                     <TableCell>Location</TableCell>
                     <TableCell>Students</TableCell>
                     <TableCell>Status</TableCell>
@@ -273,7 +274,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
                     <TableRow key={course.id}>
                       <TableCell>{course.course_type_name}</TableCell>
                       <TableCell>
-                        {new Date(course.date_requested).toLocaleDateString()}
+                        {new Date(course.request_submitted_date).toLocaleDateString()}
                       </TableCell>
                       <TableCell>{course.location}</TableCell>
                       <TableCell>{course.registered_students}</TableCell>

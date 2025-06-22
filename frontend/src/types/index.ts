@@ -28,7 +28,7 @@ export interface Organization {
 
 export interface CourseRequest {
   id: string;
-  dateRequested: string;
+  requestSubmittedDate: string;
   scheduledDate: string;
   location: string;
   registeredStudents: number;

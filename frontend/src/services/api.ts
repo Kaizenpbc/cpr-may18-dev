@@ -76,6 +76,12 @@ api.interceptors.response.use(
       statusText: error.response?.statusText,
       data: error.response?.data,
       message: error.message,
+      config: {
+        method: error.config?.method,
+        url: error.config?.url,
+        headers: error.config?.headers,
+        data: error.config?.data,
+      }
     });
 
     // Handle 401 errors with automatic token refresh
@@ -116,6 +122,15 @@ api.interceptors.response.use(
         localStorage.removeItem('accessToken');
         window.location.href = '/login';
       }
+    }
+
+    // Enhanced error handling for specific status codes
+    if (error.response?.status === 403) {
+      console.error('[AUTH] Access denied - insufficient permissions');
+    } else if (error.response?.status === 404) {
+      console.error('[API] Resource not found');
+    } else if (error.response?.status === 500) {
+      console.error('[API] Internal server error - check backend logs');
     }
 
     return Promise.reject(error);

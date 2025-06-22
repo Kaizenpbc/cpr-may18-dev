@@ -33,8 +33,8 @@ const PendingCoursesTable = ({
       <Table stickyHeader aria-label='pending courses table'>
         <TableHead>
           <TableRow>
-            <TableCell sx={{ fontWeight: 'bold' }}>System Date</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Date Requested</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Date Submitted</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Preferred Date</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Course Number</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Organization</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Location</TableCell>
@@ -56,8 +56,8 @@ const PendingCoursesTable = ({
               hover
               sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
             >
-              <TableCell>{formatDisplayDate(course.systemdate)}</TableCell>
-              <TableCell>{formatDisplayDate(course.daterequested)}</TableCell>
+              <TableCell>{formatDisplayDate(course.request_submitted_date)}</TableCell>
+              <TableCell>{formatDisplayDate(course.scheduled_date)}</TableCell>
               <TableCell>{course.coursenumber || '-'}</TableCell>
               <TableCell>{course.organizationname || '-'}</TableCell>
               <TableCell>{course.location || '-'}</TableCell>

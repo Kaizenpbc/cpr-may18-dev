@@ -21,7 +21,6 @@ import {
 import {
   CalendarToday as CalendarIcon,
   Class as ClassIcon,
-  People as PeopleIcon,
   Assignment as AssignmentIcon,
   Schedule as ScheduleIcon,
   EventAvailable as EventAvailableIcon,
@@ -171,7 +170,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Avatar sx={{ bgcolor: 'success.main' }}>
-                  <PeopleIcon />
+                  <GroupIcon />
                 </Avatar>
                 <Box>
                   <Typography variant="h6">
@@ -335,7 +334,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
           Quick Actions
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
@@ -354,7 +353,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
@@ -373,7 +372,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
@@ -387,25 +386,6 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                     onClick={() => navigate('/instructor/reports')}
                   >
                     Generate Reports
-                  </Button>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ bgcolor: 'warning.main' }}>
-                    <PeopleIcon />
-                  </Avatar>
-                  <Typography variant="subtitle1">Student Management</Typography>
-                  <Button
-                    variant="contained"
-                    fullWidth
-                    onClick={() => navigate('/instructor/students')}
-                  >
-                    View Students
                   </Button>
                 </Box>
               </CardContent>

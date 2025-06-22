@@ -48,6 +48,9 @@ interface Course {
   instructor: string;
   notes?: string;
   confirmed_date?: string;
+  request_submitted_date: string;
+  scheduled_date?: string;
+  students_attended?: number;
 }
 
 interface Student {
@@ -233,13 +236,15 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
           <Table>
             <TableHead>
               <TableRow>
+                <TableCell>Date Submitted</TableCell>
+                <TableCell>Date Scheduled</TableCell>
                 <TableCell>Course Name</TableCell>
-                <TableCell>Date Requested</TableCell>
                 <TableCell>Location</TableCell>
                 <TableCell>Students Registered</TableCell>
-                <TableCell>Instructor</TableCell>
-                <TableCell>Status</TableCell>
+                <TableCell>Students Attended</TableCell>
                 <TableCell>Notes</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Instructor</TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -250,20 +255,18 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
 
                 return (
                   <TableRow key={course.id}>
-                    <TableCell>{course.course_type_name}</TableCell>
                     <TableCell>
-                      {new Date(course.date_requested).toLocaleDateString()}
+                      {new Date(course.request_submitted_date).toLocaleDateString()}
                     </TableCell>
+                    <TableCell>
+                      {course.scheduled_date
+                        ? new Date(course.scheduled_date).toLocaleDateString()
+                        : '-'}
+                    </TableCell>
+                    <TableCell>{course.course_type_name}</TableCell>
                     <TableCell>{course.location}</TableCell>
                     <TableCell>{course.registered_students || 0}</TableCell>
-                    <TableCell>{course.instructor || 'TBD'}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={getStatusLabel(course.status)}
-                        color={getStatusColor(course.status)}
-                        size="small"
-                      />
-                    </TableCell>
+                    <TableCell>{course.students_attended || 0}</TableCell>
                     <TableCell>
                       {course.notes && (
                         <Typography variant="body2" color="text.secondary">
@@ -271,6 +274,14 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
                         </Typography>
                       )}
                     </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={getStatusLabel(course.status)}
+                        color={getStatusColor(course.status)}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>{course.instructor || 'TBD'}</TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
                         <Tooltip title={uploadTooltip}>

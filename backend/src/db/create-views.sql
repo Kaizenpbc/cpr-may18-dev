@@ -5,7 +5,7 @@ SELECT
   cr.id,
   cr.organization_id,
   cr.course_type_id,
-  cr.date_requested,
+  cr.request_submitted_date,
   cr.scheduled_date,
   cr.location,
   cr.registered_students as students_registered,

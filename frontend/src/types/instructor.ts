@@ -73,7 +73,8 @@ export interface CourseRequest {
   organization_id: number;
   organization_name: string;
   course_type: string;
-  preferred_dates: string[];
+  request_submitted_date: string; // When organization submitted the request
+  scheduled_date: string; // Organization's preferred date
   location: string;
   estimated_students: number;
   status: 'pending' | 'approved' | 'rejected';

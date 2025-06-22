@@ -42,8 +42,7 @@ const InstructorPortalHeader: React.FC<InstructorPortalHeaderProps> = ({
       position="fixed"
       sx={{
         zIndex: (theme) => theme.zIndex.drawer + 1,
-        backgroundColor: 'background.paper',
-        color: 'text.primary',
+        color: 'primary.contrastText',
         borderBottom: 1,
         borderColor: 'divider',
         boxShadow: 'none',
@@ -69,6 +68,7 @@ const InstructorPortalHeader: React.FC<InstructorPortalHeaderProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: 1,
+            color: 'primary.contrastText',
           }}
         >
           <Box
@@ -80,8 +80,8 @@ const InstructorPortalHeader: React.FC<InstructorPortalHeaderProps> = ({
               width: 32,
               height: 32,
               borderRadius: '50%',
-              backgroundColor: 'primary.main',
-              color: 'primary.contrastText',
+              backgroundColor: 'primary.contrastText',
+              color: 'primary.main',
               fontSize: '1.2rem',
             }}
           >
@@ -96,7 +96,7 @@ const InstructorPortalHeader: React.FC<InstructorPortalHeaderProps> = ({
             variant="body1" 
             sx={{ 
               mr: 2,
-              color: 'text.secondary',
+              color: 'white',
               fontWeight: 500,
             }}
           >
@@ -105,13 +105,13 @@ const InstructorPortalHeader: React.FC<InstructorPortalHeaderProps> = ({
         )}
         {onRefresh && (
           <IconButton 
-            color="primary" 
+            color="inherit" 
             onClick={onRefresh} 
             size="small" 
             sx={{ 
               mr: 1,
               '&:hover': {
-                backgroundColor: 'action.hover',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
               },
             }}
           >
@@ -119,12 +119,12 @@ const InstructorPortalHeader: React.FC<InstructorPortalHeaderProps> = ({
           </IconButton>
         )}
         <IconButton
-          color="primary"
+          color="inherit"
           onClick={handleLogout}
           sx={{ 
             ml: 1,
             '&:hover': {
-              backgroundColor: 'action.hover',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
             },
           }}
           aria-label="logout"

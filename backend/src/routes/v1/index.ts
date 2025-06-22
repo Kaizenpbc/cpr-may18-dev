@@ -352,7 +352,7 @@ router.post(
         `INSERT INTO course_requests 
        (organization_id, course_type_id, date_requested, scheduled_date, location, registered_students, notes, status) 
        VALUES ($1, $2, CURRENT_DATE, $3, $4, $5, $6, 'pending') 
-       RETURNING *`,
+       RETURNING *, date_requested as request_submitted_date`,
         [
           organizationId,
           courseTypeId,
@@ -400,8 +400,8 @@ router.get('/organization/courses', authenticateToken, async (req, res) => {
     // For admin users, allow filtering by organization_id
     if (userRole === 'admin') {
       const query = filterOrgId 
-        ? `SELECT cr.*, ct.name as course_type_name FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id WHERE cr.organization_id = $1 ORDER BY cr.created_at DESC`
-        : `SELECT cr.*, ct.name as course_type_name FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id ORDER BY cr.created_at DESC`;
+        ? `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id WHERE cr.organization_id = $1 ORDER BY cr.created_at DESC`
+        : `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id ORDER BY cr.created_at DESC`;
       const result = await pool.query(query, filterOrgId ? [filterOrgId] : []);
       return res.json({
         success: true,
@@ -422,7 +422,7 @@ router.get('/organization/courses', authenticateToken, async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT cr.*, ct.name as course_type_name FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id WHERE cr.organization_id = $1 ORDER BY cr.created_at DESC`,
+      `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id WHERE cr.organization_id = $1 ORDER BY cr.created_at DESC`,
       [organizationId]
     );
 
@@ -996,7 +996,7 @@ router.put(
 
         // Get current course data
         const currentCourseResult = await client.query(
-          'SELECT * FROM course_requests WHERE id = $1',
+          'SELECT *, date_requested as request_submitted_date FROM course_requests WHERE id = $1',
           [id]
         );
 

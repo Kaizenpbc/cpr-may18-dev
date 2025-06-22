@@ -68,28 +68,25 @@ const CSVUploadDialog: React.FC<CSVUploadDialogProps> = ({
   };
 
   const handleUpload = async () => {
-    console.log('[TRACE] CSVUploadDialog - handleUpload called');
-    console.log('[TRACE] CSVUploadDialog - Selected file:', selectedFile);
-    console.log('[TRACE] CSVUploadDialog - Course request ID:', courseRequestId);
-    console.log('[TRACE] CSVUploadDialog - Organization ID:', organizationId);
-    
     if (!selectedFile) {
-      console.log('[TRACE] CSVUploadDialog - No file selected, showing error');
       setError('Please select a file first');
       return;
     }
 
-    if (!courseRequestId) {
-      console.log('[TRACE] CSVUploadDialog - No course request ID, showing error');
-      setError('Course information is missing');
-      return;
-    }
-
-    console.log('[TRACE] CSVUploadDialog - Starting upload process');
     setUploading(true);
     setError(null);
 
     try {
+      // Check authentication before upload
+      console.log('[TRACE] CSVUploadDialog - Checking authentication...');
+      const token = window.tokenService?.getAccessToken();
+      if (!token) {
+        console.error('[TRACE] CSVUploadDialog - No access token found');
+        setError('Authentication required. Please log in again.');
+        return;
+      }
+      console.log('[TRACE] CSVUploadDialog - Authentication token found');
+
       console.log('[TRACE] CSVUploadDialog - Reading file content...');
       const text = await selectedFile.text();
       console.log('[TRACE] CSVUploadDialog - File content read successfully');
@@ -116,6 +113,10 @@ const CSVUploadDialog: React.FC<CSVUploadDialogProps> = ({
 
       // Send to backend
       console.log('[TRACE] CSVUploadDialog - Sending to backend API...');
+      console.log('[TRACE] CSVUploadDialog - Course Request ID:', courseRequestId);
+      console.log('[TRACE] CSVUploadDialog - Students count:', parsed.students.length);
+      console.log('[TRACE] CSVUploadDialog - Auth header:', window.tokenService?.getAuthHeader());
+      
       const response = await organizationApi.uploadStudents(courseRequestId, parsed.students);
       console.log('[TRACE] CSVUploadDialog - Backend response:', response);
       
@@ -135,7 +136,21 @@ const CSVUploadDialog: React.FC<CSVUploadDialogProps> = ({
       onClose();
     } catch (err) {
       console.error('[TRACE] CSVUploadDialog - Upload error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to upload file');
+      
+      // Enhanced error handling
+      if (err.response?.status === 401) {
+        setError('Authentication failed. Please log in again.');
+      } else if (err.response?.status === 403) {
+        setError('Access denied. You do not have permission to upload students for this course.');
+      } else if (err.response?.status === 404) {
+        setError('Course not found. Please refresh the page and try again.');
+      } else if (err.response?.status === 500) {
+        setError('Server error occurred. Please try again or contact support.');
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError('Failed to upload file. Please try again.');
+      }
     } finally {
       console.log('[TRACE] CSVUploadDialog - Setting uploading to false');
       setUploading(false);
