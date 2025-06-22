@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Container,
@@ -22,6 +22,7 @@ import {
   Analytics as AnalyticsIcon,
   Logout as LogoutIcon,
   Event as EventIcon,
+  School as CoursesIconAlt,
 } from '@mui/icons-material';
 import OrganizationLayout from './OrganizationLayout';
 import OrganizationDashboard from './views/OrganizationDashboard';
@@ -30,6 +31,7 @@ import OrganizationBilling from './views/OrganizationBilling';
 import OrganizationProfile from './views/OrganizationProfile';
 import OrganizationAnalytics from './views/OrganizationAnalytics';
 import ScheduleCourseForm from '../../forms/ScheduleCourseForm';
+import CSVUploadDialog from '../../dialogs/CSVUploadDialog';
 
 // TypeScript interfaces
 interface User {
@@ -119,10 +121,14 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
   onViewChange,
   onLogout,
 }) => {
+  // State for CSV upload dialog
+  const [csvDialogOpen, setCsvDialogOpen] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | number | null>(null);
+
   // Navigation items
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-    { id: 'courses', label: 'My Courses', icon: <CoursesIcon /> },
+    { id: 'courses', label: 'My Courses', icon: <CoursesIconAlt /> },
     { id: 'schedule', label: 'Schedule a Course', icon: <EventIcon /> },
     { id: 'billing', label: 'Bills Payable', icon: <BillingIcon /> },
     { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
@@ -146,8 +152,17 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
   // Handle upload students click
   const handleUploadStudentsClick = (courseId: string | number) => {
     console.log('Upload students for course:', courseId);
-    // TODO: Implement upload students functionality
-    // This could open a file upload dialog
+    setSelectedCourseId(courseId);
+    setCsvDialogOpen(true);
+  };
+
+  // Handle CSV upload success
+  const handleCSVUploadSuccess = (data: any) => {
+    console.log('CSV upload successful for course:', selectedCourseId, data);
+    // TODO: Send data to backend API
+    // For now, just log the data
+    setCsvDialogOpen(false);
+    setSelectedCourseId(null);
   };
 
   // Render current view
@@ -222,18 +237,31 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
   };
 
   return (
-    <OrganizationLayout
-      user={user}
-      currentView={currentView}
-      onViewChange={onViewChange}
-      onLogout={onLogout}
-      navigationItems={navigationItems}
-      drawerWidth={drawerWidth}
-    >
-      <Box sx={{ flexGrow: 1, p: 3 }}>
-        {renderCurrentView()}
-      </Box>
-    </OrganizationLayout>
+    <>
+      <OrganizationLayout
+        user={user}
+        currentView={currentView}
+        onViewChange={onViewChange}
+        onLogout={onLogout}
+        navigationItems={navigationItems}
+        drawerWidth={drawerWidth}
+      >
+        <Box sx={{ flexGrow: 1, p: 3 }}>
+          {renderCurrentView()}
+        </Box>
+      </OrganizationLayout>
+
+      <CSVUploadDialog
+        open={csvDialogOpen}
+        onClose={() => {
+          setCsvDialogOpen(false);
+          setSelectedCourseId(null);
+        }}
+        onUploadSuccess={handleCSVUploadSuccess}
+        title={`Upload Students for Course ${selectedCourseId}`}
+        description="Select a CSV file containing student information (first_name, last_name, email)"
+      />
+    </>
   );
 };
 
