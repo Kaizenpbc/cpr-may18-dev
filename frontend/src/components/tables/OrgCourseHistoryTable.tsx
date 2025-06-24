@@ -102,7 +102,7 @@ const OrgCourseHistoryTable = ({ courses = [] }) => {
                 {course.studentsregistered ?? '-'}
               </TableCell>
               <TableCell align='center'>
-                {course.studentsattendance ?? '-'}
+                {course.students_attended ?? '-'}
               </TableCell>
               {/* Render action icons if implemented */}
               {/* 

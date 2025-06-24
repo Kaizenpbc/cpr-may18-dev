@@ -29,6 +29,7 @@ import {
   Archive as ArchiveIcon,
   Refresh as RefreshIcon,
   Logout as LogoutIcon,
+  HowToReg as AttendanceIcon,
 } from '@mui/icons-material';
 import InstructorPortalHeader from '../headers/InstructorPortalHeader';
 
@@ -79,6 +80,13 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
       label: 'My Schedule',
       icon: <ClassIcon />,
       path: '/instructor/classes',
+      showInBottomNav: true,
+    },
+    {
+      id: 'class-attendance',
+      label: 'Class Attendance',
+      icon: <AttendanceIcon />,
+      path: '/instructor/class-attendance',
       showInBottomNav: true,
     },
     {

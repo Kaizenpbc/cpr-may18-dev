@@ -1,0 +1,1 @@
+VALUES (, , , , , , , 'scheduled', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)

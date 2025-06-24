@@ -57,15 +57,12 @@ router.get(
         u.id, 
         u.username as instructor_name, 
         u.email,
-        u.first_name,
-        u.last_name,
         'Available' as availability_status
        FROM users u
        INNER JOIN instructor_availability ia ON u.id = ia.instructor_id 
          AND ia.date::date = $1::date
          AND ia.status = 'available'
        WHERE u.role = 'instructor' 
-         AND u.status = 'active'
        ORDER BY u.username`,
         [date]
       );
@@ -400,8 +397,8 @@ router.get('/organization/courses', authenticateToken, async (req, res) => {
     // For admin users, allow filtering by organization_id
     if (userRole === 'admin') {
       const query = filterOrgId 
-        ? `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id WHERE cr.organization_id = $1 ORDER BY cr.created_at DESC`
-        : `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id ORDER BY cr.created_at DESC`;
+        ? `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.organization_id = $1 ORDER BY cr.created_at DESC`
+        : `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id ORDER BY cr.created_at DESC`;
       const result = await pool.query(query, filterOrgId ? [filterOrgId] : []);
       return res.json({
         success: true,
@@ -422,7 +419,7 @@ router.get('/organization/courses', authenticateToken, async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id WHERE cr.organization_id = $1 ORDER BY cr.created_at DESC`,
+      `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.organization_id = $1 ORDER BY cr.created_at DESC`,
       [organizationId]
     );
 
@@ -772,7 +769,7 @@ router.get(
   asyncHandler(async (_req: Request, res: Response) => {
     try {
       const result = await pool.query(`
-        SELECT cr.*, ct.name as course_type_name, o.name as organization_name
+        SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, o.name as organization_name, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended
         FROM course_requests cr
         LEFT JOIN class_types ct ON cr.course_type_id = ct.id
         LEFT JOIN organizations o ON cr.organization_id = o.id
@@ -837,10 +834,11 @@ router.get(
   asyncHandler(async (_req: Request, res: Response) => {
     try {
       const result = await pool.query(
-        `SELECT cr.*, ct.name as course_type_name, o.name as organization_name
+        `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, o.name as organization_name, u.username as instructor_name, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended
          FROM course_requests cr
          LEFT JOIN class_types ct ON cr.course_type_id = ct.id
          LEFT JOIN organizations o ON cr.organization_id = o.id
+         LEFT JOIN users u ON cr.instructor_id = u.id
          WHERE cr.status = 'confirmed' 
          ORDER BY cr.confirmed_date ASC, cr.confirmed_start_time ASC`
       );
@@ -863,10 +861,11 @@ router.get(
   asyncHandler(async (_req: Request, res: Response) => {
     try {
       const result = await pool.query(
-        `SELECT cr.*, ct.name as course_type_name, o.name as organization_name
+        `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, o.name as organization_name, u.username as instructor_name, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended
          FROM course_requests cr
          LEFT JOIN class_types ct ON cr.course_type_id = ct.id
          LEFT JOIN organizations o ON cr.organization_id = o.id
+         LEFT JOIN users u ON cr.instructor_id = u.id
          WHERE cr.status = 'completed' 
          ORDER BY cr.completed_at DESC`
       );
@@ -1069,21 +1068,21 @@ router.put(
           await client.query(
             `INSERT INTO classes (
             instructor_id, 
-            type_id, 
-            date, 
+            class_type_id, 
+            organization_id,
             start_time, 
             end_time, 
             location, 
             max_students, 
-            current_students,
             status,
             created_at,
             updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 0, 'scheduled', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'scheduled', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          RETURNING *`,
             [
               updatedCourse.instructor_id,
               updatedCourse.course_type_id,
-              updatedCourse.confirmed_date,
+              updatedCourse.organization_id,
               updatedCourse.confirmed_start_time || startTime,
               updatedCourse.confirmed_end_time || endTime,
               updatedCourse.location,
@@ -1145,19 +1144,51 @@ router.put(
       try {
         await client.query('BEGIN');
 
-        // Check if instructor is already assigned to another course at the same time
+        // First, get the course request details to get the scheduled date
+        const courseRequestCheck = await client.query(
+          'SELECT scheduled_date FROM course_requests WHERE id = $1',
+          [id]
+        );
+
+        if (courseRequestCheck.rows.length === 0) {
+          throw new AppError(
+            404,
+            errorCodes.RESOURCE_NOT_FOUND,
+            'Course request not found'
+          );
+        }
+
+        const scheduledDate = courseRequestCheck.rows[0].scheduled_date;
+        if (!scheduledDate) {
+          throw new AppError(
+            400,
+            errorCodes.VALIDATION_ERROR,
+            'Course request must have a scheduled date before assigning instructor'
+          );
+        }
+
+        // Format time strings
+        const dateString = scheduledDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        // For course_requests (time columns), use only HH:MM:SS
+        const formattedStartTimeTime = `${startTime}:00`;
+        const formattedEndTimeTime = `${endTime}:00`;
+        // For classes (timestamp columns), use full timestamp
+        const formattedStartTimeTimestamp = `${dateString}T${startTime}:00`;
+        const formattedEndTimeTimestamp = `${dateString}T${endTime}:00`;
+
+        // Check if instructor is already assigned to another course at the same time on the scheduled date
         const existingAssignmentCheck = await client.query(
           `SELECT id FROM course_requests 
            WHERE instructor_id = $1 
-           AND confirmed_date = CURRENT_DATE
+           AND confirmed_date = $2
            AND status = 'confirmed'
-           AND id != $2
+           AND id != $3
            AND (
-             (confirmed_start_time <= $3 AND confirmed_end_time > $3)
-             OR (confirmed_start_time < $4 AND confirmed_end_time >= $4)
-             OR (confirmed_start_time >= $3 AND confirmed_end_time <= $4)
+             (confirmed_start_time <= $4 AND confirmed_end_time > $4)
+             OR (confirmed_start_time < $5 AND confirmed_end_time >= $5)
+             OR (confirmed_start_time >= $4 AND confirmed_end_time <= $5)
            )`,
-          [instructorId, id, startTime, endTime]
+          [instructorId, scheduledDate, id, formattedStartTimeTime, formattedEndTimeTime]
         );
 
         if (existingAssignmentCheck.rows.length > 0) {
@@ -1189,15 +1220,15 @@ router.put(
           `UPDATE course_requests 
            SET instructor_id = $1, 
                status = 'confirmed', 
-               confirmed_date = CURRENT_DATE,
-               confirmed_start_time = $2,
-               confirmed_end_time = $3,
+               confirmed_date = $2,
+               confirmed_start_time = $3,
+               confirmed_end_time = $4,
                updated_at = CURRENT_TIMESTAMP
-           WHERE id = $4 
+           WHERE id = $5 
            RETURNING *, 
              (SELECT name FROM organizations WHERE id = organization_id) as organization_name,
              (SELECT name FROM class_types WHERE id = course_type_id) as course_type_name`,
-          [instructorId, startTime, endTime, id]
+          [instructorId, scheduledDate, formattedStartTimeTime, formattedEndTimeTime, id]
         );
 
         if (courseUpdateResult.rows.length === 0) {
@@ -1212,31 +1243,31 @@ router.put(
 
         // Remove instructor's availability for the scheduled date
         await client.query(
-          'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date = CURRENT_DATE',
-          [instructorId]
+          'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date = $2',
+          [instructorId, scheduledDate]
         );
 
         // Create a new class entry
         const classInsertResult = await client.query(
           `INSERT INTO classes (
             instructor_id, 
-            type_id, 
-            date, 
+            class_type_id, 
+            organization_id,
             start_time, 
             end_time, 
             location, 
             max_students, 
-            current_students,
             status,
             created_at,
             updated_at
-          ) VALUES ($1, $2, CURRENT_DATE, $3, $4, $5, $6, 0, 'scheduled', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'scheduled', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
           RETURNING *`,
           [
             instructorId,
             courseRequest.course_type_id,
-            startTime,
-            endTime,
+            courseRequest.organization_id,
+            formattedStartTimeTimestamp,
+            formattedEndTimeTimestamp,
             courseRequest.location,
             courseRequest.registered_students,
           ]
@@ -1615,7 +1646,10 @@ router.get(
     try {
       const { id } = req.params;
       const result = await pool.query(
-        'SELECT id, instructor_id, date::text, status, created_at, updated_at FROM instructor_availability WHERE instructor_id = $1 AND date >= CURRENT_DATE ORDER BY date',
+        `SELECT id, instructor_id, date::text, status, created_at, updated_at 
+         FROM instructor_availability 
+         WHERE instructor_id = $1 
+         ORDER BY date`,
         [id]
       );
 
@@ -5504,8 +5538,6 @@ router.get(
         `SELECT id, instructor_id, date::text, status, created_at, updated_at 
          FROM instructor_availability 
          WHERE instructor_id = $1 
-         AND date >= CURRENT_DATE 
-         AND (status = 'available' OR status IS NULL)
          ORDER BY date`,
         [instructorId]
       );
@@ -5619,7 +5651,7 @@ router.get(
         max_students: row.max_students,
         current_students: row.current_students,
         status: row.status,
-        organization: row.organizationname,
+        organizationname: row.organizationname,  // Changed from organization to organizationname
         notes: row.notes,
         studentcount: row.studentcount
       }));

@@ -313,6 +313,7 @@ const initializeDatabase = async () => {
         confirmed_start_time TIME,
         confirmed_end_time TIME,
         completed_at TIMESTAMP WITH TIME ZONE,
+        instructor_comments TEXT, -- Instructor notes when completing the course
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
@@ -417,6 +418,14 @@ const initializeDatabase = async () => {
           WHERE table_name = 'course_requests' AND column_name = 'last_reminder_at'
         ) THEN 
           ALTER TABLE course_requests ADD COLUMN last_reminder_at TIMESTAMP WITH TIME ZONE;
+        END IF;
+
+        -- Add instructor_comments column for instructor notes when completing courses
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'course_requests' AND column_name = 'instructor_comments'
+        ) THEN 
+          ALTER TABLE course_requests ADD COLUMN instructor_comments TEXT;
         END IF;
       END $$;
     `);

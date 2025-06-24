@@ -28,6 +28,9 @@ interface InstructorArchiveTableProps {
 const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
   courses = [],
 }) => {
+  console.log('[InstructorArchiveTable] Received courses:', courses);
+  console.log('[InstructorArchiveTable] Courses length:', courses.length);
+  
   const formatTime = (timeString?: string): string => {
     if (!timeString) return '';
     return timeString.slice(0, 5); // Convert "09:00:00" to "09:00"
@@ -129,7 +132,7 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
                   >
                     <TableCell sx={{ backgroundColor: rowColor }}>
                       <Typography variant='body2' fontWeight='medium'>
-                        {formatDisplayDate(course.datescheduled)}
+                        {formatDisplayDate(course.date)}
                       </Typography>
                     </TableCell>
 
@@ -175,10 +178,10 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
                       >
                         <PersonIcon fontSize='small' color='action' />
                         <Typography variant='body2'>
-                          {course.studentsattended || 0}
+                          {course.studentsattendance || 0}
                         </Typography>
                         <Typography variant='body2' color='text.secondary'>
-                          /{course.studentsregistered || 0}
+                          /{course.max_students || 0}
                         </Typography>
                       </Box>
                     </TableCell>
@@ -186,7 +189,7 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
                     <TableCell sx={{ backgroundColor: rowColor }}>
                       <Typography variant='body2' color='text.secondary'>
                         {formatDisplayDate(
-                          course.date_completed || course.completion_date
+                          course.updated_at || course.date
                         )}
                       </Typography>
                     </TableCell>

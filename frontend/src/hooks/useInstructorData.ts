@@ -805,6 +805,23 @@ export const useInstructorData = () => {
     }
   };
 
+  const completeClass = async (classId: number) => {
+    try {
+      console.log('[completeClass] Completing class:', classId);
+      const response = await api.put(`/instructor/classes/${classId}/complete`);
+      console.log('[completeClass] Response:', response.data);
+      
+      // Invalidate and refetch relevant queries
+      queryClient.invalidateQueries(['instructor-classes']);
+      queryClient.invalidateQueries(['instructor-classes-completed']);
+      
+      return response.data.data;
+    } catch (error: any) {
+      console.error('[completeClass] Error:', error);
+      throw error;
+    }
+  };
+
   return {
     availableDates,
     scheduledClasses,
@@ -817,7 +834,7 @@ export const useInstructorData = () => {
     isRemovingAvailability: removeAvailabilityMutation.isPending,
     fetchClassStudents: fetchClassStudentsOptimized,
     updateAttendance: updateAttendanceMutation.mutate,
-    completeClass: completeClassMutation.mutate,
+    completeClass,
     loadData: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.availability });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });

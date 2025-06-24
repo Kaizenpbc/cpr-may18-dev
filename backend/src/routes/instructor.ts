@@ -65,25 +65,69 @@ router.get('/classes', async (req, res) => {
     );
     console.log('[Instructor Classes] Classes check:', classesCheck.rows);
 
-    const result = await pool.query(
+    // Debug: Print the raw CTE output before the join
+    const cteResult = await pool.query(
       `WITH instructor_classes AS (
-        -- Get regular classes
         SELECT 
           c.id,
-          c.date as datescheduled,
+          DATE(c.start_time) as datescheduled,
           c.start_time,
           c.end_time,
           c.status,
           c.location,
           c.max_students,
-          c.current_students,
-          c.type_id,
-          NULL as organization_id,
+          0 as current_students,
+          c.class_type_id,
+          c.organization_id::integer as organization_id,
           NULL as notes,
           NULL as registered_students
         FROM classes c
         WHERE c.instructor_id = $1 
-        AND c.date >= CURRENT_DATE 
+        AND DATE(c.start_time) >= CURRENT_DATE 
+        AND c.status != 'completed'
+        UNION
+        SELECT 
+          cr.id,
+          cr.confirmed_date as datescheduled,
+          cr.confirmed_start_time as start_time,
+          cr.confirmed_end_time as end_time,
+          cr.status,
+          cr.location,
+          cr.registered_students as max_students,
+          0 as current_students,
+          cr.course_type_id as class_type_id,
+          cr.organization_id::integer as organization_id,
+          cr.notes,
+          cr.registered_students
+        FROM course_requests cr
+        WHERE cr.instructor_id = $1
+        AND cr.confirmed_date >= CURRENT_DATE
+        AND cr.status = 'confirmed'
+      )
+      SELECT * FROM instructor_classes`,
+      [instructorId]
+    );
+    console.log('[DEBUG] Raw instructor_classes CTE output:', cteResult.rows);
+
+    const result = await pool.query(
+      `WITH instructor_classes AS (
+        -- Get regular classes
+        SELECT 
+          c.id,
+          DATE(c.start_time) as datescheduled,
+          c.start_time,
+          c.end_time,
+          c.status,
+          c.location,
+          c.max_students,
+          0 as current_students,
+          c.class_type_id,
+          c.organization_id::integer as organization_id,
+          NULL as notes,
+          NULL as registered_students
+        FROM classes c
+        WHERE c.instructor_id = $1 
+        AND DATE(c.start_time) >= CURRENT_DATE 
         AND c.status != 'completed'
         
         UNION
@@ -98,8 +142,8 @@ router.get('/classes', async (req, res) => {
           cr.location,
           cr.registered_students as max_students,
           0 as current_students,
-          cr.course_type_id as type_id,
-          cr.organization_id,
+          cr.course_type_id as class_type_id,
+          cr.organization_id::integer as organization_id,
           cr.notes,
           cr.registered_students
         FROM course_requests cr
@@ -121,7 +165,7 @@ router.get('/classes', async (req, res) => {
         COALESCE(ic.notes, '') as notes,
         COALESCE(ic.registered_students, ic.max_students, 0) as studentcount
       FROM instructor_classes ic
-      LEFT JOIN class_types ct ON ic.type_id = ct.id
+      LEFT JOIN class_types ct ON ic.class_type_id = ct.id
       LEFT JOIN organizations o ON ic.organization_id = o.id
       ORDER BY ic.datescheduled, ic.start_time`,
       [instructorId]
@@ -144,7 +188,7 @@ router.get('/classes', async (req, res) => {
       max_students: row.max_students,
       current_students: row.current_students,
       status: row.status,
-      organization: row.organizationname,
+      organizationname: row.organizationname,
       notes: row.notes,
       studentcount: row.studentcount
     }));
@@ -168,11 +212,11 @@ router.get('/classes/upcoming', async (req, res) => {
   try {
     const instructorId = req.user?.userId;
     const result = await pool.query(
-      `SELECT c.id, c.date::text, c.start_time::text, c.end_time::text, c.status, ct.name as type
+      `SELECT c.id, DATE(c.start_time)::text, c.start_time::text, c.end_time::text, c.status, ct.name as type
              FROM classes c 
-             LEFT JOIN class_types ct ON c.type_id = ct.id 
-             WHERE c.instructor_id = $1 AND c.date >= CURRENT_DATE AND c.status != 'completed'
-             ORDER BY c.date, c.start_time LIMIT 5`,
+             LEFT JOIN class_types ct ON c.class_type_id = ct.id 
+             WHERE c.instructor_id = $1 AND DATE(c.start_time) >= CURRENT_DATE AND c.status != 'completed'
+             ORDER BY DATE(c.start_time), c.start_time LIMIT 5`,
       [instructorId]
     );
 
@@ -232,8 +276,6 @@ router.get('/availability', authenticateToken, async (req, res) => {
       `SELECT id, instructor_id, date::text, status, created_at, updated_at 
              FROM instructor_availability 
              WHERE instructor_id = $1 
-             AND date >= CURRENT_DATE 
-             AND (status = 'available' OR status IS NULL)
              ORDER BY date`,
       [instructorId]
     );
@@ -422,20 +464,20 @@ router.get('/schedule', async (req, res) => {
         -- Get regular classes
         SELECT 
           c.id,
-          c.date as datescheduled,
+          DATE(c.start_time) as datescheduled,
           c.start_time,
           c.end_time,
           c.status,
           c.location,
           c.max_students,
-          c.current_students,
-          c.type_id,
-          NULL as organization_id,
+          0 as current_students,
+          c.class_type_id,
+          c.organization_id::integer as organization_id,
           NULL as notes,
           NULL as registered_students
         FROM classes c
         WHERE c.instructor_id = $1 
-        AND c.date >= CURRENT_DATE 
+        AND DATE(c.start_time) >= CURRENT_DATE 
         AND c.status != 'completed'
         
         UNION
@@ -450,8 +492,8 @@ router.get('/schedule', async (req, res) => {
           cr.location,
           cr.registered_students as max_students,
           0 as current_students,
-          cr.course_type_id as type_id,
-          cr.organization_id,
+          cr.course_type_id as class_type_id,
+          cr.organization_id::integer as organization_id,
           cr.notes,
           cr.registered_students
         FROM course_requests cr
@@ -473,7 +515,7 @@ router.get('/schedule', async (req, res) => {
         COALESCE(ic.notes, '') as notes,
         COALESCE(ic.registered_students, ic.max_students, 0) as studentcount
       FROM instructor_classes ic
-      LEFT JOIN class_types ct ON ic.type_id = ct.id
+      LEFT JOIN class_types ct ON ic.class_type_id = ct.id
       LEFT JOIN organizations o ON ic.organization_id = o.id
       ORDER BY ic.datescheduled, ic.start_time`,
       [instructorId]
@@ -496,7 +538,7 @@ router.get('/schedule', async (req, res) => {
       max_students: row.max_students,
       current_students: row.current_students,
       status: row.status,
-      organization: row.organizationname,
+      organizationname: row.organizationname,
       notes: row.notes,
       studentcount: row.studentcount
     }));
@@ -540,25 +582,24 @@ router.get('/classes/today', async (req, res) => {
     const result = await pool.query(
       `SELECT 
                 c.id as course_id,
-                c.date::text as datescheduled,
+                DATE(c.start_time)::text as datescheduled,
                 c.start_time::text, 
                 c.end_time::text, 
                 c.status, 
                 c.location,
                 c.max_students,
-                c.current_students,
                 ct.name as coursetypename,
                 COALESCE(o.name, 'Unassigned') as organizationname,
                 COALESCE(cr.notes, '') as notes,
                 COALESCE(cr.registered_students, c.max_students, 0) as studentcount
              FROM classes c 
-             LEFT JOIN class_types ct ON c.type_id = ct.id 
+             LEFT JOIN class_types ct ON c.class_type_id = ct.id 
              LEFT JOIN course_requests cr ON cr.instructor_id = c.instructor_id 
                 AND cr.status = 'confirmed'
-                AND DATE(cr.confirmed_date) = DATE(c.date)
-                AND cr.course_type_id = c.type_id
-             LEFT JOIN organizations o ON cr.organization_id = o.id
-             WHERE c.instructor_id = $1 AND DATE(c.date) = CURRENT_DATE AND c.status != 'completed'
+                AND DATE(cr.confirmed_date) = DATE(c.start_time)
+                AND cr.course_type_id = c.class_type_id
+             LEFT JOIN organizations o ON c.organization_id = o.id
+             WHERE c.instructor_id = $1 AND DATE(c.start_time) = CURRENT_DATE AND c.status != 'completed'
              ORDER BY c.start_time`,
       [instructorId]
     );
@@ -571,11 +612,11 @@ router.get('/classes/today', async (req, res) => {
       location: row.location || 'TBD',
       studentcount: row.studentcount || 0,
       studentsregistered: row.studentcount || 0,
-      studentsattendance: row.current_students || 0,
+      studentsattendance: 0, // Since we don't track current_students in classes table
       notes: row.notes || '',
       status: row.status || 'scheduled',
       max_students: row.max_students || 10,
-      current_students: row.current_students || 0,
+      current_students: 0, // Since we don't track current_students in classes table
       start_time: row.start_time ? row.start_time.slice(0, 5) : '09:00',
       end_time: row.end_time ? row.end_time.slice(0, 5) : '12:00',
     }));
@@ -640,8 +681,8 @@ router.get('/classes/:classId/students', async (req, res) => {
       `SELECT cr.id as course_request_id
              FROM course_requests cr
              JOIN classes c ON cr.instructor_id = c.instructor_id 
-                AND DATE(cr.confirmed_date) = DATE(c.date)
-                AND cr.course_type_id = c.type_id
+                AND DATE(cr.confirmed_date) = DATE(c.start_time)
+                AND cr.course_type_id = c.class_type_id
              WHERE c.id = $1 AND c.instructor_id = $2`,
       [classId, instructorId]
     );
@@ -749,8 +790,8 @@ router.post('/classes/:classId/students', async (req, res) => {
       `SELECT cr.id as course_request_id
              FROM course_requests cr
              JOIN classes c ON cr.instructor_id = c.instructor_id 
-                AND DATE(cr.confirmed_date) = DATE(c.date)
-                AND cr.course_type_id = c.type_id
+                AND DATE(cr.confirmed_date) = DATE(c.start_time)
+                AND cr.course_type_id = c.class_type_id
              WHERE c.id = $1 AND c.instructor_id = $2`,
       [classId, instructorId]
     );
@@ -870,8 +911,8 @@ router.put(
         `SELECT cr.id as course_request_id
              FROM course_requests cr
              JOIN classes c ON cr.instructor_id = c.instructor_id 
-                AND DATE(cr.confirmed_date) = DATE(c.date)
-                AND cr.course_type_id = c.type_id
+                AND DATE(cr.confirmed_date) = DATE(c.start_time)
+                AND cr.course_type_id = c.class_type_id
              WHERE c.id = $1 AND c.instructor_id = $2`,
         [classId, instructorId]
       );
@@ -912,18 +953,18 @@ router.put(
           attendanceCountResult.rows[0].attended_count
         );
 
-        // Update the classes table with the new attendance count
+        // Update the course_requests table with the current attendance count in real-time
         await pool.query(
-          `UPDATE classes 
-                 SET current_students = $1, updated_at = CURRENT_TIMESTAMP
+          `UPDATE course_requests 
+                 SET final_attendance_count = $1, updated_at = CURRENT_TIMESTAMP
                  WHERE id = $2`,
-          [attendedCount, classId]
+          [attendedCount, courseRequestId]
         );
 
         console.log(
-          '[Debug] Updated class ID:',
-          classId,
-          'with attended count:',
+          '[Debug] Updated course request ID:',
+          courseRequestId,
+          'with real-time attendance count:',
           attendedCount
         );
       }
@@ -972,221 +1013,188 @@ router.put(
  * - Logs completion action for audit trail
  */
 router.put('/classes/:classId/complete', async (req, res) => {
-  const client = await pool.connect();
-
   try {
-    await client.query('BEGIN');
-
     const instructorId = parseInt(req.user?.userId || '0', 10);
     const { classId } = req.params;
-    const { generateCertificates = false } = req.body;
+    const { instructor_comments } = req.body;
 
-    // Input validation with detailed error messages
     if (!instructorId) {
-      throw new AppError(
-        400,
-        errorCodes.VALIDATION_ERROR,
-        'Invalid instructor credentials'
-      );
+      return res
+        .status(400)
+        .json(
+          ApiResponseBuilder.error(
+            errorCodes.VALIDATION_ERROR,
+            'Invalid instructor ID'
+          )
+        );
     }
 
-    if (!classId || isNaN(parseInt(classId))) {
-      throw new AppError(
-        400,
-        errorCodes.VALIDATION_ERROR,
-        'Invalid class ID provided'
+    console.log('[Complete Course] Instructor ID:', instructorId, 'Class ID:', classId);
+    console.log('[Complete Course] Instructor Comments:', instructor_comments);
+
+    // Start a transaction to ensure all operations succeed or fail together
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // First verify the class belongs to this instructor and is not already completed
+      const classCheck = await client.query(
+        'SELECT id, status, instructor_id FROM classes WHERE id = $1 AND instructor_id = $2',
+        [classId, instructorId]
       );
-    }
 
-    console.log(
-      `[Audit] Instructor ${instructorId} attempting to complete class ${classId}`
-    );
+      if (classCheck.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res
+          .status(404)
+          .json(
+            ApiResponseBuilder.error(
+              errorCodes.RESOURCE_NOT_FOUND,
+              'Class not found or not authorized'
+            )
+          );
+      }
 
-    // Verify class ownership and get class details
-    const classResult = await client.query(
-      `SELECT c.id, c.date, c.status, c.instructor_id, c.location, c.start_time, c.end_time,
-                    ct.name as course_type, c.current_students, c.max_students
-             FROM classes c
-             LEFT JOIN class_types ct ON c.type_id = ct.id
-             WHERE c.id = $1 AND c.instructor_id = $2`,
-      [classId, instructorId]
-    );
+      const classData = classCheck.rows[0];
+      if (classData.status === 'completed') {
+        await client.query('ROLLBACK');
+        return res
+          .status(400)
+          .json(
+            ApiResponseBuilder.error(
+              errorCodes.VALIDATION_ERROR,
+              'Class is already completed'
+            )
+          );
+      }
 
-    if (classResult.rows.length === 0) {
-      throw new AppError(
-        404,
-        errorCodes.RESOURCE_NOT_FOUND,
-        'Class not found or access denied'
+      // Get the course request ID to update both tables
+      const courseRequestResult = await client.query(
+        `SELECT cr.id as course_request_id, cr.organization_id
+         FROM course_requests cr
+         JOIN classes c ON cr.instructor_id = c.instructor_id 
+            AND DATE(cr.confirmed_date) = DATE(c.start_time)
+            AND cr.course_type_id = c.class_type_id
+         WHERE c.id = $1 AND c.instructor_id = $2`,
+        [classId, instructorId]
       );
-    }
 
-    const classData = classResult.rows[0];
+      if (courseRequestResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res
+          .status(404)
+          .json(
+            ApiResponseBuilder.error(
+              errorCodes.RESOURCE_NOT_FOUND,
+              'Course request not found for this class'
+            )
+          );
+      }
 
-    // Business logic validation
-    if (classData.status === 'completed') {
-      throw new AppError(
-        409,
-        errorCodes.VALIDATION_ERROR,
-        'Class is already marked as completed'
-      );
-    }
-
-    if (classData.status === 'cancelled') {
-      throw new AppError(
-        400,
-        errorCodes.VALIDATION_ERROR,
-        'Cannot complete a cancelled class'
-      );
-    }
-
-    // Ensure class date is not in the future (with 1-hour grace period for same-day completion)
-    const classDate = new Date(classData.date);
-    const now = new Date();
-    const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
-
-    if (classDate > oneHourFromNow) {
-      throw new AppError(
-        400,
-        errorCodes.VALIDATION_ERROR,
-        'Cannot complete a class scheduled for the future. Please wait until the class date.'
-      );
-    }
-
-    // Get course request details for organization info
-    const courseRequestResult = await client.query(
-      `SELECT cr.id as course_request_id, cr.organization_id, o.name as organization_name
-             FROM course_requests cr
-             JOIN organizations o ON cr.organization_id = o.id
-             JOIN classes c ON cr.instructor_id = c.instructor_id 
-                AND DATE(cr.confirmed_date) = DATE(c.date)
-                AND cr.course_type_id = c.type_id
-             WHERE c.id = $1 AND c.instructor_id = $2`,
-      [classId, instructorId]
-    );
-
-    // Validate student attendance is marked (business requirement)
-    if (courseRequestResult.rows.length > 0) {
       const courseRequestId = courseRequestResult.rows[0].course_request_id;
+      const organizationId = courseRequestResult.rows[0].organization_id;
 
-      const unmarkedStudentsResult = await client.query(
-        `SELECT COUNT(*) as unmarked_count
-                 FROM course_students
-                 WHERE course_request_id = $1 AND attendance_marked = false`,
+      // Calculate final attendance count
+      const attendanceResult = await client.query(
+        `SELECT COUNT(*) as total_students, 
+                COUNT(CASE WHEN attended = true THEN 1 END) as attended_count
+         FROM course_students 
+         WHERE course_request_id = $1`,
         [courseRequestId]
       );
 
-      const unmarkedCount = parseInt(
-        unmarkedStudentsResult.rows[0].unmarked_count
+      const totalStudents = parseInt(attendanceResult.rows[0].total_students);
+      const attendedCount = parseInt(attendanceResult.rows[0].attended_count);
+
+      // Update the class status to completed
+      await client.query(
+        'UPDATE classes SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        ['completed', classId]
       );
 
-      if (unmarkedCount > 0) {
-        throw new AppError(
-          400,
-          errorCodes.VALIDATION_ERROR,
-          `Cannot complete class: ${unmarkedCount} student(s) have unmarked attendance. Please mark all students' attendance before completing the class.`
-        );
-      }
-    }
-
-    // Update class status to completed with completion timestamp
-    const completionTime = new Date();
-    await client.query(
-      `UPDATE classes 
-             SET status = 'completed', 
-                 updated_at = $1,
-                 completed_at = $1
-             WHERE id = $2`,
-      [completionTime, classId]
-    );
-
-    // Update course request status if exists
-    if (courseRequestResult.rows.length > 0) {
+      // Update the course request status to completed with instructor comments
       await client.query(
         `UPDATE course_requests 
-                 SET status = 'completed', 
-                     updated_at = $1,
-                     completed_at = $1
-                 WHERE id = $2`,
-        [completionTime, courseRequestResult.rows[0].course_request_id]
+         SET status = 'completed', 
+             completed_at = CURRENT_TIMESTAMP,
+             instructor_comments = $1,
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE id = $2`,
+        [instructor_comments || null, courseRequestId]
       );
+
+      // Commit the transaction
+      await client.query('COMMIT');
+
+      console.log('[Complete Course] Successfully completed class:', classId);
+      console.log('[Complete Course] Final attendance:', attendedCount, '/', totalStudents);
+      console.log('[Complete Course] Instructor comments saved:', instructor_comments ? 'Yes' : 'No');
+
+      // Return the updated class data
+      const updatedClassResult = await pool.query(
+        `SELECT 
+          c.id as course_id,
+          DATE(c.start_time)::text as datescheduled,
+          c.start_time::text,
+          c.end_time::text,
+          c.status,
+          c.location,
+          c.max_students,
+          0 as current_students,
+          ct.name as coursetypename,
+          COALESCE(o.name, 'Unassigned') as organizationname,
+          COALESCE(cr.notes, '') as notes,
+          0 as studentcount,
+          0 as studentsattendance,
+          COALESCE(cr.instructor_comments, '') as instructor_comments
+        FROM classes c
+        LEFT JOIN class_types ct ON c.class_type_id = ct.id
+        LEFT JOIN course_requests cr ON cr.instructor_id = c.instructor_id 
+          AND DATE(cr.confirmed_date) = DATE(c.start_time)
+          AND cr.course_type_id = c.class_type_id
+        LEFT JOIN organizations o ON cr.organization_id = o.id
+        WHERE c.id = $1`,
+        [classId]
+      );
+
+      const formattedData = updatedClassResult.rows.map(row => ({
+        id: row.course_id.toString(),
+        type: row.coursetypename,
+        date: row.datescheduled,
+        time: `${row.start_time} - ${row.end_time}`,
+        location: row.location,
+        instructor_id: instructorId.toString(),
+        max_students: row.max_students,
+        current_students: row.current_students,
+        status: row.status,
+        organizationname: row.organizationname,
+        notes: row.notes,
+        studentcount: row.studentcount,
+        final_attendance: row.studentsattendance,
+        instructor_comments: row.instructor_comments,
+        completed: true
+      }));
+
+      res.json(ApiResponseBuilder.success(formattedData[0]));
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
 
-    // Update instructor availability status to 'completed' instead of deleting
-    // This maintains the audit trail and prevents double-booking
-    const availabilityUpdateResult = await client.query(
-      `UPDATE instructor_availability 
-             SET status = 'completed', 
-                 updated_at = $1
-             WHERE instructor_id = $2 AND date = $3
-             RETURNING id, status`,
-      [completionTime, instructorId, classData.date]
-    );
-
-    if (availabilityUpdateResult.rows.length === 0) {
-      console.log(
-        `[Warning] No availability record found to update for instructor ${instructorId} on date ${classData.date}`
-      );
-    } else {
-      console.log(
-        `[Audit] Updated availability record ${availabilityUpdateResult.rows[0].id} to status '${availabilityUpdateResult.rows[0].status}' for instructor ${instructorId} on date ${classData.date}`
-      );
-    }
-
-    // Create audit log entry for compliance and tracking
-    await client.query(
-      `INSERT INTO activity_logs (
-                user_id, action, resource_type, resource_id, 
-                details, ip_address, user_agent, created_at
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [
-        instructorId,
-        'COURSE_COMPLETED',
-        'class',
-        classId,
-        JSON.stringify({
-          class_date: classData.date,
-          course_type: classData.course_type,
-          location: classData.location,
-          students_count: classData.current_students,
-          organization:
-            courseRequestResult.rows[0]?.organization_name || 'Unassigned',
-          completion_time: completionTime.toISOString(),
-        }),
-        req.ip || req.connection.remoteAddress,
-        req.get('User-Agent') || 'Unknown',
-        completionTime,
-      ]
-    );
-
-    // Get final class data for response
-    const completedClassResult = await client.query(
-      `SELECT c.id, c.date::text as date_completed, c.status, 
-                    ct.name as course_type, c.current_students,
-                    COALESCE(o.name, 'Unassigned') as organization_name
-             FROM classes c
-             LEFT JOIN class_types ct ON c.type_id = ct.id
-             LEFT JOIN course_requests cr ON cr.instructor_id = c.instructor_id 
-                AND DATE(cr.confirmed_date) = DATE(c.date)
-                AND cr.course_type_id = c.type_id
-             LEFT JOIN organizations o ON cr.organization_id = o.id
-             WHERE c.id = $1`,
-      [classId]
-    );
-
-    await client.query('COMMIT');
-
-    console.log(
-      `[Audit] Class ${classId} completed successfully by instructor ${instructorId}`
-    );
-
-    return res.json({
-      success: true,
-      message: 'Class completed successfully',
-      data: completedClassResult.rows[0]
-    });
   } catch (error) {
-    await client.query('ROLLBACK');
-    next(error);
+    console.error('[Complete Course] Error:', error);
+    res
+      .status(500)
+      .json(
+        ApiResponseBuilder.error(
+          errorCodes.SERVICE_UNAVAILABLE,
+          'Failed to complete course'
+        )
+      );
   }
 });
 
@@ -1198,20 +1206,35 @@ router.get('/classes/completed', async (req, res) => {
       throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid instructor ID');
     }
 
+    console.log('[Completed Classes] Fetching completed classes for instructor:', instructorId);
+
+    // First check what classes exist for this instructor
+    const classCheck = await pool.query(
+      'SELECT id, status, instructor_id FROM classes WHERE instructor_id = $1 ORDER BY updated_at DESC LIMIT 5',
+      [instructorId]
+    );
+    console.log('[Completed Classes] All classes for instructor:', classCheck.rows);
+
+    // Check course requests
+    const courseRequestCheck = await pool.query(
+      'SELECT id, status, instructor_id FROM course_requests WHERE instructor_id = $1 ORDER BY updated_at DESC LIMIT 5',
+      [instructorId]
+    );
+    console.log('[Completed Classes] All course requests for instructor:', courseRequestCheck.rows);
+
     const result = await pool.query(
       `WITH completed_classes AS (
         -- Get completed regular classes
         SELECT 
           c.id,
-          c.date as datescheduled,
+          DATE(c.start_time) as datescheduled,
           c.start_time,
           c.end_time,
           c.status,
           c.location,
           c.max_students,
-          c.current_students,
-          c.type_id,
-          NULL as organization_id,
+          c.class_type_id,
+          c.organization_id::integer as organization_id,
           NULL as notes,
           NULL as registered_students
         FROM classes c
@@ -1230,8 +1253,8 @@ router.get('/classes/completed', async (req, res) => {
           cr.location,
           cr.registered_students as max_students,
           0 as current_students,
-          cr.course_type_id as type_id,
-          cr.organization_id,
+          cr.course_type_id as class_type_id,
+          cr.organization_id::integer as organization_id,
           cr.notes,
           cr.registered_students
         FROM course_requests cr
@@ -1252,7 +1275,7 @@ router.get('/classes/completed', async (req, res) => {
         COALESCE(cc.notes, '') as notes,
         COALESCE(cc.registered_students, cc.max_students, 0) as studentcount
       FROM completed_classes cc
-      LEFT JOIN class_types ct ON cc.type_id = ct.id
+      LEFT JOIN class_types ct ON cc.class_type_id = ct.id
       LEFT JOIN organizations o ON cc.organization_id = o.id
       ORDER BY cc.datescheduled DESC, cc.start_time DESC`,
       [instructorId]
@@ -1268,7 +1291,7 @@ router.get('/classes/completed', async (req, res) => {
       max_students: row.max_students,
       current_students: row.current_students,
       status: row.status,
-      organization: row.organizationname,
+      organizationname: row.organizationname,
       notes: row.notes,
       studentcount: row.studentcount
     }));
@@ -1300,15 +1323,14 @@ router.get('/classes/:classId', async (req, res) => {
         -- Check regular classes
         SELECT 
           c.id,
-          c.date as datescheduled,
+          DATE(c.start_time) as datescheduled,
           c.start_time,
           c.end_time,
           c.status,
           c.location,
           c.max_students,
-          c.current_students,
-          c.type_id,
-          NULL as organization_id,
+          c.class_type_id,
+          c.organization_id::integer as organization_id,
           NULL as notes,
           NULL as registered_students
         FROM classes c
@@ -1326,8 +1348,8 @@ router.get('/classes/:classId', async (req, res) => {
           cr.location,
           cr.registered_students as max_students,
           0 as current_students,
-          cr.course_type_id as type_id,
-          cr.organization_id,
+          cr.course_type_id as class_type_id,
+          cr.organization_id::integer as organization_id,
           cr.notes,
           cr.registered_students
         FROM course_requests cr
@@ -1347,7 +1369,7 @@ router.get('/classes/:classId', async (req, res) => {
         COALESCE(cd.notes, '') as notes,
         COALESCE(cd.registered_students, cd.max_students, 0) as studentcount
       FROM class_data cd
-      LEFT JOIN class_types ct ON cd.type_id = ct.id
+      LEFT JOIN class_types ct ON cd.class_type_id = ct.id
       LEFT JOIN organizations o ON cd.organization_id = o.id`,
       [classId, instructorId]
     );
@@ -1367,7 +1389,7 @@ router.get('/classes/:classId', async (req, res) => {
       max_students: classData.max_students,
       current_students: classData.current_students,
       status: classData.status,
-      organization: classData.organizationname,
+      organizationname: classData.organizationname,
       notes: classData.notes,
       studentcount: classData.studentcount
     };
@@ -1406,15 +1428,15 @@ router.get(
           -- Get regular classes
           SELECT 
             c.id,
-            c.date as datescheduled,
+            DATE(c.start_time) as datescheduled,
             c.start_time,
             c.end_time,
             c.status,
             c.location,
             c.max_students,
-            c.current_students,
-            c.type_id,
-            NULL as organization_id,
+            0 as current_students,
+            c.class_type_id,
+            c.organization_id::integer as organization_id,
             NULL as notes,
             NULL as registered_students
           FROM classes c
@@ -1434,8 +1456,8 @@ router.get(
             cr.location,
             cr.registered_students as max_students,
             0 as current_students,
-            cr.course_type_id as type_id,
-            cr.organization_id,
+            cr.course_type_id as class_type_id,
+            cr.organization_id::integer as organization_id,
             cr.notes,
             cr.registered_students
           FROM course_requests cr
@@ -1457,7 +1479,7 @@ router.get(
           COALESCE(ic.notes, '') as notes,
           COALESCE(ic.registered_students, ic.max_students, 0) as studentcount
         FROM instructor_classes ic
-        LEFT JOIN class_types ct ON ic.type_id = ct.id
+        LEFT JOIN class_types ct ON ic.class_type_id = ct.id
         LEFT JOIN organizations o ON ic.organization_id = o.id
         ORDER BY ic.datescheduled, ic.start_time`,
         [instructorId]
@@ -1473,7 +1495,7 @@ router.get(
         max_students: row.max_students,
         current_students: row.current_students,
         status: row.status,
-        organization: row.organizationname,
+        organizationname: row.organizationname,
         notes: row.notes,
         studentcount: row.studentcount
       }));
@@ -1512,8 +1534,6 @@ router.get(
         `SELECT id, instructor_id, date::text, status, created_at, updated_at 
          FROM instructor_availability 
          WHERE instructor_id = $1 
-         AND date >= CURRENT_DATE 
-         AND (status = 'available' OR status IS NULL)
          ORDER BY date`,
         [instructorId]
       );

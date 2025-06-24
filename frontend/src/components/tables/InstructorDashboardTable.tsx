@@ -133,7 +133,7 @@ const InstructorDashboardTable = ({
                   {item.studentsRegistered ?? '-'}
                 </TableCell>
                 <TableCell align='center'>
-                  {item.studentsAttendance ?? '-'}
+                  {item.students_attended ?? '-'}
                 </TableCell>
                 <TableCell>{item.notes || '-'}</TableCell>
                 <TableCell>{item.status || '-'}</TableCell>

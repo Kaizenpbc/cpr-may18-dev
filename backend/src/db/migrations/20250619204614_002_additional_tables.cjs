@@ -71,6 +71,13 @@ exports.up = function(knex) {
       table.timestamp('completed_at');
       table.timestamps(true, true);
     });
+
+  // Add final attendance tracking columns to course_requests
+  await knex.raw(`
+    ALTER TABLE course_requests 
+    ADD COLUMN IF NOT EXISTS final_student_count INTEGER DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS final_attendance_count INTEGER DEFAULT 0
+  `);
 };
 
 exports.down = function(knex) {

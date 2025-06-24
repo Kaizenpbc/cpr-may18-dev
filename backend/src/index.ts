@@ -384,6 +384,7 @@ app.use((error: any, req: Request, res: Response, next: NextFunction) => {
 
 // Socket.IO connection handling
 console.log('13. Setting up Socket.IO handlers...');
+console.log('13a. Configuring Socket.IO connection events...');
 io.on('connection', (socket) => {
   console.log('Socket.IO client connected:', socket.id);
 
@@ -399,13 +400,18 @@ console.log('✅ Socket.IO handlers configured');
 
 // Start server
 console.log('14. Starting server...');
+console.log('14a. Getting port configuration...');
 const port = parseInt(process.env.PORT || '3001', 10); // Use 3001 as default backend port
+console.log(`Port configured as: ${port}`);
 console.log(`Attempting to start server on port ${port}...`);
 
 const startServer = async () => {
   try {
+    console.log('14b. Checking for existing processes on port...');
     await killProcessOnPort(port);
+    console.log('14c. Port cleanup completed');
 
+    console.log('14d. Starting HTTP server...');
     httpServer.listen(port, '0.0.0.0', () => {
       console.log(`✅ Server is now listening on http://0.0.0.0:${port}`);
       console.log(`Try accessing http://localhost:${port}/api/v1/health`);
@@ -423,6 +429,7 @@ const startServer = async () => {
     });
 
     httpServer.on('listening', () => {
+      console.log('14e. HTTP server listening event fired');
       const address = httpServer.address();
       if (address && typeof address === 'object') {
         console.log(`✅ Server bound to ${address.address}:${address.port}`);
@@ -438,6 +445,7 @@ const startServer = async () => {
       console.log('🎉 ========================================\n');
     });
   } catch (error) {
+    console.error('14f. Error in startServer:', error);
     writeErrorToLog(error, 'Server startup failed');
     process.exit(1);
   }
@@ -445,6 +453,7 @@ const startServer = async () => {
 
 // Process handlers
 console.log('15. Setting up process handlers...');
+console.log('15a. Setting up SIGINT handler...');
 process.on('SIGINT', () => {
   writeToLog('🛑 Received SIGINT, shutting down gracefully...', 'INFO');
   httpServer.close(() => {
@@ -453,6 +462,7 @@ process.on('SIGINT', () => {
   });
 });
 
+console.log('15b. Setting up SIGTERM handler...');
 process.on('SIGTERM', () => {
   writeToLog('🛑 Received SIGTERM, shutting down gracefully...', 'INFO');
   httpServer.close(() => {
@@ -461,16 +471,22 @@ process.on('SIGTERM', () => {
   });
 });
 
+console.log('15c. Setting up uncaughtException handler...');
 process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
   writeErrorToLog(error, 'Uncaught Exception');
   process.exit(1);
 });
 
+console.log('15d. Setting up unhandledRejection handler...');
 process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection:', reason);
   writeErrorToLog(reason, `Unhandled Rejection at ${promise}`);
   process.exit(1);
 });
 console.log('✅ Process handlers configured');
 
 // Start the server
+console.log('16. Calling startServer()...');
 startServer();
+console.log('17. startServer() called - waiting for server to start...');

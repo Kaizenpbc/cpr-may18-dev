@@ -128,6 +128,8 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
   // State for CSV upload dialog
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<string | number | null>(null);
+  // State for success message
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Navigation items
   const navigationItems = [
@@ -141,9 +143,20 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
 
   // Handle course scheduled
   const handleCourseScheduled = () => {
-    // Refresh courses data
-    // This will trigger a refetch of the courses query
-    window.location.reload(); // Simple approach - you could also use React Query's invalidateQueries
+    // Show success message
+    setSuccessMessage('Course scheduled successfully! Your course request has been submitted.');
+    
+    // Refresh courses data using React Query instead of page reload
+    queryClient.invalidateQueries({ queryKey: ['organization-courses', user?.organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['organization-data', user?.organizationId] });
+    
+    // Clear success message after 5 seconds
+    setTimeout(() => {
+      setSuccessMessage(null);
+    }, 5000);
+    
+    // Switch to courses view to show the updated list
+    onViewChange('courses');
   };
 
   // Handle view students click
@@ -261,6 +274,17 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
         drawerWidth={drawerWidth}
       >
         <Box sx={{ flexGrow: 1, p: 3 }}>
+          {/* Success Message */}
+          {successMessage && (
+            <Alert 
+              severity="success" 
+              sx={{ mb: 3 }}
+              onClose={() => setSuccessMessage(null)}
+            >
+              {successMessage}
+            </Alert>
+          )}
+          
           {renderCurrentView()}
         </Box>
       </OrganizationLayout>

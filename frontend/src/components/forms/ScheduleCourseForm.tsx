@@ -60,7 +60,6 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
   const [isLoadingTypes, setIsLoadingTypes] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     // Fetch course types when component mounts
@@ -91,13 +90,11 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
     }));
     // Clear messages on change
     setError('');
-    setSuccessMessage('');
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
-    setSuccessMessage('');
 
     if (!formData.scheduledDate || !formData.location || !formData.courseTypeId || !formData.registeredStudents) {
       setError('Please fill in all required fields');
@@ -115,7 +112,6 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
       });
 
       if (response.data.success) {
-        setSuccessMessage('Course request submitted successfully');
         setFormData({
           scheduledDate: null,
           location: '',
@@ -171,11 +167,6 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
         {error && (
           <Alert severity='error' sx={{ mb: 2 }}>
             {error}
-          </Alert>
-        )}
-        {successMessage && (
-          <Alert severity='success' sx={{ mb: 2 }}>
-            {successMessage}
           </Alert>
         )}
 

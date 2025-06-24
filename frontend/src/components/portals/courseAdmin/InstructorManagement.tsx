@@ -1087,8 +1087,8 @@ const InstructorManagement: React.FC = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Date Submitted</TableCell>
-                <TableCell>Scheduled Date</TableCell>
-                <TableCell>Confirmed Date</TableCell>
+                <TableCell>Date Scheduled</TableCell>
+                <TableCell>Date Confirmed</TableCell>
                 <TableCell>Organization</TableCell>
                 <TableCell>Location</TableCell>
                 <TableCell>Course Name</TableCell>
@@ -1495,7 +1495,7 @@ const InstructorManagement: React.FC = () => {
             <br />
             Students: {selectedCourse?.registered_students || 0}
             <br />
-            Scheduled Date:{' '}
+            Date Scheduled:{' '}
             {selectedCourse?.scheduled_date
               ? formatDisplayDate(selectedCourse.scheduled_date)
               : 'Not set'}
@@ -1539,7 +1539,7 @@ const InstructorManagement: React.FC = () => {
 
             <TextField
               type='date'
-              label='Course Date (from Organization Request)'
+              label='Date Scheduled'
               value={assignmentData.scheduledDate}
               fullWidth
               disabled
@@ -1613,7 +1613,7 @@ const InstructorManagement: React.FC = () => {
           <Stack spacing={2} sx={{ mt: 2 }}>
             <TextField
               type='date'
-              label='Scheduled Date'
+              label='Date Scheduled'
               value={editScheduleData.scheduledDate}
               onChange={e => handleEditScheduleDateChange(e.target.value)}
               fullWidth
@@ -1713,7 +1713,7 @@ const InstructorManagement: React.FC = () => {
             </Typography>
             <TextField
               type="datetime-local"
-              label="New Scheduled Date"
+              label="New Date Scheduled"
               value={newScheduledDate}
               onChange={(e) => setNewScheduledDate(e.target.value)}
               fullWidth

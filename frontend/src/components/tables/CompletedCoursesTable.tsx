@@ -138,7 +138,7 @@ const CompletedCoursesTable = ({
                 {course.studentsregistered ?? '-'}
               </TableCell>
               <TableCell align='center'>
-                {course.studentsattendance ?? '-'}
+                {course.students_attended ?? '-'}
               </TableCell>
               <TableCell>{course.notes || '-'}</TableCell>
               <TableCell>{course.status || '-'}</TableCell>

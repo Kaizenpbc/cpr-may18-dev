@@ -24,6 +24,11 @@ import {
   Table,
   TableHead,
   TableBody,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useInstructorData } from '../../hooks/useInstructorData';
@@ -51,6 +56,9 @@ const MyClassesView = lazy(
 );
 const AttendanceView = lazy(
   () => import('../views/instructor/AttendanceView')
+);
+const ClassAttendanceView = lazy(
+  () => import('../views/instructor/ClassAttendanceView')
 );
 const InstructorArchiveTable = lazy(
   () => import('../tables/InstructorArchiveTable')
@@ -90,15 +98,15 @@ interface CombinedScheduleItem {
 }
 
 interface InstructorArchiveTableProps {
-  classes: ScheduledClass[];
+  courses: ScheduledClass[];
 }
 
 const formatScheduleItem = (item: any): CombinedScheduleItem => {
   return {
     type: 'class',
-    displayDate: formatDateWithoutTimezone(item.datescheduled),
+    displayDate: formatDateWithoutTimezone(item.date),
     status: item.status || 'scheduled',
-    key: `${item.course_id}-${item.datescheduled}`,
+    key: `${item.course_id}-${item.date}`,
     organizationname: item.organizationname || 'Unassigned',
     location: item.location || 'TBD',
     coursetypename: item.coursetypename || 'CPR Class',
@@ -139,6 +147,13 @@ const InstructorPortal: React.FC = () => {
 
   const [errorState, setErrorState] = useState<string | null>(null);
   const [successState, setSuccessState] = useState<string | null>(null);
+  const [completeDialog, setCompleteDialog] = useState<{
+    open: boolean;
+    item: CombinedScheduleItem | null;
+  }>({
+    open: false,
+    item: null,
+  });
 
   // Temporary logout function for testing
   const handleTestLogout = async () => {
@@ -209,7 +224,7 @@ const InstructorPortal: React.FC = () => {
       scheduledClasses.forEach((classItem: any) => {
         items.push({
           type: 'class' as const,
-          displayDate: classItem.datescheduled,
+          displayDate: classItem.date,
           status: classItem.status || 'scheduled',
           key: `class-${classItem.course_id}`,
           organizationname: classItem.organizationname,
@@ -298,6 +313,51 @@ const InstructorPortal: React.FC = () => {
     return pathSegments[pathSegments.length - 1] || 'dashboard';
   };
 
+  const handleCompleteClass = async (item: CombinedScheduleItem) => {
+    if (!item.course_id) {
+      console.error('No course ID found for item:', item);
+      return;
+    }
+
+    // Show confirmation dialog
+    setCompleteDialog({
+      open: true,
+      item: item,
+    });
+  };
+
+  const handleCompleteConfirm = async () => {
+    if (!completeDialog.item?.course_id) {
+      console.error('No course ID found for item:', completeDialog.item);
+      return;
+    }
+
+    try {
+      console.log('[handleCompleteConfirm] Completing class:', completeDialog.item.course_id);
+      await completeClass(completeDialog.item.course_id);
+      
+      // Show success message
+      setSuccessState('Course completed successfully! It has been moved to your archive.');
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccessState(null), 5000);
+      
+      // Close dialog
+      setCompleteDialog({ open: false, item: null });
+      
+    } catch (error: any) {
+      console.error('[handleCompleteConfirm] Error:', error);
+      setErrorState(error.response?.data?.message || 'Failed to complete course');
+      
+      // Clear error message after 5 seconds
+      setTimeout(() => setErrorState(null), 5000);
+    }
+  };
+
+  const handleCompleteCancel = () => {
+    setCompleteDialog({ open: false, item: null });
+  };
+
   if (authLoading || loading) {
     return (
       <InstructorLayout currentView={getCurrentView()} onRefresh={loadData}>
@@ -329,6 +389,19 @@ const InstructorPortal: React.FC = () => {
     <ErrorBoundary onError={handleError}>
       <InstructorLayout currentView={getCurrentView()} onRefresh={loadData}>
         <Container maxWidth='lg'>
+          {/* Success and Error Messages */}
+          {successState && (
+            <Alert severity='success' sx={{ mb: 2, mt: 2 }}>
+              {successState}
+            </Alert>
+          )}
+          
+          {errorState && (
+            <Alert severity='error' sx={{ mb: 2, mt: 2 }}>
+              {errorState}
+            </Alert>
+          )}
+
           {/* Temporary logout button for testing */}
           <Box sx={{ mb: 2, mt: 2, textAlign: 'center' }}>
             <Button
@@ -374,7 +447,7 @@ const InstructorPortal: React.FC = () => {
                   <ErrorBoundary onError={handleError}>
                     <MyClassesView
                       combinedSchedule={combinedItems}
-                      onCompleteClass={completeClass}
+                      onCompleteClass={handleCompleteClass}
                       onRemoveAvailability={removeAvailability}
                     />
                   </ErrorBoundary>
@@ -393,11 +466,19 @@ const InstructorPortal: React.FC = () => {
                 }
               />
               <Route
+                path='/class-attendance'
+                element={
+                  <ErrorBoundary onError={handleError}>
+                    <ClassAttendanceView />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
                 path='/archive'
                 element={
                   <ErrorBoundary onError={handleError}>
                     <InstructorArchiveTable
-                      classes={completedClasses}
+                      courses={completedClasses}
                     />
                   </ErrorBoundary>
                 }
@@ -414,6 +495,48 @@ const InstructorPortal: React.FC = () => {
           </Suspense>
         </Container>
       </InstructorLayout>
+
+      {/* Complete Course Confirmation Dialog */}
+      <Dialog
+        open={completeDialog.open}
+        onClose={handleCompleteCancel}
+        maxWidth='sm'
+        fullWidth
+      >
+        <DialogTitle>Complete Course</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to mark this course as completed?
+            <br /><br />
+            <strong>Course Details:</strong><br />
+            Date: {completeDialog.item?.displayDate}<br />
+            Organization: {completeDialog.item?.organizationname}<br />
+            Location: {completeDialog.item?.location}<br />
+            Course: {completeDialog.item?.coursetypename}<br />
+            Students Registered: {completeDialog.item?.studentsregistered}<br />
+            Students Attended: {completeDialog.item?.studentsattendance}
+            <br /><br />
+            <strong>This action will:</strong>
+            <ul>
+              <li>Mark the course as completed</li>
+              <li>Move it to your archive</li>
+              <li>Update the organization and admin portals</li>
+              <li>Lock the final attendance count</li>
+            </ul>
+            This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCompleteCancel}>Cancel</Button>
+          <Button 
+            onClick={handleCompleteConfirm} 
+            color="success"
+            variant="contained"
+          >
+            Complete Course
+          </Button>
+        </DialogActions>
+      </Dialog>
     </ErrorBoundary>
   );
 };

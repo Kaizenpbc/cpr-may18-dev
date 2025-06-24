@@ -1,51 +1,70 @@
 const { Pool } = require('pg');
+require('dotenv').config();
 
 const pool = new Pool({
-  user: 'postgres',
-  password: 'gtacpr',
-  host: '127.0.0.1',
-  port: 5432,
-  database: 'cpr_may18',
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'cpr_jun21',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'password',
 });
 
 async function checkCourseRequests() {
   try {
     console.log('🔍 Checking course_requests table...');
     
-    const result = await pool.query(`
-      SELECT id, organization_id, course_type_id, date_requested, scheduled_date, status
+    // Check table structure
+    const structureResult = await pool.query(`
+      SELECT column_name, data_type, is_nullable 
+      FROM information_schema.columns 
+      WHERE table_name = 'course_requests' 
+      ORDER BY ordinal_position
+    `);
+    
+    console.log('\n📋 Table Structure:');
+    structureResult.rows.forEach(row => {
+      console.log(`  ${row.column_name}: ${row.data_type} (nullable: ${row.is_nullable})`);
+    });
+    
+    // Check sample data using the actual column name
+    const dataResult = await pool.query(`
+      SELECT id, date_requested, scheduled_date, status, organization_id, course_type_id
       FROM course_requests 
-      ORDER BY id
+      ORDER BY created_at DESC 
+      LIMIT 5
     `);
     
-    console.log('\nExisting course_requests:');
-    if (result.rows.length === 0) {
-      console.log('  No course requests found');
+    console.log('\n📊 Sample Data:');
+    if (dataResult.rows.length === 0) {
+      console.log('  No course requests found in database');
     } else {
-      result.rows.forEach(row => {
-        console.log(`  - ID: ${row.id}, Org: ${row.organization_id}, Type: ${row.course_type_id}, Status: ${row.status}`);
+      dataResult.rows.forEach(row => {
+        console.log(`  ID: ${row.id}`);
+        console.log(`    date_requested: ${row.date_requested}`);
+        console.log(`    scheduled_date: ${row.scheduled_date}`);
+        console.log(`    status: ${row.status}`);
+        console.log(`    organization_id: ${row.organization_id}`);
+        console.log(`    course_type_id: ${row.course_type_id}`);
+        console.log('');
       });
     }
     
-    // Check if there are any course_students records
-    const studentsResult = await pool.query(`
-      SELECT course_request_id, COUNT(*) as student_count
-      FROM course_students 
-      GROUP BY course_request_id
-      ORDER BY course_request_id
+    // Check for null date_requested values
+    const nullCheckResult = await pool.query(`
+      SELECT COUNT(*) as total_count,
+             COUNT(date_requested) as non_null_count,
+             COUNT(*) - COUNT(date_requested) as null_count
+      FROM course_requests
     `);
     
-    console.log('\nExisting course_students records:');
-    if (studentsResult.rows.length === 0) {
-      console.log('  No student records found');
-    } else {
-      studentsResult.rows.forEach(row => {
-        console.log(`  - Course Request ID: ${row.course_request_id}, Students: ${row.student_count}`);
-      });
-    }
+    console.log('\n🔍 Null Check:');
+    const stats = nullCheckResult.rows[0];
+    console.log(`  Total records: ${stats.total_count}`);
+    console.log(`  Non-null date_requested: ${stats.non_null_count}`);
+    console.log(`  Null date_requested: ${stats.null_count}`);
     
   } catch (error) {
-    console.error('❌ Error checking course_requests:', error);
+    console.error('❌ Error:', error.message);
   } finally {
     await pool.end();
   }

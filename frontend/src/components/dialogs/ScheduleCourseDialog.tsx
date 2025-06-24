@@ -157,7 +157,7 @@ const ScheduleCourseDialog = ({ open, onClose, course, onCourseScheduled }) => {
           margin='normal'
           required
           fullWidth
-          label='Scheduled Date'
+          label='Date Scheduled'
           type='date'
           InputLabelProps={{ shrink: true }}
           value={scheduledDate}

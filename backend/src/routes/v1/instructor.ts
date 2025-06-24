@@ -126,7 +126,6 @@ router.delete('/availability/:date', authenticateToken, requireRole(['instructor
 router.get('/classes', authenticateToken, requireRole(['instructor']), async (req, res) => {
   try {
     const userId = req.user.id;
-    console.log('[DEBUG] /classes endpoint userId:', userId, 'req.user:', req.user);
     const dbResult = await pool.query(
       `SELECT 
         c.id,
@@ -142,12 +141,21 @@ router.get('/classes', authenticateToken, requireRole(['instructor']), async (re
         c.updated_at,
         ct.name as course_name,
         ct.name as coursetypename,
-        'Unassigned' as organizationname,
+        COALESCE(o.name, 'Unassigned') as organizationname,
         COALESCE(c.location, '') as notes,
         0 as studentcount,
-        0 as studentsattendance
+        COALESCE((
+          SELECT COUNT(*) 
+          FROM course_students cs 
+          JOIN course_requests cr ON cs.course_request_id = cr.id 
+          WHERE cr.instructor_id = c.instructor_id 
+            AND DATE(cr.confirmed_date) = DATE(c.start_time) 
+            AND cr.course_type_id = c.class_type_id 
+            AND cs.attended = true
+        ), 0) as studentsattendance
        FROM classes c
        JOIN class_types ct ON c.class_type_id = ct.id
+       LEFT JOIN organizations o ON c.organization_id = o.id
        WHERE c.instructor_id = $1
        ORDER BY c.start_time DESC, c.end_time DESC`,
       [userId]
@@ -188,12 +196,21 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor']),
         c.updated_at,
         ct.name as course_name,
         ct.name as coursetypename,
-        'Unassigned' as organizationname,
+        COALESCE(o.name, 'Unassigned') as organizationname,
         COALESCE(c.location, '') as notes,
         0 as studentcount,
-        0 as studentsattendance
+        COALESCE((
+          SELECT COUNT(*) 
+          FROM course_students cs 
+          JOIN course_requests cr ON cs.course_request_id = cr.id 
+          WHERE cr.instructor_id = c.instructor_id 
+            AND DATE(cr.confirmed_date) = DATE(c.start_time) 
+            AND cr.course_type_id = c.class_type_id 
+            AND cs.attended = true
+        ), 0) as studentsattendance
        FROM classes c
        JOIN class_types ct ON c.class_type_id = ct.id
+       LEFT JOIN organizations o ON c.organization_id = o.id
        WHERE c.instructor_id = $1 AND c.status = 'completed'
        ORDER BY c.start_time DESC, c.end_time DESC`,
       [userId]
@@ -237,12 +254,21 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor']), asy
         c.updated_at,
         ct.name as course_name,
         ct.name as coursetypename,
-        'Unassigned' as organizationname,
+        COALESCE(o.name, 'Unassigned') as organizationname,
         COALESCE(c.location, '') as notes,
         0 as studentcount,
-        0 as studentsattendance
+        COALESCE((
+          SELECT COUNT(*) 
+          FROM course_students cs 
+          JOIN course_requests cr ON cs.course_request_id = cr.id 
+          WHERE cr.instructor_id = c.instructor_id 
+            AND DATE(cr.confirmed_date) = DATE(c.start_time) 
+            AND cr.course_type_id = c.class_type_id 
+            AND cs.attended = true
+        ), 0) as studentsattendance
        FROM classes c
        JOIN class_types ct ON c.class_type_id = ct.id
+       LEFT JOIN organizations o ON c.organization_id = o.id
        WHERE c.instructor_id = $1 AND DATE(c.start_time) = $2
        ORDER BY c.start_time ASC`,
       [userId, todayStr]
@@ -280,6 +306,91 @@ router.get('/classes/:classId/students', authenticateToken, requireRole(['instru
   } catch (error) {
     console.error('Error fetching class students:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update student attendance
+router.put('/classes/:classId/students/:studentId/attendance', authenticateToken, requireRole(['instructor']), async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+    const { classId, studentId } = req.params;
+    const { attended } = req.body;
+
+    if (!instructorId) {
+      return res.status(400).json({ error: 'Invalid instructor ID' });
+    }
+
+    if (typeof attended !== 'boolean') {
+      return res.status(400).json({ error: 'Attended status must be a boolean' });
+    }
+
+    console.log('[Debug] Updating attendance for student ID:', studentId, 'class ID:', classId, 'attended:', attended);
+
+    // First verify the class belongs to this instructor
+    const classCheck = await pool.query(
+      'SELECT id FROM classes WHERE id = $1 AND instructor_id = $2',
+      [classId, instructorId]
+    );
+
+    if (classCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Class not found or not authorized' });
+    }
+
+    // Get course_request_id to update attendance count
+    const courseRequestResult = await pool.query(
+      `SELECT cr.id as course_request_id
+           FROM course_requests cr
+           JOIN classes c ON cr.instructor_id = c.instructor_id 
+              AND DATE(cr.confirmed_date) = DATE(c.start_time)
+              AND cr.course_type_id = c.class_type_id
+           WHERE c.id = $1 AND c.instructor_id = $2`,
+      [classId, instructorId]
+    );
+
+    // Update student attendance
+    const result = await pool.query(
+      `UPDATE course_students 
+           SET attended = $1, attendance_marked = true, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2
+           RETURNING id, first_name, last_name, email, attendance_marked, attended`,
+      [attended, studentId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    // Update the current_students count in classes table
+    if (courseRequestResult.rows.length > 0) {
+      const courseRequestId = courseRequestResult.rows[0].course_request_id;
+
+      // Count the number of students who attended
+      const attendanceCountResult = await pool.query(
+        `SELECT COUNT(*) as attended_count
+               FROM course_students
+               WHERE course_request_id = $1 AND attended = true`,
+        [courseRequestId]
+      );
+
+      const attendedCount = parseInt(attendanceCountResult.rows[0].attended_count);
+
+      // Note: Removed update to classes.current_students as this column doesn't exist
+      console.log('[Debug] Attendance count for course request:', courseRequestId, 'is:', attendedCount);
+    }
+
+    const updatedStudent = {
+      studentid: result.rows[0].id.toString(),
+      firstname: result.rows[0].first_name,
+      lastname: result.rows[0].last_name,
+      email: result.rows[0].email || '',
+      attendance: result.rows[0].attended || false,
+      attendanceMarked: result.rows[0].attendance_marked || false,
+    };
+
+    res.json({ success: true, data: updatedStudent, message: 'Attendance updated successfully' });
+  } catch (error) {
+    console.error('Error updating student attendance:', error);
+    res.status(500).json({ error: 'Failed to update student attendance' });
   }
 });
 
