@@ -1,67 +1,62 @@
-export const login = async (req: Request, res: Response) => {
-  console.log('🔐 [AUTH] Login attempt:', {
-    timestamp: new Date().toISOString(),
-    body: req.body,
-    headers: {
-      ...req.headers,
-      authorization: req.headers.authorization ? '[REDACTED]' : undefined
-    }
-  });
+import express, { Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { pool } from '../config/database.js';
 
+const router = express.Router();
+
+// Login endpoint
+router.post('/login', async (req: Request, res: Response) => {
   try {
+    console.log('[AuthController] Login attempt:', {
+      headers: {
+        authorization: req.headers.authorization ? '[REDACTED]' : undefined
+      }
+    });
+
     const { username, password } = req.body;
-    console.log('🔑 [AUTH] Validating credentials for user:', username);
 
     if (!username || !password) {
-      console.log('❌ [AUTH] Missing credentials:', { username: !!username, password: !!password });
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const user = await db.oneOrNone('SELECT * FROM users WHERE username = $1', [username]);
-    console.log('👤 [AUTH] User lookup result:', { 
-      found: !!user,
-      role: user?.role,
-      organization_id: user?.organization_id
-    });
+    const user = await pool.oneOrNone('SELECT * FROM users WHERE username = $1', [username]);
 
     if (!user) {
-      console.log('❌ [AUTH] User not found:', username);
+      console.log('[AuthController] User not found:', username);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
-    console.log('🔒 [AUTH] Password validation:', { 
-      isValid: isValidPassword,
-      timestamp: new Date().toISOString()
-    });
 
     if (!isValidPassword) {
-      console.log('❌ [AUTH] Invalid password for user:', username);
+      console.log('[AuthController] Invalid password for user:', username);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const accessToken = jwt.sign(
-      { 
-        id: user.id, 
+      {
+        id: user.id,
+        userId: user.userid,
         username: user.username,
         role: user.role,
-        organization_id: user.organization_id
+        organizationId: user.organizationid
       },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '1h' }
+      process.env.JWT_ACCESS_SECRET || 'access_secret',
+      { expiresIn: '15m' }
     );
 
     const refreshToken = jwt.sign(
-      { id: user.id },
-      process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key',
+      {
+        id: user.id,
+        userId: user.userid,
+        username: user.username,
+        role: user.role,
+        organizationId: user.organizationid
+      },
+      process.env.JWT_REFRESH_SECRET || 'refresh_secret',
       { expiresIn: '7d' }
     );
-
-    console.log('✅ [AUTH] Login successful:', {
-      userId: user.id,
-      role: user.role,
-      timestamp: new Date().toISOString()
-    });
 
     res.json({
       accessToken,
@@ -70,61 +65,44 @@ export const login = async (req: Request, res: Response) => {
         id: user.id,
         username: user.username,
         role: user.role,
-        organization_id: user.organization_id
+        organizationId: user.organizationid
       }
     });
   } catch (error) {
-    console.error('❌ [AUTH] Login error:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString()
-    });
+    console.error('[AuthController] Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-};
+});
 
-export const recoverPassword = async (req: Request, res: Response) => {
-  console.log('🔐 [AUTH] Password recovery attempt:', {
-    timestamp: new Date().toISOString(),
-    body: req.body,
-    headers: {
-      ...req.headers,
-      authorization: req.headers.authorization ? '[REDACTED]' : undefined
-    }
-  });
-
+// Password reset request endpoint
+router.post('/forgot-password', async (req: Request, res: Response) => {
   try {
+    console.log('[AuthController] Password reset request:', {
+      headers: {
+        authorization: req.headers.authorization ? '[REDACTED]' : undefined
+      }
+    });
+
     const { email } = req.body;
-    console.log('📧 [AUTH] Processing recovery for email:', email);
 
     if (!email) {
-      console.log('❌ [AUTH] Missing email in recovery request');
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const user = await db.oneOrNone('SELECT * FROM users WHERE email = $1', [email]);
-    console.log('👤 [AUTH] User lookup result:', { 
-      found: !!user,
-      role: user?.role,
-      organization_id: user?.organization_id
-    });
+    const user = await pool.oneOrNone('SELECT * FROM users WHERE email = $1', [email]);
 
-    if (!user) {
-      // Don't reveal that the user doesn't exist
-      console.log('ℹ️ [AUTH] No user found for email:', email);
+    if (user) {
+      // In a real application, you would send an email here
+      console.log('[AuthController] Password reset email would be sent to:', email);
       return res.json({ message: 'If an account exists with this email, you will receive recovery instructions.' });
     }
 
-    // TODO: Implement actual email sending
-    console.log('📧 [AUTH] Would send recovery email to:', email);
-
+    // Always return the same message for security
     res.json({ message: 'If an account exists with this email, you will receive recovery instructions.' });
   } catch (error) {
-    console.error('❌ [AUTH] Password recovery error:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString()
-    });
+    console.error('[AuthController] Password reset error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-}; 
+});
+
+export default router; 

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { cacheService } from '../services/cacheService';
-import { redisManager } from '../config/redis';
+import { cacheService } from '../services/cacheService.js';
+import { redisManager } from '../config/redis.js';
 
 interface CacheOptions {
   ttl?: number; // Time to live in seconds

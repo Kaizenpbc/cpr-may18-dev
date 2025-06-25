@@ -32,6 +32,7 @@ const InstructorDashboardContainer: React.FC = () => {
   const [scheduledClasses, setScheduledClasses] = useState<ClassData[]>([]);
   const [completedClasses, setCompletedClasses] = useState<ClassData[]>([]);
   const [availableDates, setAvailableDates] = useState<Set<string>>(new Set());
+  const [dashboardStats, setDashboardStats] = useState<any>(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -42,20 +43,63 @@ const InstructorDashboardContainer: React.FC = () => {
       setLoading(true);
       setError(null);
 
+      console.log('[Dashboard] Starting to fetch dashboard data...');
+
       // Fetch all required data in parallel
-      const [classesResponse, completedResponse, availabilityResponse] = await Promise.all([
+      const [classesResponse, completedResponse, availabilityResponse, dashboardResponse] = await Promise.all([
         api.get('/instructor/classes'),
         api.get('/instructor/classes/completed'),
-        api.get('/instructor/availability')
+        api.get('/instructor/availability'),
+        api.get('/dashboard')
       ]);
+
+      console.log('[Dashboard] Dashboard API call completed');
+      console.log('[Dashboard] Dashboard API URL:', '/dashboard');
+      console.log('[Dashboard] Dashboard response status:', dashboardResponse.status);
+
+      console.log('[Dashboard] All API calls completed');
+      console.log('[Dashboard] Dashboard response:', dashboardResponse);
+      console.log('[Dashboard] Dashboard response.data:', dashboardResponse.data);
+      console.log('[Dashboard] Dashboard response.data type:', typeof dashboardResponse.data);
+      console.log('[Dashboard] Dashboard response.data keys:', Object.keys(dashboardResponse.data || {}));
+      console.log('[Dashboard] Dashboard response.data JSON:', JSON.stringify(dashboardResponse.data, null, 2));
+      console.log('[Dashboard] Dashboard response.status:', dashboardResponse.status);
+      console.log('[Dashboard] Dashboard response.headers:', dashboardResponse.headers);
 
       const classes = classesResponse.data || [];
       const completed = completedResponse.data || [];
       const availability = availabilityResponse.data || [];
+      const rawStats = dashboardResponse.data || {};
+
+      console.log('[Dashboard] API raw stats:', rawStats);
+      
+      // Extract the actual stats from the nested response structure
+      const actualStats = rawStats.data?.instructorStats || {};
+      
+      console.log('[Dashboard] rawStats.data:', rawStats.data);
+      console.log('[Dashboard] rawStats.data.instructorStats:', rawStats.data?.instructorStats);
+      console.log('[Dashboard] Actual stats extracted:', actualStats);
+      console.log('[Dashboard] Actual stats keys:', Object.keys(actualStats));
+      console.log('[Dashboard] Actual stats values:', {
+        totalClasses: actualStats.totalClasses,
+        scheduledClasses: actualStats.scheduledClasses,
+        completedClasses: actualStats.completedClasses,
+        cancelledClasses: actualStats.cancelledClasses
+      });
+      
+      // Map backend camelCase to frontend snake_case
+      const stats = {
+        total_courses: actualStats.totalClasses || 0,
+        scheduled_courses: actualStats.scheduledClasses || 0,
+        completed_courses: actualStats.completedClasses || 0,
+        cancelled_courses: actualStats.cancelledClasses || 0
+      };
+
+      console.log('[Dashboard] Mapped stats:', stats);
 
       setScheduledClasses(classes);
       setCompletedClasses(completed);
-
+      setDashboardStats(stats);
       // Convert availability data to Set for easy lookup
       const availableDatesSet = new Set<string>(
         Array.isArray(availability) 
@@ -63,7 +107,8 @@ const InstructorDashboardContainer: React.FC = () => {
           : []
       );
       setAvailableDates(availableDatesSet);
-
+      // Log the values used for dashboard cards
+      console.log('[Dashboard] Total:', stats.total_courses, 'Scheduled:', stats.scheduled_courses, 'Completed:', stats.completed_courses, 'Cancelled:', stats.cancelled_courses);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError('Failed to load dashboard data. Please try refreshing the page.');
@@ -107,7 +152,7 @@ const InstructorDashboardContainer: React.FC = () => {
     <Box>
       <WelcomeHeader />
       
-      <DashboardStats stats={{
+      <DashboardStats stats={dashboardStats || {
         total_courses: totalClasses,
         scheduled_courses: Array.isArray(scheduledClasses) ? scheduledClasses.length : 0,
         completed_courses: completedClassesCount,

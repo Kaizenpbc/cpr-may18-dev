@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
-import v1Routes from './v1';
+import v1Routes from './v1/index.js';
 
 // Extend Express Request type to include apiVersion
 declare global {

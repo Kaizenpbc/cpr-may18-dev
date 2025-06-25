@@ -13,7 +13,7 @@ import {
   extractVersionFromAccept,
   extractVersionFromQuery,
   normalizeVersionString,
-} from '../config/versions';
+} from '../config/versions.js';
 
 // Extend Express Request type
 declare global {

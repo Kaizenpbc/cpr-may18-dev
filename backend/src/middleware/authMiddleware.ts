@@ -4,11 +4,11 @@ import {
   verifyRefreshToken,
   generateTokens,
   TokenPayload
-} from '../utils/jwtUtils';
-import { extractTokenFromHeader } from '../utils/jwtUtils';
-import { ApiResponseBuilder } from '../utils/apiResponse';
-import { errorCodes } from '../utils/errorHandler';
-import { AppError } from '../utils/errorHandler';
+} from '../utils/jwtUtils.js';
+import { extractTokenFromHeader } from '../utils/jwtUtils.js';
+import { ApiResponseBuilder } from '../utils/apiResponse.js';
+import { errorCodes } from '../utils/errorHandler.js';
+import { AppError } from '../utils/errorHandler.js';
 import jwt from 'jsonwebtoken';
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'access_secret';

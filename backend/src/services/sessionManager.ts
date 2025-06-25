@@ -1,10 +1,12 @@
 import { randomBytes, createHash } from 'crypto';
-import { redisManager } from '../config/redis';
+import { redisManager } from '../config/redis.js';
 import {
   generateTokens,
   verifyAccessToken,
   verifyRefreshToken,
-} from '../utils/jwtUtils';
+  TokenPayload,
+} from '../utils/jwtUtils.js';
+import { Request, Response } from 'express';
 
 export interface SessionData {
   sessionId: string;

@@ -206,12 +206,12 @@ router.get(
       // Use cached dashboard stats
       const dashboardStats = await cacheService.getDashboardStats(
         user.role,
-        user.organizationId
+        user.role === 'instructor' ? user.id : user.organizationId
       );
 
       res.json({
         success: true,
-        data: dashboardStats,
+        data: { instructorStats: dashboardStats },
         cached: true,
       });
     } catch (error) {

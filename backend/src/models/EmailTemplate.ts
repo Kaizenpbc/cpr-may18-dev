@@ -1,6 +1,6 @@
-import { pool } from '../config/database';
-import { ApiResponseBuilder } from '../utils/apiResponse';
-import { AppError } from '../utils/errorHandler';
+import { pool } from '../config/database.js';
+import { ApiResponseBuilder } from '../utils/apiResponse.js';
+import { AppError } from '../utils/errorHandler.js';
 
 export interface EmailTemplate {
   id: number;

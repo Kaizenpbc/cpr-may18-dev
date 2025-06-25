@@ -45,7 +45,6 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { formatDateWithoutTimezone } from '../../utils/dateUtils';
 import { Student } from '../../types/student';
 import { ScheduledClass } from '../../types/instructor';
-import api from '../../services/api';
 
 // Lazy load components for better performance (using TypeScript files)
 const InstructorDashboard = lazy(
@@ -123,6 +122,8 @@ const formatScheduleItem = (item: any): CombinedScheduleItem => {
 };
 
 const InstructorPortal: React.FC = () => {
+  console.log('[DEBUG] InstructorPortal rendered');
+  
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading, checkAuth, logout } = useAuth();

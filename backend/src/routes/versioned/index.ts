@@ -3,13 +3,13 @@
 // ===============================================
 
 import { Router, Request, Response } from 'express';
-import { versionDetectionMiddleware } from '../../middleware/versionDetection';
-import VersionedApiResponseBuilder from '../../utils/apiResponseVersioned';
-import MigrationUtils from '../../utils/migrationUtils';
-import { VERSION_CONFIG } from '../../config/versions';
+import { versionDetectionMiddleware } from '../../middleware/versionDetection.js';
+import VersionedApiResponseBuilder from '../../utils/apiResponseVersioned.js';
+import MigrationUtils from '../../utils/migrationUtils.js';
+import { VERSION_CONFIG } from '../../config/versions.js';
 
 // Import existing route modules
-import v1Routes from '../v1';
+import v1Routes from '../v1/index.js';
 
 const router = Router();
 

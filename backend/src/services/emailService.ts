@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
+import { createTransport } from 'nodemailer';
 import { format } from 'date-fns';
-import { pool } from '../config/database';
+import { pool } from '../config/database.js';
 
 interface EmailConfig {
   host: string;

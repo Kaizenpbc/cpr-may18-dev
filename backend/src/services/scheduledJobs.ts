@@ -1,6 +1,6 @@
-import * as cron from 'node-cron';
-import { pool } from '../config/database';
-import { emailService } from './emailService';
+import cron from 'node-cron';
+import { pool } from '../config/database.js';
+import { emailService } from './emailService.js';
 
 export class ScheduledJobsService {
   private static instance: ScheduledJobsService;

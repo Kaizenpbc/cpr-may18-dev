@@ -3,7 +3,7 @@
 // ===============================================
 
 import { Request, Response } from 'express';
-import { getVersionInfo, VERSION_CONFIG } from '../config/versions';
+import { getVersionInfo, VERSION_CONFIG } from '../config/versions.js';
 
 // Extend Express Request type
 declare global {

@@ -61,6 +61,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
   availableDates = new Set(),
   completedClasses = [],
 }) => {
+  console.log('[DEBUG] InstructorDashboard rendered');
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));

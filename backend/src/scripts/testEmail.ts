@@ -1,4 +1,4 @@
-import { emailService } from '../services/emailService';
+import { emailService } from '../services/emailService.js';
 import dotenv from 'dotenv';
 
 // Load environment variables

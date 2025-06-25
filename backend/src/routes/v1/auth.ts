@@ -1,23 +1,23 @@
 import express, { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { pool } from '../../config/database';
+import { pool } from '../../config/database.js';
 import {
   generateTokens,
   verifyAccessToken,
   verifyRefreshToken,
-} from '../../utils/jwtUtils';
-import { ApiResponseBuilder } from '../../utils/apiResponse';
-import { AppError, errorCodes, asyncHandler } from '../../utils/errorHandler';
-import { validateSchema, commonSchemas } from '../../middleware/inputSanitizer';
+} from '../../utils/jwtUtils.js';
+import { ApiResponseBuilder } from '../../utils/apiResponse.js';
+import { AppError, errorCodes, asyncHandler } from '../../utils/errorHandler.js';
+import { validateSchema, commonSchemas } from '../../middleware/inputSanitizer.js';
 import {
   createUserSession,
   invalidateUserSession,
   refreshUserSession,
-} from '../../services/sessionManager';
-import { redisManager, ensureRedisConnection } from '../../config/redis';
-import { sessionManager } from '../../services/sessionManager';
-import { cacheService } from '../../services/cacheService';
-import { authenticateToken } from '../../middleware/authMiddleware';
+} from '../../services/sessionManager.js';
+import { redisManager, ensureRedisConnection } from '../../config/redis.js';
+import { sessionManager } from '../../services/sessionManager.js';
+import { cacheService } from '../../services/cacheService.js';
+import { authenticateToken } from '../../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -206,7 +206,7 @@ router.post(
 
           if (sessionResult) {
             // Extract session ID from the refresh token (we'd need to decode it)
-            const { verifyRefreshToken } = await import('../../utils/jwtUtils');
+            const { verifyRefreshToken } = await import('../../utils/jwtUtils.js');
             const decoded = verifyRefreshToken(refreshToken);
 
             if (decoded.sessionId) {
@@ -298,7 +298,7 @@ router.post(
       }
 
       // Fall back to standard JWT refresh
-      const { verifyRefreshToken } = await import('../../utils/jwtUtils');
+      const { verifyRefreshToken } = await import('../../utils/jwtUtils.js');
       const payload = verifyRefreshToken(refreshToken);
 
       // Fetch fresh user data from database
@@ -394,7 +394,7 @@ router.get(
     try {
       await ensureRedisConnection();
 
-      const { verifyRefreshToken } = await import('../../utils/jwtUtils');
+      const { verifyRefreshToken } = await import('../../utils/jwtUtils.js');
       const decoded = verifyRefreshToken(refreshToken);
 
       if (decoded.sessionId) {
@@ -456,11 +456,11 @@ router.post(
     try {
       await ensureRedisConnection();
 
-      const { verifyRefreshToken } = await import('../../utils/jwtUtils');
+      const { verifyRefreshToken } = await import('../../utils/jwtUtils.js');
       const decoded = verifyRefreshToken(refreshToken);
 
       const { invalidateAllUserSessions } = await import(
-        '../../services/sessionManager'
+        '../../services/sessionManager.js'
       );
       const invalidatedCount = await invalidateAllUserSessions(decoded.userId);
 

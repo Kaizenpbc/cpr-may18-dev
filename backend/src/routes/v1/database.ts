@@ -1,14 +1,14 @@
 import express, { Request, Response } from 'express';
-import { asyncHandler } from '../../utils/errorHandler';
-import { ApiResponseBuilder } from '../../utils/apiResponse';
-import { AppError, errorCodes } from '../../utils/errorHandler';
+import { asyncHandler } from '../../utils/errorHandler.js';
+import { ApiResponseBuilder } from '../../utils/apiResponse.js';
+import { AppError, errorCodes } from '../../utils/errorHandler.js';
 import {
   authenticateToken,
   requireRole,
-} from '../../middleware/authMiddleware';
-import { queryOptimizer } from '../../services/queryOptimizer';
-import { pool } from '../../config/database';
-import { cacheService } from '../../services/cacheService';
+} from '../../middleware/authMiddleware.js';
+import { queryOptimizer } from '../../services/queryOptimizer.js';
+import { pool } from '../../config/database.js';
+import { cacheService } from '../../services/cacheService.js';
 import fs from 'fs/promises';
 import path from 'path';
 

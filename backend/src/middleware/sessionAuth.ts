@@ -3,10 +3,10 @@ import {
   extractTokenFromHeader,
   verifyAccessToken,
   TokenPayload,
-} from '../utils/jwtUtils';
-import { validateUserSession, SessionData } from '../services/sessionManager';
-import { AppError, errorCodes } from '../utils/errorHandler';
-import { redisManager } from '../config/redis';
+} from '../utils/jwtUtils.js';
+import { validateUserSession, SessionData } from '../services/sessionManager.js';
+import { AppError, errorCodes } from '../utils/errorHandler.js';
+import { redisManager } from '../config/redis.js';
 
 declare global {
   namespace Express {

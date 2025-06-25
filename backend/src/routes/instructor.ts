@@ -1,10 +1,10 @@
 import express from 'express';
 import { format } from 'date-fns';
-import { pool } from '../config/database';
-import { ApiResponseBuilder } from '../utils/apiResponse';
-import { AppError, errorCodes } from '../utils/errorHandler';
-import { authenticateToken, requireRole } from '../middleware/authMiddleware';
-import { asyncHandler } from '../middleware/asyncHandler';
+import { pool } from '../config/database.js';
+import { ApiResponseBuilder } from '../utils/apiResponse.js';
+import { AppError, errorCodes } from '../utils/errorHandler.js';
+import { authenticateToken, requireRole } from '../middleware/authMiddleware.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 import { Request, Response } from 'express';
 
 const router = express.Router();

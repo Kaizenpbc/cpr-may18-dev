@@ -44,6 +44,16 @@ const StatCard: React.FC<{ icon: React.ReactNode; title: string; value: number |
 );
 
 const DashboardStats: React.FC<DashboardStatsProps> = ({ stats }) => {
+  console.log('[DashboardStats] Received stats:', stats);
+  console.log('[DashboardStats] Stats type:', typeof stats);
+  console.log('[DashboardStats] Stats keys:', stats ? Object.keys(stats) : 'null');
+  console.log('[DashboardStats] Individual values:', {
+    total_courses: stats?.total_courses,
+    scheduled_courses: stats?.scheduled_courses,
+    completed_courses: stats?.completed_courses,
+    cancelled_courses: stats?.cancelled_courses
+  });
+
   return (
     <Grid container spacing={3} sx={{ mb: 4 }}>
       <Grid item xs={12} sm={6} md={3}>

@@ -56,6 +56,8 @@ interface DashboardData {
   };
 }
 
+console.log('[DEBUG] InstructorDashboardContainer rendered');
+
 const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
   scheduledClasses = [],
   availableDates = new Set(),
@@ -80,6 +82,54 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
 
     loadDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch all required data in parallel
+      const [classesResponse, completedResponse, availabilityResponse, dashboardResponse] = await Promise.all([
+        api.get('/instructor/classes'),
+        api.get('/instructor/classes/completed'),
+        api.get('/instructor/availability'),
+        api.get('/dashboard')
+      ]);
+
+      const classes = classesResponse.data || [];
+      const completed = completedResponse.data || [];
+      const availability = availabilityResponse.data || [];
+      const rawStats = dashboardResponse.data || {};
+
+      console.log('[Dashboard] API raw stats:', rawStats);
+      
+      // Map backend camelCase to frontend snake_case
+      const dashboardStats = {
+        total_courses: rawStats.totalClasses || 0,
+        scheduled_courses: rawStats.scheduledClasses || 0,
+        completed_courses: rawStats.completedClasses || 0,
+        cancelled_courses: rawStats.cancelledClasses || 0
+      };
+
+      console.log('[Dashboard] Mapped stats:', dashboardStats);
+      setScheduledClasses(classes);
+      setCompletedClasses(completed);
+      // Convert availability data to Set for easy lookup
+      const availableDatesSet = new Set<string>(
+        Array.isArray(availability) 
+          ? availability.map((item: any) => item.date).filter(Boolean)
+          : []
+      );
+      setAvailableDates(availableDatesSet);
+      // Log the values used for dashboard cards
+      console.log('[Dashboard] Total:', dashboardStats.total_courses, 'Scheduled:', dashboardStats.scheduled_courses, 'Completed:', dashboardStats.completed_courses, 'Cancelled:', dashboardStats.cancelled_courses);
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError('Failed to load dashboard data. Please try refreshing the page.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Calculate statistics
   const totalClasses = scheduledClasses.length;

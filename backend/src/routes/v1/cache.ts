@@ -1,12 +1,12 @@
-import { Router, Request, Response } from 'express';
-import { asyncHandler } from '../../utils/errorHandler';
-import { cacheService } from '../../services/cacheService';
-import { authenticateToken, requireRole } from '../../middleware/authMiddleware';
+import express from 'express';
+import { asyncHandler } from '../../utils/errorHandler.js';
+import { cacheService } from '../../services/cacheService.js';
+import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
 
-const router = Router();
+const router = express.Router();
 
 // Get cache statistics
-router.get('/stats', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+router.get('/stats', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response) => {
   const stats = await cacheService.getStats();
   res.json({
     success: true,
@@ -18,7 +18,7 @@ router.get('/stats', authenticateToken, asyncHandler(async (req: Request, res: R
 }));
 
 // Invalidate cache by pattern
-router.post('/invalidate', authenticateToken, requireRole(['admin']), asyncHandler(async (req: Request, res: Response) => {
+router.post('/invalidate', authenticateToken, requireRole(['admin']), asyncHandler(async (req: express.Request, res: express.Response) => {
   const { pattern } = req.body;
   
   if (!pattern) {

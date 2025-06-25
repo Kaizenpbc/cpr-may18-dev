@@ -1,10 +1,10 @@
 import express, { Request, Response } from 'express';
-import { ApiResponseBuilder } from '../../utils/apiResponse';
-import { AppError, asyncHandler } from '../../utils/errorHandler';
-import { EmailTemplateService } from '../../models/EmailTemplate';
-import { authorizeRoles } from '../../middleware/authMiddleware';
-import { errorCodes } from '../../utils/errorHandler';
-import { validateEmailTemplate } from '../../middleware/inputSanitizer';
+import { ApiResponseBuilder } from '../../utils/apiResponse.js';
+import { AppError, asyncHandler } from '../../utils/errorHandler.js';
+import { EmailTemplateService } from '../../models/EmailTemplate.js';
+import { authorizeRoles } from '../../middleware/authMiddleware.js';
+import { errorCodes } from '../../utils/errorHandler.js';
+import { validateEmailTemplate } from '../../middleware/inputSanitizer.js';
 
 interface EmailTemplateRequestBody {
   name: string;

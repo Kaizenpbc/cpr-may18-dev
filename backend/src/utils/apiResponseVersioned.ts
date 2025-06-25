@@ -3,7 +3,7 @@
 // ===============================================
 
 import { Request, Response } from 'express';
-import { VERSION_CONFIG } from '../config/versions';
+import { VERSION_CONFIG } from '../config/versions.js';
 
 export interface VersionedApiResponse<T = any> {
   success: boolean;

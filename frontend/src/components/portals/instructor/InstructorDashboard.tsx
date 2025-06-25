@@ -30,6 +30,8 @@ interface InstructorDashboardProps {
   todayClasses: ClassData[];
 }
 
+console.log('[DEBUG] InstructorPortal/InstructorDashboard rendered');
+
 const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
   scheduledClasses,
   completedClasses,

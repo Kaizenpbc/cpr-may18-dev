@@ -1,5 +1,5 @@
-import { pool } from '../config/database';
-import { redisManager } from '../config/redis';
+import { pool } from '../config/database.js';
+import { redisManager } from '../config/redis.js';
 
 interface CacheOptions {
   ttl?: number; // Time to live in seconds
@@ -13,7 +13,7 @@ class CacheService {
   private readonly isRedisEnabled: boolean;
 
   private constructor() {
-    this.isRedisEnabled = false; // Disable Redis by default
+    this.isRedisEnabled = false; // Force Redis disabled for debugging
     console.log('🔴 [CACHE] Redis caching is disabled');
   }
 
@@ -52,7 +52,7 @@ class CacheService {
 
         if (cached) {
           console.log(`🚀 [CACHE HIT] ${key}`);
-          return JSON.parse(cached);
+          return JSON.parse(cached as string);
         }
       } catch (error) {
         console.warn(`⚠️ [CACHE] Failed to get ${key}:`, error);
@@ -61,7 +61,15 @@ class CacheService {
 
     // Cache miss - fetch fresh data
     console.log(`📊 [CACHE MISS] Fetching fresh data for ${key}`);
-    const data = await fetcher();
+    console.log(`[DEBUG] About to call fetcher for ${key}`);
+    let data;
+    try {
+      data = await fetcher();
+      console.log(`[DEBUG] Fetcher completed successfully for ${key}:`, data);
+    } catch (error) {
+      console.error(`[ERROR] Fetcher failed for ${key}:`, error);
+      throw error;
+    }
 
     // Store in cache if Redis is available
     if (this.isRedisEnabled && data) {
@@ -211,32 +219,75 @@ class CacheService {
    */
   async getDashboardStats(
     role: string,
-    orgId?: string | number,
+    userId?: string | number,
     forceRefresh = false
   ): Promise<any> {
-    const cacheKey = orgId ? `dashboard:${role}:${orgId}` : `dashboard:${role}`;
+    const cacheKey = userId ? `dashboard:${role}:${userId}` : `dashboard:${role}`;
 
     return this.cache(
       cacheKey,
       async () => {
-        // This would contain your complex dashboard queries
-        const pendingCourses = await pool.query(
-          'SELECT COUNT(*) as count FROM course_requests WHERE status = $1',
-          ['pending']
-        );
-
-        const completedThisMonth = await pool.query(`
-          SELECT COUNT(*) as count FROM course_requests 
-          WHERE status = 'completed' 
-          AND EXTRACT(MONTH FROM completed_at) = EXTRACT(MONTH FROM CURRENT_DATE)
-          AND EXTRACT(YEAR FROM completed_at) = EXTRACT(YEAR FROM CURRENT_DATE)
-        `);
-
-        return {
-          pendingCourses: parseInt(pendingCourses.rows[0]?.count || 0),
-          completedThisMonth: parseInt(completedThisMonth.rows[0]?.count || 0),
-          lastUpdated: new Date().toISOString(),
-        };
+        console.log(`[DEBUG] getDashboardStats called with role: ${role}, userId: ${userId}`);
+        
+        if (role === 'instructor' && userId) {
+          // Instructor-specific stats from 'course_requests' table (not 'classes')
+          console.log(`[DEBUG] Fetching instructor stats for userId: ${userId}`);
+          
+          const totalRes = await pool.query(
+            `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1`,
+            [userId]
+          );
+          console.log(`[DEBUG] Total query result:`, totalRes.rows[0]);
+          
+          const scheduledRes = await pool.query(
+            `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1 AND status = 'scheduled'`,
+            [userId]
+          );
+          console.log(`[DEBUG] Scheduled query result:`, scheduledRes.rows[0]);
+          
+          const completedRes = await pool.query(
+            `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1 AND status = 'completed'`,
+            [userId]
+          );
+          console.log(`[DEBUG] Completed query result:`, completedRes.rows[0]);
+          
+          const cancelledRes = await pool.query(
+            `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1 AND status = 'cancelled'`,
+            [userId]
+          );
+          console.log(`[DEBUG] Cancelled query result:`, cancelledRes.rows[0]);
+          
+          const result = {
+            totalClasses: parseInt(totalRes.rows[0]?.count || 0),
+            scheduledClasses: parseInt(scheduledRes.rows[0]?.count || 0),
+            completedClasses: parseInt(completedRes.rows[0]?.count || 0),
+            cancelledClasses: parseInt(cancelledRes.rows[0]?.count || 0),
+            lastUpdated: new Date().toISOString(),
+          };
+          
+          console.log(`[DEBUG] Returning instructor stats:`, result);
+          return result;
+        } else {
+          console.log(`[DEBUG] Fetching non-instructor stats for role: ${role}`);
+          // Default/fallback (admin, org, etc)
+          const pendingCourses = await pool.query(
+            'SELECT COUNT(*) as count FROM course_requests WHERE status = $1',
+            ['pending']
+          );
+          const completedThisMonth = await pool.query(`
+            SELECT COUNT(*) as count FROM course_requests 
+            WHERE status = 'completed' 
+            AND EXTRACT(MONTH FROM completed_at) = EXTRACT(MONTH FROM CURRENT_DATE)
+            AND EXTRACT(YEAR FROM completed_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+          `);
+          const result = {
+            pendingCourses: parseInt(pendingCourses.rows[0]?.count || 0),
+            completedThisMonth: parseInt(completedThisMonth.rows[0]?.count || 0),
+            lastUpdated: new Date().toISOString(),
+          };
+          console.log(`[DEBUG] Returning non-instructor stats:`, result);
+          return result;
+        }
       },
       { ttl: 300, forceRefresh } // 5 minutes TTL for dashboard
     );
