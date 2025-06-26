@@ -23,6 +23,7 @@ import {
   Logout as LogoutIcon,
   Event as EventIcon,
   School as CoursesIconAlt,
+  Archive as ArchiveIcon,
 } from '@mui/icons-material';
 import { useQueryClient } from '@tanstack/react-query';
 import OrganizationLayout from './OrganizationLayout';
@@ -33,6 +34,7 @@ import OrganizationProfile from './views/OrganizationProfile';
 import OrganizationAnalytics from './views/OrganizationAnalytics';
 import ScheduleCourseForm from '../../forms/ScheduleCourseForm';
 import CSVUploadDialog from '../../dialogs/CSVUploadDialog';
+import OrganizationArchive from './views/OrganizationArchive';
 
 // TypeScript interfaces
 interface User {
@@ -100,6 +102,7 @@ interface OrganizationPortalProps {
   user: User | null;
   organizationData: OrganizationData | undefined;
   courses: Course[];
+  archivedCourses: Course[];
   invoices: Invoice[];
   billingSummary: BillingSummary | undefined;
   loading: boolean;
@@ -115,6 +118,7 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
   user,
   organizationData,
   courses,
+  archivedCourses,
   invoices,
   billingSummary,
   loading,
@@ -135,6 +139,7 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'courses', label: 'My Courses', icon: <CoursesIconAlt /> },
+    { id: 'archive', label: 'Archive', icon: <ArchiveIcon /> },
     { id: 'schedule', label: 'Schedule a Course', icon: <EventIcon /> },
     { id: 'billing', label: 'Bills Payable', icon: <BillingIcon /> },
     { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
@@ -227,6 +232,13 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
             courses={courses}
             onViewStudentsClick={handleViewStudentsClick}
             onUploadStudentsClick={handleUploadStudentsClick}
+          />
+        );
+      case 'archive':
+        return (
+          <OrganizationArchive
+            courses={archivedCourses}
+            onViewStudentsClick={handleViewStudentsClick}
           />
         );
       case 'schedule':

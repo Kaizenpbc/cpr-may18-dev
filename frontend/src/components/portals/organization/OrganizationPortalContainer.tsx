@@ -129,6 +129,17 @@ const OrganizationPortalContainer: React.FC = () => {
     enabled: !!user?.organizationId,
   });
 
+  const { data: archivedCourses, isLoading: archivedLoading } = useQuery({
+    queryKey: ['organization-archived-courses', user?.organizationId],
+    queryFn: async () => {
+      const response = await api.get('/organization/archive', {
+        params: { _t: Date.now() }
+      });
+      return Array.isArray(response.data.data) ? response.data.data : [];
+    },
+    enabled: !!user?.organizationId,
+  });
+
   const { data: billingSummary, isLoading: billingLoading } = useQuery({
     queryKey: ['organization-billing-summary', user?.organizationId],
     queryFn: async () => {
@@ -177,7 +188,7 @@ const OrganizationPortalContainer: React.FC = () => {
   }, [user, logout, navigate]);
 
   // Loading state
-  const isLoading = orgLoading || coursesLoading || billingLoading || invoicesLoading;
+  const isLoading = orgLoading || coursesLoading || billingLoading || invoicesLoading || archivedLoading;
 
   if (isLoading) {
     return (
@@ -203,6 +214,7 @@ const OrganizationPortalContainer: React.FC = () => {
         user={user}
         organizationData={organizationData}
         courses={courses || []}
+        archivedCourses={archivedCourses || []}
         invoices={invoices || []}
         billingSummary={billingSummary}
         loading={isLoading}

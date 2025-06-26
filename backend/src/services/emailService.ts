@@ -60,11 +60,11 @@ const EMAIL_TEMPLATES = {
   }),
 
   CLASS_REMINDER: (classDetails: any) => ({
-    subject: 'Upcoming Class Reminder',
+    subject: 'Class Reminder',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #007bff;">Upcoming Class Reminder</h2>
-        <p>This is a reminder for your upcoming class tomorrow:</p>
+        <h2 style="color: #007bff;">Class Reminder</h2>
+        <p>This is a reminder for your upcoming class:</p>
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
           <p><strong>Date:</strong> ${format(new Date(classDetails.date), 'MMMM do, yyyy')}</p>
           <p><strong>Time:</strong> ${classDetails.startTime} - ${classDetails.endTime}</p>
@@ -74,7 +74,7 @@ const EMAIL_TEMPLATES = {
           <p><strong>Students:</strong> ${classDetails.students}</p>
         </div>
         <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border-radius: 5px;">
-          <p style="margin: 0;"><strong>Remember:</strong> Please arrive 15 minutes before the class start time.</p>
+          <p style="margin: 0;"><strong>Important:</strong> Please arrive 15 minutes before the class start time.</p>
         </div>
         <p style="color: #6c757d; font-size: 0.9em;">This is an automated message, please do not reply.</p>
       </div>
@@ -119,6 +119,70 @@ const EMAIL_TEMPLATES = {
         </div>
         <p>You can view the full details and manage your courses through your organization portal.</p>
         <p style="color: #6c757d; font-size: 0.9em;">This is an automated message, please do not reply.</p>
+      </div>
+    `,
+  }),
+
+  INVOICE_POSTED: (invoiceData: any) => ({
+    subject: `New Invoice Available: ${invoiceData.invoiceNumber}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #007bff;">New Invoice Available</h2>
+        <p>Dear ${invoiceData.organizationName},</p>
+        
+        <p>A new invoice has been posted to your account for the following services:</p>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+          <h3 style="color: #007bff; margin-top: 0;">Invoice Details</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; font-weight: bold;">Invoice Number:</td>
+              <td style="padding: 8px 0;">${invoiceData.invoiceNumber}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; font-weight: bold;">Invoice Date:</td>
+              <td style="padding: 8px 0;">${invoiceData.invoiceDate}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; font-weight: bold;">Due Date:</td>
+              <td style="padding: 8px 0; color: #d32f2f;">${invoiceData.dueDate}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; font-weight: bold;">Amount Due:</td>
+              <td style="padding: 8px 0; font-size: 18px; color: #007bff; font-weight: bold;">$${invoiceData.amount.toFixed(2)}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 15px 0;">
+          <h4 style="margin-top: 0; color: #1976d2;">Service Details</h4>
+          <p><strong>Course Type:</strong> ${invoiceData.courseType}</p>
+          <p><strong>Location:</strong> ${invoiceData.location}</p>
+          <p><strong>Course Date:</strong> ${invoiceData.courseDate}</p>
+          <p><strong>Students Billed:</strong> ${invoiceData.studentsBilled}</p>
+        </div>
+
+        <div style="margin: 25px 0; text-align: center;">
+          <a href="${invoiceData.portalUrl}" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            View Invoice & Pay
+          </a>
+        </div>
+
+        <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0;">
+          <p style="margin: 0;"><strong>Payment Information:</strong></p>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Payment is due within 30 days of invoice date</li>
+            <li>You can submit payment through your organization portal</li>
+            <li>A 1.5% monthly service charge may be applied to overdue accounts</li>
+          </ul>
+        </div>
+
+        <p>If you have any questions about this invoice, please contact our accounting department.</p>
+        
+        <p style="color: #6c757d; font-size: 0.9em; margin-top: 30px;">
+          This is an automated notification. Please do not reply to this email.<br>
+          For questions, contact: billing@gtacpr.com or (416) 555-0123
+        </p>
       </div>
     `,
   }),
@@ -197,6 +261,14 @@ class EmailService {
   ) {
     const template =
       EMAIL_TEMPLATES.COURSE_SCHEDULED_ORGANIZATION(courseDetails);
+    return this.sendEmail(organizationEmail, template.subject, template.html);
+  }
+
+  async sendInvoicePostedNotification(
+    organizationEmail: string,
+    invoiceData: any
+  ) {
+    const template = EMAIL_TEMPLATES.INVOICE_POSTED(invoiceData);
     return this.sendEmail(organizationEmail, template.subject, template.html);
   }
 

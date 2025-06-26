@@ -108,3 +108,4 @@ router.get('/certifications/:id', asyncHandler(async (req: Request, res: Respons
 }));
 
 export default router; 
+export default router; 

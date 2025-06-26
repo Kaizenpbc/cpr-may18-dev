@@ -252,6 +252,10 @@ export const organizationApi = {
     const response = await api.get('/organization/courses');
     return extractData(response);
   },
+  getArchivedCourses: async () => {
+    const response = await api.get('/organization/archive');
+    return extractData(response);
+  },
   getInvoices: () => api.get('/organization/invoices'),
   getBillingSummary: () => api.get('/organization/billing-summary'),
   getCourseTypes: async () => {

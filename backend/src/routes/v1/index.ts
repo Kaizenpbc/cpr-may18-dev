@@ -387,7 +387,7 @@ router.post(
   })
 );
 
-// Get organization's courses
+// Get organization's courses (non-archived)
 router.get('/organization/courses', authenticateToken, async (req, res) => {
   try {
     const userRole = req.user?.role;
@@ -397,8 +397,8 @@ router.get('/organization/courses', authenticateToken, async (req, res) => {
     // For admin users, allow filtering by organization_id
     if (userRole === 'admin') {
       const query = filterOrgId 
-        ? `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.organization_id = $1 ORDER BY cr.created_at DESC`
-        : `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id ORDER BY cr.created_at DESC`;
+        ? `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.organization_id = $1 AND cr.archived = false ORDER BY cr.created_at DESC`
+        : `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.archived = false ORDER BY cr.created_at DESC`;
       const result = await pool.query(query, filterOrgId ? [filterOrgId] : []);
       return res.json({
         success: true,
@@ -419,7 +419,7 @@ router.get('/organization/courses', authenticateToken, async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.organization_id = $1 ORDER BY cr.created_at DESC`,
+      `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.organization_id = $1 AND cr.archived = false ORDER BY cr.created_at DESC`,
       [organizationId]
     );
 
@@ -433,6 +433,59 @@ router.get('/organization/courses', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching organization courses:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Get organization's archived courses
+router.get('/organization/archive', authenticateToken, async (req, res) => {
+  try {
+    const userRole = req.user?.role;
+    const organizationId = req.user?.organizationId;
+    const filterOrgId = req.query.organization_id ? parseInt(req.query.organization_id as string) : null;
+
+    // For admin users, allow filtering by organization_id
+    if (userRole === 'admin') {
+      const query = filterOrgId 
+        ? `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.organization_id = $1 AND cr.archived = true ORDER BY cr.archived_at DESC`
+        : `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.archived = true ORDER BY cr.archived_at DESC`;
+      const result = await pool.query(query, filterOrgId ? [filterOrgId] : []);
+      return res.json({
+        success: true,
+        data: result.rows,
+        meta: {
+          timestamp: new Date().toISOString(),
+          version: '1.0.0'
+        }
+      });
+    }
+
+    // For organization users, only show their organization's archived courses
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'User is not associated with any organization'
+      });
+    }
+
+    const result = await pool.query(
+      `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.organization_id = $1 AND cr.archived = true ORDER BY cr.archived_at DESC`,
+      [organizationId]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows,
+      meta: {
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching organization archived courses:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error'
@@ -2599,32 +2652,126 @@ router.put(
     try {
       const { id } = req.params;
 
-      // Update invoice to mark it as posted to organization
-      const result = await pool.query(
-        `
-      UPDATE invoices 
-      SET posted_to_org = TRUE,
-          posted_to_org_at = CURRENT_TIMESTAMP,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1 AND posted_to_org = FALSE
-      RETURNING *
-    `,
-        [id]
-      );
+      const client = await pool.connect();
 
-      if (result.rows.length === 0) {
-        throw new AppError(
-          404,
-          errorCodes.RESOURCE_NOT_FOUND,
-          'Invoice not found or already posted to organization'
+      try {
+        await client.query('BEGIN');
+
+        // Get invoice details with organization info
+        const invoiceResult = await client.query(
+          `
+        SELECT 
+          i.*,
+          o.name as organization_name,
+          o.contact_email,
+          o.contact_phone,
+          o.address,
+          cr.location,
+          ct.name as course_type_name,
+          cr.completed_at as course_date
+        FROM invoices i
+        JOIN organizations o ON i.organization_id = o.id
+        LEFT JOIN course_requests cr ON i.course_request_id = cr.id
+        LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+        WHERE i.id = $1 AND i.posted_to_org = FALSE
+      `,
+          [id]
         );
-      }
 
-      res.json({
-        success: true,
-        message: 'Invoice posted to organization successfully',
-        data: result.rows[0],
-      });
+        if (invoiceResult.rows.length === 0) {
+          throw new AppError(
+            404,
+            errorCodes.RESOURCE_NOT_FOUND,
+            'Invoice not found or already posted to organization'
+          );
+        }
+
+        const invoice = invoiceResult.rows[0];
+
+        // Update invoice to mark it as posted to organization
+        const updateResult = await client.query(
+          `
+        UPDATE invoices 
+        SET posted_to_org = TRUE,
+            posted_to_org_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING *
+      `,
+          [id]
+        );
+
+        // Archive the completed course when invoice is posted
+        if (invoice.course_request_id) {
+          await client.query(
+            `
+          UPDATE course_requests 
+          SET archived = TRUE,
+              archived_at = CURRENT_TIMESTAMP,
+              archived_by = $1,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2 AND status = 'completed'
+        `,
+            [req.user?.id, invoice.course_request_id]
+          );
+          
+          console.log(`📁 [POST TO ORG] Course ${invoice.course_request_id} archived after invoice posting`);
+        }
+
+        // Send email notification to organization
+        if (invoice.contact_email) {
+          try {
+            const emailData = {
+              organizationName: invoice.organization_name,
+              invoiceNumber: invoice.invoice_number,
+              invoiceDate: new Date(invoice.invoice_date).toLocaleDateString(),
+              dueDate: new Date(invoice.due_date).toLocaleDateString(),
+              amount: parseFloat(invoice.amount),
+              courseType: invoice.course_type_name,
+              location: invoice.location,
+              courseDate: invoice.course_date ? new Date(invoice.course_date).toLocaleDateString() : 'N/A',
+              studentsBilled: invoice.students_billed,
+              portalUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/organization/bills-payable`
+            };
+
+            await emailService.sendInvoicePostedNotification(
+              invoice.contact_email,
+              emailData
+            );
+
+            // Log email sent
+            await client.query(
+              `
+            UPDATE invoices 
+            SET email_sent_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+          `,
+              [id]
+            );
+
+            console.log(`📧 [POST TO ORG] Invoice notification sent to ${invoice.contact_email}`);
+          } catch (emailError) {
+            console.error('❌ [POST TO ORG] Email notification failed:', emailError);
+            // Don't fail the entire operation if email fails
+          }
+        }
+
+        await client.query('COMMIT');
+
+        res.json({
+          success: true,
+          message: 'Invoice posted to organization successfully',
+          data: {
+            ...updateResult.rows[0],
+            emailSent: !!invoice.contact_email
+          },
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
     } catch (error) {
       console.error('Error posting invoice to organization:', error);
       throw error;
@@ -4484,7 +4631,7 @@ router.get(
         i.paid_date,
         o.name as organization_name,
         o.contact_email,
-        o.phone,
+        o.contact_phone,
         o.address,
         cr.location,
         ct.name as course_type_name,
@@ -4871,52 +5018,8 @@ router.post(
               `,
               [payment.invoice_id]
             );
-          } else {
-            // Partially paid
-            await client.query(
-              `
-                UPDATE invoices 
-                SET status = 'partial_payment', updated_at = NOW()
-                WHERE id = $1
-              `,
-              [payment.invoice_id]
-            );
           }
-        } else {
-          // Reject payment
-          await client.query(
-            `
-              UPDATE payments 
-              SET status = 'rejected',
-                  verified_by_accounting_at = NOW(),
-                  notes = COALESCE(notes, '') || CASE WHEN notes IS NOT NULL AND notes != '' THEN E'\n\n' ELSE '' END || $2
-              WHERE id = $1
-            `,
-            [id, `Rejected by ${user.username}: ${notes}`]
-          );
-
-          // Reset invoice status to pending
-          await client.query(
-            `
-              UPDATE invoices 
-              SET status = 'pending', updated_at = NOW()
-              WHERE id = $1
-            `,
-            [payment.invoice_id]
-          );
         }
-
-        await client.query('COMMIT');
-
-        res.json({
-          success: true,
-          message: `Payment ${action}d successfully`,
-          data: {
-            action,
-            payment_id: id,
-            invoice_id: payment.invoice_id,
-          },
-        });
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;
@@ -4924,1111 +5027,8 @@ router.post(
         client.release();
       }
     } catch (error) {
-      console.error('[Payment Verification] Error:', error);
+      console.error('Error recording payment:', error);
       throw error;
-    }
-  })
-);
-
-// Aging Report - Commercial Grade Implementation
-router.get(
-  '/accounting/aging-report',
-  authenticateToken,
-  requireRole(['accountant', 'admin']),
-  asyncHandler(async (req: Request, res: Response) => {
-    try {
-      const { organization_id, as_of_date } = req.query;
-
-      // Use provided date or current date for aging calculations
-      const asOfDate = as_of_date ? new Date(as_of_date as string) : new Date();
-
-      // Validate date
-      if (isNaN(asOfDate.getTime())) {
-        throw new AppError(
-          400,
-          errorCodes.VALIDATION_ERROR,
-          'Invalid as_of_date format'
-        );
-      }
-
-      console.log(
-        '[Aging Report] Generating report as of:',
-        asOfDate.toISOString()
-      );
-
-      // Build dynamic WHERE clause for organization filtering
-      let organizationFilter = '';
-      let queryParams: any[] = [asOfDate];
-
-      if (organization_id) {
-        organizationFilter = 'AND i.organization_id = $2';
-        queryParams.push(parseInt(organization_id as string));
-      }
-
-      // Get aging summary data
-      const agingSummaryQuery = `
-          WITH invoice_aging AS (
-            SELECT 
-              i.id,
-              i.invoice_number,
-              i.organization_id,
-              o.name as organization_name,
-              i.amount,
-              i.invoice_date,
-              i.due_date,
-              i.status,
-              COALESCE(
-                (SELECT SUM(p.amount) 
-                 FROM payments p 
-                 WHERE p.invoice_id = i.id 
-                   AND p.status = 'verified'
-                   AND p.payment_date <= $1
-                ), 0
-              ) as total_payments,
-              (i.amount - COALESCE(
-                (SELECT SUM(p.amount) 
-                 FROM payments p 
-                 WHERE p.invoice_id = i.id 
-                   AND p.status = 'verified'
-                   AND p.payment_date <= $1
-                ), 0
-              )) as balance_due,
-              CASE 
-                WHEN i.status = 'paid' THEN 0
-                ELSE ($1::date - i.due_date::date)
-              END as days_outstanding,
-              CASE 
-                WHEN i.status = 'paid' THEN 'Paid'
-                WHEN ($1::date - i.due_date::date) <= 0 THEN 'Current'
-                WHEN ($1::date - i.due_date::date) <= 30 THEN '1-30 Days'
-                WHEN ($1::date - i.due_date::date) <= 60 THEN '31-60 Days'
-                WHEN ($1::date - i.due_date::date) <= 90 THEN '61-90 Days'
-                ELSE '90+ Days'
-              END as aging_bucket
-            FROM invoices i
-            JOIN organizations o ON i.organization_id = o.id
-            WHERE i.posted_to_org = true
-              ${organizationFilter}
-          )
-          SELECT 
-            aging_bucket,
-            COUNT(*) as invoice_count,
-            SUM(balance_due) as total_balance,
-            SUM(amount) as total_invoiced,
-            SUM(total_payments) as total_paid,
-            AVG(days_outstanding) as avg_days_outstanding,
-            MIN(due_date) as oldest_due_date,
-            MAX(due_date) as newest_due_date
-          FROM invoice_aging
-          WHERE balance_due > 0 OR aging_bucket = 'Paid'
-          GROUP BY aging_bucket
-          ORDER BY 
-            CASE aging_bucket
-              WHEN 'Current' THEN 1
-              WHEN '1-30 Days' THEN 2
-              WHEN '31-60 Days' THEN 3
-              WHEN '61-90 Days' THEN 4
-              WHEN '90+ Days' THEN 5
-              WHEN 'Paid' THEN 6
-              ELSE 7
-            END
-        `;
-
-      // Get organization breakdown data
-      const organizationBreakdownQuery = `
-          WITH invoice_aging AS (
-            SELECT 
-              i.organization_id,
-              o.name as organization_name,
-              i.amount,
-              COALESCE(
-                (SELECT SUM(p.amount) 
-                 FROM payments p 
-                 WHERE p.invoice_id = i.id 
-                   AND p.status = 'verified'
-                   AND p.payment_date <= $1
-                ), 0
-              ) as total_payments,
-              (i.amount - COALESCE(
-                (SELECT SUM(p.amount) 
-                 FROM payments p 
-                 WHERE p.invoice_id = i.id 
-                   AND p.status = 'verified'
-                   AND p.payment_date <= $1
-                ), 0
-              )) as balance_due,
-              CASE 
-                WHEN i.status = 'paid' THEN 0
-                ELSE ($1::date - i.due_date::date)
-              END as days_outstanding,
-              CASE 
-                WHEN i.status = 'paid' THEN 'Paid'
-                WHEN ($1::date - i.due_date::date) <= 0 THEN 'Current'
-                WHEN ($1::date - i.due_date::date) <= 30 THEN '1-30 Days'
-                WHEN ($1::date - i.due_date::date) <= 60 THEN '31-60 Days'
-                WHEN ($1::date - i.due_date::date) <= 90 THEN '61-90 Days'
-                ELSE '90+ Days'
-              END as aging_bucket
-            FROM invoices i
-            JOIN organizations o ON i.organization_id = o.id
-            WHERE i.posted_to_org = true
-              ${organizationFilter}
-          )
-          SELECT 
-            organization_id,
-            organization_name,
-            COUNT(*) as total_invoices,
-            SUM(balance_due) as total_balance,
-            SUM(CASE WHEN aging_bucket = 'Current' THEN balance_due ELSE 0 END) as current_balance,
-            SUM(CASE WHEN aging_bucket = '1-30 Days' THEN balance_due ELSE 0 END) as days_1_30,
-            SUM(CASE WHEN aging_bucket = '31-60 Days' THEN balance_due ELSE 0 END) as days_31_60,
-            SUM(CASE WHEN aging_bucket = '61-90 Days' THEN balance_due ELSE 0 END) as days_61_90,
-            SUM(CASE WHEN aging_bucket = '90+ Days' THEN balance_due ELSE 0 END) as days_90_plus,
-            MAX(days_outstanding) as max_days_outstanding,
-            AVG(CASE WHEN balance_due > 0 THEN days_outstanding END) as avg_days_outstanding
-          FROM invoice_aging
-          WHERE balance_due > 0
-          GROUP BY organization_id, organization_name
-          ORDER BY organization_name
-        `;
-
-      // Get detailed invoice list
-      const detailQuery = `
-          SELECT 
-            i.id,
-            i.invoice_number,
-            i.organization_id,
-            o.name as organization_name,
-            i.amount,
-            i.invoice_date,
-            i.due_date,
-            i.status,
-            (i.amount - COALESCE(
-              (SELECT SUM(p.amount) 
-               FROM payments p 
-               WHERE p.invoice_id = i.id 
-                 AND p.status = 'verified'
-                 AND p.payment_date <= $1
-              ), 0
-            )) as balance_due,
-            ($1::date - i.due_date::date) as days_outstanding,
-            CASE 
-              WHEN i.status = 'paid' THEN 'Paid'
-              WHEN ($1::date - i.due_date::date) <= 0 THEN 'Current'
-              WHEN ($1::date - i.due_date::date) <= 30 THEN '1-30 Days'
-              WHEN ($1::date - i.due_date::date) <= 60 THEN '31-60 Days'
-              WHEN ($1::date - i.due_date::date) <= 90 THEN '61-90 Days'
-              ELSE '90+ Days'
-            END as aging_bucket
-          FROM invoices i
-          JOIN organizations o ON i.organization_id = o.id
-          WHERE i.posted_to_org = true
-            AND (i.amount - COALESCE(
-              (SELECT SUM(p.amount) 
-               FROM payments p 
-               WHERE p.invoice_id = i.id 
-                 AND p.status = 'verified'
-                 AND p.payment_date <= $1
-              ), 0
-            )) > 0
-            ${organizationFilter}
-          ORDER BY 
-            CASE 
-              WHEN ($1::date - i.due_date::date) <= 0 THEN 1
-              WHEN ($1::date - i.due_date::date) <= 30 THEN 2
-              WHEN ($1::date - i.due_date::date) <= 60 THEN 3
-              WHEN ($1::date - i.due_date::date) <= 90 THEN 4
-              ELSE 5
-            END,
-            i.due_date ASC
-        `;
-
-      // Execute all queries
-      const [summaryResult, organizationResult, detailResult] =
-        await Promise.all([
-          pool.query(agingSummaryQuery, queryParams),
-          pool.query(organizationBreakdownQuery, queryParams),
-          pool.query(detailQuery, queryParams),
-        ]);
-
-      const summaryData = summaryResult.rows;
-      const organizationData = organizationResult.rows;
-
-      // Calculate executive summary metrics
-      const totalOutstanding = summaryData
-        .filter(row => row.aging_bucket !== 'Paid')
-        .reduce((sum, row) => sum + parseFloat(row.total_balance || 0), 0);
-
-      const totalOverdue = summaryData
-        .filter(row => !['Current', 'Paid'].includes(row.aging_bucket))
-        .reduce((sum, row) => sum + parseFloat(row.total_balance || 0), 0);
-
-      const totalInvoices = summaryData
-        .filter(row => row.aging_bucket !== 'Paid')
-        .reduce((sum, row) => sum + parseInt(row.invoice_count || 0), 0);
-
-      const overdueInvoices = summaryData
-        .filter(row => !['Current', 'Paid'].includes(row.aging_bucket))
-        .reduce((sum, row) => sum + parseInt(row.invoice_count || 0), 0);
-
-      // Format response with commercial-grade structure
-      const response = {
-        report_metadata: {
-          generated_at: new Date().toISOString(),
-          as_of_date: asOfDate.toISOString(),
-          organization_filter: organization_id || 'All Organizations',
-          total_records: detailResult.rows.length,
-        },
-        executive_summary: {
-          total_outstanding: totalOutstanding,
-          total_overdue: totalOverdue,
-          total_invoices: totalInvoices,
-          overdue_invoices: overdueInvoices,
-          overdue_percentage:
-            totalInvoices > 0
-              ? ((overdueInvoices / totalInvoices) * 100).toFixed(1)
-              : 0,
-          collection_efficiency:
-            totalOutstanding > 0
-              ? (
-                  ((totalOutstanding - totalOverdue) / totalOutstanding) *
-                  100
-                ).toFixed(1)
-              : 100,
-        },
-        aging_summary: summaryData.map(row => ({
-          aging_bucket: row.aging_bucket,
-          invoice_count: parseInt(row.invoice_count || 0),
-          total_balance: parseFloat(row.total_balance || 0),
-          percentage_of_total:
-            totalOutstanding > 0
-              ? (
-                  (parseFloat(row.total_balance || 0) / totalOutstanding) *
-                  100
-                ).toFixed(1)
-              : 0,
-          avg_days_outstanding: parseFloat(
-            row.avg_days_outstanding || 0
-          ).toFixed(1),
-          oldest_due_date: row.oldest_due_date,
-          newest_due_date: row.newest_due_date,
-        })),
-        organization_breakdown: organizationData.map(row => ({
-          organization_id: row.organization_id,
-          organization_name: row.organization_name,
-          total_invoices: parseInt(row.total_invoices || 0),
-          total_balance: parseFloat(row.total_balance || 0),
-          current_balance: parseFloat(row.current_balance || 0),
-          days_1_30: parseFloat(row.days_1_30 || 0),
-          days_31_60: parseFloat(row.days_31_60 || 0),
-          days_61_90: parseFloat(row.days_61_90 || 0),
-          days_90_plus: parseFloat(row.days_90_plus || 0),
-          risk_score: calculateRiskScore({
-            total_balance: row.total_balance,
-            days_61_90: row.days_61_90,
-            days_90_plus: row.days_90_plus,
-          }),
-        })),
-        invoice_details: detailResult.rows.map(row => ({
-          id: row.id,
-          invoice_number: row.invoice_number,
-          organization_id: row.organization_id,
-          organization_name: row.organization_name,
-          amount: parseFloat(row.amount),
-          balance_due: parseFloat(row.balance_due),
-          invoice_date: row.invoice_date,
-          due_date: row.due_date,
-          days_outstanding: parseInt(row.days_outstanding || 0),
-          aging_bucket: row.aging_bucket,
-          status: row.status,
-        })),
-      };
-
-      console.log('[Aging Report] Generated successfully:', {
-        total_outstanding: totalOutstanding,
-        total_invoices: totalInvoices,
-        organizations: organizationData.length,
-      });
-
-      res.json(ApiResponseBuilder.success(response));
-    } catch (error) {
-      console.error('[Aging Report] Error:', error);
-      throw error;
-    }
-  })
-);
-
-// Helper function to calculate organization risk score
-function calculateRiskScore(orgData: any): string {
-  const totalBalance = parseFloat(orgData.total_balance || 0);
-  const days90Plus = parseFloat(orgData.newest_due_date || 0);
-  const days61_90 = parseFloat(orgData.oldest_due_date || 0);
-
-  if (totalBalance === 0) return 'Low';
-
-  const overduePercentage = ((days90Plus + days61_90) / totalBalance) * 100;
-
-  if (overduePercentage > 50) return 'High';
-  if (overduePercentage > 25) return 'Medium';
-  return 'Low';
-}
-
-// Organizations endpoint for aging report filter
-router.get(
-  '/accounting/organizations',
-  authenticateToken,
-  requireRole(['accountant', 'admin']),
-  asyncHandler(async (req: Request, res: Response) => {
-    try {
-      const query = `
-      SELECT DISTINCT 
-        o.id,
-        o.name
-      FROM organizations o
-      JOIN invoices i ON o.id = i.organization_id
-      WHERE i.posted_to_org = true
-      ORDER BY o.name
-    `;
-
-      const result = await pool.query(query);
-
-      res.json(ApiResponseBuilder.success(result.rows));
-    } catch (error) {
-      console.error('[Organizations] Error:', error);
-      throw error;
-    }
-  })
-);
-
-// Add availability date
-router.post(
-  '/instructor/availability',
-  authenticateToken, // Use pure JWT authentication
-  asyncHandler(async (req: Request, res: Response) => {
-    try {
-      console.log('🔐 [AVAILABILITY] POST request received:', {
-        headers: {
-          authorization: req.headers.authorization ? '[REDACTED]' : 'missing',
-          'user-agent': req.headers['user-agent'],
-        },
-        user: req.user,
-        body: req.body,
-        timestamp: new Date().toISOString()
-      });
-
-      const { date } = req.body;
-      const instructorId = req.user?.userId;
-
-      console.log('🔐 [AVAILABILITY] Extracted data:', {
-        date,
-        instructorId,
-        userId: req.user?.userId,
-        username: req.user?.username,
-        role: req.user?.role,
-        timestamp: new Date().toISOString()
-      });
-
-      if (!instructorId) {
-        console.error('❌ [AVAILABILITY] Instructor ID not found in request:', {
-          user: req.user,
-          headers: req.headers,
-          timestamp: new Date().toISOString()
-        });
-        throw new AppError(
-          401,
-          errorCodes.AUTH_TOKEN_INVALID,
-          'Instructor ID not found'
-        );
-      }
-
-      // Get instructor email
-      const instructorResult = await pool.query(
-        'SELECT email FROM users WHERE id = $1',
-        [instructorId]
-      );
-
-      console.log('🔐 [AVAILABILITY] Database query result:', {
-        found: instructorResult.rows.length > 0,
-        instructorId,
-        timestamp: new Date().toISOString()
-      });
-
-      if (instructorResult.rows.length === 0) {
-        console.error('❌ [AVAILABILITY] Instructor not found in database:', {
-          instructorId,
-          timestamp: new Date().toISOString()
-        });
-        throw new AppError(
-          404,
-          errorCodes.RESOURCE_NOT_FOUND,
-          'Instructor not found'
-        );
-      }
-
-      const instructorEmail = instructorResult.rows[0].email;
-
-      // Add availability
-      await pool.query(
-        'INSERT INTO instructor_availability (instructor_id, date) VALUES ($1, $2)',
-        [instructorId, date]
-      );
-
-      console.log('✅ [AVAILABILITY] Successfully added availability:', {
-        instructorId,
-        date,
-        email: instructorEmail,
-        timestamp: new Date().toISOString()
-      });
-
-      // Send email confirmation
-      await emailService.sendAvailabilityConfirmation(instructorEmail, date);
-
-      return res.json(
-        ApiResponseBuilder.success({
-          message: 'Availability added successfully',
-        })
-      );
-    } catch (error: any) {
-      console.error('❌ [AVAILABILITY] Error adding availability:', {
-        error: error.message,
-        code: error.code,
-        stack: error.stack,
-        timestamp: new Date().toISOString()
-      });
-      throw new AppError(
-        500,
-        errorCodes.DB_QUERY_ERROR,
-        'Failed to add availability'
-      );
-    }
-  })
-);
-
-// Remove availability date
-router.delete(
-  '/instructor/availability/:date',
-  authenticateToken, // Use pure JWT authentication
-  asyncHandler(async (req: Request, res: Response) => {
-    try {
-      console.log('🔐 [AVAILABILITY] DELETE request received:', {
-        headers: {
-          authorization: req.headers.authorization ? '[REDACTED]' : 'missing',
-          'user-agent': req.headers['user-agent'],
-        },
-        user: req.user,
-        params: req.params,
-        timestamp: new Date().toISOString()
-      });
-
-      const { date } = req.params;
-      const instructorId = req.user?.userId;
-
-      console.log('🔐 [AVAILABILITY] Extracted data:', {
-        date,
-        instructorId,
-        userId: req.user?.userId,
-        username: req.user?.username,
-        role: req.user?.role,
-        timestamp: new Date().toISOString()
-      });
-
-      if (!instructorId) {
-        console.error('❌ [AVAILABILITY] Instructor ID not found in request:', {
-          user: req.user,
-          headers: req.headers,
-          timestamp: new Date().toISOString()
-        });
-        throw new AppError(
-          401,
-          errorCodes.AUTH_TOKEN_INVALID,
-          'Instructor ID not found'
-        );
-      }
-
-      // Get instructor email
-      const instructorResult = await pool.query(
-        'SELECT email FROM users WHERE id = $1',
-        [instructorId]
-      );
-
-      console.log('🔐 [AVAILABILITY] Database query result:', {
-        found: instructorResult.rows.length > 0,
-        instructorId,
-        timestamp: new Date().toISOString()
-      });
-
-      if (instructorResult.rows.length === 0) {
-        console.error('❌ [AVAILABILITY] Instructor not found in database:', {
-          instructorId,
-          timestamp: new Date().toISOString()
-        });
-        throw new AppError(
-          404,
-          errorCodes.RESOURCE_NOT_FOUND,
-          'Instructor not found'
-        );
-      }
-
-      const instructorEmail = instructorResult.rows[0].email;
-
-      // Remove availability
-      await pool.query(
-        'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date = $2',
-        [instructorId, date]
-      );
-
-      console.log('✅ [AVAILABILITY] Successfully removed availability:', {
-        instructorId,
-        date,
-        email: instructorEmail,
-        timestamp: new Date().toISOString()
-      });
-
-      // Send email confirmation
-      await emailService.sendAvailabilityConfirmation(instructorEmail, date);
-
-      return res.json(
-        ApiResponseBuilder.success({
-          message: 'Availability removed successfully',
-        })
-      );
-    } catch (error: any) {
-      console.error('❌ [AVAILABILITY] Error removing availability:', {
-        error: error.message,
-        code: error.code,
-        stack: error.stack,
-        timestamp: new Date().toISOString()
-      });
-      throw new AppError(
-        500,
-        errorCodes.DB_QUERY_ERROR,
-        'Failed to remove availability'
-      );
-    }
-  })
-);
-
-// Email template routes (admin only)
-router.use(
-  '/email-templates',
-  authenticateToken,
-  authorizeRoles(['admin', 'courseAdmin']),
-  emailTemplatesRouter
-);
-
-// Get instructor availability (admin)
-router.get(
-  '/instructors/:id/availability',
-  authenticateToken,
-  requireRole(['admin']),
-  asyncHandler(async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      const instructorId = parseInt(id, 10);
-
-      if (!instructorId) {
-        throw new AppError(
-          400,
-          errorCodes.VALIDATION_ERROR,
-          'Invalid instructor ID'
-        );
-      }
-
-      const result = await pool.query(
-        `SELECT id, instructor_id, date::text, status, created_at, updated_at 
-         FROM instructor_availability 
-         WHERE instructor_id = $1 
-         ORDER BY date`,
-        [instructorId]
-      );
-
-      const formattedResponse = result.rows.map(row => ({
-        id: row.id.toString(),
-        instructor_id: row.instructor_id.toString(),
-        date: row.date.split('T')[0],
-        status: row.status || 'available',
-      }));
-
-      return res.json(ApiResponseBuilder.success(formattedResponse));
-    } catch (error: any) {
-      console.error('Error fetching instructor availability:', error);
-      throw new AppError(
-        500,
-        errorCodes.DB_QUERY_ERROR,
-        'Failed to fetch instructor availability'
-      );
-    }
-  })
-);
-
-// Get instructor schedule (admin)
-router.get(
-  '/instructors/:id/schedule',
-  authenticateToken,
-  requireRole(['admin']),
-  asyncHandler(async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      const instructorId = parseInt(id, 10);
-
-      if (!instructorId) {
-        throw new AppError(
-          400,
-          errorCodes.VALIDATION_ERROR,
-          'Invalid instructor ID'
-        );
-      }
-
-      const result = await pool.query(
-        `WITH instructor_classes AS (
-          -- Get regular classes
-          SELECT 
-            c.id,
-            c.date as datescheduled,
-            c.start_time,
-            c.end_time,
-            c.status,
-            c.location,
-            c.max_students,
-            c.current_students,
-            c.type_id,
-            NULL as organization_id,
-            NULL as notes,
-            NULL as registered_students
-          FROM classes c
-          WHERE c.instructor_id = $1 
-          AND c.date >= CURRENT_DATE 
-          AND c.status != 'completed'
-          
-          UNION
-          
-          -- Get confirmed course requests
-          SELECT 
-            cr.id,
-            cr.confirmed_date as datescheduled,
-            cr.confirmed_start_time as start_time,
-            cr.confirmed_end_time as end_time,
-            cr.status,
-            cr.location,
-            cr.registered_students as max_students,
-            0 as current_students,
-            cr.course_type_id as type_id,
-            cr.organization_id,
-            cr.notes,
-            cr.registered_students
-          FROM course_requests cr
-          WHERE cr.instructor_id = $1
-          AND cr.confirmed_date >= CURRENT_DATE
-          AND cr.status = 'confirmed'
-        )
-        SELECT 
-          ic.id as course_id,
-          ic.datescheduled::text,
-          ic.start_time::text,
-          ic.end_time::text,
-          ic.status,
-          ic.location,
-          ic.max_students,
-          ic.current_students,
-          ct.name as coursetypename,
-          COALESCE(o.name, 'Unassigned') as organizationname,
-          COALESCE(ic.notes, '') as notes,
-          COALESCE(ic.registered_students, ic.max_students, 0) as studentcount
-        FROM instructor_classes ic
-        LEFT JOIN class_types ct ON ic.type_id = ct.id
-        LEFT JOIN organizations o ON ic.organization_id = o.id
-        ORDER BY ic.datescheduled, ic.start_time`,
-        [instructorId]
-      );
-
-      const formattedData = result.rows.map(row => ({
-        id: row.course_id.toString(),
-        type: row.coursetypename,
-        date: row.datescheduled,
-        time: `${row.start_time} - ${row.end_time}`,
-        location: row.location,
-        instructor_id: instructorId.toString(),
-        max_students: row.max_students,
-        current_students: row.current_students,
-        status: row.status,
-        organizationname: row.organizationname,  // Changed from organization to organizationname
-        notes: row.notes,
-        studentcount: row.studentcount
-      }));
-
-      return res.json(ApiResponseBuilder.success(formattedData));
-    } catch (error: any) {
-      console.error('Error fetching instructor schedule:', error);
-      throw new AppError(
-        500,
-        errorCodes.DB_QUERY_ERROR,
-        'Failed to fetch instructor schedule'
-      );
-    }
-  })
-);
-
-// Get cancelled courses
-router.get('/courses/cancelled', authenticateToken, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT * FROM course_request_details WHERE is_cancelled = true ORDER BY cancelled_at DESC
-    `);
-    res.json({
-      success: true,
-      data: result.rows,
-      meta: {
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching cancelled courses:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'DB_5001',
-        message: 'Failed to fetch cancelled courses'
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-      }
-    });
-  }
-});
-
-// Cancel a course
-router.post('/courses/:id/cancel', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  const { reason } = req.body;
-
-  try {
-    // Update the course request
-    const result = await pool.query(`
-      UPDATE course_requests
-      SET 
-        is_cancelled = true,
-        cancelled_at = CURRENT_TIMESTAMP,
-        cancellation_reason = $1,
-        status = 'cancelled',
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $2
-      RETURNING id
-    `, [reason, id]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'DB_4001',
-          message: 'Course request not found'
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          version: '1.0.0'
-        }
-      });
-    }
-
-    // Get the updated course details from the view
-    const courseDetails = await pool.query(`
-      SELECT * FROM course_request_details WHERE id = $1
-    `, [id]);
-
-    if (courseDetails.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'DB_4001',
-          message: 'Course details not found'
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          version: '1.0.0'
-        }
-      });
-    }
-
-    // Return the updated course with all necessary information
-    res.json({
-      success: true,
-      data: courseDetails.rows[0],
-      meta: {
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-      }
-    });
-  } catch (error) {
-    console.error('Error cancelling course:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'DB_4002',
-        message: 'Failed to cancel course'
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-      }
-    });
-  }
-});
-
-// Update course scheduled date
-router.put('/courses/:id/schedule', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  const { scheduled_date } = req.body;
-
-  try {
-    // Validate the new date is not in the past
-    const newDate = new Date(scheduled_date);
-    const now = new Date();
-    if (newDate < now) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'VAL_4001',
-          message: 'Cannot schedule a course in the past'
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          version: '1.0.0'
-        }
-      });
-    }
-
-    // Update the course schedule
-    const result = await pool.query(`
-      UPDATE course_requests
-      SET 
-        scheduled_date = $1,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $2
-      RETURNING *
-    `, [scheduled_date, id]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'DB_4001',
-          message: 'Course request not found'
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          version: '1.0.0'
-        }
-      });
-    }
-
-    // Get the updated course details from the view
-    const courseDetails = await pool.query(`
-      SELECT * FROM course_request_details WHERE id = $1
-    `, [id]);
-
-    if (courseDetails.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: 'DB_4001',
-          message: 'Course details not found'
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          version: '1.0.0'
-        }
-      });
-    }
-
-    // Return the updated course with all necessary information
-    res.json({
-      success: true,
-      data: courseDetails.rows[0],
-      meta: {
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-      }
-    });
-  } catch (error) {
-    console.error('Error updating course schedule:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'DB_4002',
-        message: 'Failed to update course schedule'
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-      }
-    });
-  }
-});
-
-// Create course_types table
-console.log('📚 Creating course_types table...');
-await pool.query(`
-  CREATE TABLE IF NOT EXISTS course_types (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    duration INTEGER NOT NULL,
-    price DECIMAL(10,2) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-  );
-`);
-console.log('✅ Course_types table created successfully');
-
-// Insert default course types
-console.log('📝 Inserting default course types...');
-await pool.query(`
-  INSERT INTO course_types (name, description, duration, price)
-  VALUES 
-    ('CPR Basic', 'Basic CPR certification course', 4, 99.99),
-    ('CPR Advanced', 'Advanced CPR certification course', 6, 149.99),
-    ('First Aid', 'First Aid certification course', 4, 89.99)
-  ON CONFLICT (name) DO NOTHING;
-`);
-console.log('✅ Default course types inserted successfully');
-
-// SSE endpoint for real-time updates
-router.get('/events', (req: Request, res: Response) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-
-  // Send initial connection message
-  res.write('data: {"type": "connected"}\n\n');
-
-  // Keep the connection alive
-  const keepAlive = setInterval(() => {
-    res.write('data: {"type": "ping"}\n\n');
-  }, 30000);
-
-  // Clean up on client disconnect
-  req.on('close', () => {
-    clearInterval(keepAlive);
-  });
-});
-
-router.get('/accounting/billing-queue', authenticateToken, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT * FROM course_request_details 
-      WHERE status = 'completed' AND is_billed = false 
-      ORDER BY completed_at DESC
-    `);
-    res.json({
-      success: true,
-      data: result.rows,
-      meta: {
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching billing queue:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'DB_5001',
-        message: 'Failed to fetch billing queue'
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-      }
-    });
-  }
-});
-
-// Get upcoming courses
-router.get(
-  '/courses/upcoming',
-  authenticateToken,
-  asyncHandler(async (_req: Request, res: Response) => {
-    try {
-      const result = await pool.query(`
-        SELECT * 
-        FROM course_request_details 
-        WHERE status = 'confirmed' 
-        AND confirmed_date >= CURRENT_DATE
-        ORDER BY confirmed_date ASC, confirmed_start_time ASC
-      `);
-
-      return res.json(ApiResponseBuilder.success(result.rows));
-    } catch (error: any) {
-      console.error('Error fetching upcoming courses:', error);
-      throw new AppError(
-        500,
-        errorCodes.DB_QUERY_ERROR,
-        'Failed to fetch upcoming courses'
-      );
-    }
-  })
-);
-
-// Get past courses
-router.get(
-  '/courses/past',
-  authenticateToken,
-  asyncHandler(async (_req: Request, res: Response) => {
-    try {
-      const result = await pool.query(`
-        SELECT * 
-        FROM course_request_details 
-        WHERE status = 'completed' 
-        AND completed_at < CURRENT_DATE
-        ORDER BY completed_at DESC
-      `);
-
-      return res.json(ApiResponseBuilder.success(result.rows));
-    } catch (error: any) {
-      console.error('Error fetching past courses:', error);
-      throw new AppError(
-        500,
-        errorCodes.DB_QUERY_ERROR,
-        'Failed to fetch past courses'
-      );
-    }
-  })
-);
-
-// Get active courses
-router.get(
-  '/courses/active',
-  authenticateToken,
-  asyncHandler(async (_req: Request, res: Response) => {
-    try {
-      const result = await pool.query(`
-        SELECT 
-          crd.*,
-          o.name as organization_name,
-          u.username as instructor_name,
-          ct.name as course_type_name,
-          (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = crd.id) as actual_student_count
-        FROM course_request_details crd
-        LEFT JOIN organizations o ON crd.organization_id = o.id
-        LEFT JOIN users u ON crd.instructor_id = u.id
-        LEFT JOIN class_types ct ON crd.course_type_id = ct.id
-        WHERE crd.status = 'confirmed'
-        AND crd.confirmed_date >= CURRENT_DATE
-        AND crd.is_cancelled = false
-        ORDER BY 
-          crd.confirmed_date ASC,
-          crd.confirmed_start_time ASC
-      `);
-
-      return res.json(ApiResponseBuilder.success(result.rows));
-    } catch (error: any) {
-      console.error('Error fetching active courses:', error);
-      throw new AppError(
-        500,
-        errorCodes.DB_QUERY_ERROR,
-        'Failed to fetch active courses'
-      );
     }
   })
 );

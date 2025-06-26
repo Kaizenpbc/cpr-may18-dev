@@ -233,13 +233,22 @@ const AccountingPortal = () => {
     );
 
     try {
-      const response = await api.post(
+      const response = await api.put(
         `/accounting/invoices/${invoice.invoiceid}/post-to-org`
       );
-      showSnackbar(
-        response.data.message || 'Invoice posted to organization successfully',
-        'success'
-      );
+      
+      let message = response.data.message || 'Invoice posted to organization successfully';
+      
+      // Add email notification info if available
+      if (response.data.data?.emailSent) {
+        message += ' Email notification sent to organization.';
+      } else if (invoice.contactemail) {
+        message += ' (Email notification failed - please check contact email)';
+      } else {
+        message += ' (No email sent - organization has no contact email)';
+      }
+      
+      showSnackbar(message, 'success');
 
       // Refresh invoices to update the UI
       await fetchInvoices();

@@ -122,7 +122,7 @@ const AccountsReceivableTable = ({
       <Table stickyHeader aria-label='accounts receivable table'>
         <TableHead>
           <TableRow>
-            <TableCell sx={{ width: '10px', fontWeight: 'bold' }} />{' '}
+            <TableCell sx={{ width: '10px', fontWeight: 'bold' }} />
             {/* Empty cell for expand button */}
             <TableCell sx={{ fontWeight: 'bold' }}>Invoice #</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Invoice Date</TableCell>
@@ -203,7 +203,6 @@ const AccountsReceivableTable = ({
                   <Box
                     sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}
                   >
-                    {' '}
                     {/* Reduced gap */}
                     {/* Record Payment Button */}
                     <Tooltip title='Record Payment Received'>
@@ -284,7 +283,6 @@ const AccountsReceivableTable = ({
                   style={{ paddingBottom: 0, paddingTop: 0 }}
                   colSpan={12}
                 >
-                  {' '}
                   {/* Adjust colSpan based on total columns */}
                   <Collapse
                     in={expandedRowId === invoice.invoiceid}
