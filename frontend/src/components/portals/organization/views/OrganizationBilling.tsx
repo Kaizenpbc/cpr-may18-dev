@@ -66,6 +66,9 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   invoices,
   billingSummary,
 }) => {
+  // Ensure invoices is an array
+  const safeInvoices = Array.isArray(invoices) ? invoices : [];
+
   // Get status color for invoices
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -203,7 +206,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
           </Grid>
           <Grid item xs={12} md={2}>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {invoices.length} invoices found
+              {safeInvoices.length} invoices found
             </Typography>
           </Grid>
         </Grid>
@@ -225,7 +228,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
               </TableRow>
             </TableHead>
             <TableBody>
-              {invoices.map((invoice) => (
+              {safeInvoices.map((invoice) => (
                 <TableRow key={invoice.id}>
                   <TableCell>{invoice.invoice_number}</TableCell>
                   <TableCell>{invoice.course_type_name}</TableCell>
@@ -261,7 +264,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                   </TableCell>
                 </TableRow>
               ))}
-              {invoices.length === 0 && (
+              {safeInvoices.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={10} align="center">
                     No invoices found

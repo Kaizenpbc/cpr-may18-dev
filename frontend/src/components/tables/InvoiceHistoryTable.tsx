@@ -43,7 +43,7 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
   // Removed state/handlers for expansion from AR table
 
   const handlePreview = invoiceId => {
-    const previewUrl = `http://localhost:3001/accounting/invoices/${invoiceId}/preview`;
+    const previewUrl = `http://localhost:3001/api/v1/accounting/invoices/${invoiceId}/preview`;
     window.open(previewUrl, '_blank', 'width=800,height=1000,scrollbars=yes');
   };
 
@@ -51,25 +51,14 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
     try {
       console.log(`[PDF Download] Starting download for invoice ${invoiceId}`);
 
-      // Get the auth token from localStorage
-      const token = localStorage.getItem('accessToken');
-      console.log(`[PDF Download] Token available: ${token ? 'Yes' : 'No'}`);
-
-      if (!token) {
-        throw new Error('No authentication token found. Please log in again.');
-      }
-
       console.log(
-        `[PDF Download] Fetching PDF from: http://localhost:3001/accounting/invoices/${invoiceId}/pdf`
+        `[PDF Download] Fetching PDF from: http://localhost:3001/api/v1/accounting/invoices/${invoiceId}/pdf`
       );
 
       const response = await fetch(
-        `http://localhost:3001/accounting/invoices/${invoiceId}/pdf`,
+        `http://localhost:3001/api/v1/accounting/invoices/${invoiceId}/pdf`,
         {
           method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
           credentials: 'include',
         }
       );

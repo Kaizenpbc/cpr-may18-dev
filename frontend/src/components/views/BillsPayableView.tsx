@@ -154,7 +154,7 @@ const BillsPayableView = () => {
   };
 
   const handlePreviewPDF = invoiceId => {
-    const previewUrl = `http://localhost:3001/accounting/invoices/${invoiceId}/preview`;
+    const previewUrl = `http://localhost:3001/api/v1/accounting/invoices/${invoiceId}/preview`;
     window.open(previewUrl, '_blank', 'width=800,height=1000,scrollbars=yes');
   };
 
