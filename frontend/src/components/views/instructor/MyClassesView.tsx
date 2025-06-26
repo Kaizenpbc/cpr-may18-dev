@@ -39,6 +39,20 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
   onCompleteClass,
   onRemoveAvailability,
 }) => {
+  console.log('🔍 [TRACE] MyClassesView rendered with combinedSchedule:', JSON.stringify(combinedSchedule, null, 2));
+  
+  // Log each class item's studentsregistered value
+  combinedSchedule.forEach((item, index) => {
+    if (item.type === 'class') {
+      console.log(`🔍 [TRACE] Class ${index}:`, {
+        course_id: item.course_id,
+        studentsregistered: item.studentsregistered,
+        displayDate: item.displayDate,
+        organizationname: item.organizationname
+      });
+    }
+  });
+
   const [deleteDialog, setDeleteDialog] = React.useState<{
     open: boolean;
     date: string;
@@ -225,53 +239,69 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
                 </TableCell>
               </TableRow>
             ) : (
-              combinedSchedule.map((item, index) => (
-                <TableRow key={`${item.type}-${item.course_id || item.originalData?.id || index}`} hover>
-                  <TableCell>{formatDisplayDate(item.displayDate)}</TableCell>
-                  <TableCell>{item.type === 'class' ? item.organizationname : ''}</TableCell>
-                  <TableCell>{item.type === 'class' ? item.location : ''}</TableCell>
-                  <TableCell>{item.type === 'class' ? item.coursenumber : ''}</TableCell>
-                  <TableCell>{item.type === 'class' ? item.coursetypename : ''}</TableCell>
-                  <TableCell align='center'>{item.type === 'class' ? item.studentsregistered : ''}</TableCell>
-                  <TableCell align='center'>{item.type === 'class' ? item.studentsattendance : ''}</TableCell>
-                  <TableCell>{item.type === 'class' ? item.notes : ''}</TableCell>
-                  <TableCell>
-                    {item.type === 'class' ? (
-                      <Chip 
-                        label={item.status} 
-                        color={item.status === 'Completed' ? 'success' : 'primary'}
-                        size="small"
-                      />
-                    ) : (
-                      <Chip 
-                        label="Available" 
-                        color="success"
-                        icon={<AvailableIcon />}
-                        size="small"
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell align='center'>
-                    {item.type === 'class' && item.status !== 'Completed' && (
-                      <Tooltip title='Mark as Complete'>
-                        <IconButton onClick={() => onCompleteClass(item)}>
-                          <CompleteIcon color='success' />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                    {item.type === 'availability' && onRemoveAvailability && (
-                      <Tooltip title='Remove Availability'>
-                        <IconButton 
-                          onClick={() => handleDeleteClick(item.displayDate)}
-                          color='error'
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
+              combinedSchedule.map((item, index) => {
+                console.log(`🔍 [TRACE] Rendering item ${index}:`, {
+                  type: item.type,
+                  course_id: item.course_id,
+                  studentsregistered: item.studentsregistered,
+                  displayDate: item.displayDate
+                });
+                
+                return (
+                  <TableRow key={`${item.type}-${item.course_id || item.originalData?.id || index}`} hover>
+                    <TableCell>{formatDisplayDate(item.displayDate)}</TableCell>
+                    <TableCell>{item.type === 'class' ? item.organizationname : ''}</TableCell>
+                    <TableCell>{item.type === 'class' ? item.location : ''}</TableCell>
+                    <TableCell>{item.type === 'class' ? item.coursenumber : ''}</TableCell>
+                    <TableCell>{item.type === 'class' ? item.coursetypename : ''}</TableCell>
+                    <TableCell align='center'>
+                      {item.type === 'class' ? (
+                        (() => {
+                          console.log(`🔍 [TRACE] Displaying studentsregistered for course ${item.course_id}:`, item.studentsregistered);
+                          return item.studentsregistered;
+                        })()
+                      ) : ''}
+                    </TableCell>
+                    <TableCell align='center'>{item.type === 'class' ? item.studentsattendance : ''}</TableCell>
+                    <TableCell>{item.type === 'class' ? item.notes : ''}</TableCell>
+                    <TableCell>
+                      {item.type === 'class' ? (
+                        <Chip 
+                          label={item.status} 
+                          color={item.status === 'Completed' ? 'success' : 'primary'}
+                          size="small"
+                        />
+                      ) : (
+                        <Chip 
+                          label="Available" 
+                          color="success"
+                          icon={<AvailableIcon />}
+                          size="small"
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell align='center'>
+                      {item.type === 'class' && item.status !== 'Completed' && (
+                        <Tooltip title='Mark as Complete'>
+                          <IconButton onClick={() => onCompleteClass(item)}>
+                            <CompleteIcon color='success' />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {item.type === 'availability' && onRemoveAvailability && (
+                        <Tooltip title='Remove Availability'>
+                          <IconButton 
+                            onClick={() => handleDeleteClick(item.displayDate)}
+                            color='error'
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

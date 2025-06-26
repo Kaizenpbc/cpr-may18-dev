@@ -126,6 +126,22 @@ router.delete('/availability/:date', authenticateToken, requireRole(['instructor
 router.get('/classes', authenticateToken, requireRole(['instructor']), async (req, res) => {
   try {
     const userId = req.user.id;
+    
+    // DEBUG: Let's see what data we have
+    console.log('[DEBUG] Checking data for instructor:', userId);
+    
+    // Check course_students table
+    const studentsResult = await pool.query('SELECT * FROM course_students LIMIT 5');
+    console.log('[DEBUG] course_students sample:', studentsResult.rows);
+    
+    // Check course_requests table
+    const requestsResult = await pool.query('SELECT * FROM course_requests WHERE instructor_id = $1 LIMIT 5', [userId]);
+    console.log('[DEBUG] course_requests for instructor:', requestsResult.rows);
+    
+    // Check classes table
+    const classesResult = await pool.query('SELECT * FROM classes WHERE instructor_id = $1 LIMIT 5', [userId]);
+    console.log('[DEBUG] classes for instructor:', classesResult.rows);
+    
     const dbResult = await pool.query(
       `SELECT 
         c.id,
@@ -143,7 +159,14 @@ router.get('/classes', authenticateToken, requireRole(['instructor']), async (re
         ct.name as coursetypename,
         COALESCE(o.name, 'Unassigned') as organizationname,
         COALESCE(c.location, '') as notes,
-        0 as studentcount,
+        COALESCE((
+          SELECT cr.registered_students
+            FROM course_requests cr
+           WHERE cr.instructor_id = c.instructor_id
+             AND DATE(cr.confirmed_date) = DATE(c.start_time)
+             AND cr.course_type_id = c.class_type_id
+           LIMIT 1
+        ), 0) as studentcount,
         COALESCE((
           SELECT COUNT(*) 
           FROM course_students cs 

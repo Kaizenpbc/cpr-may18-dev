@@ -46,56 +46,31 @@ const InstructorDashboardContainer: React.FC = () => {
       console.log('[Dashboard] Starting to fetch dashboard data...');
 
       // Fetch all required data in parallel
-      const [classesResponse, completedResponse, availabilityResponse, dashboardResponse] = await Promise.all([
+      const [classesResponse, completedResponse, availabilityResponse] = await Promise.all([
         api.get('/instructor/classes'),
         api.get('/instructor/classes/completed'),
-        api.get('/instructor/availability'),
-        api.get('/dashboard')
+        api.get('/instructor/availability')
       ]);
 
-      console.log('[Dashboard] Dashboard API call completed');
-      console.log('[Dashboard] Dashboard API URL:', '/dashboard');
-      console.log('[Dashboard] Dashboard response status:', dashboardResponse.status);
-
       console.log('[Dashboard] All API calls completed');
-      console.log('[Dashboard] Dashboard response:', dashboardResponse);
-      console.log('[Dashboard] Dashboard response.data:', dashboardResponse.data);
-      console.log('[Dashboard] Dashboard response.data type:', typeof dashboardResponse.data);
-      console.log('[Dashboard] Dashboard response.data keys:', Object.keys(dashboardResponse.data || {}));
-      console.log('[Dashboard] Dashboard response.data JSON:', JSON.stringify(dashboardResponse.data, null, 2));
-      console.log('[Dashboard] Dashboard response.status:', dashboardResponse.status);
-      console.log('[Dashboard] Dashboard response.headers:', dashboardResponse.headers);
 
-      const classes = classesResponse.data || [];
-      const completed = completedResponse.data || [];
-      const availability = availabilityResponse.data || [];
-      const rawStats = dashboardResponse.data || {};
+      const classes = classesResponse.data?.data || [];
+      const completed = completedResponse.data?.data || [];
+      const availability = availabilityResponse.data?.data || [];
 
-      console.log('[Dashboard] API raw stats:', rawStats);
+      console.log('[Dashboard] Classes data:', classes);
+      console.log('[Dashboard] Completed data:', completed);
+      console.log('[Dashboard] Availability data:', availability);
       
-      // Extract the actual stats from the nested response structure
-      const actualStats = rawStats.data?.instructorStats || {};
-      
-      console.log('[Dashboard] rawStats.data:', rawStats.data);
-      console.log('[Dashboard] rawStats.data.instructorStats:', rawStats.data?.instructorStats);
-      console.log('[Dashboard] Actual stats extracted:', actualStats);
-      console.log('[Dashboard] Actual stats keys:', Object.keys(actualStats));
-      console.log('[Dashboard] Actual stats values:', {
-        totalClasses: actualStats.totalClasses,
-        scheduledClasses: actualStats.scheduledClasses,
-        completedClasses: actualStats.completedClasses,
-        cancelledClasses: actualStats.cancelledClasses
-      });
-      
-      // Map backend camelCase to frontend snake_case
+      // Calculate stats from the actual data
       const stats = {
-        total_courses: actualStats.totalClasses || 0,
-        scheduled_courses: actualStats.scheduledClasses || 0,
-        completed_courses: actualStats.completedClasses || 0,
-        cancelled_courses: actualStats.cancelledClasses || 0
+        total_courses: classes.length + completed.length,
+        scheduled_courses: classes.length,
+        completed_courses: completed.length,
+        cancelled_courses: 0 // We don't have cancelled courses data yet
       };
 
-      console.log('[Dashboard] Mapped stats:', stats);
+      console.log('[Dashboard] Calculated stats:', stats);
 
       setScheduledClasses(classes);
       setCompletedClasses(completed);

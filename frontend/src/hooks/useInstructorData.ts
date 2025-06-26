@@ -463,7 +463,12 @@ export const useInstructorData = () => {
     isFetching: classesFetching
   } = useQuery({
     queryKey: QUERY_KEYS.classes,
-    queryFn: fetchScheduledClasses,
+    queryFn: async () => {
+      console.log('🔍 [TRACE] Scheduled classes queryFn called');
+      const result = await fetchScheduledClasses();
+      console.log('🔍 [TRACE] fetchScheduledClasses returned:', JSON.stringify(result, null, 2));
+      return result;
+    },
     enabled: !!user?.id,
     retry: createRetryFn(RETRY_CONFIG.classes.maxRetries, RETRY_CONFIG.classes.baseDelay),
     retryDelay: createRetryDelay(RETRY_CONFIG.classes.baseDelay),
@@ -475,6 +480,8 @@ export const useInstructorData = () => {
     classesError,
     classesFetching
   });
+  
+  console.log('🔍 [TRACE] scheduledClasses data:', JSON.stringify(scheduledClasses, null, 2));
 
   // Fetch completed classes
   const { 

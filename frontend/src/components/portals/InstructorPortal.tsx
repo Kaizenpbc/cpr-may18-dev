@@ -45,6 +45,8 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { formatDateWithoutTimezone } from '../../utils/dateUtils';
 import { Student } from '../../types/student';
 import { ScheduledClass } from '../../types/instructor';
+import api from '../../services/api';
+import { EnhancedError } from '../../hooks/useInstructorData';
 
 // Lazy load components for better performance (using TypeScript files)
 const InstructorDashboard = lazy(
@@ -109,7 +111,7 @@ const formatScheduleItem = (item: any): CombinedScheduleItem => {
     organizationname: item.organizationname || 'Unassigned',
     location: item.location || 'TBD',
     coursetypename: item.coursetypename || 'CPR Class',
-    studentsregistered: Number(item.studentsregistered) || 0,
+    studentsregistered: Number(item.studentcount) || 0,
     studentsattendance: Number(item.studentsattendance) || 0,
     notes: item.notes || '',
     start_time: item.start_time ? item.start_time.slice(0, 5) : '09:00',
@@ -166,21 +168,13 @@ const InstructorPortal: React.FC = () => {
     }
   };
 
-  const { data: classes = [], refetch: refetchClasses } = useQuery({
-    queryKey: ['instructor-classes'],
-    queryFn: async () => {
-      const response = await api.get('/instructor/classes');
-      return response.data.data.map(formatScheduleItem);
-    }
-  });
-
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ courseId, students }: { courseId: number; students: Student[] }) => {
       const response = await api.put(`/instructor/classes/${courseId}/attendance`, { students });
       return response.data;
     },
     onSuccess: () => {
-      refetchClasses();
+      loadData();
       setSuccessState('Attendance updated successfully');
     },
     onError: (error: any) => {
@@ -218,12 +212,24 @@ const InstructorPortal: React.FC = () => {
 
   // Combine scheduled classes and availability data
   const combinedItems = React.useMemo<CombinedScheduleItem[]>(() => {
+    console.log('🔍 [TRACE] combinedItems useMemo triggered');
+    console.log('🔍 [TRACE] scheduledClasses:', JSON.stringify(scheduledClasses, null, 2));
+    
     const items: CombinedScheduleItem[] = [];
 
     // Add class items
     if (scheduledClasses && Array.isArray(scheduledClasses)) {
-      scheduledClasses.forEach((classItem: any) => {
-        items.push({
+      console.log('🔍 [TRACE] Processing scheduledClasses array with', scheduledClasses.length, 'items');
+      
+      scheduledClasses.forEach((classItem: any, index: number) => {
+        console.log(`🔍 [TRACE] Processing classItem ${index}:`, {
+          course_id: classItem.course_id,
+          studentcount: classItem.studentcount,
+          studentsregistered: classItem.studentsregistered,
+          date: classItem.date
+        });
+        
+        const transformedItem = {
           type: 'class' as const,
           displayDate: classItem.date,
           status: classItem.status || 'scheduled',
@@ -231,7 +237,7 @@ const InstructorPortal: React.FC = () => {
           organizationname: classItem.organizationname,
           location: classItem.location,
           coursetypename: classItem.coursetypename,
-          studentsregistered: Number(classItem.studentsregistered) || 0,
+          studentsregistered: Number(classItem.studentcount) || 0,
           studentsattendance: Number(classItem.studentsattendance) || 0,
           notes: classItem.notes || '',
           start_time: classItem.start_time,
@@ -240,7 +246,14 @@ const InstructorPortal: React.FC = () => {
           max_students: Number(classItem.max_students) || 10,
           current_students: Number(classItem.current_students) || 0,
           originalData: classItem
+        };
+        
+        console.log(`🔍 [TRACE] Transformed item ${index}:`, {
+          studentsregistered: transformedItem.studentsregistered,
+          studentcount: transformedItem.originalData.studentcount
         });
+        
+        items.push(transformedItem);
       });
     }
 
@@ -260,11 +273,20 @@ const InstructorPortal: React.FC = () => {
     }
 
     // Sort by date
-    return items.sort((a: CombinedScheduleItem, b: CombinedScheduleItem) => {
+    const sortedItems = items.sort((a: CombinedScheduleItem, b: CombinedScheduleItem) => {
       const dateA = new Date(a.displayDate);
       const dateB = new Date(b.displayDate);
       return dateA.getTime() - dateB.getTime();
     });
+    
+    console.log('🔍 [TRACE] Final combinedItems:', JSON.stringify(sortedItems.map(item => ({
+      type: item.type,
+      displayDate: item.displayDate,
+      studentsregistered: item.studentsregistered,
+      course_id: item.course_id
+    })), null, 2));
+    
+    return sortedItems;
   }, [scheduledClasses, availableDates]);
 
   // Check authentication and load user data if needed

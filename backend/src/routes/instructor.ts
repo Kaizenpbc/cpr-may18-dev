@@ -132,7 +132,7 @@ router.get('/classes', async (req, res) => {
         
         UNION
         
-        -- Get confirmed course requests
+        -- Get confirmed course requests with actual student count
         SELECT 
           cr.id,
           cr.confirmed_date as datescheduled,
@@ -142,11 +142,18 @@ router.get('/classes', async (req, res) => {
           cr.location,
           cr.registered_students as max_students,
           0 as current_students,
-          cr.class_type_id as class_type_id,
+          cr.course_type_id as class_type_id,
           cr.organization_id::integer as organization_id,
           cr.notes,
-          cr.registered_students
+          COALESCE(cs_count.student_count, 0) as registered_students
         FROM course_requests cr
+        LEFT JOIN (
+          SELECT 
+            course_request_id,
+            COUNT(*) as student_count
+          FROM course_students
+          GROUP BY course_request_id
+        ) cs_count ON cr.id = cs_count.course_request_id
         WHERE cr.instructor_id = $1
         AND cr.confirmed_date >= CURRENT_DATE
         AND cr.status = 'confirmed'
@@ -482,7 +489,7 @@ router.get('/schedule', async (req, res) => {
         
         UNION
         
-        -- Get confirmed course requests
+        -- Get confirmed course requests with actual student count
         SELECT 
           cr.id,
           cr.confirmed_date as datescheduled,
@@ -492,11 +499,18 @@ router.get('/schedule', async (req, res) => {
           cr.location,
           cr.registered_students as max_students,
           0 as current_students,
-          cr.class_type_id as class_type_id,
+          cr.course_type_id as class_type_id,
           cr.organization_id::integer as organization_id,
           cr.notes,
-          cr.registered_students
+          COALESCE(cs_count.student_count, 0) as registered_students
         FROM course_requests cr
+        LEFT JOIN (
+          SELECT 
+            course_request_id,
+            COUNT(*) as student_count
+          FROM course_students
+          GROUP BY course_request_id
+        ) cs_count ON cr.id = cs_count.course_request_id
         WHERE cr.instructor_id = $1
         AND cr.confirmed_date >= CURRENT_DATE
         AND cr.status = 'confirmed'
@@ -1446,7 +1460,7 @@ router.get(
           
           UNION
           
-          -- Get confirmed course requests
+          -- Get confirmed course requests with actual student count
           SELECT 
             cr.id,
             cr.confirmed_date as datescheduled,
@@ -1459,8 +1473,15 @@ router.get(
             cr.class_type_id as class_type_id,
             cr.organization_id::integer as organization_id,
             cr.notes,
-            cr.registered_students
+            COALESCE(cs_count.student_count, 0) as registered_students
           FROM course_requests cr
+          LEFT JOIN (
+            SELECT 
+              course_request_id,
+              COUNT(*) as student_count
+            FROM course_students
+            GROUP BY course_request_id
+          ) cs_count ON cr.id = cs_count.course_request_id
           WHERE cr.instructor_id = $1
           AND cr.confirmed_date >= CURRENT_DATE
           AND cr.status = 'confirmed'
