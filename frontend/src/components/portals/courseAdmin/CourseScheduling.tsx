@@ -90,7 +90,7 @@ const CourseScheduling = () => {
     }
 
     try {
-      await api.put(`/api/v1/courses/${courseToCancel.id}/cancel`, {
+      await api.put(`/courses/${courseToCancel.id}/cancel`, {
         reason: cancelReason,
       });
 

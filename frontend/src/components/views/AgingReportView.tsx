@@ -80,7 +80,7 @@ const AgingReportView = () => {
       if (organizationFilter) params.organization_id = organizationFilter;
       if (asOfDate) params.as_of_date = asOfDate;
 
-      const response = await api.get('/api/v1/accounting/aging-report', {
+      const response = await api.get('/accounting/aging-report', {
         params,
       });
       return response.data.data;
@@ -92,7 +92,7 @@ const AgingReportView = () => {
   const { data: organizations } = useQuery({
     queryKey: ['organizations'],
     queryFn: async () => {
-      const response = await api.get('/api/v1/accounting/organizations');
+      const response = await api.get('/accounting/organizations');
       return response.data.data;
     },
   });

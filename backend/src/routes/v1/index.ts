@@ -2453,9 +2453,9 @@ router.get(
         cr.location,
         cr.completed_at::date as date_completed,
         cr.registered_students,
-        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as students_attended,
+        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as students_attended,
         COALESCE(cp.price_per_student, 50.00) as rate_per_student,
-        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) * COALESCE(cp.price_per_student, 50.00) as total_amount,
+        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) * COALESCE(cp.price_per_student, 50.00) as total_amount,
         u.username as instructor_name,
         cr.ready_for_billing_at
       FROM course_requests cr
@@ -2511,7 +2511,7 @@ router.post(
           o.name as organization_name,
           o.contact_email,
           ct.name as course_type_name,
-          (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as students_attended,
+          (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as students_attended,
           COALESCE(cp.price_per_student, 50.00) as rate_per_student
         FROM course_requests cr
         JOIN organizations o ON cr.organization_id = o.id

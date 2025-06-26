@@ -19,7 +19,7 @@ import {
 const PDFDemo = () => {
   const handlePreview = () => {
     const previewUrl =
-      'http://localhost:3001/api/v1/accounting/invoices/1/preview';
+      'http://localhost:3001/accounting/invoices/1/preview';
     window.open(previewUrl, '_blank', 'width=800,height=1000,scrollbars=yes');
   };
 
@@ -29,7 +29,7 @@ const PDFDemo = () => {
       const token = localStorage.getItem('accessToken');
 
       const response = await fetch(
-        'http://localhost:3001/api/v1/accounting/invoices/1/pdf',
+        'http://localhost:3001/accounting/invoices/1/pdf',
         {
           method: 'GET',
           headers: {

@@ -58,13 +58,8 @@ export const getAccountingDashboard = async (): Promise<ApiResponse<any>> => {
 };
 
 export const getCoursePricing = async () => {
-  try {
-    const response = await api.get('/api/v1/accounting/course-pricing');
-    return response.data;
-  } catch (error) {
-    logger.error('Error fetching course pricing:', error);
-    throw error;
-  }
+  const response = await api.get('/accounting/course-pricing');
+  return response.data;
 };
 
 export const updateCoursePricing = async (pricingId: number, price: number): Promise<ApiResponse<CoursePricing>> => {

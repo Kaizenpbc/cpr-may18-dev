@@ -11,6 +11,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
+import cookieParser from 'cookie-parser';
 import emailTemplatesRouter from './routes/emailTemplates.js';
 
 const execAsync = promisify(exec);
@@ -258,6 +259,9 @@ try {
 
 // Parse JSON bodies
 app.use(express.json());
+
+// Parse cookies
+app.use(cookieParser());
 
 // Add logging middleware
 writeToLog('🔧 Setting up logging middleware...', 'INFO');

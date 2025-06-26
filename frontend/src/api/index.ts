@@ -36,16 +36,16 @@ api.interceptors.response.use(
 );
 
 export const instructorApi = {
-  getSchedule: () => api.get('/api/v1/instructor/schedule'),
-  getAvailability: () => api.get('/api/v1/instructor/availability'),
+  getSchedule: () => api.get('/instructor/schedule'),
+  getAvailability: () => api.get('/instructor/availability'),
   addAvailability: (date: string) =>
-    api.post('/api/v1/instructor/availability', { date }),
+    api.post('/instructor/availability', { date }),
   removeAvailability: (date: string) =>
-    api.delete(`/api/v1/instructor/availability/${date}`),
-  updateProfile: (data: any) => api.put('/api/v1/instructor/profile', data),
-  getClasses: () => api.get('/api/v1/instructor/classes'),
-  markAttendance: (classId: string, data: any) =>
-    api.post(`/api/v1/instructor/classes/${classId}/attendance`, data),
+    api.delete(`/instructor/availability/${date}`),
+  updateProfile: (data: any) => api.put('/instructor/profile', data),
+  getClasses: () => api.get('/instructor/classes'),
+  submitAttendance: (classId: number, data: any) =>
+    api.post(`/instructor/classes/${classId}/attendance`, data),
 };
 
 export default api;

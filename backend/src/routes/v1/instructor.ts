@@ -155,7 +155,7 @@ router.get('/classes', authenticateToken, requireRole(['instructor']), async (re
         ), 0) as studentsattendance
        FROM classes c
        JOIN class_types ct ON c.class_type_id = ct.id
-       LEFT JOIN organizations o ON c.organization_id = o.id
+       LEFT JOIN organizations o ON o.id = 1
        WHERE c.instructor_id = $1
        ORDER BY c.start_time DESC, c.end_time DESC`,
       [userId]
@@ -210,7 +210,7 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor']),
         ), 0) as studentsattendance
        FROM classes c
        JOIN class_types ct ON c.class_type_id = ct.id
-       LEFT JOIN organizations o ON c.organization_id = o.id
+       LEFT JOIN organizations o ON o.id = 1
        WHERE c.instructor_id = $1 AND c.status = 'completed'
        ORDER BY c.start_time DESC, c.end_time DESC`,
       [userId]
@@ -226,9 +226,9 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor']),
     });
     console.log('[TRACE] API response data (completed):', JSON.stringify(result2, null, 2));
     res.json({ success: true, data: result2 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching completed classes:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: error.message, stack: error.stack });
   }
 });
 
@@ -268,7 +268,7 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor']), asy
         ), 0) as studentsattendance
        FROM classes c
        JOIN class_types ct ON c.class_type_id = ct.id
-       LEFT JOIN organizations o ON c.organization_id = o.id
+       LEFT JOIN organizations o ON o.id = 1
        WHERE c.instructor_id = $1 AND DATE(c.start_time) = $2
        ORDER BY c.start_time ASC`,
       [userId, todayStr]
@@ -374,7 +374,6 @@ router.put('/classes/:classId/students/:studentId/attendance', authenticateToken
 
       const attendedCount = parseInt(attendanceCountResult.rows[0].attended_count);
 
-      // Note: Removed update to classes.current_students as this column doesn't exist
       console.log('[Debug] Attendance count for course request:', courseRequestId, 'is:', attendedCount);
     }
 
@@ -394,4 +393,4 @@ router.put('/classes/:classId/students/:studentId/attendance', authenticateToken
   }
 });
 
-export default router; 
+export default router;

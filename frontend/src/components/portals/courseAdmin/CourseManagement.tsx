@@ -50,7 +50,7 @@ const CourseManagement: React.FC = () => {
 
   const fetchCourses = async () => {
     try {
-      const response = await api.get('/api/v1/courses');
+      const response = await api.get('/courses');
       setCourses(response.data.data);
     } catch (err) {
       setError('Failed to fetch courses');
@@ -98,10 +98,10 @@ const CourseManagement: React.FC = () => {
     e.preventDefault();
     try {
       if (editingCourse) {
-        await api.put(`/api/v1/courses/${editingCourse.id}`, formData);
+        await api.put(`/courses/${editingCourse.id}`, formData);
         setSuccess('Course updated successfully');
       } else {
-        await api.post('/api/v1/courses', formData);
+        await api.post('/courses', formData);
         setSuccess('Course created successfully');
       }
       fetchCourses();
@@ -115,7 +115,7 @@ const CourseManagement: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this course?')) return;
 
     try {
-      await api.delete(`/api/v1/courses/${id}`);
+      await api.delete(`/courses/${id}`);
       setSuccess('Course deleted successfully');
       fetchCourses();
     } catch (err) {

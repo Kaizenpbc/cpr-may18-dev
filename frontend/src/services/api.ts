@@ -282,11 +282,11 @@ export const organizationApi = {
 
 // Student endpoints
 export const studentApi = {
-  getSchedule: () => api.get('/api/v1/student/classes'),
+  getSchedule: () => api.get('/student/classes'),
   enrollInClass: (classId: number) =>
-    api.post(`/api/v1/student/enroll/${classId}`),
+    api.post(`/student/enroll/${classId}`),
   withdrawFromClass: (classId: number) =>
-    api.delete(`/api/v1/student/withdraw/${classId}`),
+    api.delete(`/student/withdraw/${classId}`),
 };
 
 // Instructor endpoints
@@ -319,13 +319,13 @@ export { api };
 
 // Accounting and Course Pricing API functions
 export const getCoursePricing = async () => {
-  const response = await api.get('/api/v1/accounting/course-pricing');
+  const response = await api.get('/accounting/course-pricing');
   return response.data;
 };
 
 export const updateCoursePrice = async (pricingId: number, data: any) => {
   const response = await api.put(
-    `/api/v1/accounting/course-pricing/${pricingId}`,
+    `/accounting/course-pricing/${pricingId}`,
     data
   );
   return response.data;
@@ -337,34 +337,34 @@ export const createCoursePricing = async (data: any): Promise<ApiResponse<any>> 
 };
 
 export const getOrganizations = async () => {
-  const response = await api.get('/api/v1/accounting/organizations');
+  const response = await api.get('/accounting/organizations');
   return response.data;
 };
 
 // Invoice and Billing API functions
 export const getBillingQueue = async () => {
-  const response = await api.get('/api/v1/accounting/billing-queue');
+  const response = await api.get('/accounting/billing-queue');
   return response.data;
 };
 
 export const createInvoice = async (courseId: number) => {
-  const response = await api.post('/api/v1/accounting/invoices', { courseId });
+  const response = await api.post('/accounting/invoices', { courseId });
   return response.data;
 };
 
 export const getInvoices = async () => {
-  const response = await api.get('/api/v1/accounting/invoices');
+  const response = await api.get('/accounting/invoices');
   return response.data.data || [];
 };
 
 export const getInvoiceDetails = async (invoiceId: number) => {
-  const response = await api.get(`/api/v1/accounting/invoices/${invoiceId}`);
+  const response = await api.get(`/accounting/invoices/${invoiceId}`);
   return response.data;
 };
 
 export const updateInvoice = async (invoiceId: number, data: any) => {
   const response = await api.put(
-    `/api/v1/accounting/invoices/${invoiceId}`,
+    `/accounting/invoices/${invoiceId}`,
     data
   );
   return response.data;
@@ -372,14 +372,14 @@ export const updateInvoice = async (invoiceId: number, data: any) => {
 
 export const emailInvoice = async (invoiceId: number) => {
   const response = await api.post(
-    `/api/v1/accounting/invoices/${invoiceId}/email`
+    `/accounting/invoices/${invoiceId}/email`
   );
   return response.data;
 };
 
 export const getInvoicePayments = async (invoiceId: number) => {
   const response = await api.get(
-    `/api/v1/accounting/invoices/${invoiceId}/payments`
+    `/accounting/invoices/${invoiceId}/payments`
   );
   return response.data;
 };
@@ -389,7 +389,7 @@ export const recordInvoicePayment = async (
   paymentData: any
 ) => {
   const response = await api.post(
-    `/api/v1/accounting/invoices/${invoiceId}/payments`,
+    `/accounting/invoices/${invoiceId}/payments`,
     paymentData
   );
   return response.data;
@@ -500,18 +500,18 @@ export const getOrganizationCourseRequestAnalytics = async (
   timeframe: string = '12'
 ): Promise<any> => {
   const response = await api.get(
-    `/api/v1/organization/analytics/course-requests?timeframe=${timeframe}`
+    `/organization/analytics/course-requests?timeframe=${timeframe}`
   );
-  return extractData(response);
+  return response.data;
 };
 
 export const getOrganizationStudentParticipationAnalytics = async (
   timeframe: string = '12'
 ): Promise<any> => {
   const response = await api.get(
-    `/api/v1/organization/analytics/student-participation?timeframe=${timeframe}`
+    `/organization/analytics/student-participation?timeframe=${timeframe}`
   );
-  return extractData(response);
+  return response.data;
 };
 
 // Admin endpoints

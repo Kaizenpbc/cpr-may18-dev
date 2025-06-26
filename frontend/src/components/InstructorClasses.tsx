@@ -33,8 +33,8 @@ const InstructorClasses: React.FC<InstructorClassesProps> = ({
     const fetchClasses = async (): Promise<void> => {
       try {
         const endpoint = completed
-          ? '/api/v1/instructor/classes/completed'
-          : '/api/v1/instructor/schedule';
+          ? '/instructor/classes/completed'
+          : '/instructor/schedule';
         const response = await api.get<ApiResponse<Course[]> | PaginatedResponse<Course>>(endpoint);
 
         if (response.data.success) {

@@ -43,7 +43,7 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
   // Removed state/handlers for expansion from AR table
 
   const handlePreview = invoiceId => {
-    const previewUrl = `http://localhost:3001/api/v1/accounting/invoices/${invoiceId}/preview`;
+    const previewUrl = `http://localhost:3001/accounting/invoices/${invoiceId}/preview`;
     window.open(previewUrl, '_blank', 'width=800,height=1000,scrollbars=yes');
   };
 
@@ -60,11 +60,11 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
       }
 
       console.log(
-        `[PDF Download] Fetching PDF from: http://localhost:3001/api/v1/accounting/invoices/${invoiceId}/pdf`
+        `[PDF Download] Fetching PDF from: http://localhost:3001/accounting/invoices/${invoiceId}/pdf`
       );
 
       const response = await fetch(
-        `http://localhost:3001/api/v1/accounting/invoices/${invoiceId}/pdf`,
+        `http://localhost:3001/accounting/invoices/${invoiceId}/pdf`,
         {
           method: 'GET',
           headers: {

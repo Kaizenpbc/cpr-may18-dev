@@ -41,7 +41,7 @@ const NetworkDemo: React.FC = () => {
   const { get, post, shouldMakeRequest, getRequestRecommendations } =
     useNetworkAwareAPI();
 
-  const [testUrl, setTestUrl] = useState('/api/v1/instructor/availability');
+  const [testUrl, setTestUrl] = useState('/instructor/availability');
   const [testData, setTestData] = useState('{"test": "data"}');
   const [responses, setResponses] = useState<any[]>([]);
 

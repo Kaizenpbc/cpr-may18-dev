@@ -92,7 +92,7 @@ const AccountingDashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/v1/accounting/dashboard');
+      const response = await api.get('/accounting/dashboard');
       setDashboardData(response.data.data);
       setError(null);
     } catch (err) {

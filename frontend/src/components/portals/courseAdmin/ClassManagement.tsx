@@ -83,7 +83,7 @@ const ClassManagement: React.FC = () => {
 
   const fetchClasses = async () => {
     try {
-      const response = await api.get('/api/v1/classes');
+      const response = await api.get('/classes');
       setClasses(response.data.data);
     } catch (err) {
       setError('Failed to fetch classes');
@@ -92,7 +92,7 @@ const ClassManagement: React.FC = () => {
 
   const fetchCourses = async () => {
     try {
-      const response = await api.get('/api/v1/courses');
+      const response = await api.get('/courses');
       setCourses(response.data.data);
     } catch (err) {
       setError('Failed to fetch courses');
@@ -101,7 +101,7 @@ const ClassManagement: React.FC = () => {
 
   const fetchInstructors = async () => {
     try {
-      const response = await api.get('/api/v1/instructors');
+      const response = await api.get('/instructors');
       setInstructors(response.data.data);
     } catch (err) {
       setError('Failed to fetch instructors');
@@ -184,10 +184,10 @@ const ClassManagement: React.FC = () => {
       };
 
       if (editingClass) {
-        await api.put(`/api/v1/classes/${editingClass.id}`, formattedData);
+        await api.put(`/classes/${editingClass.id}`, formattedData);
         setSuccess('Class updated successfully');
       } else {
-        await api.post('/api/v1/classes', formattedData);
+        await api.post('/classes', formattedData);
         setSuccess('Class created successfully');
       }
       fetchClasses();
@@ -201,7 +201,7 @@ const ClassManagement: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this class?')) return;
 
     try {
-      await api.delete(`/api/v1/classes/${id}`);
+      await api.delete(`/classes/${id}`);
       setSuccess('Class deleted successfully');
       fetchClasses();
     } catch (err) {

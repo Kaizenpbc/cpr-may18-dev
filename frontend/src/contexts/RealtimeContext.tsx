@@ -74,7 +74,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     if (!isConnected) {
       console.log('Setting up SSE fallback...');
-      const eventSource = new EventSource(`${WS_URL}/api/v1/events`);
+      const eventSource = new EventSource(`${WS_URL}/events`);
 
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);

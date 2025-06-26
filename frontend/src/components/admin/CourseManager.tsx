@@ -47,7 +47,7 @@ const CourseManager: React.FC<CourseManagerProps> = ({ showSnackbar }) => {
   const fetchCourses = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/api/v1/courses');
+      const response = await api.get('/courses');
       setCourses(response.data.data || []);
       setError(null);
     } catch (err) {
@@ -80,7 +80,7 @@ const CourseManager: React.FC<CourseManagerProps> = ({ showSnackbar }) => {
     ) {
       try {
         setError(null);
-        const response = await api.delete(`/api/v1/courses/${id}`);
+        const response = await api.delete(`/courses/${id}`);
         if (response.data.success) {
           showSnackbar(`Course ${id} deleted successfully.`, 'success');
           fetchCourses();
@@ -100,10 +100,10 @@ const CourseManager: React.FC<CourseManagerProps> = ({ showSnackbar }) => {
   const handleSave = async (courseData: Omit<Course, 'coursetypeid' | 'created_at' | 'updated_at'>) => {
     try {
       if (editingCourse) {
-        await api.put(`/api/v1/courses/${editingCourse.coursetypeid}`, courseData);
+        await api.put(`/courses/${editingCourse.coursetypeid}`, courseData);
         showSnackbar('Course updated successfully', 'success');
       } else {
-        await api.post('/api/v1/courses', courseData);
+        await api.post('/courses', courseData);
         showSnackbar('Course created successfully', 'success');
       }
       fetchCourses();

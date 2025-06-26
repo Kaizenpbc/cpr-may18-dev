@@ -94,7 +94,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
     try {
       setStudentsLoading(true);
       const response = await api.get(
-        `/api/v1/instructor/classes/${classId}/students`
+        `/instructor/classes/${classId}/students`
       );
       setStudents(response.data.data);
       setError('');
@@ -122,7 +122,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
 
     try {
       const response = await api.put(
-        `/api/v1/instructor/classes/${selectedClass.course_id}/students/${studentId}/attendance`,
+        `/instructor/classes/${selectedClass.course_id}/students/${studentId}/attendance`,
         { attended }
       );
 
@@ -158,7 +158,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
 
     try {
       const response = await api.post(
-        `/api/v1/instructor/classes/${selectedClass.course_id}/students`,
+        `/instructor/classes/${selectedClass.course_id}/students`,
         newStudent
       );
 

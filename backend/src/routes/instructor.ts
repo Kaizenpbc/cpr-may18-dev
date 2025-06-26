@@ -95,7 +95,7 @@ router.get('/classes', async (req, res) => {
           cr.location,
           cr.registered_students as max_students,
           0 as current_students,
-          cr.course_type_id as class_type_id,
+          cr.class_type_id as class_type_id,
           cr.organization_id::integer as organization_id,
           cr.notes,
           cr.registered_students
@@ -142,7 +142,7 @@ router.get('/classes', async (req, res) => {
           cr.location,
           cr.registered_students as max_students,
           0 as current_students,
-          cr.course_type_id as class_type_id,
+          cr.class_type_id as class_type_id,
           cr.organization_id::integer as organization_id,
           cr.notes,
           cr.registered_students
@@ -492,7 +492,7 @@ router.get('/schedule', async (req, res) => {
           cr.location,
           cr.registered_students as max_students,
           0 as current_students,
-          cr.course_type_id as class_type_id,
+          cr.class_type_id as class_type_id,
           cr.organization_id::integer as organization_id,
           cr.notes,
           cr.registered_students
@@ -597,7 +597,7 @@ router.get('/classes/today', async (req, res) => {
              LEFT JOIN course_requests cr ON cr.instructor_id = c.instructor_id 
                 AND cr.status = 'confirmed'
                 AND DATE(cr.confirmed_date) = DATE(c.start_time)
-                AND cr.course_type_id = c.class_type_id
+                AND cr.class_type_id = c.class_type_id
              LEFT JOIN organizations o ON c.organization_id = o.id
              WHERE c.instructor_id = $1 AND DATE(c.start_time) = CURRENT_DATE AND c.status != 'completed'
              ORDER BY c.start_time`,
@@ -682,7 +682,7 @@ router.get('/classes/:classId/students', async (req, res) => {
              FROM course_requests cr
              JOIN classes c ON cr.instructor_id = c.instructor_id 
                 AND DATE(cr.confirmed_date) = DATE(c.start_time)
-                AND cr.course_type_id = c.class_type_id
+                AND cr.class_type_id = c.class_type_id
              WHERE c.id = $1 AND c.instructor_id = $2`,
       [classId, instructorId]
     );
@@ -791,7 +791,7 @@ router.post('/classes/:classId/students', async (req, res) => {
              FROM course_requests cr
              JOIN classes c ON cr.instructor_id = c.instructor_id 
                 AND DATE(cr.confirmed_date) = DATE(c.start_time)
-                AND cr.course_type_id = c.class_type_id
+                AND cr.class_type_id = c.class_type_id
              WHERE c.id = $1 AND c.instructor_id = $2`,
       [classId, instructorId]
     );
@@ -912,7 +912,7 @@ router.put(
              FROM course_requests cr
              JOIN classes c ON cr.instructor_id = c.instructor_id 
                 AND DATE(cr.confirmed_date) = DATE(c.start_time)
-                AND cr.course_type_id = c.class_type_id
+                AND cr.class_type_id = c.class_type_id
              WHERE c.id = $1 AND c.instructor_id = $2`,
         [classId, instructorId]
       );
@@ -1075,7 +1075,7 @@ router.put('/classes/:classId/complete', async (req, res) => {
          FROM course_requests cr
          JOIN classes c ON cr.instructor_id = c.instructor_id 
             AND DATE(cr.confirmed_date) = DATE(c.start_time)
-            AND cr.course_type_id = c.class_type_id
+            AND cr.class_type_id = c.class_type_id
          WHERE c.id = $1 AND c.instructor_id = $2`,
         [classId, instructorId]
       );
@@ -1152,7 +1152,7 @@ router.put('/classes/:classId/complete', async (req, res) => {
         LEFT JOIN class_types ct ON c.class_type_id = ct.id
         LEFT JOIN course_requests cr ON cr.instructor_id = c.instructor_id 
           AND DATE(cr.confirmed_date) = DATE(c.start_time)
-          AND cr.course_type_id = c.class_type_id
+          AND cr.class_type_id = c.class_type_id
         LEFT JOIN organizations o ON cr.organization_id = o.id
         WHERE c.id = $1`,
         [classId]
@@ -1253,7 +1253,7 @@ router.get('/classes/completed', async (req, res) => {
           cr.location,
           cr.registered_students as max_students,
           0 as current_students,
-          cr.course_type_id as class_type_id,
+          cr.class_type_id as class_type_id,
           cr.organization_id::integer as organization_id,
           cr.notes,
           cr.registered_students
@@ -1348,7 +1348,7 @@ router.get('/classes/:classId', async (req, res) => {
           cr.location,
           cr.registered_students as max_students,
           0 as current_students,
-          cr.course_type_id as class_type_id,
+          cr.class_type_id as class_type_id,
           cr.organization_id::integer as organization_id,
           cr.notes,
           cr.registered_students
@@ -1456,7 +1456,7 @@ router.get(
             cr.location,
             cr.registered_students as max_students,
             0 as current_students,
-            cr.course_type_id as class_type_id,
+            cr.class_type_id as class_type_id,
             cr.organization_id::integer as organization_id,
             cr.notes,
             cr.registered_students

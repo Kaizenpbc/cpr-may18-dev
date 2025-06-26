@@ -48,7 +48,7 @@ const CoursePricingManagement: React.FC = () => {
   const fetchCoursePricing = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/v1/accounting/course-pricing');
+      const response = await api.get('/accounting/course-pricing');
       setCoursePricing(response.data.data);
       setError(null);
     } catch (err) {
@@ -81,7 +81,7 @@ const CoursePricingManagement: React.FC = () => {
         return;
       }
 
-      await api.put(`/api/v1/accounting/course-pricing/${id}`, {
+      await api.put(`/accounting/course-pricing/${id}`, {
         price_per_student: price,
       });
 
