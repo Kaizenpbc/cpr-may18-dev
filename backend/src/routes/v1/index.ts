@@ -2849,11 +2849,8 @@ router.get(
         i.*,
         o.name as organization_name,
         o.contact_email,
-        o.contact_name,
-        o.address_street,
-        o.address_city,
-        o.address_province,
-        o.address_postal_code
+        o.address as address_street,
+        o.contact_phone
       FROM invoices i
       JOIN organizations o ON i.organization_id = o.id
       WHERE i.id = $1

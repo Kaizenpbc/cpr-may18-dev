@@ -134,6 +134,7 @@ const ClassAttendanceView: React.FC = () => {
       const response = await api.get(
         `/instructors/classes/${classId}/students`
       );
+      console.log('[Debug] Students loaded from backend:', response.data.data);
       setStudents(response.data.data || []);
       setError('');
     } catch (error: any) {
@@ -165,14 +166,8 @@ const ClassAttendanceView: React.FC = () => {
         { attended }
       );
 
-      // Update local state
-      setStudents(prev =>
-        prev.map(student =>
-          student.studentid === studentId
-            ? { ...student, attendance: attended, attendanceMarked: true }
-            : student
-        )
-      );
+      // Reload students from backend to ensure we have the latest attendance status
+      await loadStudents(selectedClass.course_id);
     } catch (error: any) {
       console.error('Error updating attendance:', error);
       if (error.response?.status === 401) {
@@ -265,6 +260,10 @@ const ClassAttendanceView: React.FC = () => {
     const present = students.filter(s => s.attendance && s.attendanceMarked).length;
     const absent = students.filter(s => !s.attendance && s.attendanceMarked).length;
     const notMarked = total - marked;
+    
+    console.log('[Debug] Attendance stats:', { total, marked, present, absent, notMarked });
+    console.log('[Debug] Students with attendanceMarked:', students.filter(s => s.attendanceMarked));
+    console.log('[Debug] Students without attendanceMarked:', students.filter(s => !s.attendanceMarked));
     
     return { total, marked, present, absent, notMarked };
   };

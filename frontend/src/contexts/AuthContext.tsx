@@ -46,7 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('[TRACE] Auth check - Token present:', !!token);
       
       if (!token) {
-        console.log('[TRACE] Auth check - No token found');
+        console.log('[TRACE] Auth check - No token found, skipping auth check');
         setUser(null);
         return;
       }

@@ -84,44 +84,13 @@ api.interceptors.response.use(
       }
     });
 
-    // Handle 401 errors with automatic token refresh
+    // Handle 401 errors - redirect to login instead of trying to refresh
     if (error.response?.status === 401) {
-      const originalRequest = error.config;
-      
-      // Prevent infinite loops by checking if this is already a refresh attempt
-      if (originalRequest._retry) {
-        console.log('[AUTH] Token refresh failed, redirecting to login');
-        // Clear any stored tokens and redirect to login
-        localStorage.removeItem('accessToken');
-        window.location.href = '/login';
-        return Promise.reject(error);
-      }
-
-      originalRequest._retry = true;
-
-      try {
-        console.log('[AUTH] Attempting automatic token refresh');
-        const refreshResponse = await api.post('/auth/refresh');
-        
-        if (refreshResponse.data.success) {
-          console.log('[AUTH] Token refresh successful, retrying original request');
-          // The new access token is in the response body
-          const newAccessToken = refreshResponse.data.data?.accessToken;
-          if (newAccessToken) {
-            localStorage.setItem('accessToken', newAccessToken);
-            // Update the original request with the new token
-            originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-          }
-          
-          // Retry the original request
-          return api(originalRequest);
-        }
-      } catch (refreshError) {
-        console.error('[AUTH] Token refresh failed:', refreshError);
-        // Clear tokens and redirect to login
-        localStorage.removeItem('accessToken');
-        window.location.href = '/login';
-      }
+      console.log('[AUTH] Unauthorized access, redirecting to login');
+      // Clear any stored tokens and redirect to login
+      tokenService.clearTokens();
+      window.location.href = '/login';
+      return Promise.reject(error);
     }
 
     // Enhanced error handling for specific status codes

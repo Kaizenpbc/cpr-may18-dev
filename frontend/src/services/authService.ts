@@ -150,7 +150,7 @@ export const authService = {
       console.log('[TRACE] Auth service - Token present:', !!token);
       
       if (!token) {
-        console.log('[TRACE] Auth service - No access token found');
+        console.log('[TRACE] Auth service - No access token found, returning null');
         return null;
       }
 

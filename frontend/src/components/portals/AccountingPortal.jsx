@@ -657,7 +657,7 @@ const AccountingPortal = () => {
         <InvoiceDetailDialog
           open={showInvoiceDetailDialog}
           onClose={handleInvoiceDetailDialogClose}
-          invoice={selectedInvoiceForDetail}
+          invoiceId={selectedInvoiceForDetail}
           onEmailInvoice={handleEmailInvoiceClick}
         />
       )}

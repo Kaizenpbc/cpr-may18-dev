@@ -16,7 +16,7 @@ import {
 import * as api from '../../services/api'; // Adjust path as needed
 import EmailIcon from '@mui/icons-material/Email';
 import logger from '../../utils/logger';
-import { getInvoiceDetails } from '../../services/invoiceService';
+import { getInvoiceDetails } from '../../services/api';
 import { formatDisplayDate } from '../../utils/dateUtils';
 
 // Helper function to format currency

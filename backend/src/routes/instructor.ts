@@ -611,7 +611,7 @@ router.get('/classes/today', async (req, res) => {
              LEFT JOIN course_requests cr ON cr.instructor_id = c.instructor_id 
                 AND cr.status = 'confirmed'
                 AND DATE(cr.confirmed_date) = DATE(c.start_time)
-                AND cr.class_type_id = c.class_type_id
+                AND cr.course_type_id = c.class_type_id
              LEFT JOIN organizations o ON c.organization_id = o.id
              WHERE c.instructor_id = $1 AND DATE(c.start_time) = CURRENT_DATE AND c.status != 'completed'
              ORDER BY c.start_time`,
@@ -696,7 +696,7 @@ router.get('/classes/:classId/students', async (req, res) => {
              FROM course_requests cr
              JOIN classes c ON cr.instructor_id = c.instructor_id 
                 AND DATE(cr.confirmed_date) = DATE(c.start_time)
-                AND cr.class_type_id = c.class_type_id
+                AND cr.course_type_id = c.class_type_id
              WHERE c.id = $1 AND c.instructor_id = $2`,
       [classId, instructorId]
     );
@@ -805,7 +805,7 @@ router.post('/classes/:classId/students', async (req, res) => {
              FROM course_requests cr
              JOIN classes c ON cr.instructor_id = c.instructor_id 
                 AND DATE(cr.confirmed_date) = DATE(c.start_time)
-                AND cr.class_type_id = c.class_type_id
+                AND cr.course_type_id = c.class_type_id
              WHERE c.id = $1 AND c.instructor_id = $2`,
       [classId, instructorId]
     );
@@ -926,7 +926,7 @@ router.put(
              FROM course_requests cr
              JOIN classes c ON cr.instructor_id = c.instructor_id 
                 AND DATE(cr.confirmed_date) = DATE(c.start_time)
-                AND cr.class_type_id = c.class_type_id
+                AND cr.course_type_id = c.class_type_id
              WHERE c.id = $1 AND c.instructor_id = $2`,
         [classId, instructorId]
       );
@@ -967,18 +967,12 @@ router.put(
           attendanceCountResult.rows[0].attended_count
         );
 
-        // Update the course_requests table with the current attendance count in real-time
-        await pool.query(
-          `UPDATE course_requests 
-                 SET final_attendance_count = $1, updated_at = CURRENT_TIMESTAMP
-                 WHERE id = $2`,
-          [attendedCount, courseRequestId]
-        );
-
+        // Note: We don't need to update course_requests with attendance count
+        // as it can be calculated dynamically when needed
         console.log(
-          '[Debug] Updated course request ID:',
+          '[Debug] Current attendance count for course request ID:',
           courseRequestId,
-          'with real-time attendance count:',
+          'is:',
           attendedCount
         );
       }
@@ -1089,7 +1083,7 @@ router.put('/classes/:classId/complete', async (req, res) => {
          FROM course_requests cr
          JOIN classes c ON cr.instructor_id = c.instructor_id 
             AND DATE(cr.confirmed_date) = DATE(c.start_time)
-            AND cr.class_type_id = c.class_type_id
+            AND cr.course_type_id = c.class_type_id
          WHERE c.id = $1 AND c.instructor_id = $2`,
         [classId, instructorId]
       );
@@ -1166,7 +1160,7 @@ router.put('/classes/:classId/complete', async (req, res) => {
         LEFT JOIN class_types ct ON c.class_type_id = ct.id
         LEFT JOIN course_requests cr ON cr.instructor_id = c.instructor_id 
           AND DATE(cr.confirmed_date) = DATE(c.start_time)
-          AND cr.class_type_id = c.class_type_id
+          AND cr.course_type_id = c.class_type_id
         LEFT JOIN organizations o ON cr.organization_id = o.id
         WHERE c.id = $1`,
         [classId]

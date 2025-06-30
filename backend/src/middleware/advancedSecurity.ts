@@ -415,13 +415,3 @@ export class SecurityMetricsCollector {
     };
   }
 }
-
-// Export all middleware for easy integration
-export {
-  RequestIntegrityValidator,
-  BotDetectionMiddleware,
-  BruteForceProtection,
-  RequestValidationMiddleware,
-  ResponseSecurityMiddleware,
-  SecurityMetricsCollector,
-};

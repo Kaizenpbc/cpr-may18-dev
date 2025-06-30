@@ -20,14 +20,15 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const user = await pool.oneOrNone('SELECT * FROM users WHERE username = $1', [username]);
+    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    const user = result.rows[0];
 
     if (!user) {
       console.log('[AuthController] User not found:', username);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const isValidPassword = await bcrypt.compare(password, user.password);
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!isValidPassword) {
       console.log('[AuthController] Invalid password for user:', username);
@@ -37,10 +38,10 @@ router.post('/login', async (req: Request, res: Response) => {
     const accessToken = jwt.sign(
       {
         id: user.id,
-        userId: user.userid,
+        userId: user.id,
         username: user.username,
         role: user.role,
-        organizationId: user.organizationid
+        organizationId: user.organization_id
       },
       process.env.JWT_ACCESS_SECRET || 'access_secret',
       { expiresIn: '15m' }
@@ -49,10 +50,10 @@ router.post('/login', async (req: Request, res: Response) => {
     const refreshToken = jwt.sign(
       {
         id: user.id,
-        userId: user.userid,
+        userId: user.id,
         username: user.username,
         role: user.role,
-        organizationId: user.organizationid
+        organizationId: user.organization_id
       },
       process.env.JWT_REFRESH_SECRET || 'refresh_secret',
       { expiresIn: '7d' }
@@ -65,7 +66,7 @@ router.post('/login', async (req: Request, res: Response) => {
         id: user.id,
         username: user.username,
         role: user.role,
-        organizationId: user.organizationid
+        organizationId: user.organization_id
       }
     });
   } catch (error) {
@@ -89,7 +90,8 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const user = await pool.oneOrNone('SELECT * FROM users WHERE email = $1', [email]);
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
 
     if (user) {
       // In a real application, you would send an email here
