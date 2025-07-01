@@ -264,8 +264,8 @@ const fetchAvailability = async () => {
 
 const fetchScheduledClasses = async () => {
   try {
-    console.log('[fetchScheduledClasses] Making request to /instructor/classes');
-    const response = await api.get<ApiResponse<ScheduledClass[]>>('/instructor/classes');
+    console.log('[fetchScheduledClasses] Making request to /instructor/classes/active');
+    const response = await api.get<ApiResponse<ScheduledClass[]>>('/instructor/classes/active');
     console.log('[fetchScheduledClasses] Raw response:', response);
     console.log('[fetchScheduledClasses] Response data:', response.data);
     console.log('[fetchScheduledClasses] Response data.data:', response.data.data);

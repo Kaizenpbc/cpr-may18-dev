@@ -7,7 +7,7 @@ import type {
   ApiResponse,
   User,
 } from '../types/api';
-import { API_URL } from '../config';
+import { API_URL } from '../config.js';
 
 console.log('🌐 [API] Initializing API service with base URL:', import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1');
 

@@ -268,7 +268,7 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
                       {item.type === 'class' ? (
                         <Chip 
                           label={item.status} 
-                          color={item.status === 'Completed' ? 'success' : 'primary'}
+                          color={item.status === 'completed' ? 'success' : 'primary'}
                           size="small"
                         />
                       ) : (
@@ -281,7 +281,7 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
                       )}
                     </TableCell>
                     <TableCell align='center'>
-                      {item.type === 'class' && item.status !== 'Completed' && (
+                      {item.type === 'class' && item.status !== 'completed' && (
                         <Tooltip title='Mark as Complete'>
                           <IconButton onClick={() => onCompleteClass(item)}>
                             <CompleteIcon color='success' />

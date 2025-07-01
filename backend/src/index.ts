@@ -136,28 +136,39 @@ async function killProcessOnPort(port: number): Promise<void> {
     const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
     const lines = stdout.split('\n').filter(line => line.trim());
     
+    if (lines.length === 0) {
+      console.log(`ℹ️ No processes found on port ${port}`);
+      return;
+    }
+    
     let killedAny = false;
+    const processedPids = new Set<string>();
+    
     for (const line of lines) {
       const parts = line.trim().split(/\s+/);
       if (parts.length >= 5) {
         const pid = parts[4];
-        if (pid && pid !== '0' && !isNaN(parseInt(pid))) {
+        if (pid && pid !== '0' && !isNaN(parseInt(pid)) && !processedPids.has(pid)) {
+          processedPids.add(pid);
           try {
             console.log(`🔪 Killing process ${pid}...`);
             await execAsync(`taskkill /F /PID ${pid}`);
             console.log(`✅ Successfully killed process ${pid}`);
             killedAny = true;
-          } catch (killError) {
-            console.log(`⚠️ Could not kill process ${pid}: ${killError}`);
+          } catch (killError: any) {
+            // Only log if it's not a "process not found" error
+            if (!killError.message?.includes('not found')) {
+              console.log(`⚠️ Could not kill process ${pid}: ${killError.message || killError}`);
+            }
           }
         }
       }
     }
     
     if (killedAny) {
-      // Wait longer for the port to be released
-      console.log(`⏳ Waiting 3 seconds for port ${port} to be released...`);
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Wait for the port to be released
+      console.log(`⏳ Waiting 2 seconds for port ${port} to be released...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Verify port is free
       try {
@@ -171,10 +182,15 @@ async function killProcessOnPort(port: number): Promise<void> {
         console.log(`✅ Port ${port} appears to be available (no processes found)`);
       }
     } else {
-      console.log(`ℹ️ No processes found on port ${port}`);
+      console.log(`ℹ️ No processes needed to be killed on port ${port}`);
     }
-  } catch (error) {
-    console.log(`ℹ️ No process found on port ${port} or already killed`);
+  } catch (error: any) {
+    // Only log if it's not a "no processes found" error
+    if (!error.message?.includes('not found')) {
+      console.log(`ℹ️ Error checking port ${port}: ${error.message || error}`);
+    } else {
+      console.log(`ℹ️ No process found on port ${port}`);
+    }
   }
 }
 

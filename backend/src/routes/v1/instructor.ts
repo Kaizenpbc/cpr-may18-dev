@@ -126,17 +126,20 @@ router.delete('/availability/:date', authenticateToken, requireRole(['instructor
 router.get('/classes', authenticateToken, requireRole(['instructor']), async (req, res) => {
   try {
     const userId = req.user.id;
-    
-    // DEBUG: Let's see what data we have
     console.log('[DEBUG] Checking data for instructor:', userId);
     
     // Check course_students table
-    const studentsResult = await pool.query('SELECT * FROM course_students LIMIT 5');
-    console.log('[DEBUG] course_students sample:', studentsResult.rows);
+    const courseStudentsResult = await pool.query(
+      `SELECT cs.* FROM course_students cs
+       JOIN course_requests cr ON cs.course_request_id = cr.id
+       WHERE cr.instructor_id = $1 LIMIT 5`,
+      [userId]
+    );
+    console.log('[DEBUG] course_students sample:', courseStudentsResult.rows);
     
     // Check course_requests table
-    const requestsResult = await pool.query('SELECT * FROM course_requests WHERE instructor_id = $1 LIMIT 5', [userId]);
-    console.log('[DEBUG] course_requests for instructor:', requestsResult.rows);
+    const courseRequestsResult = await pool.query('SELECT * FROM course_requests WHERE instructor_id = $1 LIMIT 5', [userId]);
+    console.log('[DEBUG] course_requests for instructor:', courseRequestsResult.rows);
     
     // Check classes table
     const classesResult = await pool.query('SELECT * FROM classes WHERE instructor_id = $1 LIMIT 5', [userId]);
@@ -159,23 +162,8 @@ router.get('/classes', authenticateToken, requireRole(['instructor']), async (re
         ct.name as coursetypename,
         COALESCE(o.name, 'Unassigned') as organizationname,
         COALESCE(c.location, '') as notes,
-        COALESCE((
-          SELECT cr.registered_students
-            FROM course_requests cr
-           WHERE cr.instructor_id = c.instructor_id
-             AND DATE(cr.confirmed_date) = DATE(c.start_time)
-             AND cr.course_type_id = c.class_type_id
-           LIMIT 1
-        ), 0) as studentcount,
-        COALESCE((
-          SELECT COUNT(*) 
-          FROM course_students cs 
-          JOIN course_requests cr ON cs.course_request_id = cr.id 
-          WHERE cr.instructor_id = c.instructor_id 
-            AND DATE(cr.confirmed_date) = DATE(c.start_time) 
-            AND cr.course_type_id = c.class_type_id 
-            AND cs.attended = true
-        ), 0) as studentsattendance
+        0 as studentcount,
+        0 as studentsattendance
        FROM classes c
        JOIN class_types ct ON c.class_type_id = ct.id
        LEFT JOIN organizations o ON o.id = 1
@@ -196,6 +184,55 @@ router.get('/classes', authenticateToken, requireRole(['instructor']), async (re
     res.json({ success: true, data: result });
   } catch (error: any) {
     console.error('[DEBUG] Error fetching instructor classes:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message, stack: error.stack });
+  }
+});
+
+// Get instructor's active classes (non-completed)
+router.get('/classes/active', authenticateToken, requireRole(['instructor']), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log('[DEBUG] Fetching active classes for instructor:', userId);
+    
+    const dbResult = await pool.query(
+      `SELECT 
+        c.id,
+        c.id as course_id,
+        c.instructor_id,
+        c.start_time,
+        c.end_time,
+        c.status,
+        c.location,
+        c.max_students,
+        CASE WHEN c.status = 'completed' THEN true ELSE false END as completed,
+        c.created_at,
+        c.updated_at,
+        ct.name as course_name,
+        ct.name as coursetypename,
+        COALESCE(o.name, 'Unassigned') as organizationname,
+        COALESCE(c.location, '') as notes,
+        0 as studentcount,
+        0 as studentsattendance
+       FROM classes c
+       JOIN class_types ct ON c.class_type_id = ct.id
+       LEFT JOIN organizations o ON o.id = 1
+       WHERE c.instructor_id = $1 AND c.status != 'completed'
+       ORDER BY c.start_time ASC, c.end_time ASC`,
+      [userId]
+    );
+    console.log('[TRACE] Raw DB result (active):', JSON.stringify(dbResult.rows, null, 2));
+    const result = dbResult.rows.map(row => {
+      // Extract date from start_time for compatibility
+      const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
+      return {
+        ...row,
+        date: date
+      };
+    });
+    console.log('[TRACE] API response data (active):', JSON.stringify(result, null, 2));
+    res.json({ success: true, data: result });
+  } catch (error: any) {
+    console.error('[DEBUG] Error fetching active classes:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message, stack: error.stack });
   }
 });
@@ -222,15 +259,7 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor']),
         COALESCE(o.name, 'Unassigned') as organizationname,
         COALESCE(c.location, '') as notes,
         0 as studentcount,
-        COALESCE((
-          SELECT COUNT(*) 
-          FROM course_students cs 
-          JOIN course_requests cr ON cs.course_request_id = cr.id 
-          WHERE cr.instructor_id = c.instructor_id 
-            AND DATE(cr.confirmed_date) = DATE(c.start_time) 
-            AND cr.course_type_id = c.class_type_id 
-            AND cs.attended = true
-        ), 0) as studentsattendance
+        0 as studentsattendance
        FROM classes c
        JOIN class_types ct ON c.class_type_id = ct.id
        LEFT JOIN organizations o ON o.id = 1
@@ -280,15 +309,7 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor']), asy
         COALESCE(o.name, 'Unassigned') as organizationname,
         COALESCE(c.location, '') as notes,
         0 as studentcount,
-        COALESCE((
-          SELECT COUNT(*) 
-          FROM course_students cs 
-          JOIN course_requests cr ON cs.course_request_id = cr.id 
-          WHERE cr.instructor_id = c.instructor_id 
-            AND DATE(cr.confirmed_date) = DATE(c.start_time) 
-            AND cr.course_type_id = c.class_type_id 
-            AND cs.attended = true
-        ), 0) as studentsattendance
+        0 as studentsattendance
        FROM classes c
        JOIN class_types ct ON c.class_type_id = ct.id
        LEFT JOIN organizations o ON o.id = 1
@@ -332,6 +353,47 @@ router.get('/classes/:classId/students', authenticateToken, requireRole(['instru
   }
 });
 
+// Get specific class details
+router.get('/classes/:classId', authenticateToken, requireRole(['instructor']), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { classId } = req.params;
+
+    const result = await pool.query(
+      `SELECT 
+        c.id,
+        c.class_type_id,
+        c.instructor_id,
+        c.start_time,
+        c.end_time,
+        c.status,
+        c.location,
+        c.max_students,
+        CASE WHEN c.status = 'completed' THEN true ELSE false END as completed,
+        c.created_at,
+        c.updated_at,
+        ct.name as course_name,
+        ct.name as coursetypename,
+        COALESCE(o.name, 'Unassigned') as organizationname,
+        COALESCE(c.location, '') as notes
+       FROM classes c
+       JOIN class_types ct ON c.class_type_id = ct.id
+       LEFT JOIN organizations o ON c.organization_id = o.id
+       WHERE c.id = $1 AND c.instructor_id = $2`,
+      [classId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Class not found or not authorized' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error fetching class details:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Update student attendance
 router.put('/classes/:classId/students/:studentId/attendance', authenticateToken, requireRole(['instructor']), async (req, res) => {
   try {
@@ -363,11 +425,14 @@ router.put('/classes/:classId/students/:studentId/attendance', authenticateToken
     const courseRequestResult = await pool.query(
       `SELECT cr.id as course_request_id
            FROM course_requests cr
-           JOIN classes c ON cr.instructor_id = c.instructor_id 
-              AND DATE(cr.confirmed_date) = DATE(c.start_time)
-              AND cr.course_type_id = c.class_type_id
-           WHERE c.id = $1 AND c.instructor_id = $2`,
-      [classId, instructorId]
+           WHERE cr.instructor_id = $1 
+             AND DATE(cr.confirmed_date) = (
+               SELECT DATE(c.start_time) 
+               FROM classes c 
+               WHERE c.id = $2 AND c.instructor_id = $1
+             )
+           LIMIT 1`,
+      [instructorId, classId]
     );
 
     // Update student attendance
@@ -413,6 +478,371 @@ router.put('/classes/:classId/students/:studentId/attendance', authenticateToken
   } catch (error) {
     console.error('Error updating student attendance:', error);
     res.status(500).json({ error: 'Failed to update student attendance' });
+  }
+});
+
+// Add students to a class
+router.post('/classes/:classId/students', authenticateToken, requireRole(['instructor']), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { classId } = req.params;
+    const { students } = req.body;
+
+    if (!Array.isArray(students) || students.length === 0) {
+      return res.status(400).json({ error: 'Students array is required' });
+    }
+
+    // Validate instructor owns the class
+    const classResult = await pool.query(
+      'SELECT * FROM classes WHERE id = $1 AND instructor_id = $2',
+      [classId, userId]
+    );
+    if (classResult.rows.length === 0) {
+      return res.status(403).json({ error: 'Not authorized or class not found' });
+    }
+
+    // Find the related course_request (if any)
+    const courseRequestResult = await pool.query(
+      'SELECT id FROM course_requests WHERE instructor_id = $1 AND confirmed_date::date = (SELECT DATE(start_time) FROM classes WHERE id = $2)',
+      [userId, classId]
+    );
+    const courseRequestId = courseRequestResult.rows[0]?.id;
+    if (!courseRequestId) {
+      return res.status(400).json({ error: 'No related course request found for this class' });
+    }
+
+    // Insert students
+    const addedStudents = [];
+    for (const student of students) {
+      // Check for required fields
+      if (!student.first_name || !student.last_name || !student.email) {
+        continue; // skip invalid
+      }
+      // Check if student already exists for this course_request
+      const exists = await pool.query(
+        'SELECT id FROM course_students WHERE course_request_id = $1 AND email = $2',
+        [courseRequestId, student.email]
+      );
+      if (exists.rows.length > 0) {
+        continue; // skip duplicates
+      }
+      // Insert student
+      const insertResult = await pool.query(
+        `INSERT INTO course_students (course_request_id, first_name, last_name, email, status, enrolled_at)
+         VALUES ($1, $2, $3, $4, 'enrolled', NOW())
+         RETURNING id, first_name, last_name, email, status, enrolled_at` ,
+        [courseRequestId, student.first_name, student.last_name, student.email]
+      );
+      addedStudents.push(insertResult.rows[0]);
+    }
+    res.json({ success: true, data: addedStudents });
+  } catch (error) {
+    console.error('Error adding students to class:', error);
+    res.status(500).json({ error: 'Failed to add students to class' });
+  }
+});
+
+// Get instructor's schedule
+router.get('/schedule', authenticateToken, requireRole(['instructor']), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await pool.query(
+      `SELECT 
+        c.id,
+        c.id as course_id,
+        c.instructor_id,
+        c.start_time,
+        c.end_time,
+        c.status,
+        c.location,
+        c.max_students,
+        CASE WHEN c.status = 'completed' THEN true ELSE false END as completed,
+        c.created_at,
+        c.updated_at,
+        ct.name as course_name,
+        ct.name as coursetypename,
+        COALESCE(o.name, 'Unassigned') as organizationname,
+        COALESCE(c.location, '') as notes,
+        0 as studentcount,
+        0 as studentsattendance
+       FROM classes c
+       JOIN class_types ct ON c.class_type_id = ct.id
+       LEFT JOIN organizations o ON o.id = 1
+       WHERE c.instructor_id = $1
+       ORDER BY c.start_time ASC`,
+      [userId]
+    );
+    
+    const formattedData = result.rows.map(row => {
+      const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
+      return {
+        ...row,
+        date: date
+      };
+    });
+    
+    res.json({ success: true, data: formattedData });
+  } catch (error) {
+    console.error('Error fetching instructor schedule:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update instructor availability (PUT method)
+router.put('/availability', authenticateToken, requireRole(['instructor']), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { availability } = req.body;
+
+    if (!Array.isArray(availability)) {
+      return res.status(400).json({ error: 'Availability array is required' });
+    }
+
+    // Start a transaction
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Clear existing availability for this instructor
+      await client.query(
+        'DELETE FROM instructor_availability WHERE instructor_id = $1',
+        [userId]
+      );
+
+      // Insert new availability
+      for (const item of availability) {
+        if (item.date && item.status) {
+          const dateObj = new Date(item.date);
+          if (!isNaN(dateObj.getTime())) {
+            await client.query(
+              `INSERT INTO instructor_availability (instructor_id, date, status)
+               VALUES ($1, $2, $3)`,
+              [userId, item.date, item.status]
+            );
+          }
+        }
+      }
+
+      await client.query('COMMIT');
+
+      // Return updated availability
+      const result = await pool.query(
+        `SELECT id, instructor_id, date, status, created_at, updated_at
+         FROM instructor_availability
+         WHERE instructor_id = $1
+         ORDER BY date ASC`,
+        [userId]
+      );
+
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error updating instructor availability:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update instructor profile
+router.put('/profile', authenticateToken, requireRole(['instructor']), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { username, email, phone } = req.body;
+
+    const result = await pool.query(
+      `UPDATE users 
+       SET username = COALESCE($1, username), 
+           email = COALESCE($2, email),
+           phone = COALESCE($3, phone),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $4
+       RETURNING id, username, email, phone`,
+      [username, email, phone, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error updating instructor profile:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Mark class as completed
+router.post('/classes/:classId/complete', authenticateToken, requireRole(['instructor']), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { classId } = req.params;
+    const { instructor_comments } = req.body;
+
+    // Verify the class belongs to this instructor
+    const classCheck = await pool.query(
+      'SELECT id, status FROM classes WHERE id = $1 AND instructor_id = $2',
+      [classId, userId]
+    );
+
+    if (classCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Class not found or not authorized' });
+    }
+
+    if (classCheck.rows[0].status === 'completed') {
+      return res.status(400).json({ error: 'Class is already completed' });
+    }
+
+    // Update class status to completed
+    const result = await pool.query(
+      `UPDATE classes 
+       SET status = 'completed', updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND instructor_id = $2
+       RETURNING id, status, updated_at`,
+      [classId, userId]
+    );
+
+    // Update course request if exists
+    await pool.query(
+      `UPDATE course_requests 
+       SET status = 'completed', instructor_comments = COALESCE($1, instructor_comments), updated_at = CURRENT_TIMESTAMP
+       WHERE instructor_id = $2 AND confirmed_date::date = (SELECT DATE(start_time) FROM classes WHERE id = $3)`,
+      [instructor_comments, userId, classId]
+    );
+
+    res.json({ success: true, data: result.rows[0], message: 'Class marked as completed' });
+  } catch (error) {
+    console.error('Error completing class:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Submit attendance for a class
+router.post('/classes/:classId/attendance', authenticateToken, requireRole(['instructor']), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { classId } = req.params;
+    const { students } = req.body;
+
+    if (!Array.isArray(students)) {
+      return res.status(400).json({ error: 'Students array is required' });
+    }
+
+    // Verify the class belongs to this instructor
+    const classCheck = await pool.query(
+      'SELECT id FROM classes WHERE id = $1 AND instructor_id = $2',
+      [classId, userId]
+    );
+
+    if (classCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Class not found or not authorized' });
+    }
+
+    // Get course request ID
+    const courseRequestResult = await pool.query(
+      'SELECT id FROM course_requests WHERE instructor_id = $1 AND confirmed_date::date = (SELECT DATE(start_time) FROM classes WHERE id = $2)',
+      [userId, classId]
+    );
+
+    if (courseRequestResult.rows.length === 0) {
+      return res.status(400).json({ error: 'No related course request found' });
+    }
+
+    const courseRequestId = courseRequestResult.rows[0].id;
+    const updatedStudents = [];
+
+    // Update attendance for each student
+    for (const student of students) {
+      if (student.id && typeof student.attended === 'boolean') {
+        const result = await pool.query(
+          `UPDATE course_students 
+           SET attended = $1, attendance_marked = true, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2 AND course_request_id = $3
+           RETURNING id, first_name, last_name, email, attended, attendance_marked`,
+          [student.attended, student.id, courseRequestId]
+        );
+
+        if (result.rows.length > 0) {
+          updatedStudents.push(result.rows[0]);
+        }
+      }
+    }
+
+    res.json({ success: true, data: updatedStudents, message: 'Attendance submitted successfully' });
+  } catch (error) {
+    console.error('Error submitting attendance:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get attendance data
+router.get('/attendance', authenticateToken, requireRole(['instructor']), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await pool.query(
+      `SELECT 
+        c.id as class_id,
+        c.start_time,
+        c.end_time,
+        c.status,
+        ct.name as course_name,
+        COUNT(cs.id) as total_students,
+        COUNT(CASE WHEN cs.attended = true THEN 1 END) as attended_students,
+        COUNT(CASE WHEN cs.attended = false THEN 1 END) as absent_students
+       FROM classes c
+       JOIN class_types ct ON c.class_type_id = ct.id
+       LEFT JOIN course_requests cr ON cr.instructor_id = c.instructor_id 
+         AND DATE(cr.confirmed_date) = DATE(c.start_time)
+       LEFT JOIN course_students cs ON cs.course_request_id = cr.id
+       WHERE c.instructor_id = $1
+       GROUP BY c.id, c.start_time, c.end_time, c.status, ct.name
+       ORDER BY c.start_time DESC`,
+      [userId]
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching attendance data:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add notes to classes
+router.post('/classes/notes', authenticateToken, requireRole(['instructor']), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { classId, notes } = req.body;
+
+    if (!classId || !notes) {
+      return res.status(400).json({ error: 'Class ID and notes are required' });
+    }
+
+    // Verify the class belongs to this instructor
+    const classCheck = await pool.query(
+      'SELECT id FROM classes WHERE id = $1 AND instructor_id = $2',
+      [classId, userId]
+    );
+
+    if (classCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Class not found or not authorized' });
+    }
+
+    // Update class with notes
+    const result = await pool.query(
+      `UPDATE classes 
+       SET location = COALESCE(location, '') || ' | Notes: ' || $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 AND instructor_id = $3
+       RETURNING id, location`,
+      [notes, classId, userId]
+    );
+
+    res.json({ success: true, data: result.rows[0], message: 'Notes added successfully' });
+  } catch (error) {
+    console.error('Error adding notes:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

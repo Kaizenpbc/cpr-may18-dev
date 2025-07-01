@@ -47,7 +47,7 @@ const InstructorDashboardContainer: React.FC = () => {
 
       // Fetch all required data in parallel
       const [classesResponse, completedResponse, availabilityResponse] = await Promise.all([
-        api.get('/instructor/classes'),
+        api.get('/instructor/classes/active'),
         api.get('/instructor/classes/completed'),
         api.get('/instructor/availability')
       ]);

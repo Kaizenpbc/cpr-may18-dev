@@ -217,7 +217,7 @@ const InstructorPortal: React.FC = () => {
     
     const items: CombinedScheduleItem[] = [];
 
-    // Add class items
+    // Add class items (API now returns only active classes)
     if (scheduledClasses && Array.isArray(scheduledClasses)) {
       console.log('🔍 [TRACE] Processing scheduledClasses array with', scheduledClasses.length, 'items');
       
@@ -226,7 +226,8 @@ const InstructorPortal: React.FC = () => {
           course_id: classItem.course_id,
           studentcount: classItem.studentcount,
           studentsregistered: classItem.studentsregistered,
-          date: classItem.date
+          date: classItem.date,
+          status: classItem.status
         });
         
         const transformedItem = {
@@ -279,11 +280,12 @@ const InstructorPortal: React.FC = () => {
       return dateA.getTime() - dateB.getTime();
     });
     
-    console.log('🔍 [TRACE] Final combinedItems:', JSON.stringify(sortedItems.map(item => ({
+    console.log('🔍 [TRACE] Final combinedItems (active classes only):', JSON.stringify(sortedItems.map(item => ({
       type: item.type,
       displayDate: item.displayDate,
       studentsregistered: item.studentsregistered,
-      course_id: item.course_id
+      course_id: item.course_id,
+      status: item.status
     })), null, 2));
     
     return sortedItems;

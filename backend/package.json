@@ -25,7 +25,13 @@
     "init:test-migrations": "node scripts/init-test-migrations.cjs",
     "sync:test": "node scripts/sync-test-migrations.cjs",
     "sync:test-full": "npm run migrate:test && npm run seed:test-data",
-    "seed:make": "knex seed:make"
+    "seed:make": "knex seed:make",
+    "db:init": "ts-node -e \"import('./src/config/database.js').then(db => db.initializeDatabase())\"",
+    "db:reset": "ts-node scripts/reset-database.ts",
+    "db:status": "ts-node scripts/check-db.ts",
+    "db:migrate": "knex migrate:latest",
+    "db:seed": "knex seed:run",
+    "db:setup": "npm run db:migrate && npm run db:seed"
   },
   "keywords": [],
   "author": "",
