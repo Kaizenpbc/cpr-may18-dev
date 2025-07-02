@@ -196,9 +196,9 @@ async function killProcessOnPort(port: number): Promise<void> {
 
 console.log('1. Starting application...');
 
-// Load environment variables
+// Load environment variables from root directory
 console.log('2. Loading environment variables...');
-const result = dotenv.config();
+const result = dotenv.config({ path: path.join(process.cwd(), '..', '.env') });
 if (result.error) {
   console.error('❌ Failed to load .env file:', result.error);
   process.exit(1);
