@@ -320,6 +320,12 @@ export const getOrganizationPricing = async () => {
   return response.data.data || [];
 };
 
+// Get organization pricing for organization users (read-only)
+export const getOrganizationPricingForOrg = async (organizationId: number) => {
+  const response = await api.get(`/organization-pricing/organization/${organizationId}`);
+  return response.data;
+};
+
 export const getOrganizationPricingById = async (id: number) => {
   const response = await api.get(`/organization-pricing/admin/${id}`);
   return response.data.data;

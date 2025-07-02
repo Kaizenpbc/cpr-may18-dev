@@ -24,6 +24,7 @@ import {
   Event as EventIcon,
   School as CoursesIconAlt,
   Archive as ArchiveIcon,
+  AttachMoney as PricingIcon,
 } from '@mui/icons-material';
 import { useQueryClient } from '@tanstack/react-query';
 import OrganizationLayout from './OrganizationLayout';
@@ -35,6 +36,7 @@ import OrganizationAnalytics from './views/OrganizationAnalytics';
 import ScheduleCourseForm from '../../forms/ScheduleCourseForm';
 import CSVUploadDialog from '../../dialogs/CSVUploadDialog';
 import OrganizationArchive from './views/OrganizationArchive';
+import OrganizationPricing from './views/OrganizationPricing';
 
 // TypeScript interfaces
 interface User {
@@ -142,6 +144,7 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
     { id: 'archive', label: 'Archive', icon: <ArchiveIcon /> },
     { id: 'schedule', label: 'Schedule a Course', icon: <EventIcon /> },
     { id: 'billing', label: 'Bills Payable', icon: <BillingIcon /> },
+    { id: 'pricing', label: 'Pricing', icon: <PricingIcon /> },
     { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
     { id: 'analytics', label: 'Analytics', icon: <AnalyticsIcon /> },
   ];
@@ -256,6 +259,12 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
         return (
           <OrganizationProfile
             organizationData={organizationData}
+          />
+        );
+      case 'pricing':
+        return (
+          <OrganizationPricing
+            organizationId={user?.organizationId || 0}
           />
         );
       case 'analytics':
