@@ -270,7 +270,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                       primary={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <ClassIcon color="primary" />
-                          <Typography variant="subtitle1">
+                          <Typography variant="subtitle1" component="span">
                             {cls.coursetypename}
                           </Typography>
                         </Box>
@@ -279,11 +279,11 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                         <Box sx={{ mt: 1 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <LocationIcon fontSize="small" color="action" />
-                            <Typography variant="body2">{cls.location}</Typography>
+                            <Typography variant="body2" component="span">{cls.location}</Typography>
                           </Box>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <GroupIcon fontSize="small" color="action" />
-                            <Typography variant="body2">
+                            <Typography variant="body2" component="span">
                               {cls.studentcount} Students
                             </Typography>
                           </Box>
@@ -328,7 +328,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                     primary={
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <ClassIcon color="primary" />
-                        <Typography variant="subtitle1">
+                        <Typography variant="subtitle1" component="span">
                           {cls.coursetypename}
                         </Typography>
                       </Box>
@@ -337,17 +337,17 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                       <Box sx={{ mt: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <CalendarIcon fontSize="small" color="action" />
-                          <Typography variant="body2">
+                          <Typography variant="body2" component="span">
                             {formatDate(cls.datescheduled)}
                           </Typography>
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <LocationIcon fontSize="small" color="action" />
-                          <Typography variant="body2">{cls.location}</Typography>
+                          <Typography variant="body2" component="span">{cls.location}</Typography>
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <GroupIcon fontSize="small" color="action" />
-                          <Typography variant="body2">
+                          <Typography variant="body2" component="span">
                             {cls.studentcount} Students
                           </Typography>
                         </Box>

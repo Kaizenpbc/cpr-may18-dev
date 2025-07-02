@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { Secret } from 'jsonwebtoken';
 import type { Request } from 'express';
 import { AppError, errorCodes } from './errorHandler.js';
 
@@ -17,30 +17,32 @@ export interface TokenPayload {
   sessionId?: string;
 }
 
-export const generateTokens = (payload: TokenPayload) => {
-  const { exp, ...payloadWithoutExp } = payload as any;
+declare global {
+  namespace Express {
+    interface Request {
+      user?: TokenPayload;
+    }
+  }
+}
 
+export const generateTokens = (payload: TokenPayload) => {
   const accessToken = jwt.sign(
-    payloadWithoutExp,
-    ACCESS_TOKEN_SECRET,
+    payload,
+    ACCESS_TOKEN_SECRET as Secret,
     { expiresIn: ACCESS_TOKEN_EXPIRY }
   );
 
   const refreshToken = jwt.sign(
-    payloadWithoutExp,
-    REFRESH_TOKEN_SECRET,
+    payload,
+    REFRESH_TOKEN_SECRET as Secret,
     { expiresIn: REFRESH_TOKEN_EXPIRY }
   );
 
   return { accessToken, refreshToken };
 };
 
-export const verifyToken = (token: string, isRefreshToken = false) => {
+export const verifyToken = (token: string, secret: string = ACCESS_TOKEN_SECRET): TokenPayload => {
   try {
-    const secret = isRefreshToken
-      ? process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key'
-      : process.env.JWT_SECRET || 'your-secret-key';
-
     return jwt.verify(token, secret) as TokenPayload;
   } catch (error) {
     throw new Error('Invalid token');
@@ -121,4 +123,28 @@ export const extractTokenFromHeader = (req: Request): string | null => {
     token ? 'present' : 'not present'
   );
   return token;
+};
+
+export const generateToken = (user: TokenPayload): string => {
+  const secret = process.env.JWT_SECRET || 'your-secret-key';
+  const accessToken = jwt.sign(
+    {
+      id: user.id,
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      organizationId: user.organizationId,
+    },
+    secret,
+    { expiresIn: '24h' }
+  );
+  return accessToken;
+};
+
+export const extractTokenFromRequest = (req: Request): string | null => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
+  return null;
 };
