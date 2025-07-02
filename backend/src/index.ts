@@ -316,6 +316,12 @@ console.log('11b. Setting up email templates routes...');
 app.use('/api/v1/email-templates', emailTemplatesRouter);
 console.log('✅ Email templates routes configured');
 
+// Organization pricing routes
+console.log('11c. Setting up organization pricing routes...');
+import organizationPricingRoutes from './routes/v1/organizationPricing.js';
+app.use('/api/v1/organization-pricing', organizationPricingRoutes);
+console.log('✅ Organization pricing routes configured');
+
 // SSE endpoint
 console.log('12. Setting up SSE endpoint...');
 app.get('/api/v1/events', (req: Request, res: Response) => {

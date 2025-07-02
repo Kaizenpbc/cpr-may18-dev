@@ -14,6 +14,7 @@ import healthRouter from './health.js';
 import cacheRouter from './cache.js';
 import instructorRouter from '../../routes/instructor.js';
 import organizationRouter from './organization.js';
+import organizationPricingRouter from './organizationPricing.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import bcrypt from 'bcryptjs';
@@ -31,6 +32,10 @@ router.use('/instructors', instructorRouter);
 
 // Mount organization routes
 router.use('/organization', organizationRouter);
+
+// Mount organization pricing routes
+router.use('/organization-pricing', organizationPricingRouter);
+console.log('✅ Organization pricing routes mounted');
 
 console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
 

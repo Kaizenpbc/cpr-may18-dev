@@ -311,7 +311,44 @@ export const createCoursePricing = async (data: any): Promise<ApiResponse<any>> 
 
 export const getOrganizations = async () => {
   const response = await api.get('/accounting/organizations');
-  return response.data;
+  return response.data.data || [];
+};
+
+// Organization Pricing API endpoints
+export const getOrganizationPricing = async () => {
+  const response = await api.get('/organization-pricing/admin');
+  return response.data.data || [];
+};
+
+export const getOrganizationPricingById = async (id: number) => {
+  const response = await api.get(`/organization-pricing/admin/${id}`);
+  return response.data.data;
+};
+
+export const createOrganizationPricing = async (data: any) => {
+  const response = await api.post('/organization-pricing/admin', data);
+  return response.data.data;
+};
+
+export const updateOrganizationPricing = async (id: number, data: any) => {
+  const response = await api.put(`/organization-pricing/admin/${id}`, data);
+  return response.data.data;
+};
+
+export const deleteOrganizationPricing = async (id: number) => {
+  const response = await api.delete(`/organization-pricing/admin/${id}`);
+  return response.data.data;
+};
+
+// Get class types for pricing setup
+export const getClassTypes = async () => {
+  const response = await api.get('/course-types');
+  const data = response.data.data || [];
+  // Transform the data to match expected format
+  return data.map((item: any) => ({
+    id: item.coursetypeid,
+    name: item.coursetypename
+  }));
 };
 
 // Invoice and Billing API functions

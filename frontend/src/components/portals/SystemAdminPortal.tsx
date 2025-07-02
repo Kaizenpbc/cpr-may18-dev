@@ -24,6 +24,7 @@ import {
   Store as StoreIcon,
   Logout as LogoutIcon,
   Settings as SettingsIcon,
+  AttachMoney as PricingIcon,
 } from '@mui/icons-material';
 import ErrorBoundary from '../common/ErrorBoundary';
 import SystemAdminDashboard from '../sysadmin/SystemAdminDashboard';
@@ -31,6 +32,7 @@ import CourseManagement from '../sysadmin/CourseManagement';
 import UserManagement from '../sysadmin/UserManagement';
 import VendorManagement from '../sysadmin/VendorManagement';
 import OrganizationManagement from '../sysadmin/OrganizationManagement';
+import OrganizationPricingManager from '../admin/OrganizationPricingManager';
 
 const drawerWidth = 240;
 
@@ -81,6 +83,12 @@ const SystemAdminPortal = () => {
       label: 'Organization Management',
       icon: <BusinessIcon />,
       path: '/sysadmin/organizations',
+    },
+    {
+      key: 'pricing',
+      label: 'Organization Pricing',
+      icon: <PricingIcon />,
+      path: '/sysadmin/pricing',
     },
     {
       key: 'users',
@@ -209,6 +217,14 @@ const SystemAdminPortal = () => {
                 element={
                   <ErrorBoundary context="system_admin_organizations" onError={handleError}>
                     <OrganizationManagement />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path='/pricing'
+                element={
+                  <ErrorBoundary context="system_admin_pricing" onError={handleError}>
+                    <OrganizationPricingManager />
                   </ErrorBoundary>
                 }
               />

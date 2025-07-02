@@ -18,19 +18,27 @@ The CPR Training Management System is a full-stack application designed to strea
 
 ### Recent Implementations
 
-#### 1. Bills Payable Portal (Organization)
+#### 1. Organization-Specific Pricing System *(July 2, 2025)*
+- **Flexible Pricing Model**: Set different prices per organization per course type
+- **System Admin Interface**: Full CRUD operations for pricing management with filtering and sorting
+- **Backend API**: RESTful endpoints with role-based access control (sysadmin only)
+- **Database Schema**: `organization_pricing` table with audit trail and soft delete support
+- **Fallback Logic**: Automatic fallback to default pricing when organization-specific pricing not set
+- **Complete Documentation**: Comprehensive user guide and API reference
+
+#### 2. Bills Payable Portal (Organization)
 - View and manage invoices with status tracking (Pending, Overdue, Payment Submitted, Paid)
 - Submit payment information with reference numbers and notes
 - PDF invoice preview and download
 - Payment history tracking
 - Dashboard with summary cards showing invoice statistics
 
-#### 2. Automated Invoice Management
+#### 3. Automated Invoice Management
 - **Scheduled Jobs**: Daily automatic update of overdue invoices (runs at 1:00 AM)
 - **Manual Trigger**: Admin/Accountant can manually trigger overdue updates via API
 - **Status Tracking**: Automatic status transitions based on payment and due dates
 
-#### 3. Payment Verification Workflow
+#### 4. Payment Verification Workflow
 - Organizations submit payment information
 - Accounting team reviews and verifies payments
 - Automatic invoice status updates upon verification
@@ -272,6 +280,7 @@ npm run dev
 - Manual overdue invoice updates
 
 ### 6. System Admin Portal
+- **Organization Pricing Management**: Set and manage client-specific pricing for course types
 - Course type definitions
 - User management
 - Organization management
@@ -304,6 +313,15 @@ All API endpoints require JWT authentication except for login endpoints.
 - `POST /api/v1/accounting/payments/:id/verify` - Approve/reject payment
 - `POST /api/v1/accounting/trigger-overdue-update` - Manually trigger overdue invoice update
 
+#### Organization Pricing Endpoints
+- `GET /api/v1/organization-pricing/admin` - List all pricing records (sysadmin)
+- `POST /api/v1/organization-pricing/admin` - Create new pricing record (sysadmin)
+- `PUT /api/v1/organization-pricing/admin/:id` - Update pricing record (sysadmin)
+- `DELETE /api/v1/organization-pricing/admin/:id` - Delete pricing record (sysadmin)
+- `GET /api/v1/organization-pricing/:organizationId` - Get organization's pricing
+- `GET /api/v1/organization-pricing/course-pricing/:organizationId/:classTypeId` - Get specific course pricing
+- `POST /api/v1/organization-pricing/calculate-cost` - Calculate course cost with pricing
+
 ## Database Schema
 
 ### Key Tables
@@ -314,7 +332,8 @@ All API endpoints require JWT authentication except for login endpoints.
 - `invoices` - Generated invoices
 - `payments` - Payment records with verification workflow
 - `instructor_availability` - Instructor schedule availability
-- `course_pricing` - Pricing configuration per organization/course type
+- `course_pricing` - Legacy pricing configuration per organization/course type
+- `organization_pricing` - New organization-specific pricing with audit trail
 
 ## Scheduled Jobs
 

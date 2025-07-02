@@ -28,14 +28,14 @@ declare global {
 export const generateTokens = (payload: TokenPayload) => {
   const accessToken = jwt.sign(
     payload as object,
-    ACCESS_TOKEN_SECRET || 'access_secret',
-    { expiresIn: ACCESS_TOKEN_EXPIRY || '15m' }
+    ACCESS_TOKEN_SECRET,
+    { expiresIn: ACCESS_TOKEN_EXPIRY } as jwt.SignOptions
   );
 
   const refreshToken = jwt.sign(
     payload as object,
-    REFRESH_TOKEN_SECRET || 'refresh_secret',
-    { expiresIn: REFRESH_TOKEN_EXPIRY || '7d' }
+    REFRESH_TOKEN_SECRET,
+    { expiresIn: REFRESH_TOKEN_EXPIRY } as jwt.SignOptions
   );
 
   return { accessToken, refreshToken };

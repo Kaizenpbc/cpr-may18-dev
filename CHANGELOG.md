@@ -9,6 +9,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security - Phase 1 Implementation (In Progress)
 
+## [1.3.0] - 2025-07-02
+
+### ✨ Features
+- **ADDED**: Organization-Specific Pricing System
+  - Flexible pricing model allowing different prices per organization per course type
+  - System admin interface with full CRUD operations for pricing management
+  - Backend API with role-based access control (sysadmin only)
+  - Database schema with audit trail and soft delete support
+  - Fallback logic to default pricing when organization-specific pricing not set
+  - Complete frontend integration with System Admin Portal
+
+### 🔧 Backend
+- **ADDED**: `organization_pricing` table with proper relationships and constraints
+- **ADDED**: `OrganizationPricingService` with comprehensive business logic
+- **ADDED**: RESTful API endpoints for pricing management
+- **ADDED**: Database migration with rollback capability
+- **ADDED**: Input validation and error handling for all pricing operations
+- **ADDED**: Audit trail with user tracking and timestamps
+
+### 🎨 Frontend
+- **ADDED**: `OrganizationPricingManager` component with filtering and sorting
+- **ADDED**: `OrganizationPricingDialog` component for add/edit operations
+- **ADDED**: API integration functions in `api.ts`
+- **ADDED**: System Admin Portal integration with new menu item
+- **ADDED**: Real-time data refresh and error handling
+- **ADDED**: Material-UI components with responsive design
+
+### 📚 Documentation
+- **ADDED**: Comprehensive organization pricing documentation
+- **ADDED**: Quick reference guide for developers and users
+- **UPDATED**: Main README with new feature information
+- **UPDATED**: API documentation with new endpoints
+- **ADDED**: User guides for system administrators and organization users
+
+### 🧪 Testing
+- **TESTED**: All CRUD operations with curl commands
+- **TESTED**: Frontend component rendering and interactions
+- **TESTED**: API authentication and authorization
+- **TESTED**: Error handling and validation
+- **VERIFIED**: Database constraints and relationships
+
+### 🔒 Security
+- **ADDED**: Role-based access control for pricing management
+- **ADDED**: Input validation and sanitization for pricing data
+- **ADDED**: Audit trail for all pricing changes
+- **ADDED**: Soft delete support for data integrity
+
 ## [1.2.0] - 2025-06-03
 
 ### 🛡️ Security
