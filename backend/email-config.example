@@ -1,0 +1,26 @@
+# Email Configuration Example
+# Copy this file to .env and fill in your actual values
+
+# Gmail SMTP Configuration
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=noreply@gtacpr.com
+
+# Alternative: SendGrid Configuration
+# SMTP_HOST=smtp.sendgrid.net
+# SMTP_PORT=587
+# SMTP_SECURE=false
+# SMTP_USER=apikey
+# SMTP_PASS=your-sendgrid-api-key
+# SMTP_FROM=noreply@yourdomain.com
+
+# Alternative: Outlook/Hotmail Configuration
+# SMTP_HOST=smtp-mail.outlook.com
+# SMTP_PORT=587
+# SMTP_SECURE=false
+# SMTP_USER=your-email@outlook.com
+# SMTP_PASS=your-password
+# SMTP_FROM=noreply@yourdomain.com 

@@ -8,41 +8,41 @@ const pool = new Pool({
   password: 'gtacpr'
 });
 
-async function checkUsersSchema() {
+async function checkOrganizationsSchema() {
   try {
-    console.log('Checking users table schema...');
+    console.log('Checking organizations table schema...');
     
     // Get table schema
     const schemaResult = await pool.query(`
       SELECT column_name, data_type, is_nullable
       FROM information_schema.columns 
-      WHERE table_name = 'users' 
+      WHERE table_name = 'organizations' 
       ORDER BY ordinal_position
     `);
     
-    console.log('\n📋 Users table columns:');
+    console.log('\n📋 Organizations table columns:');
     schemaResult.rows.forEach(col => {
       console.log(`  - ${col.column_name} (${col.data_type}) ${col.is_nullable === 'YES' ? 'NULL' : 'NOT NULL'}`);
     });
     
     // Get sample data
-    console.log('\n📊 Sample users data:');
-    const usersResult = await pool.query(`
-      SELECT id, username, email, role, organization_id, created_at
-      FROM users 
-      ORDER BY username
+    console.log('\n📊 Sample organizations data:');
+    const orgsResult = await pool.query(`
+      SELECT id, name, contact_email, contact_phone, address, created_at
+      FROM organizations 
+      ORDER BY name
       LIMIT 10
     `);
     
-    usersResult.rows.forEach(user => {
-      console.log(`  - ${user.username} (${user.email}) - ${user.role}`);
+    orgsResult.rows.forEach(org => {
+      console.log(`  - ${org.name} (${org.contact_email})`);
     });
     
   } catch (error) {
-    console.error('Error checking users schema:', error);
+    console.error('Error checking organizations schema:', error);
   } finally {
     await pool.end();
   }
 }
 
-checkUsersSchema(); 
+checkOrganizationsSchema(); 

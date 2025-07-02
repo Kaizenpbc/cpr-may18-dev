@@ -251,12 +251,15 @@ export const commonSchemas = {
     name: joi.string().min(1).max(100).required(),
     category: joi
       .string()
-      .valid('Instructor', 'Organization', 'Other')
+      .valid('Instructor', 'Organization', 'Course Admin', 'Accountant', 'Sys Admin', 'Other')
       .required(),
     subCategory: joi.string().max(50).optional().allow(''),
     subject: joi.string().min(1).max(200).required(),
-    body: joi.string().min(1).max(10000).required(),
-    active: joi.boolean().default(true),
+    htmlContent: joi.string().min(1).max(10000).required(),
+    textContent: joi.string().max(10000).optional().allow(''),
+    body: joi.string().max(10000).optional().allow(''),
+    isActive: joi.boolean().default(true),
+    isSystem: joi.boolean().default(false),
   }),
 
   // Invoice payment submission

@@ -119,8 +119,6 @@ export class EmailTemplateService {
       if (error instanceof Error) {
         console.error('[EmailTemplateService.getAll] Error stack:', error.stack);
       }
-      console.error('[EmailTemplateService.getAll] Query:', query);
-      console.error('[EmailTemplateService.getAll] Params:', params);
       throw new AppError(
         500,
         'DATABASE_ERROR',

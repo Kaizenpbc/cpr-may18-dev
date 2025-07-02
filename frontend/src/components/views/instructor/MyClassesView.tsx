@@ -24,6 +24,9 @@ import {
   CheckCircle as CompleteIcon,
   EventAvailable as AvailableIcon,
   Delete as DeleteIcon,
+  ArrowUpward as ArrowUpIcon,
+  ArrowDownward as ArrowDownIcon,
+  UnfoldMore as UnfoldMoreIcon,
 } from '@mui/icons-material';
 import { CombinedScheduleItem } from '../../../types/instructor';
 import { formatDisplayDate } from '../../../utils/dateUtils';
@@ -33,6 +36,9 @@ interface MyClassesViewProps {
   onCompleteClass: (item: CombinedScheduleItem) => void;
   onRemoveAvailability?: (date: string) => Promise<{ success: boolean; error?: string }>;
 }
+
+type SortField = 'date' | 'status' | null;
+type SortDirection = 'asc' | 'desc';
 
 const MyClassesView: React.FC<MyClassesViewProps> = ({
   combinedSchedule = [],
@@ -53,6 +59,10 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
     }
   });
 
+  // Sorting state
+  const [sortField, setSortField] = React.useState<SortField>(null);
+  const [sortDirection, setSortDirection] = React.useState<SortDirection>('asc');
+
   const [deleteDialog, setDeleteDialog] = React.useState<{
     open: boolean;
     date: string;
@@ -60,6 +70,54 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
     open: false,
     date: '',
   });
+
+  // Handle sorting
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field with ascending direction
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Get sort icon for a column
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <UnfoldMoreIcon fontSize="small" />;
+    }
+    return sortDirection === 'asc' ? <ArrowUpIcon fontSize="small" /> : <ArrowDownIcon fontSize="small" />;
+  };
+
+  // Sort the data
+  const sortedSchedule = React.useMemo(() => {
+    if (!sortField) return combinedSchedule;
+
+    return [...combinedSchedule].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      if (sortField === 'date') {
+        aValue = new Date(a.displayDate);
+        bValue = new Date(b.displayDate);
+      } else if (sortField === 'status') {
+        aValue = a.status?.toLowerCase() || '';
+        bValue = b.status?.toLowerCase() || '';
+      } else {
+        return 0;
+      }
+
+      if (aValue < bValue) {
+        return sortDirection === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortDirection === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [combinedSchedule, sortField, sortDirection]);
 
   const handleDeleteClick = (date: string) => {
     setDeleteDialog({
@@ -115,9 +173,17 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
                   borderBottom: 2,
                   borderColor: 'divider',
                   color: 'text.primary',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                  },
                 }}
+                onClick={() => handleSort('date')}
               >
-                Date
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  Date
+                  {getSortIcon('date')}
+                </Box>
               </TableCell>
               <TableCell 
                 sx={{ 
@@ -205,9 +271,17 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
                   borderBottom: 2,
                   borderColor: 'divider',
                   color: 'text.primary',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                  },
                 }}
+                onClick={() => handleSort('status')}
               >
-                Status
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  Status
+                  {getSortIcon('status')}
+                </Box>
               </TableCell>
               <TableCell
                 sx={{ 
@@ -224,7 +298,7 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
             </TableRow>
           </TableHead>
           <TableBody>
-            {combinedSchedule.length === 0 ? (
+            {sortedSchedule.length === 0 ? (
               <TableRow>
                 <TableCell 
                   colSpan={10} 
@@ -239,7 +313,7 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
                 </TableCell>
               </TableRow>
             ) : (
-              combinedSchedule.map((item, index) => {
+              sortedSchedule.map((item, index) => {
                 console.log(`🔍 [TRACE] Rendering item ${index}:`, {
                   type: item.type,
                   course_id: item.course_id,

@@ -47,7 +47,7 @@ router.post(
         throw new AppError(
           401,
           errorCodes.AUTH_INVALID_CREDENTIALS,
-          'Invalid username or password'
+          'No account found with that username or email.'
         );
       }
 
@@ -65,7 +65,7 @@ router.post(
         throw new AppError(
           401,
           errorCodes.AUTH_INVALID_CREDENTIALS,
-          'Invalid username or password'
+          'Incorrect password. Please try again.'
         );
       }
 

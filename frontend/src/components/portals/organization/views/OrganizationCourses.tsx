@@ -80,6 +80,11 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [studentError, setStudentError] = useState<string | null>(null);
 
+  // Filtering state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [courseTypeFilter, setCourseTypeFilter] = useState('');
+
   // Get status color for courses
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -98,6 +103,34 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
   const getStatusLabel = (status: string) => {
     return status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
   };
+
+  // Filter courses based on search and filters
+  const filteredCourses = courses.filter(course => {
+    const matchesSearch = searchTerm === '' || 
+      course.course_type_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.instructor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.notes?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === '' || course.status.toLowerCase() === statusFilter.toLowerCase();
+    const matchesCourseType = courseTypeFilter === '' || course.course_type_name.toLowerCase() === courseTypeFilter.toLowerCase();
+    
+    return matchesSearch && matchesStatus && matchesCourseType;
+  });
+
+  // Get unique course types for filter
+  // Debug: Log courses with missing or invalid course_type_name
+  const coursesWithMissingType = courses.filter(course => !course.course_type_name || typeof course.course_type_name !== 'string');
+  if (coursesWithMissingType.length > 0) {
+    console.warn('[DEBUG] Courses with missing or invalid course_type_name:', coursesWithMissingType);
+  }
+  const courseTypes = Array.from(
+    new Set(
+      courses
+        .map(course => course.course_type_name)
+        .filter((type): type is string => typeof type === 'string' && !!type)
+    )
+  ).sort();
 
   // Helper function to check if upload should be disabled
   const isUploadDisabled = (course: Course) => {
@@ -200,12 +233,18 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
               label="Search courses..."
               variant="outlined"
               size="small"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </Grid>
           <Grid item xs={12} md={3}>
             <FormControl fullWidth size="small">
               <InputLabel>Status</InputLabel>
-              <Select label="Status" defaultValue="">
+              <Select 
+                label="Status" 
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
                 <MenuItem value="">All Statuses</MenuItem>
                 <MenuItem value="pending">Pending</MenuItem>
                 <MenuItem value="confirmed">Confirmed</MenuItem>
@@ -217,17 +256,21 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
           <Grid item xs={12} md={3}>
             <FormControl fullWidth size="small">
               <InputLabel>Course Type</InputLabel>
-              <Select label="Course Type" defaultValue="">
+              <Select 
+                label="Course Type" 
+                value={courseTypeFilter}
+                onChange={(e) => setCourseTypeFilter(e.target.value)}
+              >
                 <MenuItem value="">All Types</MenuItem>
-                <MenuItem value="cpr">CPR</MenuItem>
-                <MenuItem value="first_aid">First Aid</MenuItem>
-                <MenuItem value="bls">BLS</MenuItem>
+                {courseTypes.map(type => (
+                  <MenuItem key={type} value={type.toLowerCase ? type.toLowerCase() : type}>{type}</MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
           <Grid item xs={12} md={2}>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {courses.length} courses found
+              {filteredCourses.length} courses found
             </Typography>
           </Grid>
         </Grid>
@@ -249,101 +292,106 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
               </TableRow>
             </TableHead>
             <TableBody>
-              {courses.map((course) => {
-                const uploadDisabled = isUploadDisabled(course);
-                const uploadTooltip = getUploadTooltip(course);
+              {filteredCourses.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10} align="center">
+                    <Typography variant="body2" color="text.secondary">
+                      {courses.length === 0 ? 'No courses found' : 'No courses match your filters'}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredCourses.map((course) => {
+                  const uploadDisabled = isUploadDisabled(course);
+                  const uploadTooltip = getUploadTooltip(course);
 
-                return (
-                  <TableRow key={course.id}>
-                    <TableCell>
-                      {new Date(course.request_submitted_date).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      {course.scheduled_date
-                        ? new Date(course.scheduled_date).toLocaleDateString()
-                        : '-'}
-                    </TableCell>
-                    <TableCell>{course.course_type_name}</TableCell>
-                    <TableCell>{course.location}</TableCell>
-                    <TableCell>{course.registered_students || 0}</TableCell>
-                    <TableCell>{course.students_attended || 0}</TableCell>
-                    <TableCell>
-                      {course.notes && (
-                        <Typography variant="body2" color="text.secondary">
-                          {course.notes}
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={getStatusLabel(course.status)}
-                        color={getStatusColor(course.status)}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>{course.instructor || 'TBD'}</TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                        <Tooltip title={uploadTooltip}>
-                          <span>
-                            <IconButton
-                              onClick={() => onUploadStudentsClick && onUploadStudentsClick(course.id)}
-                              size="small"
-                              color={uploadDisabled ? 'default' : 'primary'}
-                              disabled={uploadDisabled}
-                              sx={{
-                                bgcolor: uploadDisabled
-                                  ? 'action.disabledBackground'
-                                  : 'primary.light',
-                                '&:hover': {
+                  return (
+                    <TableRow key={course.id}>
+                      <TableCell>
+                        {course.request_submitted_date && !isNaN(new Date(course.request_submitted_date).getTime())
+                          ? new Date(course.request_submitted_date).toLocaleDateString()
+                          : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        {course.scheduled_date
+                          ? new Date(course.scheduled_date).toLocaleDateString()
+                          : '-'}
+                      </TableCell>
+                      <TableCell>{course.course_type_name}</TableCell>
+                      <TableCell>{course.location}</TableCell>
+                      <TableCell>{course.registered_students || 0}</TableCell>
+                      <TableCell>{course.students_attended || 0}</TableCell>
+                      <TableCell>
+                        {course.notes && (
+                          <Typography variant="body2" color="text.secondary">
+                            {course.notes}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={getStatusLabel(course.status)}
+                          color={getStatusColor(course.status)}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>{course.instructor || 'TBD'}</TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                          <Tooltip title={uploadTooltip}>
+                            <span>
+                              <IconButton
+                                onClick={() => onUploadStudentsClick && onUploadStudentsClick(course.id)}
+                                size="small"
+                                color={uploadDisabled ? 'default' : 'primary'}
+                                disabled={uploadDisabled}
+                                sx={{
                                   bgcolor: uploadDisabled
                                     ? 'action.disabledBackground'
-                                    : 'primary.main',
-                                  color: uploadDisabled
-                                    ? 'action.disabled'
-                                    : 'white',
-                                },
-                                '&.Mui-disabled': {
-                                  bgcolor: 'action.disabledBackground',
-                                  color: 'action.disabled',
+                                    : 'primary.light',
+                                  '&:hover': {
+                                    bgcolor: uploadDisabled
+                                      ? 'action.disabledBackground'
+                                      : 'primary.main',
+                                    color: uploadDisabled
+                                      ? 'action.disabled'
+                                      : 'white',
+                                  },
+                                  '&.Mui-disabled': {
+                                    bgcolor: 'action.disabledBackground',
+                                    color: 'action.disabled',
+                                  },
+                                }}
+                              >
+                                {uploadDisabled ? (
+                                  <BlockIcon fontSize="small" />
+                                ) : (
+                                  <UploadIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Tooltip title="View Student List">
+                            <IconButton
+                              onClick={() => handleViewStudentsClick(course)}
+                              size="small"
+                              color="secondary"
+                              sx={{
+                                bgcolor: 'secondary.light',
+                                '&:hover': {
+                                  bgcolor: 'secondary.main',
+                                  color: 'white',
                                 },
                               }}
                             >
-                              {uploadDisabled ? (
-                                <BlockIcon fontSize="small" />
-                              ) : (
-                                <UploadIcon fontSize="small" />
-                              )}
+                              <ViewIcon fontSize="small" />
                             </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip title="View Student List">
-                          <IconButton
-                            onClick={() => handleViewStudentsClick(course)}
-                            size="small"
-                            color="secondary"
-                            sx={{
-                              bgcolor: 'secondary.light',
-                              '&:hover': {
-                                bgcolor: 'secondary.main',
-                                color: 'white',
-                              },
-                            }}
-                          >
-                            <ViewIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {courses.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} align="center">
-                    No courses found
-                  </TableCell>
-                </TableRow>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>

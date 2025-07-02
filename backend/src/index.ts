@@ -12,7 +12,7 @@ import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
 import cookieParser from 'cookie-parser';
-import emailTemplatesRouter from './routes/emailTemplates.js';
+import emailTemplatesRouter from './routes/v1/emailTemplates.js';
 
 const execAsync = promisify(exec);
 

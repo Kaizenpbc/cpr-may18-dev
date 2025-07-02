@@ -11,12 +11,7 @@ import { redisManager } from '../config/redis.js';
 declare global {
   namespace Express {
     interface Request {
-      user?: {
-        userId: string;
-        username: string;
-        role?: string;
-        organizationId?: number;
-      };
+      user?: TokenPayload;
       sessionData?: SessionData;
       ipAddress?: string;
       userAgent?: string;
@@ -71,10 +66,13 @@ export const authenticateSession = (options: AuthOptions = {}) => {
       }
 
       req.user = {
+        id: decoded.id,
         userId: decoded.userId,
         username: decoded.username,
         role: decoded.role,
         organizationId: decoded.organizationId,
+        organizationName: decoded.organizationName,
+        sessionId: decoded.sessionId
       };
       console.log(
         `🔐 [SESSION AUTH] Token verified for user: ${decoded.username} (${decoded.role})`

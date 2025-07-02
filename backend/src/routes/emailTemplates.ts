@@ -1,7 +1,8 @@
 import express from 'express';
-import { EmailTemplateService } from '../models/EmailTemplate.js';
+import { EmailTemplateService, EmailTemplateInput } from '../models/EmailTemplate.js';
 import { authenticateToken, authorizeRoles } from '../middleware/authMiddleware.js';
 import { emailService } from '../services/emailService.js';
+import { Request, Response } from 'express';
 
 const router = express.Router();
 
@@ -54,46 +55,34 @@ router.post(
   '/',
   authenticateToken,
   authorizeRoles(['admin', 'superadmin']),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
-      const {
-        name,
-        key,
-        subject,
-        body,
-        description,
-        category,
-        subCategory,
-        isActive,
-      } = req.body;
+      const templateData: EmailTemplateInput = {
+        name: req.body.name,
+        key: req.body.key,
+        category: req.body.category,
+        subCategory: req.body.subCategory,
+        subject: req.body.subject,
+        body: req.body.body,
+        isActive: req.body.isActive ?? true,
+        isSystem: req.body.isSystem ?? false,
+        createdBy: req.user?.userId ? parseInt(req.user.userId) : undefined,
+        lastModifiedBy: req.user?.userId ? parseInt(req.user.userId) : undefined,
+      };
 
-      // Validate required fields
-      if (!name || !subject || !body) {
-        return res.status(400).json({
-          error: 'Name, subject, and body are required',
-        });
-      }
-
-      const template = await EmailTemplateService.create({
-        name,
-        key: key || name.toUpperCase().replace(/\s+/g, '_'),
-        subject,
-        body,
-        category: category || 'Other',
-        subCategory: subCategory || '',
-        isActive: isActive !== undefined ? isActive : true,
-        isSystem: false,
-        createdBy: req.user.userId,
-        lastModifiedBy: req.user.userId,
-      });
-
+      const template = await EmailTemplateService.create(templateData);
       res.status(201).json({
+        success: true,
         message: 'Email template created successfully',
-        template,
+        data: template,
       });
     } catch (error) {
       console.error('Error creating email template:', error);
-      res.status(500).json({ error: 'Failed to create email template' });
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create email template',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
   }
 );
@@ -103,40 +92,58 @@ router.put(
   '/:id',
   authenticateToken,
   authorizeRoles(['admin', 'superadmin']),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
-      const template = await EmailTemplateService.getById(parseInt(req.params.id));
+      const { id } = req.params;
+      const templateId = parseInt(id);
 
-      if (!template) {
-        return res.status(404).json({ error: 'Template not found' });
-      }
-
-      if (template.isSystem && req.user.role !== 'superadmin') {
-        return res.status(403).json({
-          error: 'System templates can only be modified by super admins',
+      if (isNaN(templateId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid template ID',
         });
       }
 
-      const updates = {
-        ...req.body,
-        lastModifiedBy: req.user.userId,
+      // Check if template exists and is system template
+      const existingTemplate = await EmailTemplateService.getById(templateId);
+      if (!existingTemplate) {
+        return res.status(404).json({
+          success: false,
+          message: 'Template not found',
+        });
+      }
+
+      if (existingTemplate.isSystem && req.user?.role !== 'superadmin') {
+        return res.status(403).json({
+          success: false,
+          message: 'System templates can only be modified by superadmin',
+        });
+      }
+
+      const updateData: Partial<EmailTemplateInput> = {
+        name: req.body.name,
+        key: req.body.key,
+        category: req.body.category,
+        subCategory: req.body.subCategory,
+        subject: req.body.subject,
+        body: req.body.body,
+        isActive: req.body.isActive,
+        lastModifiedBy: req.user?.userId ? parseInt(req.user.userId) : undefined,
       };
 
-      // Don't allow changing isSystem flag
-      delete updates.isSystem;
-
-      const updatedTemplate = await EmailTemplateService.update(
-        parseInt(req.params.id),
-        updates
-      );
-
+      const updatedTemplate = await EmailTemplateService.update(templateId, updateData);
       res.json({
+        success: true,
         message: 'Email template updated successfully',
-        template: updatedTemplate,
+        data: updatedTemplate,
       });
     } catch (error) {
       console.error('Error updating email template:', error);
-      res.status(500).json({ error: 'Failed to update email template' });
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update email template',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
   }
 );

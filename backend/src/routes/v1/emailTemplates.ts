@@ -12,7 +12,9 @@ interface EmailTemplateRequestBody {
   category: string;
   subCategory?: string;
   subject: string;
-  body: string;
+  body?: string;
+  htmlContent?: string;
+  textContent?: string;
   isActive?: boolean;
 }
 
@@ -93,16 +95,19 @@ router.post(
   authorizeRoles(['admin']),
   asyncHandler(
     async (req: Request<{}, {}, EmailTemplateRequestBody>, res: Response) => {
-      const { name, category, subCategory, subject, body, isActive } = req.body;
+      const { name, category, subCategory, subject, body, htmlContent, textContent, isActive } = req.body;
 
       console.log('Creating email template with data:', req.body);
+
+      // Use htmlContent if available, otherwise fall back to body, then textContent
+      const emailBody = htmlContent || body || textContent || '';
 
       const template = await EmailTemplateService.create({
         name,
         category: Array.isArray(category) ? category[0] : category, // Take first item if array, otherwise use as-is
         subCategory,
         subject,
-        body,
+        body: emailBody,
         isActive: isActive !== undefined ? isActive : true,
         key: req.body.key || name.toUpperCase().replace(/\s+/g, '_'),
         isSystem: false,
@@ -133,7 +138,10 @@ router.put(
         throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Template not found');
       }
 
-      const { name, category, subCategory, subject, body, isActive } = req.body;
+      const { name, category, subCategory, subject, body, htmlContent, textContent, isActive } = req.body;
+
+      // Use htmlContent if available, otherwise fall back to body, then textContent
+      const emailBody = htmlContent || body || textContent || template.body;
 
       const updatedTemplate = await EmailTemplateService.update(
         parseInt(req.params.id),
@@ -142,7 +150,7 @@ router.put(
           category: Array.isArray(category) ? category[0] : category, // Take first item if array, otherwise use as-is
           subCategory,
           subject,
-          body,
+          body: emailBody,
           isActive: isActive !== undefined ? isActive : template.isActive,
           lastModifiedBy: parseInt(req.user?.userId || '0'),
         } as any
@@ -358,6 +366,42 @@ router.get(
         category: 'system',
       },
       { value: 'custom', label: 'Custom Event', category: 'custom' },
+    ];
+
+    return res.json(ApiResponseBuilder.success(eventTriggers));
+  })
+);
+
+// Get event triggers
+router.get(
+  '/meta/event-triggers',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const eventTriggers = [
+      {
+        name: 'INSTRUCTOR_COURSE_ASSIGNMENT',
+        description: 'When an instructor is assigned to a course',
+        category: 'Instructor',
+      },
+      {
+        name: 'ORGANIZATION_COURSE_CONFIRMATION',
+        description: 'When a course is confirmed for an organization',
+        category: 'Organization',
+      },
+      {
+        name: 'PASSWORD_RESET',
+        description: 'When a user requests a password reset',
+        category: 'System',
+      },
+      {
+        name: 'WELCOME_EMAIL',
+        description: 'When a new user account is created',
+        category: 'System',
+      },
+      {
+        name: 'COURSE_REMINDER_INSTRUCTOR',
+        description: 'Reminder sent to instructor before course',
+        category: 'Instructor',
+      },
     ];
 
     return res.json(ApiResponseBuilder.success(eventTriggers));

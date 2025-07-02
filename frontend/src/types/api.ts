@@ -1,33 +1,37 @@
 export interface User {
   id: number;
   username: string;
-  email?: string;
+  email: string;
+  role: string;
   full_name?: string;
   first_name?: string;
-  role:
-    | 'instructor'
-    | 'admin'
-    | 'organization'
-    | 'superadmin'
-    | 'student'
-    | 'accountant'
-    | 'sysadmin';
-  organizationId?: number;
-  organizationName?: string;
+  last_name?: string;
+  organization_id?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Class {
-  id: string;
-  type: string;
-  date: string;
-  time: string;
+  id: number;
+  course_id: number;
+  instructor_id: number;
+  start_time: string;
+  end_time: string;
+  startTime?: string;
+  endTime?: string;
+  status: string;
   location: string;
-  instructor_id: string;
   max_students: number;
-  current_students: number;
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
-  organization?: string;
-  notes?: string;
+  completed: boolean;
+  created_at: string;
+  updated_at: string;
+  course_name: string;
+  coursetypename: string;
+  organizationname: string;
+  notes: string;
+  studentcount: number;
+  studentsattendance: number;
+  date?: string;
 }
 
 export interface Availability {

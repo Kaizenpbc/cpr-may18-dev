@@ -16,6 +16,7 @@ import instructorRouter from '../../routes/instructor.js';
 import organizationRouter from './organization.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
+import bcrypt from 'bcryptjs';
 
 const router = Router();
 
@@ -1328,10 +1329,50 @@ router.put(
 
         await client.query('COMMIT');
 
+        // Send email notifications
+        try {
+          // Get organization contact email
+          const orgResult = await client.query(
+            'SELECT contact_email FROM organizations WHERE id = $1',
+            [courseRequest.organization_id]
+          );
+          
+          const organizationEmail = orgResult.rows[0]?.contact_email;
+          
+          // Send email to instructor
+          if (instructor.email) {
+            await emailService.sendCourseAssignedNotification(instructor.email, {
+              courseName: courseRequest.course_type_name,
+              date: scheduledDate,
+              startTime: startTime,
+              endTime: endTime,
+              location: courseRequest.location,
+              organization: courseRequest.organization_name,
+              students: courseRequest.registered_students || 0,
+            });
+          }
+          
+          // Send email to organization
+          if (organizationEmail) {
+            await emailService.sendCourseScheduledToOrganization(organizationEmail, {
+              courseName: courseRequest.course_type_name,
+              date: scheduledDate,
+              startTime: startTime,
+              endTime: endTime,
+              location: courseRequest.location,
+              instructorName: instructor.instructor_name,
+              students: courseRequest.registered_students || 0,
+            });
+          }
+        } catch (emailError) {
+          console.error('Error sending email notifications:', emailError);
+          // Don't fail the entire operation if emails fail
+        }
+
         return res.json({
           success: true,
           message:
-            'Instructor assigned successfully! Course status updated to Confirmed and added to instructor schedule.',
+            'Instructor assigned successfully! Course status updated to Confirmed and added to instructor schedule. Email notifications sent.',
           course: courseRequest,
           class: classInsertResult.rows[0],
         });
@@ -3346,15 +3387,7 @@ router.get(
         id,
         name,
         description,
-        course_code,
-        duration_hours,
         duration_minutes,
-        prerequisites,
-        certification_type,
-        validity_period_months,
-        course_category,
-        is_active,
-        regulatory_compliance,
         created_at,
         updated_at
       FROM class_types
@@ -3379,13 +3412,7 @@ router.post(
       const {
         name,
         description,
-        duration_hours,
         duration_minutes,
-        prerequisites,
-        certification_type,
-        validity_period_months,
-        course_category,
-        regulatory_compliance,
       } = req.body;
 
       if (!name) {
@@ -3396,30 +3423,18 @@ router.post(
         );
       }
 
-      // Generate course code from first 3 letters of name
-      const courseCode = name.substring(0, 3).toUpperCase();
-
       const result = await pool.query(
         `
       INSERT INTO class_types (
-        name, description, course_code, duration_hours, duration_minutes,
-        prerequisites, certification_type, validity_period_months,
-        course_category, regulatory_compliance, is_active
+        name, description, duration_minutes
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true)
+      VALUES ($1, $2, $3)
       RETURNING *
     `,
         [
           name,
           description,
-          courseCode,
-          duration_hours,
           duration_minutes,
-          prerequisites,
-          certification_type,
-          validity_period_months,
-          course_category,
-          regulatory_compliance,
         ]
       );
 
@@ -3443,18 +3458,8 @@ router.put(
       const {
         name,
         description,
-        duration_hours,
         duration_minutes,
-        prerequisites,
-        certification_type,
-        validity_period_months,
-        course_category,
-        regulatory_compliance,
-        is_active,
       } = req.body;
-
-      // Generate course code from first 3 letters of name if name is updated
-      const courseCode = name ? name.substring(0, 3).toUpperCase() : undefined;
 
       const result = await pool.query(
         `
@@ -3462,31 +3467,15 @@ router.put(
       SET 
         name = COALESCE($1, name),
         description = COALESCE($2, description),
-        course_code = COALESCE($3, course_code),
-        duration_hours = COALESCE($4, duration_hours),
-        duration_minutes = COALESCE($5, duration_minutes),
-        prerequisites = COALESCE($6, prerequisites),
-        certification_type = COALESCE($7, certification_type),
-        validity_period_months = COALESCE($8, validity_period_months),
-        course_category = COALESCE($9, course_category),
-        regulatory_compliance = COALESCE($10, regulatory_compliance),
-        is_active = COALESCE($11, is_active),
+        duration_minutes = COALESCE($3, duration_minutes),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $12
+      WHERE id = $4
       RETURNING *
     `,
         [
           name,
           description,
-          courseCode,
-          duration_hours,
           duration_minutes,
-          prerequisites,
-          certification_type,
-          validity_period_months,
-          course_category,
-          regulatory_compliance,
-          is_active,
           id,
         ]
       );
@@ -3519,8 +3508,7 @@ router.delete(
 
       const result = await pool.query(
         `
-      UPDATE class_types
-      SET is_active = false, updated_at = CURRENT_TIMESTAMP
+      DELETE FROM class_types
       WHERE id = $1
       RETURNING *
     `,
@@ -3537,11 +3525,11 @@ router.delete(
 
       res.json({
         success: true,
-        message: 'Course deactivated successfully',
+        message: 'Course deleted successfully',
         data: result.rows[0],
       });
     } catch (error) {
-      console.error('Error deactivating course:', error);
+      console.error('Error deleting course:', error);
       throw error;
     }
   })
@@ -3557,15 +3545,8 @@ router.get(
         u.id,
         u.username,
         u.email,
-        u.full_name,
-        u.first_name,
-        u.last_name,
         u.role,
-        u.mobile,
-        u.date_onboarded,
-        u.date_offboarded,
-        u.user_comments,
-        u.status,
+        u.phone,
         u.organization_id,
         o.name as organization_name,
         u.created_at,
@@ -3638,32 +3619,22 @@ router.post(
         );
       }
 
-      const bcrypt = require('bcryptjs');
       const passwordHash = bcrypt.hashSync(password, 10);
-      const displayName =
-        full_name || `${first_name || ''} ${last_name || ''}`.trim();
 
       const result = await pool.query(
         `
       INSERT INTO users (
-        username, email, password_hash, full_name, first_name, last_name,
-        role, mobile, organization_id, date_onboarded, user_comments, status
+        username, email, password_hash, role, organization_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active')
-      RETURNING id, username, email, full_name, first_name, last_name, role, mobile, organization_id, date_onboarded, user_comments, status
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, username, email, role, organization_id
     `,
         [
           username,
           email,
           passwordHash,
-          displayName,
-          first_name,
-          last_name,
           role,
-          mobile,
           organization_id,
-          date_onboarded,
-          user_comments,
         ]
       );
 
@@ -3731,15 +3702,8 @@ router.put(
 
       let passwordHash = undefined;
       if (password) {
-        const bcrypt = require('bcryptjs');
         passwordHash = bcrypt.hashSync(password, 10);
       }
-
-      const displayName =
-        full_name ||
-        (first_name || last_name
-          ? `${first_name || ''} ${last_name || ''}`.trim()
-          : undefined);
 
       const result = await pool.query(
         `
@@ -3748,34 +3712,17 @@ router.put(
         username = COALESCE($1, username),
         email = COALESCE($2, email),
         password_hash = COALESCE($3, password_hash),
-        full_name = COALESCE($4, full_name),
-        first_name = COALESCE($5, first_name),
-        last_name = COALESCE($6, last_name),
-        role = COALESCE($7, role),
-        mobile = COALESCE($8, mobile),
-        organization_id = COALESCE($9, organization_id),
-        date_onboarded = COALESCE($10, date_onboarded),
-        date_offboarded = COALESCE($11, date_offboarded),
-        user_comments = COALESCE($12, user_comments),
-        status = COALESCE($13, status),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $14
-      RETURNING id, username, email, full_name, first_name, last_name, role, mobile, organization_id, date_onboarded, date_offboarded, user_comments, status
+        role = COALESCE($4, role),
+        organization_id = COALESCE($5, organization_id)
+      WHERE id = $6
+      RETURNING id, username, email, role, organization_id
     `,
         [
           username,
           email,
           passwordHash,
-          displayName,
-          first_name,
-          last_name,
           role,
-          mobile,
           organization_id,
-          date_onboarded,
-          date_offboarded,
-          user_comments,
-          status,
           id,
         ]
       );
@@ -3808,10 +3755,9 @@ router.delete(
 
       const result = await pool.query(
         `
-      UPDATE users
-      SET status = 'inactive', date_offboarded = CURRENT_DATE, updated_at = CURRENT_TIMESTAMP
+      DELETE FROM users
       WHERE id = $1
-      RETURNING id, username, email, status
+      RETURNING id, username, email, role
     `,
         [id]
       );
@@ -3844,30 +3790,16 @@ router.get(
       const result = await pool.query(`
       SELECT 
         id,
-        vendor_name,
-        contact_first_name,
-        contact_last_name,
-        email,
-        mobile,
-        phone,
-        address_street,
-        address_city,
-        address_province,
-        address_postal_code,
+        name,
+        contact_email,
+        contact_phone,
+        address,
         vendor_type,
-        services,
-        contract_start_date,
-        contract_end_date,
-        performance_rating,
-        insurance_expiry,
-        certification_status,
-        billing_contact_email,
-        status,
-        comments,
+        is_active,
         created_at,
         updated_at
       FROM vendors
-      ORDER BY vendor_name
+      ORDER BY name
     `);
 
       res.json({
@@ -3886,28 +3818,15 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const {
-        vendor_name,
-        contact_first_name,
-        contact_last_name,
-        email,
-        mobile,
-        phone,
-        address_street,
-        address_city,
-        address_province,
-        address_postal_code,
+        name,
+        contact_email,
+        contact_phone,
+        address,
         vendor_type,
-        services,
-        contract_start_date,
-        contract_end_date,
-        performance_rating,
-        insurance_expiry,
-        certification_status,
-        billing_contact_email,
-        comments,
+        is_active,
       } = req.body;
 
-      if (!vendor_name) {
+      if (!name) {
         throw new AppError(
           400,
           errorCodes.VALIDATION_ERROR,
@@ -3918,35 +3837,18 @@ router.post(
       const result = await pool.query(
         `
       INSERT INTO vendors (
-        vendor_name, contact_first_name, contact_last_name, email, mobile, phone,
-        address_street, address_city, address_province, address_postal_code,
-        vendor_type, services, contract_start_date, contract_end_date,
-        performance_rating, insurance_expiry, certification_status,
-        billing_contact_email, comments, status
+        name, contact_email, contact_phone, address, vendor_type, is_active
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 'active')
+      VALUES ($1, $2, $3, $4, $5, COALESCE($6, true))
       RETURNING *
     `,
         [
-          vendor_name,
-          contact_first_name,
-          contact_last_name,
-          email,
-          mobile,
-          phone,
-          address_street,
-          address_city,
-          address_province,
-          address_postal_code,
+          name,
+          contact_email,
+          contact_phone,
+          address,
           vendor_type,
-          services,
-          contract_start_date,
-          contract_end_date,
-          performance_rating,
-          insurance_expiry,
-          certification_status,
-          billing_contact_email,
-          comments,
+          is_active,
         ]
       );
 
@@ -3968,77 +3870,35 @@ router.put(
     try {
       const { id } = req.params;
       const {
-        vendor_name,
-        contact_first_name,
-        contact_last_name,
-        email,
-        mobile,
-        phone,
-        address_street,
-        address_city,
-        address_province,
-        address_postal_code,
+        name,
+        contact_email,
+        contact_phone,
+        address,
         vendor_type,
-        services,
-        contract_start_date,
-        contract_end_date,
-        performance_rating,
-        insurance_expiry,
-        certification_status,
-        billing_contact_email,
-        status,
-        comments,
+        is_active,
       } = req.body;
 
       const result = await pool.query(
         `
       UPDATE vendors
       SET 
-        vendor_name = COALESCE($1, vendor_name),
-        contact_first_name = COALESCE($2, contact_first_name),
-        contact_last_name = COALESCE($3, contact_last_name),
-        email = COALESCE($4, email),
-        mobile = COALESCE($5, mobile),
-        phone = COALESCE($6, phone),
-        address_street = COALESCE($7, address_street),
-        address_city = COALESCE($8, address_city),
-        address_province = COALESCE($9, address_province),
-        address_postal_code = COALESCE($10, address_postal_code),
-        vendor_type = COALESCE($11, vendor_type),
-        services = COALESCE($12, services),
-        contract_start_date = COALESCE($13, contract_start_date),
-        contract_end_date = COALESCE($14, contract_end_date),
-        performance_rating = COALESCE($15, performance_rating),
-        insurance_expiry = COALESCE($16, insurance_expiry),
-        certification_status = COALESCE($17, certification_status),
-        billing_contact_email = COALESCE($18, billing_contact_email),
-        status = COALESCE($19, status),
-        comments = COALESCE($20, comments),
+        name = COALESCE($1, name),
+        contact_email = COALESCE($2, contact_email),
+        contact_phone = COALESCE($3, contact_phone),
+        address = COALESCE($4, address),
+        vendor_type = COALESCE($5, vendor_type),
+        is_active = COALESCE($6, is_active),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $21
+      WHERE id = $7
       RETURNING *
     `,
         [
-          vendor_name,
-          contact_first_name,
-          contact_last_name,
-          email,
-          mobile,
-          phone,
-          address_street,
-          address_city,
-          address_province,
-          address_postal_code,
+          name,
+          contact_email,
+          contact_phone,
+          address,
           vendor_type,
-          services,
-          contract_start_date,
-          contract_end_date,
-          performance_rating,
-          insurance_expiry,
-          certification_status,
-          billing_contact_email,
-          status,
-          comments,
+          is_active,
           id,
         ]
       );
@@ -4072,7 +3932,7 @@ router.delete(
       const result = await pool.query(
         `
       UPDATE vendors
-      SET status = 'inactive', updated_at = CURRENT_TIMESTAMP
+      SET is_active = false, updated_at = CURRENT_TIMESTAMP
       WHERE id = $1
       RETURNING *
     `,
@@ -4169,24 +4029,15 @@ router.get(
       o.id,
       o.name as organization_name,
       o.address,
-      o.city,
-      o.province,
-      o.postal_code,
-      o.country,
       o.created_at,
-      o.contact_person,
-      o.contact_position,
       o.contact_email,
       o.contact_phone,
-      o.organization_comments,
       COUNT(DISTINCT u.id) as user_count,
       COUNT(DISTINCT cr.id) as course_count
     FROM organizations o
     LEFT JOIN users u ON u.organization_id = o.id
     LEFT JOIN course_requests cr ON cr.organization_id = o.id
-    GROUP BY o.id, o.name, o.address, o.city, o.province, 
-             o.postal_code, o.country, o.contact_person, o.contact_position,
-             o.contact_email, o.contact_phone, o.organization_comments
+    GROUP BY o.id, o.name, o.address, o.contact_email, o.contact_phone
     ORDER BY o.name
   `;
 
@@ -4207,47 +4058,26 @@ router.post(
     const {
       name,
       address,
-      city,
-      province,
-      postal_code,
-      country,
-      contact_person,
-      contact_position,
       contact_email,
       contact_phone,
-      organization_comments,
     } = req.body;
 
     const query = `
     INSERT INTO organizations (
       name,
       address,
-      city,
-      province,
-      postal_code,
-      country,
-      contact_person,
-      contact_position,
       contact_email,
       contact_phone,
-      organization_comments,
       created_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP)
+    ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
     RETURNING *
   `;
 
     const values = [
       name,
       address || '',
-      city || '',
-      province || '',
-      postal_code || '',
-      country || 'Canada',
-      contact_person,
-      contact_position,
       contact_email,
       contact_phone,
-      organization_comments,
     ];
 
     const result = await pool.query(query, values);
@@ -4269,15 +4099,8 @@ router.put(
     const {
       name,
       address,
-      city,
-      province,
-      postal_code,
-      country,
-      contact_person,
-      contact_position,
       contact_email,
       contact_phone,
-      organization_comments,
     } = req.body;
 
     const query = `
@@ -4285,31 +4108,17 @@ router.put(
     SET 
       name = $1,
       address = $2,
-      city = $3,
-      province = $4,
-      postal_code = $5,
-      country = $6,
-      contact_person = $7,
-      contact_position = $8,
-      contact_email = $9,
-      contact_phone = $10,
-      organization_comments = $11
-    WHERE id = $12
+      contact_email = $3,
+      contact_phone = $4
+    WHERE id = $5
     RETURNING *
   `;
 
     const values = [
       name,
       address || '',
-      city || '',
-      province || '',
-      postal_code || '',
-      country || 'Canada',
-      contact_person,
-      contact_position,
       contact_email,
       contact_phone,
-      organization_comments,
       id,
     ];
 
