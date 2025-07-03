@@ -1,8 +1,10 @@
 import { Pool } from 'pg';
 import { faker } from '@faker-js/faker';
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
 
-dotenv.config();
+// Load environment variables from root directory
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 const TEST_DB_NAME = process.env.TEST_DB_NAME || 'cpr_test_db';
 
@@ -80,7 +82,7 @@ async function seedTestData() {
 }
 
 // Run seeding if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (require.main === module) {
   seedTestData()
     .then(() => process.exit(0))
     .catch((error) => {

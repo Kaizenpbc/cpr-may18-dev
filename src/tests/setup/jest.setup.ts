@@ -1,10 +1,11 @@
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 import { Pool } from 'pg';
 import setupTestDatabase from './testDbSetup';
 import seedTestData from './seedTestData';
+import * as path from 'path';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from root directory
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 // Global test database pool
 export const testPool = new Pool({
