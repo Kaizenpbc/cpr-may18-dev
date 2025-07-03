@@ -329,7 +329,7 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
                     <TableCell>{item.type === 'class' ? item.organizationname : ''}</TableCell>
                     <TableCell>{item.type === 'class' ? item.location : ''}</TableCell>
                     <TableCell>{item.type === 'class' ? item.coursenumber : ''}</TableCell>
-                    <TableCell>{item.type === 'class' ? item.coursetypename : ''}</TableCell>
+                    <TableCell>{item.type === 'class' ? item.name : ''}</TableCell>
                     <TableCell align='center'>
                       {item.type === 'class' ? (
                         (() => {

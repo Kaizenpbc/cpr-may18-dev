@@ -262,7 +262,7 @@ const InstructorManagement: React.FC = () => {
         key: `class-${item.id}`,
         organizationname: item.organization,
         location: item.location,
-        coursetypename: item.type,
+        name: item.type,
         studentsregistered: item.studentcount,
         notes: item.notes,
         originalData: item
@@ -332,7 +332,7 @@ const InstructorManagement: React.FC = () => {
                     <TableCell>{item.status}</TableCell>
                     <TableCell>{item.type === 'class' ? item.location : '-'}</TableCell>
                     <TableCell>{item.type === 'class' ? item.organizationname : '-'}</TableCell>
-                    <TableCell>{item.type === 'class' ? item.coursetypename : '-'}</TableCell>
+                    <TableCell>{item.type === 'class' ? item.name : '-'}</TableCell>
                     <TableCell>
                       {item.type === 'class' ? item.studentsregistered : '-'}
                     </TableCell>

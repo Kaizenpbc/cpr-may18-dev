@@ -210,7 +210,7 @@ const InvoiceDetailDialog = ({
               {/* Service Details - Remove 'item' prop */}
               <Grid xs={12} sm={6}>
                 <Typography variant='body2'>
-                  <strong>Course:</strong> {invoice.coursetypename} (
+                  <strong>Course:</strong> {invoice.name} (
                   {invoice.coursenumber})
                 </Typography>
               </Grid>

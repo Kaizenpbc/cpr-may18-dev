@@ -270,7 +270,7 @@ const InstructorDashboard: React.FC = () => {
                   primary={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Typography variant="subtitle1">
-                        {cls.coursetypename}
+                        {cls.name}
                       </Typography>
                       <Chip
                         label={cls.status || 'Scheduled'}

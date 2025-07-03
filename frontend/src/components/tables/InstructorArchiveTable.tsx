@@ -138,7 +138,7 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
 
                     <TableCell sx={{ backgroundColor: rowColor }}>
                       <Typography variant='body2'>
-                        {course.coursetypename || 'CPR Class'}
+                        {course.name || 'CPR Class'}
                       </Typography>
                     </TableCell>
 

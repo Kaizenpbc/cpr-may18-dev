@@ -143,7 +143,7 @@ function PricingManager() {
     }
     if (filterType) {
       filtered = filtered.filter(
-        rule => rule.coursetypeid === parseInt(filterType, 10)
+        rule => rule.id === parseInt(filterType, 10)
       );
     }
 
@@ -155,9 +155,9 @@ function PricingManager() {
           compareA = a.organizationname || '';
           compareB = b.organizationname || '';
           break;
-        case 'coursetypename':
-          compareA = a.coursetypename || '';
-          compareB = b.coursetypename || '';
+        case 'name':
+          compareA = a.name || '';
+          compareB = b.name || '';
           break;
         case 'price':
           compareA = Number(a.price) || 0;
@@ -229,8 +229,8 @@ function PricingManager() {
                 <em>All Course Types</em>
               </MenuItem>
               {courseTypes.map(ct => (
-                <MenuItem key={ct.coursetypeid} value={ct.coursetypeid}>
-                  {ct.coursetypename} ({ct.coursecode})
+                <MenuItem key={ct.id} value={ct.id}>
+                  {ct.name} ({ct.coursecode})
                 </MenuItem>
               ))}
             </Select>
@@ -282,9 +282,9 @@ function PricingManager() {
                 </TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>
                   <TableSortLabel
-                    active={orderBy === 'coursetypename'}
-                    direction={orderBy === 'coursetypename' ? order : 'asc'}
-                    onClick={() => handleSortRequest('coursetypename')}
+                    active={orderBy === 'name'}
+                    direction={orderBy === 'name' ? order : 'asc'}
+                    onClick={() => handleSortRequest('name')}
                   >
                     Course Type
                   </TableSortLabel>
@@ -316,7 +316,7 @@ function PricingManager() {
                       {rule.organizationname} (ID: {rule.organizationid})
                     </TableCell>
                     <TableCell>
-                      {rule.coursetypename} (ID: {rule.coursetypeid})
+                      {rule.name} (ID: {rule.id})
                     </TableCell>
                     <TableCell>{Number(rule.price).toFixed(2)}</TableCell>
                     <TableCell>

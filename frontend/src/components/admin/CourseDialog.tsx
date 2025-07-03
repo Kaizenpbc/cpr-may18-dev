@@ -11,23 +11,33 @@ import {
   CircularProgress,
 } from '@mui/material';
 
+interface Course {
+  id: number;
+  name: string;
+  coursecode: string;
+  duration: number;
+  maxstudents: number;
+  created_at: string;
+  updated_at: string;
+}
+
 interface CourseDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: Omit<Course, 'coursetypeid'>) => Promise<void>;
+  onSave: (data: Omit<Course, 'id'>) => Promise<void>;
   course?: Course;
 }
 
 interface CourseData {
-  coursetypeid?: number;
-  coursetypename: string;
+  id?: number;
+  name: string;
   coursecode: string;
   duration: number;
   maxstudents: number;
 }
 
 interface FieldErrors {
-  coursetypename?: string;
+  name?: string;
   coursecode?: string;
   duration?: string;
   maxstudents?: string;
@@ -43,7 +53,7 @@ const CourseDialog: React.FC<CourseDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<CourseData>({
-    coursetypename: course?.coursetypename || '',
+    name: course?.name || '',
     coursecode: course?.coursecode || '',
     duration: course?.duration || 0,
     maxstudents: course?.maxstudents || 0,
@@ -69,8 +79,8 @@ const CourseDialog: React.FC<CourseDialogProps> = ({
     const newFieldErrors: FieldErrors = {};
     let isValid = true;
 
-    if (!formData.coursetypename) {
-      newFieldErrors.coursetypename = 'Course Name required';
+    if (!formData.name) {
+      newFieldErrors.name = 'Course Name required';
       isValid = false;
     }
     if (!formData.coursecode) {
@@ -121,11 +131,11 @@ const CourseDialog: React.FC<CourseDialogProps> = ({
           <TextField
             fullWidth
             label='Course Name'
-            name='coursetypename'
-            value={formData.coursetypename}
+            name='name'
+            value={formData.name}
             onChange={handleChange}
-            error={!!fieldErrors.coursetypename}
-            helperText={fieldErrors.coursetypename}
+            error={!!fieldErrors.name}
+            helperText={fieldErrors.name}
             margin='normal'
             disabled={loading}
           />

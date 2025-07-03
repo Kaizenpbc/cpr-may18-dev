@@ -58,7 +58,7 @@ interface ScheduledClass {
   date: string;
   organizationname: string;
   course_name: string;
-  coursetypename: string;
+  name: string;
   location: string;
   studentcount: number;
   studentsattendance: number;
@@ -178,7 +178,7 @@ const MyScheduleView: React.FC = () => {
         displayDate: formatDisplayDate(c.date),
         status: 'CONFIRMED',
         organization: c.organizationname || 'Unassigned',
-        courseType: c.course_name || c.coursetypename || 'CPR Class',
+        courseType: c.course_name || c.name || 'CPR Class',
         location: c.location || 'TBD',
         studentCount: c.studentcount || 0,
         studentsAttendance: c.studentsattendance || 0,

@@ -24,8 +24,8 @@ import logger from '../../utils/logger';
 import CourseDialog from './CourseDialog';
 
 interface Course {
-  coursetypeid: number;
-  coursetypename: string;
+  id: number;
+  name: string;
   coursecode: string;
   duration: number;
   maxstudents: number;
@@ -97,10 +97,10 @@ const CourseManager: React.FC<CourseManagerProps> = ({ showSnackbar }) => {
     }
   };
 
-  const handleSave = async (courseData: Omit<Course, 'coursetypeid' | 'created_at' | 'updated_at'>) => {
+  const handleSave = async (courseData: Omit<Course, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       if (editingCourse) {
-        await api.put(`/courses/${editingCourse.coursetypeid}`, courseData);
+        await api.put(`/courses/${editingCourse.id}`, courseData);
         showSnackbar('Course updated successfully', 'success');
       } else {
         await api.post('/courses', courseData);
@@ -174,9 +174,9 @@ const CourseManager: React.FC<CourseManagerProps> = ({ showSnackbar }) => {
               </TableRow>
             ) : (
               courses.map(course => (
-                <TableRow key={course.coursetypeid}>
-                  <TableCell>{course.coursetypeid}</TableCell>
-                  <TableCell>{course.coursetypename}</TableCell>
+                <TableRow key={course.id}>
+                  <TableCell>{course.id}</TableCell>
+                  <TableCell>{course.name}</TableCell>
                   <TableCell>{course.coursecode}</TableCell>
                   <TableCell>{course.duration}</TableCell>
                   <TableCell>{course.maxstudents}</TableCell>
@@ -196,7 +196,7 @@ const CourseManager: React.FC<CourseManagerProps> = ({ showSnackbar }) => {
                     </IconButton>
                     <IconButton
                       onClick={() =>
-                        handleDelete(course.coursetypeid, course.coursetypename)
+                        handleDelete(course.id, course.name)
                       }
                       color='error'
                       size='small'
@@ -217,8 +217,8 @@ const CourseManager: React.FC<CourseManagerProps> = ({ showSnackbar }) => {
           setDialogOpen(false);
           setEditingCourse(null);
         }}
-        onSave={handleSave}
-        courseType={editingCourse || undefined}
+        onSave={handleSave as any}
+        course={editingCourse || undefined}
       />
     </Box>
   );

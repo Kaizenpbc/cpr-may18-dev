@@ -88,7 +88,7 @@ const OrgCourseHistoryTable = ({ courses = [] }) => {
               <TableCell>{formatDisplayDate(course.daterequested)}</TableCell>
               <TableCell>{formatDisplayDate(course.datescheduled)}</TableCell>
               <TableCell>{course.coursenumber || '-'}</TableCell>
-              <TableCell>{course.coursetypename || '-'}</TableCell>
+              <TableCell>{course.name || '-'}</TableCell>
               <TableCell>{course.location || '-'}</TableCell>
               <TableCell align='center'>
                 <Chip

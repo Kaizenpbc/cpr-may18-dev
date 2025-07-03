@@ -60,7 +60,7 @@ interface Student {
 
 interface ClassData {
   course_id: number;
-  coursetypename: string;
+  name: string;
   organizationname: string;
   location: string;
   start_time: string;
@@ -326,7 +326,7 @@ const ClassAttendanceView: React.FC = () => {
                   <MenuItem key={course.course_id} value={course.course_id}>
                     <Box>
                       <Typography variant='body1'>
-                        {course.coursetypename} - {course.organizationname}
+                        {course.name} - {course.organizationname}
                       </Typography>
                       <Typography variant='body2' color='text.secondary'>
                         {formatTime(course.start_time)} -{' '}
@@ -383,7 +383,7 @@ const ClassAttendanceView: React.FC = () => {
                 }}
               >
                 <Typography variant='subtitle1' gutterBottom>
-                  {selectedClass.coursetypename} -{' '}
+                  {selectedClass.name} -{' '}
                   {selectedClass.organizationname}
                 </Typography>
                 <Grid container spacing={2}>
@@ -623,7 +623,7 @@ const ClassAttendanceView: React.FC = () => {
               Class Details:
             </Typography>
             <Box component="div" sx={{ fontSize: '0.875rem' }}>
-              Course: {selectedClass?.coursetypename}<br />
+                              Course: {selectedClass?.name}<br />
               Organization: {selectedClass?.organizationname}<br />
               Location: {selectedClass?.location}<br />
               Time: {selectedClass ? `${formatTime(selectedClass.start_time)} - ${formatTime(selectedClass.end_time)}` : ''}<br />

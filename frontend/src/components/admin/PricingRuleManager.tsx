@@ -168,7 +168,7 @@ function PricingRuleManager() {
                     </TableCell>{' '}
                     {/* Display name */}
                     <TableCell>
-                      {rule.coursetypename || 'All Types'}
+                      {rule.name || 'All Types'}
                     </TableCell>{' '}
                     {/* Display name */}
                     <TableCell align='right'>

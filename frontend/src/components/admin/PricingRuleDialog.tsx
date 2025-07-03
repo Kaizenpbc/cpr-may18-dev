@@ -206,10 +206,10 @@ function PricingRuleDialog({ open, onClose, onSave, rule }) {
                   >
                     {courseTypes.map(type => (
                       <MenuItem
-                        key={type.coursetypeid}
-                        value={String(type.coursetypeid)}
+                        key={type.id}
+                        value={String(type.id)}
                       >
-                        {type.coursetypename} ({type.coursecode})
+                        {type.name} ({type.coursecode})
                       </MenuItem>
                     ))}
                   </Select>

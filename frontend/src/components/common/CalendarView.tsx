@@ -278,7 +278,7 @@ const CalendarView = ({
               if (scheduledClass) {
                 bgColor = 'primary.light';
                 statusIcon = <EventBusyIcon sx={{ color: 'white' }} />;
-                tooltipText = `${scheduledClass.coursetypename} - ${scheduledClass.organizationname}`;
+                tooltipText = `${scheduledClass.name} - ${scheduledClass.organizationname}`;
               }
             }
 
@@ -363,7 +363,7 @@ const CalendarView = ({
                         fontSize: '0.7rem',
                       }}
                     >
-                      {scheduledClass.coursetypename}
+                      {scheduledClass.name}
                     </Typography>
                   )}
                 </Paper>

@@ -208,7 +208,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
                   <MenuItem key={course.course_id} value={course.course_id}>
                     <Box>
                       <Typography variant='body1'>
-                        {course.coursetypename} - {course.organizationname}
+                        {course.name} - {course.organizationname}
                       </Typography>
                       <Typography variant='body2' color='text.secondary'>
                         {formatTime(course.start_time)} -{' '}
@@ -253,7 +253,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
                 }}
               >
                 <Typography variant='subtitle1' gutterBottom>
-                  {selectedClass.coursetypename} -{' '}
+                  {selectedClass.name} -{' '}
                   {selectedClass.organizationname}
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
