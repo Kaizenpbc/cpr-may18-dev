@@ -30,7 +30,7 @@ import {
   CalendarToday as CalendarIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
-import { api } from '../../../services/api';
+import { fetchCourseAdminDashboardData } from '../../../services/api';
 
 interface InstructorStats {
   instructor_id: number;
@@ -52,11 +52,12 @@ interface DashboardSummary {
 }
 
 const InstructorDashboard: React.FC = () => {
-  const [instructorStats, setInstructorStats] = useState<InstructorStats[]>([]);
-  const [dashboardSummary, setDashboardSummary] =
-    useState<DashboardSummary | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>(
+  const [selectedMonth, setSelectedMonth] = useState(
     new Date().toISOString().slice(0, 7)
+  );
+  const [instructorStats, setInstructorStats] = useState<InstructorStats[]>([]);
+  const [dashboardSummary, setDashboardSummary] = useState<DashboardSummary | null>(
+    null
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,15 +70,9 @@ const InstructorDashboard: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [statsResponse, summaryResponse] = await Promise.all([
-        api.get(`/admin/instructor-stats?month=${selectedMonth}`),
-        api.get(`/admin/dashboard-summary?month=${selectedMonth}`),
-      ]);
-
-      // Ensure instructorStats is always an array
-      const statsData = statsResponse.data.data;
-      setInstructorStats(Array.isArray(statsData) ? statsData : []);
-      setDashboardSummary(summaryResponse.data.data);
+      const data = await fetchCourseAdminDashboardData(selectedMonth);
+      setInstructorStats(Array.isArray(data.instructorStats) ? data.instructorStats : []);
+      setDashboardSummary(data.dashboardSummary);
     } catch (err) {
       setError('Failed to fetch dashboard data');
       console.error('Dashboard fetch error:', err);

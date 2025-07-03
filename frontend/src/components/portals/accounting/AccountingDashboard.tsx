@@ -15,7 +15,7 @@ import {
   Payment as PaymentIcon,
   School as CourseIcon,
 } from '@mui/icons-material';
-import { api } from '../../../services/api';
+import { fetchAccountingDashboardData } from '../../../services/api';
 
 interface DashboardData {
   monthlyRevenue: number;
@@ -92,8 +92,8 @@ const AccountingDashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/accounting/dashboard');
-      setDashboardData(response.data.data);
+      const data = await fetchAccountingDashboardData();
+      setDashboardData(data);
       setError(null);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);

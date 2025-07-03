@@ -570,6 +570,51 @@ export const emailTemplateApi = {
   getTemplateVariables: () => api.get('/email-templates/meta/variables'),
 };
 
+// Course Admin Dashboard endpoints
+export const fetchCourseAdminDashboardData = async (month: string) => {
+  console.log('[Debug] api.ts - Fetching course admin dashboard data for month:', month);
+  try {
+    const [statsResponse, summaryResponse] = await Promise.all([
+      api.get<ApiResponse<any>>(`/admin/instructor-stats?month=${month}`),
+      api.get<ApiResponse<any>>(`/admin/dashboard-summary?month=${month}`)
+    ]);
+
+    const data = {
+      instructorStats: extractLegacyData(statsResponse) || [],
+      dashboardSummary: extractLegacyData(summaryResponse) || null
+    };
+
+    console.log('[Debug] api.ts - Course admin dashboard data received:', data);
+    return data;
+  } catch (error) {
+    console.error('[Debug] api.ts - Error fetching course admin dashboard data:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('[Debug] api.ts - Response status:', error.response?.status);
+      console.error('[Debug] api.ts - Response data:', error.response?.data);
+    }
+    throw error;
+  }
+};
+
+// Accounting Dashboard endpoints
+export const fetchAccountingDashboardData = async () => {
+  console.log('[Debug] api.ts - Fetching accounting dashboard data');
+  try {
+    const response = await api.get<ApiResponse<any>>('/accounting/dashboard');
+    const data = extractLegacyData(response);
+    
+    console.log('[Debug] api.ts - Accounting dashboard data received:', data);
+    return data;
+  } catch (error) {
+    console.error('[Debug] api.ts - Error fetching accounting dashboard data:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('[Debug] api.ts - Response status:', error.response?.status);
+      console.error('[Debug] api.ts - Response data:', error.response?.data);
+    }
+    throw error;
+  }
+};
+
 export default api;
 
 console.log('[Debug] api.ts - API service initialized');
