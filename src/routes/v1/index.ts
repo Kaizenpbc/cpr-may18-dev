@@ -12,20 +12,44 @@ const router = Router();
 console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
 
 // Example route with error handling
-router.get('/users', asyncHandler(async (_req: Request, res: Response) => {
-  // TODO: Implement actual user fetching
-  res.json({
-    success: true,
-    data: {
-      users: [
-        { id: 1, username: 'testuser' }
-      ]
-    },
-    meta: {
-      timestamp: new Date().toISOString(),
-      version: '1.0.0'
-    }
-  });
+router.get('/users', asyncHandler(async (req: Request, res: Response) => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const offset = (page - 1) * limit;
+
+  try {
+    // Get total count
+    const countResult = await pool.query('SELECT COUNT(*) FROM users');
+    const totalCount = parseInt(countResult.rows[0].count);
+
+    // Get paginated users
+    const result = await pool.query(
+      'SELECT id, username, email, created_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+      [limit, offset]
+    );
+
+    const users = result.rows;
+    
+    return res.json({
+      success: true,
+      data: users,
+      metadata: {
+        pagination: {
+          page,
+          limit,
+          total: totalCount,
+          pages: Math.ceil(totalCount / limit)
+        }
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching users:', error);
+    throw new AppError(
+      500,
+      errorCodes.DB_QUERY_ERROR,
+      'Failed to fetch users'
+    );
+  }
 }));
 
 // Example route with error throwing
@@ -43,14 +67,32 @@ router.get(
       );
     }
 
-    // Example of using the standardized response
-    const user = { id: 1, name: 'John Doe' };
+    try {
+      const result = await pool.query('SELECT id, username, email, created_at FROM users WHERE id = $1', [id]);
+      
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'User not found'
+        );
+      }
 
-    return res.json(
-      ApiResponseBuilder.success(user, {
-        version: '1.0.0',
-      })
-    );
+      return res.json({
+        success: true,
+        data: result.rows[0]
+      });
+    } catch (error: any) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      console.error('Error fetching user:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch user'
+      );
+    }
   })
 );
 
@@ -107,5 +149,4 @@ router.get('/certifications/:id', asyncHandler(async (req: Request, res: Respons
   }
 }));
 
-export default router; 
 export default router; 

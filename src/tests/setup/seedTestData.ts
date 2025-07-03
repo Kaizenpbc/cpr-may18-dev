@@ -40,7 +40,7 @@ async function seedTestData() {
     // Generate and insert test users
     const testUsers: TestUser[] = Array.from({ length: 10 }, () => ({
       id: faker.number.int({ min: 1, max: 1000 }),
-      username: faker.internet.userName(),
+      username: faker.internet.username(),
       email: faker.internet.email(),
       password_hash: faker.internet.password(),
       created_at: faker.date.past(),

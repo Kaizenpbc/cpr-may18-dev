@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import setupTestDatabase from './testDbSetup';
 import seedTestData from './seedTestData';
 import * as path from 'path';
+import { server } from '../../server';
 
 // Load environment variables from root directory
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
@@ -28,6 +29,9 @@ beforeAll(async () => {
 // Global teardown - runs once after all tests
 afterAll(async () => {
   await testPool.end();
+  if (server) {
+    server.close();
+  }
 }, 10000);
 
 // Reset database between tests
