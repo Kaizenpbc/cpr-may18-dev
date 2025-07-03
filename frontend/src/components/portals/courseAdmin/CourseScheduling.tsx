@@ -46,7 +46,6 @@ interface Course {
 }
 
 const CourseScheduling = () => {
-  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { showSuccess, showError } = useSnackbar();
@@ -58,18 +57,14 @@ const CourseScheduling = () => {
   const [cancelReason, setCancelReason] = useState('');
 
   // Fetch courses with React Query
-  const { data: coursesData = [] } = useQuery({
+  const { data: courses = [] } = useQuery({
     queryKey: ['courses'],
     queryFn: async () => {
-      const response = await api.get('/courses');
+      const response = await api.get('/courses/pending');
       return response.data.data;
     },
     refetchInterval: 30000, // Poll every 30 seconds
   });
-
-  useEffect(() => {
-    setCourses(coursesData);
-  }, [coursesData]);
 
   const handleCancelClick = (course: Course) => {
     setCourseToCancel(course);
