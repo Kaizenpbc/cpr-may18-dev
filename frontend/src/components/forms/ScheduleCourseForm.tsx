@@ -22,8 +22,10 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AxiosResponse } from 'axios';
 
 interface CourseType {
-  coursetypeid: number;
-  coursetypename: string;
+  id: number;
+  name: string;
+  description?: string;
+  duration_minutes?: number;
 }
 
 interface FormData {
@@ -239,8 +241,8 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
                   </MenuItem>
                 ) : courseTypes.length > 0 ? (
                   courseTypes.map(type => (
-                    <MenuItem key={type.coursetypeid} value={type.coursetypeid}>
-                      {type.coursetypename}
+                    <MenuItem key={type.id} value={type.id}>
+                      {type.name}
                     </MenuItem>
                   ))
                 ) : (
