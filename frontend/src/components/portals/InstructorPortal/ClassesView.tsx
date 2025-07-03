@@ -25,7 +25,7 @@ const ClassesView = ({ classes }) => {
     try {
       logger.debug('[ClassesView] Making API request to update attendance...');
       const response = await api.post(
-        '/instructor/classes/students/attendance',
+        '/instructors/classes/students/attendance',
         {
           course_id: classId,
           attendance,
@@ -52,7 +52,7 @@ const ClassesView = ({ classes }) => {
 
     try {
       logger.debug('[ClassesView] Making API request to update notes...');
-      const response = await api.post('/instructor/classes/notes', {
+      const response = await api.post('/instructors/classes/notes', {
         course_id: classId,
         notes,
       });

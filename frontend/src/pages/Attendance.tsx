@@ -66,7 +66,7 @@ const Attendance: React.FC = () => {
     queryKey: ['attendance'],
     queryFn: async () => {
       try {
-        const response = await api.get('/instructor/attendance');
+        const response = await api.get('/instructors/attendance');
         return response.data.data;
       } catch (error) {
         if (error.response?.status === 401) {

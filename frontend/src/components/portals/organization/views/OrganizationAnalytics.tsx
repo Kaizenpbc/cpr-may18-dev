@@ -19,6 +19,7 @@ import {
   People as PeopleIcon,
   Receipt as ReceiptIcon,
 } from '@mui/icons-material';
+import { formatDisplayDate } from '../../../../utils/dateUtils';
 
 // TypeScript interfaces
 interface OrganizationData {
@@ -274,7 +275,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
                     <TableRow key={course.id}>
                       <TableCell>{course.course_type_name}</TableCell>
                       <TableCell>
-                        {new Date(course.request_submitted_date).toLocaleDateString()}
+                        {formatDisplayDate(course.request_submitted_date)}
                       </TableCell>
                       <TableCell>{course.location}</TableCell>
                       <TableCell>{course.registered_students}</TableCell>

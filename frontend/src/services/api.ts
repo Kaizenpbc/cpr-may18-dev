@@ -264,10 +264,36 @@ export const studentApi = {
 
 // Instructor endpoints
 export const instructorApi = {
+  // Basic instructor data
   getSchedule: () => api.get('/instructor/schedule'),
   getAvailability: () => api.get('/instructor/availability'),
   updateAvailability: (data: any) =>
     api.put('/instructor/availability', data),
+  
+  // Classes and courses
+  getClasses: () => api.get('/instructor/classes'),
+  getClassesToday: () => api.get('/instructor/classes/today'),
+  getClassesCompleted: () => api.get('/instructor/classes/completed'),
+  getClassesActive: () => api.get('/instructor/classes/active'),
+  getClassStudents: (courseId: number) => api.get(`/instructor/classes/${courseId}/students`),
+  completeClass: (courseId: number) => api.put(`/instructor/classes/${courseId}/complete`),
+  updateAttendance: (courseId: number, students: any[]) => 
+    api.put(`/instructor/classes/${courseId}/attendance`, { students }),
+  updateClassNotes: (courseId: number, notes: string) => 
+    api.post('/instructor/classes/notes', { courseId, notes }),
+  
+  // Availability management
+  addAvailability: (date: string) => api.post('/instructor/availability', { date }),
+  removeAvailability: (date: string) => api.delete(`/instructor/availability/${date}`),
+  
+  // Attendance
+  getAttendance: () => api.get('/instructor/attendance'),
+  markAttendance: (courseId: number, students: any[]) => 
+    api.post(`/instructor/classes/${courseId}/attendance`, { students }),
+  
+  // Dashboard data
+  getDashboardStats: () => api.get('/instructor/dashboard/stats'),
+  getTodayClasses: () => api.get('/instructor/classes/today'),
 };
 
 // Additional exports for backward compatibility
@@ -588,6 +614,27 @@ export const fetchCourseAdminDashboardData = async (month: string) => {
     return data;
   } catch (error) {
     console.error('[Debug] api.ts - Error fetching course admin dashboard data:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('[Debug] api.ts - Response status:', error.response?.status);
+      console.error('[Debug] api.ts - Response data:', error.response?.data);
+    }
+    throw error;
+  }
+};
+
+// Instructor Workload Report endpoint
+export const getInstructorWorkloadReport = async (startDate: string, endDate: string) => {
+  console.log('[Debug] api.ts - Fetching instructor workload report for:', { startDate, endDate });
+  try {
+    const response = await api.get<ApiResponse<any>>('/admin/instructor-workload-report', {
+      params: { startDate, endDate }
+    });
+    const data = extractLegacyData(response);
+    
+    console.log('[Debug] api.ts - Instructor workload report data received:', data);
+    return data || [];
+  } catch (error) {
+    console.error('[Debug] api.ts - Error fetching instructor workload report:', error);
     if (axios.isAxiosError(error)) {
       console.error('[Debug] api.ts - Response status:', error.response?.status);
       console.error('[Debug] api.ts - Response data:', error.response?.data);

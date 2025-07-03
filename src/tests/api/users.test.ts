@@ -33,9 +33,19 @@ describe('Users API', () => {
 
   describe('GET /api/v1/users/:id', () => {
     it('should return a user by id', async () => {
-      // First, get a user id from the database
-      const result = await testPool.query('SELECT id FROM users LIMIT 1');
-      const userId = result.rows[0].id;
+      // First, create a test user to ensure we have one
+      const testUser = {
+        username: 'testuser',
+        email: 'test@example.com',
+        password_hash: 'testhash',
+        created_at: new Date()
+      };
+      
+      const insertResult = await testPool.query(
+        'INSERT INTO users (username, email, password_hash, created_at) VALUES ($1, $2, $3, $4) RETURNING id',
+        [testUser.username, testUser.email, testUser.password_hash, testUser.created_at]
+      );
+      const userId = insertResult.rows[0].id;
 
       const response = await request(app)
         .get(`/api/v1/users/${userId}`)

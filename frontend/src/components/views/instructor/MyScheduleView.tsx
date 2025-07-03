@@ -24,10 +24,15 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
 import { Refresh } from '@mui/icons-material';
-import { useInstructorData, AvailabilitySlot, ScheduledClass } from '../../../hooks/useInstructorData';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { formatDisplayDate } from '../../utils/dateUtils';
+import { 
+  useInstructorClasses, 
+  useCompletedClasses, 
+  useInstructorAvailability,
+  useRefreshInstructorData
+} from '../../../services/instructorService';
 
 interface ScheduleEntry {
   key: string;
@@ -42,6 +47,23 @@ interface ScheduleEntry {
   notes?: string;
 }
 
+interface AvailabilitySlot {
+  id: number;
+  date: string;
+  status: string;
+}
+
+interface ScheduledClass {
+  course_id: number;
+  date: string;
+  organizationname: string;
+  course_name: string;
+  coursetypename: string;
+  location: string;
+  studentcount: number;
+  studentsattendance: number;
+}
+
 const MyScheduleView: React.FC = () => {
   const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
@@ -50,13 +72,15 @@ const MyScheduleView: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [error, setError] = useState<string | null>(null);
 
-  const {
-    availableDates,
-    scheduledClasses,
-    completedClasses,
-    loading,
-    loadData,
-  } = useInstructorData();
+  // Use centralized service hooks instead of useInstructorData
+  const { data: scheduledClasses = [], isLoading: classesLoading, error: classesError } = useInstructorClasses();
+  const { data: completedClasses = [], isLoading: completedLoading, error: completedError } = useCompletedClasses();
+  const { data: availableDates = [], isLoading: availabilityLoading, error: availabilityError } = useInstructorAvailability();
+  const refreshData = useRefreshInstructorData();
+
+  // Combine loading states
+  const loading = classesLoading || completedLoading || availabilityLoading;
+  const combinedError = classesError || completedError || availabilityError || error;
 
   console.log('[MyScheduleView] Component rendered with props:', {
     availableDates: JSON.stringify(availableDates, null, 2),
@@ -75,8 +99,8 @@ const MyScheduleView: React.FC = () => {
       return;
     }
     console.log('[MyScheduleView] User authenticated, loading data');
-    loadData();
-  }, [isAuthenticated, navigate, loadData]);
+    refreshData();
+  }, [isAuthenticated, navigate, refreshData]);
 
   // Add a refresh effect when the component is focused/visible
   useEffect(() => {
@@ -84,7 +108,7 @@ const MyScheduleView: React.FC = () => {
       console.log('[MyScheduleView] Window focused, checking authentication');
       if (isAuthenticated) {
         console.log('[MyScheduleView] User authenticated, refreshing data');
-        loadData();
+        refreshData();
       }
     };
 
@@ -95,7 +119,7 @@ const MyScheduleView: React.FC = () => {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleFocus);
     };
-  }, [isAuthenticated, loadData]);
+  }, [isAuthenticated, refreshData]);
 
   const handleUnauthorized = async () => {
     await logout();
@@ -107,7 +131,7 @@ const MyScheduleView: React.FC = () => {
     return format(date, 'yyyy-MM-dd');
   };
 
-  // Transform the data from useInstructorData into ScheduleEntry format
+  // Transform the data from centralized service into ScheduleEntry format
   const schedule: ScheduleEntry[] = React.useMemo(() => {
     console.log('[MyScheduleView] Computing schedule with data:', {
       availableDates: JSON.stringify(availableDates, null, 2),
@@ -301,7 +325,7 @@ const MyScheduleView: React.FC = () => {
             <Typography variant='h5'>My Schedule</Typography>
             <Tooltip title='Refresh schedule data'>
               <IconButton
-                onClick={loadData}
+                onClick={refreshData}
                 disabled={loading}
                 color='primary'
                 size='large'
@@ -316,9 +340,9 @@ const MyScheduleView: React.FC = () => {
           </Typography>
         </Box>
 
-        {error && (
+        {combinedError && (
           <Alert severity='error' sx={{ mb: 2 }}>
-            {error}
+            {combinedError.message}
           </Alert>
         )}
 

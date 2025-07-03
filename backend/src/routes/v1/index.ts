@@ -12,7 +12,6 @@ import emailTemplatesRouter from './emailTemplates.js';
 import { cacheService } from '../../services/cacheService.js';
 import healthRouter from './health.js';
 import cacheRouter from './cache.js';
-import instructorRouter from '../../routes/instructor.js';
 import organizationRouter from './organization.js';
 import organizationPricingRouter from './organizationPricing.js';
 import { Server } from 'socket.io';
@@ -26,9 +25,6 @@ router.use('/health', healthRouter);
 
 // Mount cache routes
 router.use('/cache', cacheRouter);
-
-// Mount instructor routes
-router.use('/instructors', instructorRouter);
 
 // Mount organization routes
 router.use('/organization', organizationRouter);
@@ -393,111 +389,9 @@ router.post(
   })
 );
 
-// Get organization's courses (non-archived)
-router.get('/organization/courses', authenticateToken, async (req, res) => {
-  try {
-    const userRole = req.user?.role;
-    const organizationId = req.user?.organizationId;
-    const filterOrgId = req.query.organization_id ? parseInt(req.query.organization_id as string) : null;
+// Organization courses endpoint moved to organization.ts to avoid duplicate routes
 
-    // For admin users, allow filtering by organization_id
-    if (userRole === 'admin') {
-      const query = filterOrgId 
-        ? `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.organization_id = $1 AND cr.archived = false ORDER BY cr.created_at DESC`
-        : `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.archived = false ORDER BY cr.created_at DESC`;
-      const result = await pool.query(query, filterOrgId ? [filterOrgId] : []);
-      return res.json({
-        success: true,
-        data: result.rows,
-        meta: {
-          timestamp: new Date().toISOString(),
-          version: '1.0.0'
-        }
-      });
-    }
-
-    // For organization users, only show their organization's courses
-    if (!organizationId) {
-      return res.status(403).json({
-        success: false,
-        error: 'User is not associated with any organization'
-      });
-    }
-
-    const result = await pool.query(
-      `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.organization_id = $1 AND cr.archived = false ORDER BY cr.created_at DESC`,
-      [organizationId]
-    );
-
-    res.json({
-      success: true,
-      data: result.rows,
-      meta: {
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching organization courses:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
-  }
-});
-
-// Get organization's archived courses
-router.get('/organization/archive', authenticateToken, async (req, res) => {
-  try {
-    const userRole = req.user?.role;
-    const organizationId = req.user?.organizationId;
-    const filterOrgId = req.query.organization_id ? parseInt(req.query.organization_id as string) : null;
-
-    // For admin users, allow filtering by organization_id
-    if (userRole === 'admin') {
-      const query = filterOrgId 
-        ? `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.organization_id = $1 AND cr.archived = true ORDER BY cr.archived_at DESC`
-        : `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.archived = true ORDER BY cr.archived_at DESC`;
-      const result = await pool.query(query, filterOrgId ? [filterOrgId] : []);
-      return res.json({
-        success: true,
-        data: result.rows,
-        meta: {
-          timestamp: new Date().toISOString(),
-          version: '1.0.0'
-        }
-      });
-    }
-
-    // For organization users, only show their organization's archived courses
-    if (!organizationId) {
-      return res.status(403).json({
-        success: false,
-        error: 'User is not associated with any organization'
-      });
-    }
-
-    const result = await pool.query(
-      `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended FROM course_requests cr LEFT JOIN class_types ct ON cr.course_type_id = ct.id LEFT JOIN users u ON cr.instructor_id = u.id WHERE cr.organization_id = $1 AND cr.archived = true ORDER BY cr.archived_at DESC`,
-      [organizationId]
-    );
-
-    res.json({
-      success: true,
-      data: result.rows,
-      meta: {
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching organization archived courses:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
-  }
-});
+// Organization archive endpoint moved to organization.ts to avoid duplicate routes
 
 // Organization Analytics Endpoints
 
@@ -1335,6 +1229,18 @@ router.put(
         await client.query('COMMIT');
 
         // Send email notifications
+        console.log('📧 [EMAIL] Starting email notification process...');
+        console.log('📧 [EMAIL] Instructor email:', instructor.email);
+        console.log('📧 [EMAIL] Course details:', {
+          courseName: courseRequest.course_type_name,
+          date: scheduledDate,
+          startTime: startTime,
+          endTime: endTime,
+          location: courseRequest.location,
+          organization: courseRequest.organization_name,
+          students: courseRequest.registered_students || 0,
+        });
+        
         try {
           // Get organization contact email
           const orgResult = await client.query(
@@ -1343,9 +1249,11 @@ router.put(
           );
           
           const organizationEmail = orgResult.rows[0]?.contact_email;
+          console.log('📧 [EMAIL] Organization email:', organizationEmail);
           
           // Send email to instructor
           if (instructor.email) {
+            console.log('📧 [EMAIL] Sending instructor notification to:', instructor.email);
             await emailService.sendCourseAssignedNotification(instructor.email, {
               courseName: courseRequest.course_type_name,
               date: scheduledDate,
@@ -1355,10 +1263,14 @@ router.put(
               organization: courseRequest.organization_name,
               students: courseRequest.registered_students || 0,
             });
+            console.log('✅ [EMAIL] Instructor notification sent successfully');
+          } else {
+            console.log('⚠️ [EMAIL] No instructor email found, skipping instructor notification');
           }
           
           // Send email to organization
           if (organizationEmail) {
+            console.log('📧 [EMAIL] Sending organization notification to:', organizationEmail);
             await emailService.sendCourseScheduledToOrganization(organizationEmail, {
               courseName: courseRequest.course_type_name,
               date: scheduledDate,
@@ -1368,9 +1280,20 @@ router.put(
               instructorName: instructor.instructor_name,
               students: courseRequest.registered_students || 0,
             });
+            console.log('✅ [EMAIL] Organization notification sent successfully');
+          } else {
+            console.log('⚠️ [EMAIL] No organization email found, skipping organization notification');
           }
+          
+          console.log('✅ [EMAIL] All email notifications completed successfully');
         } catch (emailError) {
-          console.error('Error sending email notifications:', emailError);
+          console.error('❌ [EMAIL] Error sending email notifications:', emailError);
+          console.error('❌ [EMAIL] Error details:', {
+            message: emailError instanceof Error ? emailError.message : 'Unknown error',
+            stack: emailError instanceof Error ? emailError.stack : 'No stack trace',
+            instructorEmail: instructor.email,
+            organizationId: courseRequest.organization_id
+          });
           // Don't fail the entire operation if emails fail
         }
 
@@ -1942,6 +1865,72 @@ router.get(
     } catch (error) {
       console.error('[Dashboard Summary] Detailed error:', error);
       throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch dashboard summary');
+    }
+  })
+);
+
+// Instructor Workload Report endpoint
+router.get(
+  '/admin/instructor-workload-report',
+  authenticateToken,
+  requireRole(['admin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { startDate, endDate } = req.query;
+
+    console.log('[Instructor Workload Report] Request params:', { startDate, endDate });
+
+    if (!startDate || !endDate) {
+      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Start date and end date parameters are required (format: YYYY-MM-DD)');
+    }
+
+    try {
+      console.log('[Instructor Workload Report] Executing query with params:', [startDate, endDate]);
+      
+      const result = await pool.query(`
+        SELECT 
+          u.id as instructorId,
+          u.username as name,
+          u.email,
+          COUNT(DISTINCT CASE WHEN cr.status = 'completed' THEN cr.id END) as completedCount,
+          COUNT(DISTINCT CASE WHEN cr.status = 'confirmed' THEN cr.id END) as scheduledCount,
+          COUNT(DISTINCT cr.id) as totalCount,
+          COALESCE(SUM(cs.student_count), 0) as totalStudents,
+          COALESCE(SUM(cs.attended_count), 0) as attendedStudents,
+          CASE 
+            WHEN COUNT(DISTINCT cr.id) > 0 THEN 
+              ROUND((COUNT(DISTINCT CASE WHEN cr.status = 'completed' THEN cr.id END) * 100.0 / COUNT(DISTINCT cr.id)), 1)
+            ELSE 0 
+          END as completionRate,
+          CASE 
+            WHEN COALESCE(SUM(cs.student_count), 0) > 0 THEN 
+              ROUND((COALESCE(SUM(cs.attended_count), 0) * 100.0 / COALESCE(SUM(cs.student_count), 0)), 1)
+            ELSE 0 
+          END as attendanceRate,
+          MAX(cr.confirmed_date) as lastCourseDate
+        FROM users u
+        LEFT JOIN course_requests cr ON u.id = cr.instructor_id 
+          AND (
+            (cr.scheduled_date >= $1 AND cr.scheduled_date <= $2)
+            OR (cr.confirmed_date >= $1 AND cr.confirmed_date <= $2)
+          )
+        LEFT JOIN (
+          SELECT 
+            course_request_id,
+            COUNT(*) as student_count,
+            COUNT(CASE WHEN attended = true THEN 1 END) as attended_count
+          FROM course_students
+          GROUP BY course_request_id
+        ) cs ON cr.id = cs.course_request_id
+        WHERE u.role = 'instructor'
+        GROUP BY u.id, u.username, u.email
+        ORDER BY totalCount DESC, completionRate DESC
+      `, [startDate, endDate]);
+
+      console.log('[Instructor Workload Report] Query result:', result.rows);
+      return res.json(ApiResponseBuilder.success(result.rows));
+    } catch (error) {
+      console.error('[Instructor Workload Report] Detailed error:', error);
+      throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch instructor workload report');
     }
   })
 );
@@ -4843,5 +4832,16 @@ router.post(
     }
   })
 );
+
+// Helper to format date-only fields as YYYY-MM-DD
+const formatDateOnly = (dt: Date | string | null | undefined): string | null => dt ? new Date(dt).toISOString().slice(0, 10) : null;
+
+const formatCourseRow = (row: Record<string, any>): Record<string, any> => ({
+  ...row,
+  scheduled_date: row.scheduled_date ? formatDateOnly(row.scheduled_date) : null,
+  date_requested: row.date_requested ? formatDateOnly(row.date_requested) : null,
+  confirmed_date: row.confirmed_date ? formatDateOnly(row.confirmed_date) : null,
+  request_submitted_date: row.request_submitted_date ? formatDateOnly(row.request_submitted_date) : null,
+});
 
 export default router;

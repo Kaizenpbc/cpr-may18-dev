@@ -35,6 +35,7 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import { api } from '../../../../services/api';
+import { formatDisplayDate } from '../../../../utils/dateUtils';
 
 // TypeScript interfaces
 interface Course {
@@ -101,10 +102,7 @@ const OrganizationArchive: React.FC<OrganizationArchiveProps> = ({
   };
 
   // Format date helper
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString();
-  };
+  const formatDate = (dateString: string) => formatDisplayDate(dateString);
 
   // Handle view students click
   const handleViewStudentsClick = async (course: Course) => {

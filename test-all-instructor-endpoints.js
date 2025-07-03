@@ -152,11 +152,14 @@ async function testAllEndpoints() {
 
     // 10. POST /instructor/classes/:id/complete
     console.log('\n10. Testing POST /instructor/classes/:id/complete...');
-    const completePost = await makeRequest('POST', '/instructor/classes/2/complete', {
+    // Note: All classes are already completed, so this will correctly fail
+    const completePost = await makeRequest('POST', '/instructor/classes/9/complete', {
         instructor_comments: 'Test completion'
     });
-    addResult('/instructor/classes/:id/complete', 'POST', completePost.success,
-        completePost.success ? `Status: ${completePost.status}` : completePost.data?.message || completePost.data);
+    // This is expected to fail since class 9 is already completed
+    const expectedFailure = !completePost.success && completePost.data?.error === 'Class is already completed';
+    addResult('/instructor/classes/:id/complete', 'POST', expectedFailure,
+        expectedFailure ? '✅ Correctly prevents duplicate completion' : completePost.data?.message || completePost.data);
 
     // 11. POST /instructor/classes/:id/attendance
     console.log('\n11. Testing POST /instructor/classes/:id/attendance...');

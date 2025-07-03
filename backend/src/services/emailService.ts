@@ -213,6 +213,9 @@ class EmailService {
   }
 
   private async sendEmail(to: string, subject: string, html: string) {
+    console.log('📧 [EMAIL SERVICE] Sending email to:', to);
+    console.log('📧 [EMAIL SERVICE] Subject:', subject);
+    
     try {
       const mailOptions = {
         from:
@@ -224,10 +227,13 @@ class EmailService {
       };
 
       const info = await this.transporter.sendMail(mailOptions);
-      console.log('Email sent:', info.messageId);
+      console.log('✅ [EMAIL SERVICE] Email sent successfully to:', to);
+      console.log('✅ [EMAIL SERVICE] Message ID:', info.messageId);
       return true;
     } catch (error) {
-      console.error('Error sending email:', error);
+      console.error('❌ [EMAIL SERVICE] Failed to send email to:', to);
+      console.error('❌ [EMAIL SERVICE] Error:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('❌ [EMAIL SERVICE] Full error:', error);
       return false;
     }
   }

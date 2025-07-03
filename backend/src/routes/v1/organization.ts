@@ -55,7 +55,7 @@ router.get('/profile', authenticateToken, requireRole(['organization']), async (
   }
   try {
     const result = await pool.query(
-      'SELECT id, name, address, phone, email FROM organizations WHERE id = $1',
+      'SELECT id, name, address, email FROM organizations WHERE id = $1',
       [req.user?.organizationId]
     );
     res.json({ success: true, data: result.rows[0] });
@@ -118,7 +118,20 @@ router.get('/courses', authenticateToken, requireRole(['organization']), async (
     }
     
     console.log('🔍 [TRACE] Sending response with data length:', result.rows.length);
-    res.json({ success: true, data: result.rows });
+    
+    // Format date fields to YYYY-MM-DD
+    const formatDateOnly = (dt: Date | string | null | undefined): string | null => 
+      dt ? new Date(dt).toISOString().slice(0, 10) : null;
+    
+    const formatCourseRow = (row: Record<string, any>): Record<string, any> => ({
+      ...row,
+      scheduled_date: row.scheduled_date ? formatDateOnly(row.scheduled_date) : null,
+      date_requested: row.date_requested ? formatDateOnly(row.date_requested) : null,
+      confirmed_date: row.confirmed_date ? formatDateOnly(row.confirmed_date) : null,
+      request_submitted_date: row.request_submitted_date ? formatDateOnly(row.request_submitted_date) : null,
+    });
+    
+    res.json({ success: true, data: result.rows.map(formatCourseRow) });
   } catch (error) {
     console.error('❌ [TRACE] Error in organization courses endpoint:', error);
     res.status(500).json({ error: 'Internal server error' });

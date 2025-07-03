@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../contexts/AuthContext';
 import {
   Box,
   Tab,
@@ -14,6 +13,7 @@ import {
   Menu,
   MenuItem,
   Divider,
+  Alert,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -31,6 +31,7 @@ import CourseScheduling from './CourseScheduling';
 import EmailTemplateManager from './EmailTemplateManager';
 import DashboardView from './DashboardView';
 import CancelledCourses from './CancelledCourses';
+import { User } from '../../../types/api';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -82,35 +83,29 @@ const tabs = [
   },
 ];
 
-const CourseAdminPortal: React.FC = () => {
-  const [selectedTab, setSelectedTab] = useState(0);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+interface CourseAdminPortalProps {
+  user: User | null;
+  selectedTab: number;
+  anchorEl: HTMLElement | null;
+  error: string | null;
+  onTabChange: (event: React.SyntheticEvent, newValue: number) => void;
+  onMenuOpen: (event: React.MouseEvent<HTMLElement>) => void;
+  onMenuClose: () => void;
+  onLogout: () => void;
+  onPasswordReset: () => void;
+}
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setSelectedTab(newValue);
-  };
-
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleLogout = async () => {
-    handleMenuClose();
-    await logout();
-    navigate('/');
-  };
-
-  const handlePasswordReset = () => {
-    handleMenuClose();
-    navigate('/reset-password');
-  };
-
+const CourseAdminPortal: React.FC<CourseAdminPortalProps> = ({
+  user,
+  selectedTab,
+  anchorEl,
+  error,
+  onTabChange,
+  onMenuOpen,
+  onMenuClose,
+  onLogout,
+  onPasswordReset,
+}) => {
   const handleError = (error: Error, errorInfo: any) => {
     console.error('[CourseAdminPortal] Error caught by boundary:', error, errorInfo);
   };
@@ -137,7 +132,7 @@ const CourseAdminPortal: React.FC = () => {
               aria-label='account of current user'
               aria-controls='menu-appbar'
               aria-haspopup='true'
-              onClick={handleMenuOpen}
+              onClick={onMenuOpen}
               color='inherit'
             >
               <AccountIcon />
@@ -155,14 +150,14 @@ const CourseAdminPortal: React.FC = () => {
                 horizontal: 'right',
               }}
               open={Boolean(anchorEl)}
-              onClose={handleMenuClose}
+              onClose={onMenuClose}
             >
-              <MenuItem onClick={handlePasswordReset}>
+              <MenuItem onClick={onPasswordReset}>
                 <PasswordIcon sx={{ mr: 1 }} />
                 Reset Password
               </MenuItem>
               <Divider />
-              <MenuItem onClick={handleLogout}>
+              <MenuItem onClick={onLogout}>
                 <LogoutIcon sx={{ mr: 1 }} />
                 Logout
               </MenuItem>
@@ -173,11 +168,18 @@ const CourseAdminPortal: React.FC = () => {
         {/* Main Content */}
         <Box component='main' sx={{ flexGrow: 1, mt: 8 }}>
           <Container maxWidth='xl'>
+            {/* Error Display */}
+            {error && (
+              <Alert severity='error' sx={{ mt: 3, mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+
             <Paper elevation={3} sx={{ mt: 3, mb: 3 }}>
               <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Tabs
                   value={selectedTab}
-                  onChange={handleTabChange}
+                  onChange={onTabChange}
                   variant='scrollable'
                   scrollButtons='auto'
                   aria-label='course admin tabs'

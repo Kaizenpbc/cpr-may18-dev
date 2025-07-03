@@ -47,6 +47,7 @@ import {
 import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { handleError } from '../../../services/errorHandler';
 
 interface Student {
   studentid: string;
@@ -116,12 +117,7 @@ const ClassAttendanceView: React.FC = () => {
 
       setError('');
     } catch (error: any) {
-      console.error("Error loading today's classes:", error);
-      if (error.response?.status === 401) {
-        await logout();
-        navigate('/login');
-        return;
-      }
+      handleError(error, { component: 'ClassAttendanceView', action: 'load today classes' });
       setError("Failed to load today's classes");
     } finally {
       setLoading(false);
@@ -138,12 +134,7 @@ const ClassAttendanceView: React.FC = () => {
       setStudents(response.data.data || []);
       setError('');
     } catch (error: any) {
-      console.error('Error loading students:', error);
-      if (error.response?.status === 401) {
-        await logout();
-        navigate('/login');
-        return;
-      }
+      handleError(error, { component: 'ClassAttendanceView', action: 'load students' });
       setError('Failed to load students for this class');
     } finally {
       setStudentsLoading(false);
@@ -169,12 +160,7 @@ const ClassAttendanceView: React.FC = () => {
       // Reload students from backend to ensure we have the latest attendance status
       await loadStudents(selectedClass.course_id);
     } catch (error: any) {
-      console.error('Error updating attendance:', error);
-      if (error.response?.status === 401) {
-        await logout();
-        navigate('/login');
-        return;
-      }
+      handleError(error, { component: 'ClassAttendanceView', action: 'update attendance' });
       setError('Failed to update attendance');
     }
   };
@@ -199,12 +185,7 @@ const ClassAttendanceView: React.FC = () => {
       setAddStudentDialog(false);
       setError('');
     } catch (error: any) {
-      console.error('Error adding student:', error);
-      if (error.response?.status === 401) {
-        await logout();
-        navigate('/login');
-        return;
-      }
+      handleError(error, { component: 'ClassAttendanceView', action: 'add student' });
       setError('Failed to add student');
     }
   };
@@ -227,12 +208,7 @@ const ClassAttendanceView: React.FC = () => {
       setInstructorComments('');
       setCompleteDialog(false);
     } catch (error: any) {
-      console.error('Error completing class:', error);
-      if (error.response?.status === 401) {
-        await logout();
-        navigate('/login');
-        return;
-      }
+      handleError(error, { component: 'ClassAttendanceView', action: 'complete class' });
       setError('Failed to complete class');
     } finally {
       setCompleting(false);

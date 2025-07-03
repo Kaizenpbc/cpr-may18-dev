@@ -23,6 +23,7 @@
     "@mui/material": "^5.15.6",
     "@mui/x-date-pickers": "^6.20.2",
     "@tanstack/react-query": "^5.80.7",
+    "@types/react-toastify": "^4.0.2",
     "axios": "^1.6.7",
     "date-fns": "^2.30.0",
     "papaparse": "^5.5.3",
@@ -30,6 +31,7 @@
     "react-dom": "^18.2.0",
     "react-phone-number-input": "^3.4.12",
     "react-router-dom": "^6.30.1",
+    "react-toastify": "^11.0.5",
     "recharts": "^2.15.3",
     "socket.io-client": "^4.8.1"
   },

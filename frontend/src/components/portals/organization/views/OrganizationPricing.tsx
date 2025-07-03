@@ -22,6 +22,7 @@ import {
   Info as InfoIcon,
 } from '@mui/icons-material';
 import { getOrganizationPricingForOrg } from '../../../../services/api';
+import { parseISO, format } from 'date-fns';
 
 interface OrganizationPricingData {
   id: number;
@@ -75,11 +76,12 @@ const OrganizationPricing: React.FC<OrganizationPricingProps> = ({ organizationI
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    if (!dateString) return '';
+    try {
+      return format(parseISO(dateString), 'MMM d, yyyy');
+    } catch {
+      return dateString;
+    }
   };
 
   if (loading) {

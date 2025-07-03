@@ -36,6 +36,7 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import { api } from '../../../../services/api';
+import { formatDisplayDate } from '../../../../utils/dateUtils';
 
 // TypeScript interfaces
 interface Course {
@@ -309,12 +310,12 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
                     <TableRow key={course.id}>
                       <TableCell>
                         {course.request_submitted_date && !isNaN(new Date(course.request_submitted_date).getTime())
-                          ? new Date(course.request_submitted_date).toLocaleDateString()
+                          ? formatDisplayDate(course.request_submitted_date)
                           : 'N/A'}
                       </TableCell>
                       <TableCell>
                         {course.scheduled_date
-                          ? new Date(course.scheduled_date).toLocaleDateString()
+                          ? formatDisplayDate(course.scheduled_date)
                           : '-'}
                       </TableCell>
                       <TableCell>{course.course_type_name}</TableCell>

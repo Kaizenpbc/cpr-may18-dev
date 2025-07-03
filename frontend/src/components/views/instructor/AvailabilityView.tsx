@@ -34,6 +34,7 @@ import api, { instructorApi } from '../../../api/index';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { formatDisplayDate } from '../../utils/dateUtils';
+import { handleError } from '../../../services/errorHandler';
 
 interface AvailabilityViewProps {
   availableDates?: (string | AvailabilitySlot)[];
@@ -148,8 +149,7 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
         setSuccessMessage('Availability removed successfully');
       }
     } catch (err: any) {
-      console.error('Error updating availability:', err);
-      setError(err.response?.data?.error?.message || 'Failed to update availability');
+      handleError(err, { component: 'AvailabilityView', action: 'update availability' });
     } finally {
       handleConfirmationClose();
     }

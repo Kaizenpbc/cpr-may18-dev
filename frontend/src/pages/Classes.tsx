@@ -32,7 +32,7 @@ const Classes: React.FC = () => {
     queryFn: async () => {
       try {
         const response = await api.get<ApiResponse<Class[]>>(
-          '/instructor/classes'
+          '/instructors/classes'
         );
         return response.data;
       } catch (error) {

@@ -11,15 +11,17 @@ export const DATE_FORMATS = {
 } as const;
 
 /**
- * Format a date string or Date object into a standardized display format
- * @param {string|Date} date - The date to format
+ * Safely format a date-only string (YYYY-MM-DD) or Date object for display.
+ * For date-only fields, this avoids timezone bugs by using date-fns parseISO and format.
+ * @param {string|Date} date - The date to format (should be a date-only string or Date)
  * @returns {string} Formatted date string (e.g., "Jan 1, 2024")
  */
 export const formatDisplayDate = (date: string | Date): string => {
   if (!date) return '';
-  
   try {
-    const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    // If string, extract date part (YYYY-MM-DD) to avoid timezone shift
+    const dateStr = typeof date === 'string' ? date.slice(0, 10) : date;
+    const dateObj = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr;
     if (isNaN(dateObj.getTime())) return '';
     return format(dateObj, DATE_FORMATS.DISPLAY);
   } catch (error) {

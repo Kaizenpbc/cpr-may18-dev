@@ -33,17 +33,19 @@ import {
   Person as PersonIcon,
   Schedule as ScheduleIcon,
 } from '@mui/icons-material';
-import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useTodayClasses, useClassStudents, useMarkAttendance } from '../../../services/instructorService';
+import { instructorApi } from '../../../services/api';
+import { handleError } from '../../../services/errorHandler';
 
 const AttendanceView = ({ onAttendanceUpdate }) => {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const [todaysClasses, setTodaysClasses] = useState([]);
+  
+  // State
   const [selectedClass, setSelectedClass] = useState(null);
   const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [error, setError] = useState('');
   const [addStudentDialog, setAddStudentDialog] = useState(false);
@@ -53,63 +55,24 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
     email: '',
   });
 
-  // Load today's classes on component mount
+  // Use centralized service hooks
+  const { data: todaysClasses = [], isLoading: loading, error: classesError } = useTodayClasses();
+  const { data: classStudents = [], isLoading: studentsQueryLoading } = useClassStudents(selectedClass?.course_id);
+  const markAttendanceMutation = useMarkAttendance();
+
+  // Update students when class students data changes
   useEffect(() => {
-    loadTodaysClasses();
-  }, []);
+    if (classStudents && selectedClass) {
+      setStudents(classStudents);
+    }
+  }, [classStudents, selectedClass]);
 
-  // Load students when a class is selected
+  // Handle errors
   useEffect(() => {
-    if (selectedClass) {
-      loadStudents(selectedClass.course_id);
+    if (classesError) {
+      setError('Failed to load today\'s classes');
     }
-  }, [selectedClass]);
-
-  const loadTodaysClasses = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get<ApiResponse<ScheduledClass[]>>('/instructor/classes/today');
-      setTodaysClasses(response.data.data);
-
-      // Auto-select the first class if only one exists
-      if (response.data.data.length === 1) {
-        setSelectedClass(response.data.data[0]);
-      }
-
-      setError('');
-    } catch (error) {
-      console.error("Error loading today's classes:", error);
-      if (error.response?.status === 401) {
-        await logout();
-        navigate('/login');
-        return;
-      }
-      setError("Failed to load today's classes");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadStudents = async classId => {
-    try {
-      setStudentsLoading(true);
-      const response = await api.get(
-        `/instructor/classes/${classId}/students`
-      );
-      setStudents(response.data.data);
-      setError('');
-    } catch (error) {
-      console.error('Error loading students:', error);
-      if (error.response?.status === 401) {
-        await logout();
-        navigate('/login');
-        return;
-      }
-      setError('Failed to load students for this class');
-    } finally {
-      setStudentsLoading(false);
-    }
-  };
+  }, [classesError]);
 
   const handleClassChange = event => {
     const classId = event.target.value;
@@ -121,12 +84,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
     if (!selectedClass) return;
 
     try {
-      const response = await api.put(
-        `/instructor/classes/${selectedClass.course_id}/students/${studentId}/attendance`,
-        { attended }
-      );
-
-      // Update local state
+      // Update local state immediately for better UX
       setStudents(prev =>
         prev.map(student =>
           student.studentid === studentId
@@ -135,17 +93,21 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
         )
       );
 
+      // Use centralized mutation
+      await markAttendanceMutation.mutateAsync({
+        courseId: selectedClass.course_id,
+        students: students.map(student => ({
+          studentId: student.studentid,
+          attended: student.studentid === studentId ? attended : student.attendance
+        }))
+      });
+
       // Call onAttendanceUpdate to refresh parent's scheduled classes data
       if (onAttendanceUpdate) {
         onAttendanceUpdate();
       }
     } catch (error) {
-      console.error('Error updating attendance:', error);
-      if (error.response?.status === 401) {
-        await logout();
-        navigate('/login');
-        return;
-      }
+      handleError(error, { component: 'AttendanceView', action: 'update attendance' });
       setError('Failed to update attendance');
     }
   };
@@ -157,13 +119,10 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
     }
 
     try {
-      const response = await api.post(
-        `/instructor/classes/${selectedClass.course_id}/students`,
-        newStudent
-      );
+      const response = await instructorApi.addStudent(selectedClass.course_id, newStudent);
 
       // Add new student to the list
-      setStudents(prev => [...prev, response.data.data]);
+      setStudents(prev => [...prev, response.data]);
 
       // Clear form and close dialog
       setNewStudent({ firstName: '', lastName: '', email: '' });
@@ -175,12 +134,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
         onAttendanceUpdate();
       }
     } catch (error) {
-      console.error('Error adding student:', error);
-      if (error.response?.status === 401) {
-        await logout();
-        navigate('/login');
-        return;
-      }
+      handleError(error, { component: 'AttendanceView', action: 'add student' });
       setError('Failed to add student');
     }
   };

@@ -8,7 +8,7 @@
     "cleanup": "taskkill /f /im node.exe 2>nul || echo 'No node processes to kill'",
     "kill-ports": "for /f \"tokens=5\" %a in ('netstat -aon ^| findstr :3001') do taskkill /f /pid %a 2>nul || echo 'Port 3001 is free'",
     "check-ports": "netstat -an | findstr :3001 || echo 'Port 3001 is available'",
-    "start": "node backend/src/index.ts",
+    "start": "cd backend && npm run build && node dist/index.js",
     "build": "tsc",
     "test": "jest",
     "db:init": "cd backend && npm run db:init",
@@ -28,13 +28,19 @@
     "backend"
   ],
   "devDependencies": {
+    "@faker-js/faker": "^9.9.0",
     "@playwright/test": "^1.53.0",
+    "@types/jest": "^30.0.0",
+    "@types/supertest": "^6.0.3",
     "axios": "^1.9.0",
     "chalk": "^4.1.2",
     "concurrently": "^9.1.2",
     "husky": "^9.1.7",
+    "jest": "^30.0.4",
     "lint-staged": "^16.1.2",
-    "playwright": "^1.53.0"
+    "playwright": "^1.53.0",
+    "supertest": "^7.1.1",
+    "ts-jest": "^29.4.0"
   },
   "dependencies": {
     "jsonwebtoken": "^9.0.2"

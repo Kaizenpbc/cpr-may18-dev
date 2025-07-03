@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -18,6 +18,7 @@ import {
   DialogContentText,
   DialogActions,
   Button,
+  useTheme,
 } from '@mui/material';
 import {
   Visibility as VisibilityIcon,
@@ -30,6 +31,7 @@ import {
 } from '@mui/icons-material';
 import { CombinedScheduleItem } from '../../../types/instructor';
 import { formatDisplayDate } from '../../../utils/dateUtils';
+import { handleError } from '../../../services/errorHandler';
 
 interface MyClassesViewProps {
   combinedSchedule?: CombinedScheduleItem[];
@@ -131,7 +133,7 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
       try {
         await onRemoveAvailability(deleteDialog.date);
       } catch (error) {
-        console.error('Error removing availability:', error);
+        handleError(error, { component: 'MyClassesView', action: 'remove availability' });
       }
     }
     setDeleteDialog({ open: false, date: '' });

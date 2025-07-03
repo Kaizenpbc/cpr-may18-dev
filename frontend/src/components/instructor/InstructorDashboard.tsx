@@ -32,13 +32,20 @@ import {
   LocationOn as LocationIcon,
   Group as GroupIcon,
   AccessTime as TimeIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useInstructorData } from '../../hooks/useInstructorData';
-import DashboardStats from './DashboardStats';
+import { 
+  useInstructorClasses, 
+  useCompletedClasses, 
+  useInstructorAvailability,
+  useTodayClasses,
+  useRefreshInstructorData
+} from '../../services/instructorService';
 import WelcomeHeader from './WelcomeHeader';
 import TodayClassesList from './TodayClassesList';
 import QuickActionsGrid from './QuickActionsGrid';
+import { handleError } from '../../services/errorHandler';
 
 interface DashboardData {
   instructorStats: {
@@ -62,17 +69,19 @@ const InstructorDashboard: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
-  const {
-    availableDates,
-    scheduledClasses,
-    completedClasses,
-    loading,
-    error,
-    loadData,
-  } = useInstructorData();
+  // Use centralized service hooks instead of useInstructorData
+  const { data: scheduledClasses = [], isLoading: classesLoading, error: classesError } = useInstructorClasses();
+  const { data: completedClasses = [], isLoading: completedLoading, error: completedError } = useCompletedClasses();
+  const { data: availableDates = [], isLoading: availabilityLoading, error: availabilityError } = useInstructorAvailability();
+  const { data: todayClasses = [], isLoading: todayLoading, error: todayError } = useTodayClasses();
+  const refreshData = useRefreshInstructorData();
 
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [errorState, setErrorState] = useState<string | null>(null);
+
+  // Combine loading states
+  const loading = classesLoading || completedLoading || availabilityLoading || todayLoading;
+  const error = classesError || completedError || availabilityError || todayError || errorState;
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -90,7 +99,7 @@ const InstructorDashboard: React.FC = () => {
           dashboardSummary: stats
         });
       } catch (err) {
-        console.error('Error processing dashboard data:', err);
+        handleError(err, { component: 'InstructorDashboard', action: 'process dashboard data' });
         setErrorState(err instanceof Error ? err.message : 'Failed to process dashboard data.');
       }
     };
@@ -105,10 +114,7 @@ const InstructorDashboard: React.FC = () => {
   const upcomingClasses = scheduledClasses.filter(
     (cls) => new Date(cls.date) > new Date()
   );
-  const todayClasses = scheduledClasses.filter(
-    (cls) =>
-      new Date(cls.date).toDateString() === new Date().toDateString()
-  );
+  const todayClassesCount = todayClasses.length;
   const totalStudents = scheduledClasses.reduce(
     (sum, cls) => sum + (cls.studentcount || 0),
     0

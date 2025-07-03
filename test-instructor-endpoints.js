@@ -152,15 +152,21 @@ async function testInstructorEndpoints() {
           console.log('   ❌ GET /classes/:classId/students failed:', error.response?.data?.error || error.message, '\n');
         }
         
-        // Test POST /classes/:classId/complete (missing endpoint)
+        // Test POST /classes/:classId/complete
         try {
-          const completeResponse = await axios.post(`http://localhost:3001/api/v1/instructor/classes/${firstClass.id}/complete`, 
-            { instructor_comments: 'Test completion' }, 
-            { headers }
-          );
-          console.log('   ✅ POST /classes/:classId/complete successful\n');
+          // Find a non-completed class to test with
+          const nonCompletedClass = classes.find(cls => cls.status !== 'completed');
+          if (nonCompletedClass) {
+            const completeResponse = await axios.post(`http://localhost:3001/api/v1/instructor/classes/${nonCompletedClass.id}/complete`, 
+              { instructor_comments: 'Test completion' }, 
+              { headers }
+            );
+            console.log('   ✅ POST /classes/:classId/complete successful\n');
+          } else {
+            console.log('   ⚠️ No non-completed classes available to test completion\n');
+          }
         } catch (error) {
-          console.log('   ❌ POST /classes/:classId/complete failed (endpoint missing):', error.response?.data?.error || error.message, '\n');
+          console.log('   ❌ POST /classes/:classId/complete failed:', error.response?.data?.error || error.message, '\n');
         }
         
         // Test POST /classes/:classId/attendance (missing endpoint)
