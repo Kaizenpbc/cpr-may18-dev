@@ -9,6 +9,7 @@ import { extractTokenFromHeader } from '../utils/jwtUtils.js';
 import { ApiResponseBuilder } from '../utils/apiResponse.js';
 import { errorCodes } from '../utils/errorHandler.js';
 import { AppError } from '../utils/errorHandler.js';
+import { TokenBlacklist } from '../utils/tokenBlacklist.js';
 import jwt from 'jsonwebtoken';
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'access_secret';
@@ -65,6 +66,29 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
     try {
       console.log('[TRACE] Auth middleware - Verifying token');
+      
+      // Check if token is blacklisted
+      console.log('[TRACE] Auth middleware - Checking blacklist for token:', token.substring(0, 20) + '...');
+      let isBlacklisted = false;
+      try {
+        isBlacklisted = await TokenBlacklist.isBlacklisted(token);
+        console.log('[TRACE] Auth middleware - Blacklist check result:', isBlacklisted);
+      } catch (blacklistError) {
+        console.error('[TRACE] Auth middleware - Blacklist check failed:', blacklistError);
+        // Continue with token verification even if blacklist check fails
+      }
+      
+      if (isBlacklisted) {
+        console.log('[TRACE] Auth middleware - Token is blacklisted');
+        return res.status(401).json({ 
+          success: false,
+          error: {
+            code: errorCodes.AUTH_TOKEN_INVALID,
+            message: 'Token has been invalidated'
+          }
+        });
+      }
+      
       const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET) as TokenPayload;
       console.log('[TRACE] Auth middleware - Token verified, user:', {
         id: decoded.id,

@@ -222,6 +222,17 @@ class AnalyticsService {
   }
 
   /**
+   * Track course admin-specific actions
+   */
+  trackCourseAdminAction(action: string, properties?: Record<string, any>) {
+    this.track('course_admin_action', {
+      action,
+      portal: 'course_admin',
+      ...properties,
+    });
+  }
+
+  /**
    * Track class management actions
    */
   trackClassAction(

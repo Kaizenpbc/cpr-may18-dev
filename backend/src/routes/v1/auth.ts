@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { pool } from '../../config/database.js';
 import {
   generateTokens,
@@ -9,6 +10,7 @@ import {
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { AppError, errorCodes, asyncHandler } from '../../utils/errorHandler.js';
 import { validateSchema, commonSchemas } from '../../middleware/inputSanitizer.js';
+import { TokenBlacklist } from '../../utils/tokenBlacklist.js';
 import {
   createUserSession,
   invalidateUserSession,
@@ -176,13 +178,32 @@ router.post(
   })
 );
 
-// Enhanced logout endpoint with session invalidation
+// Enhanced logout endpoint with session invalidation and token blacklisting
 router.post(
   '/logout',
   asyncHandler(async (req: Request, res: Response) => {
     console.log('🔐 [AUTH] Processing logout request');
 
     try {
+      // Get the access token from the Authorization header
+      const authHeader = req.headers.authorization;
+      const accessToken = authHeader && authHeader.split(' ')[1];
+
+      // Add access token to blacklist if present
+      if (accessToken) {
+        try {
+          // Decode the token to get expiration time
+          const decoded = jwt.decode(accessToken) as any;
+          const expiresAt = decoded?.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 24 * 60 * 60 * 1000); // Default to 24 hours
+          
+          await TokenBlacklist.addToBlacklist(accessToken, expiresAt);
+          console.log('🔐 [AUTH] Access token added to blacklist');
+        } catch (blacklistError) {
+          console.error('❌ [AUTH] Failed to blacklist access token:', blacklistError);
+          // Continue with logout even if blacklisting fails
+        }
+      }
+
       const refreshToken = req.cookies.refreshToken;
 
       if (refreshToken) {

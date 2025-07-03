@@ -13,6 +13,7 @@ import fs from 'fs';
 import path from 'path';
 import cookieParser from 'cookie-parser';
 import emailTemplatesRouter from './routes/v1/emailTemplates.js';
+import { initializeTokenBlacklist } from './utils/tokenBlacklist.js';
 
 const execAsync = promisify(exec);
 
@@ -253,7 +254,7 @@ try {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          connectSrc: ["'self'", 'http://localhost:3002', 'http://localhost:5173', 'http://localhost:5174', 'ws://localhost:3002', 'ws://192.168.2.105:3002'],
+          connectSrc: ["'self'", 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174', 'ws://localhost:3001', 'ws://192.168.2.105:3001'],
         },
       },
       hsts: false,
@@ -433,11 +434,15 @@ console.log(`Attempting to start server on port ${port}...`);
 
 const startServer = async () => {
   try {
-    console.log('14b. Checking for existing processes on port...');
-    await killProcessOnPort(port);
-    console.log('14c. Port cleanup completed');
+    console.log('14b. Initializing token blacklist...');
+    await initializeTokenBlacklist();
+    console.log('14c. Token blacklist initialized');
 
-    console.log('14d. Starting HTTP server...');
+    console.log('14d. Checking for existing processes on port...');
+    await killProcessOnPort(port);
+    console.log('14e. Port cleanup completed');
+
+    console.log('14f. Starting HTTP server...');
     httpServer.listen(port, '0.0.0.0', () => {
       console.log(`✅ Server is now listening on http://0.0.0.0:${port}`);
       console.log(`Try accessing http://localhost:${port}/api/v1/health`);
