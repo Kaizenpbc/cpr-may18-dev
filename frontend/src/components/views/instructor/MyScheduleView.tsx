@@ -133,20 +133,28 @@ const MyScheduleView: React.FC = () => {
 
   // Transform the data from centralized service into ScheduleEntry format
   const schedule: ScheduleEntry[] = React.useMemo(() => {
-    console.log('[MyScheduleView] Computing schedule with data:', {
-      availableDates: JSON.stringify(availableDates, null, 2),
-      scheduledClasses: JSON.stringify(scheduledClasses, null, 2),
-      completedClasses: JSON.stringify(completedClasses, null, 2)
+    console.log('[MyScheduleView] 🔍 DEBUG: Processing schedule data:', {
+      availableDates: availableDates,
+      scheduledClasses: scheduledClasses,
+      completedClasses: completedClasses,
+      availableDatesLength: availableDates?.length || 0,
+      scheduledClassesLength: scheduledClasses?.length || 0,
+      completedClassesLength: completedClasses?.length || 0
     });
 
     // Transform available dates into ScheduleEntry format
     const filteredAvailabilityEntries: ScheduleEntry[] = availableDates
       .filter((availability: AvailabilitySlot) => {
-        const date = new Date(availability.date);
+        // Handle both YYYY-MM-DD format and ISO format with timezone
+        const dateStr = availability.date.includes('T') 
+          ? availability.date.split('T')[0] 
+          : availability.date;
+        const date = new Date(dateStr + 'T00:00:00');
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        console.log('[MyScheduleView] Filtering availability:', {
-          date: availability.date,
+        console.log('[MyScheduleView] 🔍 DEBUG: Filtering availability:', {
+          originalDate: availability.date,
+          dateStr: dateStr,
           parsedDate: date,
           today: today,
           isAfterToday: date >= today
@@ -154,53 +162,67 @@ const MyScheduleView: React.FC = () => {
         return date >= today;
       })
       .map((availability: AvailabilitySlot): ScheduleEntry => {
-        console.log('[MyScheduleView] Transforming availability:', availability);
-        return {
+        console.log('[MyScheduleView] 🔍 DEBUG: Transforming availability:', availability);
+        // Handle both YYYY-MM-DD format and ISO format with timezone
+        const dateStr = availability.date.includes('T') 
+          ? availability.date.split('T')[0] 
+          : availability.date;
+        const entry = {
           key: `available-${availability.id}`,
-          date: availability.date,
-          displayDate: formatDisplayDate(availability.date),
-          status: 'AVAILABLE',
+          date: dateStr, // Store just the date part
+          displayDate: formatDisplayDate(dateStr),
+          status: 'AVAILABLE' as const,
           organization: 'Available',
           courseType: 'Available',
           location: 'Available',
           studentCount: 0,
           studentsAttendance: 0,
         };
+        console.log('[MyScheduleView] 🔍 DEBUG: Created availability entry:', entry);
+        return entry;
       });
 
-    console.log('[MyScheduleView] Filtered availability entries:', JSON.stringify(filteredAvailabilityEntries, null, 2));
+    console.log('[MyScheduleView] 🔍 DEBUG: Filtered availability entries:', JSON.stringify(filteredAvailabilityEntries, null, 2));
 
     // Transform scheduled classes into ScheduleEntry format
     const classEntries: ScheduleEntry[] = scheduledClasses.map(
-      (c: ScheduledClass): ScheduleEntry => ({
-        key: `scheduled-${c.course_id}`,
-        date: c.date,
-        displayDate: formatDisplayDate(c.date),
-        status: 'CONFIRMED',
-        organization: c.organizationname || 'Unassigned',
-        courseType: c.course_name || c.name || 'CPR Class',
-        location: c.location || 'TBD',
-        studentCount: c.studentcount || 0,
-        studentsAttendance: c.studentsattendance || 0,
-      })
+      (c: ScheduledClass): ScheduleEntry => {
+        console.log('[MyScheduleView] 🔍 DEBUG: Processing scheduled class:', c);
+        return {
+          key: `scheduled-${c.course_id}`,
+          date: c.date,
+          displayDate: formatDisplayDate(c.date),
+          status: 'CONFIRMED',
+          organization: c.organizationname || 'Unassigned',
+          courseType: c.course_name || c.name || 'CPR Class',
+          location: c.location || 'TBD',
+          studentCount: c.studentcount || 0,
+          studentsAttendance: c.studentsattendance || 0,
+        };
+      }
     );
+
+    console.log('[MyScheduleView] 🔍 DEBUG: Class entries:', JSON.stringify(classEntries, null, 2));
 
     // Combine and sort all entries
     const allEntries = [...filteredAvailabilityEntries, ...classEntries].sort(
       (a: ScheduleEntry, b: ScheduleEntry) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
-    console.log('[MyScheduleView] Final combined schedule:', JSON.stringify(allEntries, null, 2));
+    console.log('[MyScheduleView] 🔍 DEBUG: Final combined schedule:', JSON.stringify(allEntries, null, 2));
     return allEntries;
   }, [availableDates, scheduledClasses, completedClasses]);
 
   const getScheduleForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     return schedule.filter((entry: ScheduleEntry) => {
-      // Handle both ISO date strings and simple date strings
-      const entryDate = entry.date.includes('T') 
-        ? format(parseISO(entry.date), 'yyyy-MM-dd')
-        : entry.date;
+      // For availability entries, the date is already in YYYY-MM-DD format
+      // For scheduled classes, handle both ISO date strings and simple date strings
+      const entryDate = entry.status === 'AVAILABLE' 
+        ? entry.date // Already in YYYY-MM-DD format
+        : entry.date.includes('T') 
+          ? format(parseISO(entry.date), 'yyyy-MM-dd')
+          : entry.date;
       return entryDate === dateStr;
     });
   };
@@ -208,20 +230,21 @@ const MyScheduleView: React.FC = () => {
   const CustomPickersDay = (props: PickersDayProps<Date>) => {
     const { day, ...other } = props;
     const dateStr = format(day, 'yyyy-MM-dd');
-    console.log('[CustomPickersDay] Rendering day:', dateStr);
+    console.log('[CustomPickersDay] Rendering day:', dateStr, 'Available dates:', availableDates);
     
     const isAvailable = availableDates.some((availability: AvailabilitySlot) => {
-      // Handle both ISO date strings and simple date strings
+      // Handle both YYYY-MM-DD format and ISO format with timezone
       const availabilityDate = availability.date.includes('T') 
-        ? format(parseISO(availability.date), 'yyyy-MM-dd')
+        ? availability.date.split('T')[0] 
         : availability.date;
+      const matches = availabilityDate === dateStr;
       console.log('[CustomPickersDay] Checking availability:', {
-        availabilityDate: availability.date,
-        parsedAvailabilityDate: availabilityDate,
+        originalAvailabilityDate: availability.date,
+        availabilityDate: availabilityDate,
         currentDate: dateStr,
-        matches: availabilityDate === dateStr
+        matches: matches
       });
-      return availabilityDate === dateStr;
+      return matches;
     });
     
     const isScheduled = scheduledClasses.some((c: ScheduledClass) => {
@@ -238,7 +261,7 @@ const MyScheduleView: React.FC = () => {
       isAvailable,
       isScheduled,
       isPastDate,
-      availableDates: JSON.stringify(availableDates)
+      availableDates: availableDates
     });
 
     // Color scheduled classes BLUE and available dates GREEN

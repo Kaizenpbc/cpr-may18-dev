@@ -55,7 +55,16 @@ router.get('/availability', authenticateToken, requireRole(['instructor']), asyn
        ORDER BY date ASC`,
       [userId]
     );
-    res.json({ success: true, data: result.rows });
+    console.log('[DEBUG] Availability query result for user', userId, ':', JSON.stringify(result.rows, null, 2));
+    
+    // Format dates to YYYY-MM-DD for frontend compatibility
+    const formattedData = result.rows.map(row => ({
+      ...row,
+      date: row.date ? new Date(row.date).toISOString().split('T')[0] : null
+    }));
+    
+    console.log('[DEBUG] Formatted availability data:', JSON.stringify(formattedData, null, 2));
+    res.json({ success: true, data: formattedData });
   } catch (error) {
     console.error('Error fetching instructor availability:', error);
     res.status(500).json({ error: 'Internal server error' });

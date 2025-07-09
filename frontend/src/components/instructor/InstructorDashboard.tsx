@@ -281,7 +281,7 @@ const InstructorDashboard: React.FC = () => {
                     </Box>
                   }
                   secondary={
-                    <Box>
+                    <Box component="div">
                       <Typography variant="body2" color="text.secondary">
                         {formatDate(cls.date)} • {cls.location} • {cls.organizationname}
                       </Typography>
@@ -290,6 +290,10 @@ const InstructorDashboard: React.FC = () => {
                       </Typography>
                     </Box>
                   }
+                  components={{
+                    primary: 'div',
+                    secondary: 'div'
+                  }}
                 />
                 <ListItemSecondaryAction>
                   <IconButton

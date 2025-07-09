@@ -325,11 +325,11 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
                 
                 return (
                   <TableRow key={`${item.type}-${item.course_id || item.originalData?.id || index}`} hover>
-                    <TableCell>{formatDisplayDate(item.displayDate)}</TableCell>
+                    <TableCell>{item.displayDate}</TableCell>
                     <TableCell>{item.type === 'class' ? item.organizationname : ''}</TableCell>
                     <TableCell>{item.type === 'class' ? item.location : ''}</TableCell>
                     <TableCell>{item.type === 'class' ? item.coursenumber : ''}</TableCell>
-                    <TableCell>{item.type === 'class' ? item.name : ''}</TableCell>
+                    <TableCell>{item.type === 'class' ? item.coursetypename : ''}</TableCell>
                     <TableCell align='center'>
                       {item.type === 'class' ? (
                         (() => {

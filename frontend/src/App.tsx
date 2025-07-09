@@ -17,6 +17,7 @@ import RecoverPassword from './pages/RecoverPassword';
 import TestCSV from './pages/TestCSV';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RealtimeProvider } from './contexts/RealtimeContext';
+import { SnackbarProvider } from './contexts/SnackbarContext';
 
 console.log('[DEEP TRACE] App.tsx - Starting to load dependencies');
 
@@ -43,87 +44,89 @@ function App() {
     console.log('[DEEP TRACE] App.tsx - Starting to render providers and router');
     return (
       <QueryClientProvider client={queryClient}>
-        <RealtimeProvider>
-          <ErrorBoundary>
-            <Routes>
-              {/* Public routes */}
-              <Route path='/login' element={<Login />} />
-              <Route path='/recover-password' element={<RecoverPassword />} />
-              <Route path='/forgot-password' element={<ForgotPassword />} />
-              <Route path='/reset-password' element={<ResetPassword />} />
-              <Route path='/test-csv' element={<TestCSV />} />
-              <Route path='/' element={<Navigate to="/login" replace />} />
+        <SnackbarProvider>
+          <RealtimeProvider>
+            <ErrorBoundary>
+              <Routes>
+                {/* Public routes */}
+                <Route path='/login' element={<Login />} />
+                <Route path='/recover-password' element={<RecoverPassword />} />
+                <Route path='/forgot-password' element={<ForgotPassword />} />
+                <Route path='/reset-password' element={<ResetPassword />} />
+                <Route path='/test-csv' element={<TestCSV />} />
+                <Route path='/' element={<Navigate to="/login" replace />} />
 
-              {/* Protected routes */}
-              <Route
-                path='/instructor/*'
-                element={
-                  <PrivateRoute role='instructor'>
-                    <InstructorPortal />
-                  </PrivateRoute>
-                }
-              />
+                {/* Protected routes */}
+                <Route
+                  path='/instructor/*'
+                  element={
+                    <PrivateRoute role='instructor'>
+                      <InstructorPortal />
+                    </PrivateRoute>
+                  }
+                />
 
-              <Route
-                path='/organization/*'
-                element={
-                  <PrivateRoute role='organization'>
-                    <OrganizationPortal />
-                  </PrivateRoute>
-                }
-              />
+                <Route
+                  path='/organization/*'
+                  element={
+                    <PrivateRoute role='organization'>
+                      <OrganizationPortal />
+                    </PrivateRoute>
+                  }
+                />
 
-              <Route
-                path='/admin/*'
-                element={
-                  <PrivateRoute role='admin'>
-                    <CourseAdminPortal />
-                  </PrivateRoute>
-                }
-              />
+                <Route
+                  path='/admin/*'
+                  element={
+                    <PrivateRoute role='admin'>
+                      <CourseAdminPortal />
+                    </PrivateRoute>
+                  }
+                />
 
-              <Route
-                path='/accounting/*'
-                element={
-                  <PrivateRoute role='accountant'>
-                    <AccountingPortal />
-                  </PrivateRoute>
-                }
-              />
+                <Route
+                  path='/accounting/*'
+                  element={
+                    <PrivateRoute role='accountant'>
+                      <AccountingPortal />
+                    </PrivateRoute>
+                  }
+                />
 
-              <Route
-                path='/superadmin/*'
-                element={
-                  <PrivateRoute role='superadmin'>
-                    <SuperAdminPortal />
-                  </PrivateRoute>
-                }
-              />
+                <Route
+                  path='/superadmin/*'
+                  element={
+                    <PrivateRoute role='superadmin'>
+                      <SuperAdminPortal />
+                    </PrivateRoute>
+                  }
+                />
 
-              <Route
-                path='/sysadmin/*'
-                element={
-                  <PrivateRoute role='sysadmin'>
-                    <SystemAdminPortal />
-                  </PrivateRoute>
-                }
-              />
+                <Route
+                  path='/sysadmin/*'
+                  element={
+                    <PrivateRoute role='sysadmin'>
+                      <SystemAdminPortal />
+                    </PrivateRoute>
+                  }
+                />
 
-              {/* Legacy routes for backward compatibility */}
-              <Route
-                path='/dashboard'
-                element={
-                  <PrivateRoute>
-                    <RoleBasedRouter />
-                  </PrivateRoute>
-                }
-              />
+                {/* Legacy routes for backward compatibility */}
+                <Route
+                  path='/dashboard'
+                  element={
+                    <PrivateRoute>
+                      <RoleBasedRouter />
+                    </PrivateRoute>
+                  }
+                />
 
-              {/* Fallback for unknown routes */}
-              <Route path='*' element={<NotFound />} />
-            </Routes>
-          </ErrorBoundary>
-        </RealtimeProvider>
+                {/* Fallback for unknown routes */}
+                <Route path='*' element={<NotFound />} />
+              </Routes>
+            </ErrorBoundary>
+          </RealtimeProvider>
+        </SnackbarProvider>
       </QueryClientProvider>
     );
   } catch (error) {

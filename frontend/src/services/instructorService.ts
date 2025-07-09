@@ -28,7 +28,10 @@ export const useInstructorAvailability = () => {
     queryKey: INSTRUCTOR_QUERY_KEYS.availability,
     queryFn: async () => {
       const response = await instructorApi.getAvailability();
-      return extractData(response);
+      console.log('[DEBUG] Availability API response:', response);
+      const extractedData = extractData(response);
+      console.log('[DEBUG] Extracted availability data:', extractedData);
+      return extractedData;
     },
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes

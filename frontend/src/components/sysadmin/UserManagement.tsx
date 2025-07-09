@@ -36,7 +36,7 @@ import {
   Save as SaveIcon,
   Cancel as CancelIcon,
 } from '@mui/icons-material';
-import { sysAdminApi, getOrganizations } from '../../services/api';
+import { sysAdminApi } from '../../services/api';
 import logger from '../../utils/logger';
 
 const UserManagement = ({ onShowSnackbar }) => {
@@ -96,7 +96,7 @@ const UserManagement = ({ onShowSnackbar }) => {
 
   const loadOrganizations = async () => {
     try {
-      const response = await getOrganizations();
+      const response = await sysAdminApi.getOrganizations();
       setOrganizations(response.data || []);
     } catch (err) {
       logger.error('Error loading organizations:', err);
@@ -516,7 +516,7 @@ const UserManagement = ({ onShowSnackbar }) => {
                     <MenuItem value=''>None</MenuItem>
                     {organizations.map(org => (
                       <MenuItem key={org.id} value={org.id}>
-                        {org.name}
+                        {org.organization_name}
                       </MenuItem>
                     ))}
                   </Select>

@@ -69,6 +69,10 @@ const TodayClassesList: React.FC<TodayClassesListProps> = ({ classes }) => {
                         </Box>
                       </Box>
                     }
+                    components={{
+                      primary: 'div',
+                      secondary: 'div'
+                    }}
                   />
                   <ListItemSecondaryAction>
                     <Button
