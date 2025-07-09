@@ -88,9 +88,9 @@ const InstructorDashboard: React.FC = () => {
       try {
         // Calculate statistics from the data we already have
         const stats = {
-          total_courses: scheduledClasses.length + completedClasses.length,
-          scheduled_courses: scheduledClasses.length,
-          completed_courses: completedClasses.length,
+          total_courses: (scheduledClasses as any[]).length + (completedClasses as any[]).length,
+          scheduled_courses: (scheduledClasses as any[]).length,
+          completed_courses: (completedClasses as any[]).length,
           cancelled_courses: 0 // We'll need to get this from API if needed
         };
 
@@ -110,13 +110,13 @@ const InstructorDashboard: React.FC = () => {
   }, [scheduledClasses, completedClasses]);
 
   // Calculate additional statistics
-  const totalClasses = scheduledClasses.length;
-  const upcomingClasses = scheduledClasses.filter(
-    (cls) => new Date(cls.date) > new Date()
+  const totalClasses = (scheduledClasses as any[]).length;
+  const upcomingClasses = (scheduledClasses as any[]).filter(
+    (cls: any) => new Date(cls.date) > new Date()
   );
-  const todayClassesCount = todayClasses.length;
-  const totalStudents = scheduledClasses.reduce(
-    (sum, cls) => sum + (cls.studentcount || 0),
+  const todayClassesCount = (todayClasses as any[]).length;
+  const totalStudents = (scheduledClasses as any[]).reduce(
+    (sum: number, cls: any) => sum + (cls.studentcount || 0),
     0
   );
 
@@ -141,10 +141,12 @@ const InstructorDashboard: React.FC = () => {
     return (
       <Alert severity="error" sx={{ mb: 4 }}>
         <Typography variant="h6">
-          {error.userMessage || 'Error Loading Dashboard'}
+          {typeof error === 'object' && error !== null && 'userMessage' in error ? (error as any).userMessage : 'Error Loading Dashboard'}
         </Typography>
         <Typography>
-          {error.suggestion || error.message || 'An unexpected error occurred'}
+          {typeof error === 'object' && error !== null && 'suggestion' in error ? (error as any).suggestion : 
+           typeof error === 'object' && error !== null && 'message' in error ? (error as any).message : 
+           typeof error === 'string' ? error : 'An unexpected error occurred'}
         </Typography>
       </Alert>
     );
@@ -244,7 +246,7 @@ const InstructorDashboard: React.FC = () => {
       </Grid>
 
       {/* Today's Classes */}
-      <TodayClassesList classes={todayClasses} />
+      <TodayClassesList classes={todayClasses as any[]} />
 
       {/* Quick Actions */}
       <QuickActionsGrid />
@@ -290,10 +292,6 @@ const InstructorDashboard: React.FC = () => {
                       </Typography>
                     </Box>
                   }
-                  components={{
-                    primary: 'div',
-                    secondary: 'div'
-                  }}
                 />
                 <ListItemSecondaryAction>
                   <IconButton
