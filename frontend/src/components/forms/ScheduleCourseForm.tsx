@@ -16,6 +16,7 @@ import {
 import * as api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import logger from '../../utils/logger';
+import { getTodayDate } from '../../utils/dateUtils';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -80,7 +81,7 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
     fetchTypes();
   }, []);
 
-  const handleChange = event => {
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | any) => {
     const { name, value } = event.target;
     // Basic numeric validation for registeredStudents
     if (name === 'registeredStudents' && value && !/^[0-9]*$/.test(value)) {
@@ -190,7 +191,7 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
             <TextField
               fullWidth
               label='Date Submitted'
-              value={new Date().toLocaleDateString()}
+              value={getTodayDate()}
               disabled
               variant='filled'
               InputProps={{ readOnly: true }}

@@ -22,6 +22,7 @@ import {
 import { api } from '../../services/api';
 import logger from '../../utils/logger';
 import CourseDialog from './CourseDialog';
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 interface Course {
   id: number;
@@ -181,10 +182,10 @@ const CourseManager: React.FC<CourseManagerProps> = ({ showSnackbar }) => {
                   <TableCell>{course.duration}</TableCell>
                   <TableCell>{course.maxstudents}</TableCell>
                   <TableCell>
-                    {new Date(course.created_at).toLocaleDateString()}
+                    {formatDisplayDate(course.created_at)}
                   </TableCell>
                   <TableCell>
-                    {new Date(course.updated_at).toLocaleDateString()}
+                    {formatDisplayDate(course.updated_at)}
                   </TableCell>
                   <TableCell>
                     <IconButton

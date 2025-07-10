@@ -20,6 +20,7 @@ import {
   Receipt as ReceiptIcon,
   TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
+import { formatDisplayDate } from '../../../../utils/dateUtils';
 
 // TypeScript interfaces
 interface OrganizationData {
@@ -189,7 +190,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
                   {recentCourses.map((course) => (
                     <TableRow key={course.id}>
                       <TableCell>{course.course_type_name}</TableCell>
-                      <TableCell>{new Date(course.request_submitted_date).toLocaleDateString()}</TableCell>
+                      <TableCell>{formatDisplayDate(course.request_submitted_date)}</TableCell>
                       <TableCell>{course.location}</TableCell>
                       <TableCell>{course.registered_students}</TableCell>
                       <TableCell>

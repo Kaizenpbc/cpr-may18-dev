@@ -25,6 +25,7 @@ import {
   CheckCircle as CheckCircleIcon,
   Schedule as ScheduleIcon,
 } from '@mui/icons-material';
+import { formatDisplayDate } from '../../../../utils/dateUtils';
 
 // TypeScript interfaces
 interface Invoice {
@@ -233,7 +234,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                   <TableCell>{invoice.invoice_number}</TableCell>
                   <TableCell>{invoice.course_type_name}</TableCell>
                   <TableCell>
-                    {new Date(invoice.course_date).toLocaleDateString()}
+                    {formatDisplayDate(invoice.course_date)}
                   </TableCell>
                   <TableCell>{invoice.location}</TableCell>
                   <TableCell>{invoice.students_billed}</TableCell>
@@ -252,7 +253,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                       variant="body2"
                       color={isOverdue(invoice.due_date) ? 'error.main' : 'inherit'}
                     >
-                      {new Date(invoice.due_date).toLocaleDateString()}
+                      {formatDisplayDate(invoice.due_date)}
                     </Typography>
                   </TableCell>
                   <TableCell>

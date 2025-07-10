@@ -18,6 +18,7 @@ import {
 import * as api from '../../services/api';
 import ScheduleCourseForm from '../forms/ScheduleCourseForm';
 import logger from '../../utils/logger';
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 const ScheduleCourseDialog = ({ open, onClose, course, onCourseScheduled }) => {
   const [instructors, setInstructors] = useState([]);
@@ -116,7 +117,7 @@ const ScheduleCourseDialog = ({ open, onClose, course, onCourseScheduled }) => {
         <Typography variant='body2' gutterBottom>
           Requested Date:{' '}
           {course?.daterequested
-            ? new Date(course.daterequested).toLocaleDateString()
+            ? formatDisplayDate(course.daterequested)
             : '-'}
         </Typography>
 
