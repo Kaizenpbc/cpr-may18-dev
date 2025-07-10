@@ -350,7 +350,7 @@ router.post(
       const result = await pool.query(
         `INSERT INTO course_requests 
        (organization_id, course_type_id, date_requested, scheduled_date, location, registered_students, notes, status) 
-       VALUES ($1, $2, CURRENT_DATE, $3, $4, $5, $6, 'pending') 
+       VALUES ($1, $2, (NOW() AT TIME ZONE 'America/Toronto')::date, $3, $4, $5, $6, 'pending') 
        RETURNING *, date_requested as request_submitted_date`,
         [
           organizationId,
