@@ -209,7 +209,7 @@ console.log('✅ Environment variables loaded');
 // Log environment info
 console.log('3. Environment info:', {
   NODE_ENV: process.env.NODE_ENV || 'development',
-  PORT: process.env.PORT || '3002',
+  PORT: process.env.PORT || '3001',
 });
 
 // Create Express app

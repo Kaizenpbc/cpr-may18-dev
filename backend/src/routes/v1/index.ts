@@ -1095,18 +1095,8 @@ router.put(
 
         await client.query('COMMIT');
 
-        // Send email notifications
-        console.log('📧 [EMAIL] Starting email notification process...');
-        console.log('📧 [EMAIL] Instructor email:', instructor.email);
-        console.log('📧 [EMAIL] Course details:', {
-          courseName: courseRequest.course_type_name,
-          date: scheduledDate,
-          startTime: startTime,
-          endTime: endTime,
-          location: courseRequest.location,
-          organization: courseRequest.organization_name,
-          students: courseRequest.registered_students || 0,
-        });
+        // Queue email notifications (non-blocking)
+        console.log('📧 [EMAIL QUEUE] Queuing email notifications...');
         
         try {
           // Get organization contact email
@@ -1116,52 +1106,49 @@ router.put(
           );
           
           const organizationEmail = orgResult.rows[0]?.contact_email;
-          console.log('📧 [EMAIL] Organization email:', organizationEmail);
           
-          // Send email to instructor
+          // Queue instructor email
           if (instructor.email) {
-            console.log('📧 [EMAIL] Sending instructor notification to:', instructor.email);
-            await emailService.sendCourseAssignedNotification(instructor.email, {
-              courseName: courseRequest.course_type_name,
-              date: scheduledDate,
-              startTime: startTime,
-              endTime: endTime,
-              location: courseRequest.location,
-              organization: courseRequest.organization_name,
-              students: courseRequest.registered_students || 0,
+            const { emailQueueService } = await import('../../services/emailQueue.js');
+            await emailQueueService.addEmailJob({
+              type: 'course_assigned_instructor',
+              recipient: instructor.email,
+              data: {
+                courseName: courseRequest.course_type_name,
+                date: scheduledDate,
+                startTime: startTime,
+                endTime: endTime,
+                location: courseRequest.location,
+                organization: courseRequest.organization_name,
+                students: courseRequest.registered_students || 0,
+              }
             });
-            console.log('✅ [EMAIL] Instructor notification sent successfully');
-          } else {
-            console.log('⚠️ [EMAIL] No instructor email found, skipping instructor notification');
+            console.log('✅ [EMAIL QUEUE] Instructor notification queued');
           }
           
-          // Send email to organization
+          // Queue organization email
           if (organizationEmail) {
-            console.log('📧 [EMAIL] Sending organization notification to:', organizationEmail);
-            await emailService.sendCourseScheduledToOrganization(organizationEmail, {
-              courseName: courseRequest.course_type_name,
-              date: scheduledDate,
-              startTime: startTime,
-              endTime: endTime,
-              location: courseRequest.location,
-              instructorName: instructor.instructor_name,
-              students: courseRequest.registered_students || 0,
+            const { emailQueueService } = await import('../../services/emailQueue.js');
+            await emailQueueService.addEmailJob({
+              type: 'course_scheduled_organization',
+              recipient: organizationEmail,
+              data: {
+                courseName: courseRequest.course_type_name,
+                date: scheduledDate,
+                startTime: startTime,
+                endTime: endTime,
+                location: courseRequest.location,
+                instructorName: instructor.instructor_name,
+                students: courseRequest.registered_students || 0,
+              }
             });
-            console.log('✅ [EMAIL] Organization notification sent successfully');
-          } else {
-            console.log('⚠️ [EMAIL] No organization email found, skipping organization notification');
+            console.log('✅ [EMAIL QUEUE] Organization notification queued');
           }
           
-          console.log('✅ [EMAIL] All email notifications completed successfully');
-        } catch (emailError) {
-          console.error('❌ [EMAIL] Error sending email notifications:', emailError);
-          console.error('❌ [EMAIL] Error details:', {
-            message: emailError instanceof Error ? emailError.message : 'Unknown error',
-            stack: emailError instanceof Error ? emailError.stack : 'No stack trace',
-            instructorEmail: instructor.email,
-            organizationId: courseRequest.organization_id
-          });
-          // Don't fail the entire operation if emails fail
+          console.log('✅ [EMAIL QUEUE] All email notifications queued successfully');
+        } catch (queueError) {
+          console.error('❌ [EMAIL QUEUE] Error queuing email notifications:', queueError);
+          // Don't fail the entire operation if email queue fails
         }
 
         return res.json({
@@ -1180,6 +1167,26 @@ router.put(
     } catch (error) {
       console.error('Error assigning instructor:', error);
       throw error;
+    }
+  })
+);
+
+// Get email queue status
+router.get(
+  '/email-queue/status',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { emailQueueService } = await import('../../services/emailQueue.js');
+      const status = await emailQueueService.getQueueStatus();
+      res.json(ApiResponseBuilder.success(status, 'Email queue status retrieved'));
+    } catch (error) {
+      console.error('❌ [EMAIL QUEUE] Error getting queue status:', error);
+      res.json(ApiResponseBuilder.success({
+        pendingJobs: 0,
+        failedJobs: 0,
+        isProcessing: false,
+        error: 'Queue service unavailable'
+      }, 'Email queue status (fallback)'));
     }
   })
 );

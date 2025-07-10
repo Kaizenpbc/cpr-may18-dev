@@ -46,28 +46,28 @@ const TodayClassesList: React.FC<TodayClassesListProps> = ({ classes }) => {
                 <ListItem>
                   <ListItemText
                     primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <ClassIcon color="primary" />
                         <Typography variant="subtitle1" component="span">
                           {cls.coursetype} - {cls.location}
                         </Typography>
-                      </Box>
+                      </span>
                     }
                     secondary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 8 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <TimeIcon fontSize="small" />
                           <Typography variant="body2" component="span">
                             {formatDisplayDate(cls.date)}
                           </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        </span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <GroupIcon fontSize="small" />
                           <Typography variant="body2" component="span">
                             {cls.studentcount} Students
                           </Typography>
-                        </Box>
-                      </Box>
+                        </span>
+                      </span>
                     }
                     components={{
                       primary: 'div',

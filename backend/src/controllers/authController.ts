@@ -20,7 +20,14 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    // Join with organizations table to get organization name
+    const result = await pool.query(
+      `SELECT u.*, o.organizationname as organization_name
+       FROM users u
+       LEFT JOIN organizations o ON u.organization_id = o.organizationid
+       WHERE u.username = $1`,
+      [username]
+    );
     const user = result.rows[0];
 
     if (!user) {
@@ -66,7 +73,8 @@ router.post('/login', async (req: Request, res: Response) => {
         id: user.id,
         username: user.username,
         role: user.role,
-        organizationId: user.organization_id
+        organizationId: user.organization_id,
+        organizationName: user.organization_name
       }
     });
   } catch (error) {

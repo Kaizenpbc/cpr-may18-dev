@@ -195,7 +195,7 @@ const InstructorDashboard: React.FC = () => {
       
       {errorState && (
         <Box sx={{ mb: 4 }}>
-          <Typography color="error">{errorState}</Typography>
+          <Typography color="error" component="div">{errorState}</Typography>
         </Box>
       )}
 
@@ -211,10 +211,10 @@ const InstructorDashboard: React.FC = () => {
                   <ClassIcon />
                 </Avatar>
                 <Box>
-                  <Typography variant="h6">
+                  <Typography variant="h6" component="div">
                     {dashboardData?.instructorStats.total_courses || 0}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" component="div">
                     Total Classes
                   </Typography>
                 </Box>
@@ -230,10 +230,10 @@ const InstructorDashboard: React.FC = () => {
                   <ScheduleIcon />
                 </Avatar>
                 <Box>
-                  <Typography variant="h6">
+                  <Typography variant="h6" component="div">
                     {dashboardData?.instructorStats.scheduled_courses || 0}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" component="div">
                     Upcoming Classes
                   </Typography>
                 </Box>
@@ -249,10 +249,10 @@ const InstructorDashboard: React.FC = () => {
                   <PeopleIcon />
                 </Avatar>
                 <Box>
-                  <Typography variant="h6">
+                  <Typography variant="h6" component="div">
                     {dashboardData?.instructorStats.completed_courses || 0}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" component="div">
                     Completed Classes
                   </Typography>
                 </Box>
@@ -268,10 +268,10 @@ const InstructorDashboard: React.FC = () => {
                   <CalendarIcon />
                 </Avatar>
                 <Box>
-                  <Typography variant="h6">
+                  <Typography variant="h6" component="div">
                     {totalStudents}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" component="div">
                     Total Students
                   </Typography>
                 </Box>
@@ -291,7 +291,7 @@ const InstructorDashboard: React.FC = () => {
       {upcomingClasses.length > 0 && (
         <Paper sx={{ p: 3, mt: 4 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">Upcoming Classes</Typography>
+            <Typography variant="h6" component="div">Upcoming Classes</Typography>
             <Button
               variant="outlined"
               endIcon={<ArrowForwardIcon />}
@@ -307,7 +307,7 @@ const InstructorDashboard: React.FC = () => {
                 <ListItemText
                   primary={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="subtitle1">
+                      <Typography variant="subtitle1" component="div">
                         {cls.name}
                       </Typography>
                       <Chip
@@ -320,10 +320,10 @@ const InstructorDashboard: React.FC = () => {
                   }
                   secondary={
                     <Box component="div">
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="text.secondary" component="div">
                         {formatDate(cls.date)} • {cls.location} • {cls.organizationname}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="text.secondary" component="div">
                         Students: {cls.studentcount || 0}
                       </Typography>
                     </Box>

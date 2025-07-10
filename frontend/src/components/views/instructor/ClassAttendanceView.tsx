@@ -107,7 +107,7 @@ const ClassAttendanceView: React.FC = () => {
   const loadTodaysClasses = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/instructors/classes/today');
+      const response = await api.get('/instructor/classes/today');
       setTodaysClasses(response.data.data || []);
 
       // Auto-select the first class if only one exists
@@ -128,7 +128,7 @@ const ClassAttendanceView: React.FC = () => {
     try {
       setStudentsLoading(true);
       const response = await api.get(
-        `/instructors/classes/${classId}/students`
+        `/instructor/classes/${classId}/students`
       );
       console.log('[Debug] Students loaded from backend:', response.data.data);
       setStudents(response.data.data || []);
@@ -153,7 +153,7 @@ const ClassAttendanceView: React.FC = () => {
 
     try {
       const response = await api.put(
-        `/instructors/classes/${selectedClass.course_id}/students/${studentId}/attendance`,
+        `/instructor/classes/${selectedClass.course_id}/students/${studentId}/attendance`,
         { attended }
       );
 
@@ -173,7 +173,7 @@ const ClassAttendanceView: React.FC = () => {
 
     try {
       const response = await api.post(
-        `/instructors/classes/${selectedClass.course_id}/students`,
+        `/instructor/classes/${selectedClass.course_id}/students`,
         newStudent
       );
 
@@ -196,7 +196,7 @@ const ClassAttendanceView: React.FC = () => {
     try {
       setCompleting(true);
       const response = await api.put(
-        `/instructors/classes/${selectedClass.course_id}/complete`,
+        `/instructor/classes/${selectedClass.course_id}/complete`,
         { instructor_comments: instructorComments }
       );
       setError('');

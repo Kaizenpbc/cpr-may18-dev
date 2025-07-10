@@ -143,163 +143,141 @@ router.delete('/availability/:date', authenticateToken, requireRole(['instructor
   }
 });
 
-// Get instructor's classes
+// Get instructor's classes (all confirmed course_requests)
 router.get('/classes', authenticateToken, requireRole(['instructor']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user.id;
-  console.log('[DEBUG] Checking data for instructor:', userId);
   
-  // Check course_students table
-  const courseStudentsResult = await pool.query(
-    `SELECT cs.* FROM course_students cs
-     JOIN course_requests cr ON cs.course_request_id = cr.id
-     WHERE cr.instructor_id = $1 LIMIT 5`,
-    [userId]
-  );
-  console.log('[DEBUG] course_students sample:', courseStudentsResult.rows);
-  
-  // Check course_requests table
-  const courseRequestsResult = await pool.query('SELECT * FROM course_requests WHERE instructor_id = $1 LIMIT 5', [userId]);
-  console.log('[DEBUG] course_requests for instructor:', courseRequestsResult.rows);
-  
-  // Check classes table
-  const classesResult = await pool.query('SELECT * FROM classes WHERE instructor_id = $1 LIMIT 5', [userId]);
-  console.log('[DEBUG] classes for instructor:', classesResult.rows);
-  
-  const dbResult = await pool.query(
+  // Get confirmed course requests from course_requests table
+  const courseRequestsDbResult = await pool.query(
     `SELECT 
-      c.id,
-      c.id as course_id,
-      c.instructor_id,
-      c.start_time,
-      c.end_time,
-      c.status,
-      c.location,
-      c.max_students,
-      CASE WHEN c.status = 'completed' THEN true ELSE false END as completed,
-      c.created_at,
-      c.updated_at,
+      cr.id,
+      cr.id as course_id,
+      cr.instructor_id,
+      cr.confirmed_date as start_time,
+      cr.confirmed_date as end_time,
+      cr.status,
+      cr.location,
+      cr.registered_students as max_students,
+      CASE WHEN cr.status = 'completed' THEN true ELSE false END as completed,
+      cr.created_at,
+      cr.updated_at,
       ct.name as course_name,
       ct.name as coursetypename,
       COALESCE(o.name, 'Unassigned') as organizationname,
-      COALESCE(c.location, '') as notes,
+      COALESCE(cr.location, '') as notes,
       0 as studentcount,
       0 as studentsattendance
-     FROM classes c
-     JOIN class_types ct ON c.class_type_id = ct.id
-     LEFT JOIN organizations o ON o.id = 1
-     WHERE c.instructor_id = $1
-     ORDER BY c.start_time DESC, c.end_time DESC`,
+     FROM course_requests cr
+     JOIN class_types ct ON cr.course_type_id = ct.id
+     LEFT JOIN organizations o ON cr.organization_id = o.id
+     WHERE cr.instructor_id = $1 AND cr.status = 'confirmed'
+     ORDER BY cr.confirmed_date DESC`,
     [userId]
   );
-  console.log('[TRACE] Raw DB result:', JSON.stringify(dbResult.rows, null, 2));
-  const result = dbResult.rows.map(row => {
-    // Extract date from start_time for compatibility
+  
+  const allData = courseRequestsDbResult.rows;
+  const result = allData.map(row => {
     const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
     return {
       ...row,
       date: date
     };
   });
-  console.log('[TRACE] API response data:', JSON.stringify(result, null, 2));
   res.json({ success: true, data: result });
 });
 
-// Get instructor's active classes (non-completed)
+// Get instructor's active classes (non-completed course_requests)
 router.get('/classes/active', authenticateToken, requireRole(['instructor']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user.id;
-  console.log('[DEBUG] Fetching active classes for instructor:', userId);
   
   const dbResult = await pool.query(
     `SELECT 
-      c.id,
-      c.id as course_id,
-      c.instructor_id,
-      c.start_time,
-      c.end_time,
-      c.status,
-      c.location,
-      c.max_students,
-      CASE WHEN c.status = 'completed' THEN true ELSE false END as completed,
-      c.created_at,
-      c.updated_at,
+      cr.id,
+      cr.id as course_id,
+      cr.instructor_id,
+      cr.confirmed_date as start_time,
+      cr.confirmed_date as end_time,
+      cr.status,
+      cr.location,
+      cr.registered_students as max_students,
+      CASE WHEN cr.status = 'completed' THEN true ELSE false END as completed,
+      cr.created_at,
+      cr.updated_at,
       ct.name as course_name,
       ct.name as coursetypename,
       COALESCE(o.name, 'Unassigned') as organizationname,
-      COALESCE(c.location, '') as notes,
+      COALESCE(cr.location, '') as notes,
       0 as studentcount,
       0 as studentsattendance
-     FROM classes c
-     JOIN class_types ct ON c.class_type_id = ct.id
-     LEFT JOIN organizations o ON o.id = 1
-     WHERE c.instructor_id = $1 AND c.status != 'completed'
-     ORDER BY c.start_time ASC, c.end_time ASC`,
+     FROM course_requests cr
+     JOIN class_types ct ON cr.course_type_id = ct.id
+     LEFT JOIN organizations o ON cr.organization_id = o.id
+     WHERE cr.instructor_id = $1 AND cr.status = 'confirmed' AND cr.status != 'completed'
+     ORDER BY cr.confirmed_date ASC`,
     [userId]
   );
-  console.log('[TRACE] Raw DB result (active):', JSON.stringify(dbResult.rows, null, 2));
+  
   const result = dbResult.rows.map(row => {
-    // Extract date from start_time for compatibility
     const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
     return {
       ...row,
       date: date
     };
   });
-  console.log('[TRACE] API response data (active):', JSON.stringify(result, null, 2));
   res.json({ success: true, data: result });
 });
 
-// Get instructor's completed classes
+// Get instructor's completed classes (completed course_requests)
 router.get('/classes/completed', authenticateToken, requireRole(['instructor']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user.id;
+  
   const dbResult2 = await pool.query(
     `SELECT 
-      c.id,
-      c.id as course_id,
-      c.instructor_id,
-      c.start_time,
-      c.end_time,
-      c.status,
-      c.location,
-      c.max_students,
-      CASE WHEN c.status = 'completed' THEN true ELSE false END as completed,
-      c.created_at,
-      c.updated_at,
+      cr.id,
+      cr.id as course_id,
+      cr.instructor_id,
+      cr.confirmed_date as start_time,
+      cr.confirmed_date as end_time,
+      cr.status,
+      cr.location,
+      cr.registered_students as max_students,
+      CASE WHEN cr.status = 'completed' THEN true ELSE false END as completed,
+      cr.created_at,
+      cr.updated_at,
       ct.name as course_name,
       ct.name as coursetypename,
       COALESCE(o.name, 'Unassigned') as organizationname,
-      COALESCE(c.location, '') as notes,
+      COALESCE(cr.location, '') as notes,
       0 as studentcount,
       0 as studentsattendance
-     FROM classes c
-     JOIN class_types ct ON c.class_type_id = ct.id
-     LEFT JOIN organizations o ON o.id = 1
-     WHERE c.instructor_id = $1 AND c.status = 'completed'
-     ORDER BY c.start_time DESC, c.end_time DESC`,
+     FROM course_requests cr
+     JOIN class_types ct ON cr.course_type_id = ct.id
+     LEFT JOIN organizations o ON cr.organization_id = o.id
+     WHERE cr.instructor_id = $1 AND cr.status = 'completed'
+     ORDER BY cr.confirmed_date DESC`,
     [userId]
   );
-  console.log('[TRACE] Raw DB result (completed):', JSON.stringify(dbResult2.rows, null, 2));
+  
   const result2 = dbResult2.rows.map(row => {
-    // Extract date from start_time for compatibility
     const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
     return {
       ...row,
       date: date
     };
   });
-  console.log('[TRACE] API response data (completed):', JSON.stringify(result2, null, 2));
   res.json({ success: true, data: result2 });
 });
 
-// Get instructor's classes for today
+// Get instructor's classes for today (use only course_requests)
 router.get('/classes/today', authenticateToken, requireRole(['instructor']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
@@ -308,34 +286,39 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor']), asy
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
 
-  const dbResult3 = await pool.query(
+  // Get confirmed course requests from course_requests table for today
+  const courseRequestsDbResult = await pool.query(
     `SELECT 
-      c.id,
-      c.id as course_id,
-      c.instructor_id,
-      c.start_time,
-      c.end_time,
-      c.status,
-      c.location,
-      c.max_students,
-      CASE WHEN c.status = 'completed' THEN true ELSE false END as completed,
-      c.created_at,
-      c.updated_at,
+      cr.id,
+      cr.id as course_id,
+      cr.instructor_id,
+      cr.confirmed_date as start_time,
+      cr.confirmed_date as end_time,
+      cr.status,
+      cr.location,
+      cr.registered_students as max_students,
+      CASE WHEN cr.status = 'completed' THEN true ELSE false END as completed,
+      cr.created_at,
+      cr.updated_at,
       ct.name as course_name,
       ct.name as coursetypename,
       COALESCE(o.name, 'Unassigned') as organizationname,
-      COALESCE(c.location, '') as notes,
+      COALESCE(cr.location, '') as notes,
       0 as studentcount,
       0 as studentsattendance
-     FROM classes c
-     JOIN class_types ct ON c.class_type_id = ct.id
-     LEFT JOIN organizations o ON o.id = 1
-     WHERE c.instructor_id = $1 AND DATE(c.start_time) = $2
-     ORDER BY c.start_time ASC`,
+     FROM course_requests cr
+     JOIN class_types ct ON cr.course_type_id = ct.id
+     LEFT JOIN organizations o ON cr.organization_id = o.id
+     WHERE cr.instructor_id = $1 AND cr.status = 'confirmed' AND DATE(cr.confirmed_date) = $2
+     ORDER BY cr.confirmed_date ASC`,
     [userId, todayStr]
   );
-  console.log('[TRACE] Raw DB result (today):', JSON.stringify(dbResult3.rows, null, 2));
-  const result3 = dbResult3.rows.map(row => {
+  
+  // Use only course_requests data
+  const allData = courseRequestsDbResult.rows;
+  
+  console.log('[TRACE] Raw DB result (today):', JSON.stringify(allData, null, 2));
+  const result3 = allData.map(row => {
     // Extract date from start_time for compatibility
     const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
     return {
@@ -345,6 +328,49 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor']), asy
   });
   console.log('[TRACE] API response data (today):', JSON.stringify(result3, null, 2));
   res.json({ success: true, data: result3 });
+});
+
+// Get instructor's schedule (all confirmed course_requests)
+router.get('/schedule', authenticateToken, requireRole(['instructor']), async (req, res) => {
+  if (!req.user) {
+    throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
+  }
+  const userId = req.user.id;
+  const courseRequestsDbResult = await pool.query(
+    `SELECT 
+      cr.id,
+      cr.id as course_id,
+      cr.instructor_id,
+      cr.confirmed_date as start_time,
+      cr.confirmed_date as end_time,
+      cr.status,
+      cr.location,
+      cr.registered_students as max_students,
+      CASE WHEN cr.status = 'completed' THEN true ELSE false END as completed,
+      cr.created_at,
+      cr.updated_at,
+      ct.name as course_name,
+      ct.name as coursetypename,
+      COALESCE(o.name, 'Unassigned') as organizationname,
+      COALESCE(cr.location, '') as notes,
+      0 as studentcount,
+      0 as studentsattendance
+     FROM course_requests cr
+     JOIN class_types ct ON cr.course_type_id = ct.id
+     LEFT JOIN organizations o ON cr.organization_id = o.id
+     WHERE cr.instructor_id = $1 AND cr.status = 'confirmed'
+     ORDER BY cr.confirmed_date ASC`,
+    [userId]
+  );
+  const allData = courseRequestsDbResult.rows;
+  const formattedData = allData.map(row => {
+    const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
+    return {
+      ...row,
+      date: date
+    };
+  });
+  res.json({ success: true, data: formattedData });
 });
 
 // Get students for a specific class
@@ -551,50 +577,6 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
     addedStudents.push(insertResult.rows[0]);
   }
   res.json({ success: true, data: addedStudents });
-});
-
-// Get instructor's schedule
-router.get('/schedule', authenticateToken, requireRole(['instructor']), async (req, res) => {
-  if (!req.user) {
-    throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
-  }
-  const userId = req.user.id;
-  const result = await pool.query(
-    `SELECT 
-      c.id,
-      c.id as course_id,
-      c.instructor_id,
-      c.start_time,
-      c.end_time,
-      c.status,
-      c.location,
-      c.max_students,
-      CASE WHEN c.status = 'completed' THEN true ELSE false END as completed,
-      c.created_at,
-      c.updated_at,
-      ct.name as course_name,
-      ct.name as coursetypename,
-      COALESCE(o.name, 'Unassigned') as organizationname,
-      COALESCE(c.location, '') as notes,
-      0 as studentcount,
-      0 as studentsattendance
-     FROM classes c
-     JOIN class_types ct ON c.class_type_id = ct.id
-     LEFT JOIN organizations o ON o.id = 1
-     WHERE c.instructor_id = $1
-     ORDER BY c.start_time ASC`,
-    [userId]
-  );
-  
-  const formattedData = result.rows.map(row => {
-    const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
-    return {
-      ...row,
-      date: date
-    };
-  });
-  
-  res.json({ success: true, data: formattedData });
 });
 
 // Update instructor availability (PUT method)

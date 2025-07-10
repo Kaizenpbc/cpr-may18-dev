@@ -515,8 +515,12 @@ router.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Resp
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
 
+  // Join with organizations table to get organization name
   const result = await pool.query(
-    'SELECT id, username, email, role, organization_id FROM users WHERE id = $1',
+    `SELECT u.id, u.username, u.email, u.role, u.organization_id, o.organizationname as organization_name
+     FROM users u
+     LEFT JOIN organizations o ON u.organization_id = o.organizationid
+     WHERE u.id = $1`,
     [userId]
   );
 
@@ -531,7 +535,8 @@ router.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Resp
       username: user.username,
       email: user.email,
       role: user.role,
-      organizationId: user.organization_id
+      organizationId: user.organization_id,
+      organizationName: user.organization_name
     }
   }));
 }));
