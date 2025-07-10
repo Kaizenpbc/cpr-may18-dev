@@ -381,15 +381,54 @@ router.get('/classes/:classId/students', authenticateToken, requireRole(['instru
   const userId = req.user.id;
   try {
     const { classId } = req.params;
-    const result = await pool.query(
-      `SELECT u.id as student_id, u.username, u.email, 
-              cs.attendance
-       FROM class_students cs
-       JOIN users u ON cs.student_id = u.id
-       WHERE cs.class_id = $1`,
-      [classId]
+    
+    // First, get the course_request_id for this class
+    const courseRequestResult = await pool.query(
+      `SELECT cr.id as course_request_id
+       FROM course_requests cr
+       WHERE cr.instructor_id = $1 
+         AND DATE(cr.confirmed_date) = (
+           SELECT DATE(c.start_time) 
+           FROM classes c 
+           WHERE c.id = $2 AND c.instructor_id = $1
+         )
+       LIMIT 1`,
+      [userId, classId]
     );
-    res.json({ success: true, data: result.rows });
+
+    if (courseRequestResult.rows.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const courseRequestId = courseRequestResult.rows[0].course_request_id;
+
+    // Now get students from course_students table
+    const result = await pool.query(
+      `SELECT 
+         cs.id,
+         cs.first_name,
+         cs.last_name,
+         cs.email,
+         cs.attended,
+         cs.attendance_marked
+       FROM course_students cs
+       WHERE cs.course_request_id = $1
+       ORDER BY cs.first_name, cs.last_name`,
+      [courseRequestId]
+    );
+
+    // Transform the data to match frontend expectations
+    const students = result.rows.map(row => ({
+      studentid: row.id.toString(),
+      firstname: row.first_name,
+      lastname: row.last_name,
+      email: row.email || '',
+      attendance: row.attended || false,
+      attendanceMarked: row.attendance_marked || false,
+    }));
+
+    console.log('[Debug] Students loaded for class:', classId, 'course_request:', courseRequestId, 'count:', students.length);
+    res.json({ success: true, data: students });
   } catch (error) {
     console.error('Error fetching class students:', error);
     res.status(500).json({ error: 'Internal server error' });
