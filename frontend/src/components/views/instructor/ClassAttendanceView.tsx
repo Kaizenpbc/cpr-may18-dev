@@ -44,7 +44,7 @@ import {
   Comment as CommentIcon,
   Today as TodayIcon,
 } from '@mui/icons-material';
-import api from '../../../services/api';
+import { instructorApi } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { handleError } from '../../../services/errorHandler';
@@ -107,12 +107,12 @@ const ClassAttendanceView: React.FC = () => {
   const loadTodaysClasses = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/instructor/classes/today');
-      setTodaysClasses(response.data.data || []);
+      const response = await instructorApi.getClassesToday();
+      setTodaysClasses(response.data || []);
 
       // Auto-select the first class if only one exists
-      if (response.data.data && response.data.data.length === 1) {
-        setSelectedClass(response.data.data[0]);
+      if (response.data && response.data.length === 1) {
+        setSelectedClass(response.data[0]);
       }
 
       setError('');
@@ -127,11 +127,9 @@ const ClassAttendanceView: React.FC = () => {
   const loadStudents = async (classId: number) => {
     try {
       setStudentsLoading(true);
-      const response = await api.get(
-        `/instructor/classes/${classId}/students`
-      );
-      console.log('[Debug] Students loaded from backend:', response.data.data);
-      setStudents(response.data.data || []);
+      const response = await instructorApi.getClassStudents(classId);
+      console.log('[Debug] Students loaded from backend:', response.data);
+      setStudents(response.data || []);
       setError('');
     } catch (error: any) {
       handleError(error, { component: 'ClassAttendanceView', action: 'load students' });
@@ -152,10 +150,7 @@ const ClassAttendanceView: React.FC = () => {
     if (!selectedClass) return;
 
     try {
-      const response = await api.put(
-        `/instructor/classes/${selectedClass.course_id}/students/${studentId}/attendance`,
-        { attended }
-      );
+      const response = await instructorApi.updateStudentAttendance(selectedClass.course_id, studentId, attended);
 
       // Reload students from backend to ensure we have the latest attendance status
       await loadStudents(selectedClass.course_id);
@@ -172,21 +167,21 @@ const ClassAttendanceView: React.FC = () => {
     }
 
     try {
-      const response = await api.post(
-        `/instructor/classes/${selectedClass.course_id}/students`,
-        newStudent
-      );
+      const response = await instructorApi.addStudent(selectedClass.course_id, newStudent);
 
       // Add new student to the list
-      setStudents(prev => [...prev, response.data.data]);
+      setStudents(prev => [...prev, response.data]);
 
       // Clear form and close dialog
       setNewStudent({ firstName: '', lastName: '', email: '' });
       setAddStudentDialog(false);
       setError('');
+      setSuccessMessage('Student added successfully!');
     } catch (error: any) {
-      handleError(error, { component: 'ClassAttendanceView', action: 'add student' });
-      setError('Failed to add student');
+      // Show the specific error message from the backend
+      const errorMessage = error.response?.data?.error || 'Failed to add student';
+      setError(errorMessage);
+      console.error('Add student error:', error);
     }
   };
 
@@ -195,10 +190,7 @@ const ClassAttendanceView: React.FC = () => {
 
     try {
       setCompleting(true);
-      const response = await api.put(
-        `/instructor/classes/${selectedClass.course_id}/complete`,
-        { instructor_comments: instructorComments }
-      );
+      const response = await instructorApi.completeClass(selectedClass.course_id, instructorComments);
       setError('');
       setSuccessMessage('Class completed successfully! It has been moved to your archive.');
       // Refresh the class list
@@ -496,16 +488,49 @@ const ClassAttendanceView: React.FC = () => {
                           </TableCell>
                           <TableCell>{student.email || '-'}</TableCell>
                           <TableCell align='center'>
-                            <Checkbox
-                              checked={student.attendance || false}
-                              onChange={e =>
-                                handleAttendanceChange(
-                                  student.studentid,
-                                  e.target.checked
-                                )
-                              }
-                              color='primary'
-                            />
+                            {student.attendanceMarked ? (
+                              // Show current status with option to change
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Button
+                                  variant={student.attendance ? 'contained' : 'outlined'}
+                                  color='success'
+                                  size='small'
+                                  onClick={() => handleAttendanceChange(student.studentid, true)}
+                                  disabled={student.attendance}
+                                >
+                                  Present
+                                </Button>
+                                <Button
+                                  variant={!student.attendance ? 'contained' : 'outlined'}
+                                  color='error'
+                                  size='small'
+                                  onClick={() => handleAttendanceChange(student.studentid, false)}
+                                  disabled={!student.attendance}
+                                >
+                                  Absent
+                                </Button>
+                              </Box>
+                            ) : (
+                              // Show buttons to mark attendance for the first time
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Button
+                                  variant='outlined'
+                                  color='success'
+                                  size='small'
+                                  onClick={() => handleAttendanceChange(student.studentid, true)}
+                                >
+                                  Mark Present
+                                </Button>
+                                <Button
+                                  variant='outlined'
+                                  color='error'
+                                  size='small'
+                                  onClick={() => handleAttendanceChange(student.studentid, false)}
+                                >
+                                  Mark Absent
+                                </Button>
+                              </Box>
+                            )}
                           </TableCell>
                           <TableCell align='center'>
                             <Chip

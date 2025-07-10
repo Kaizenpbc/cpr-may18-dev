@@ -276,9 +276,14 @@ export const instructorApi = {
   getClassesCompleted: () => api.get('/instructor/classes/completed'),
   getClassesActive: () => api.get('/instructor/classes/active'),
   getClassStudents: (courseId: number) => api.get(`/instructor/classes/${courseId}/students`),
-  completeClass: (courseId: number) => api.put(`/instructor/classes/${courseId}/complete`),
+  completeClass: (courseId: number, instructorComments?: string) => 
+    api.post(`/instructor/classes/${courseId}/complete`, { instructor_comments: instructorComments || '' }),
   updateAttendance: (courseId: number, students: any[]) => 
     api.put(`/instructor/classes/${courseId}/attendance`, { students }),
+  updateStudentAttendance: (courseId: number, studentId: string, attended: boolean) =>
+    api.put(`/instructor/classes/${courseId}/students/${studentId}/attendance`, { attended }),
+  addStudent: (courseId: number, studentData: any) =>
+    api.post(`/instructor/classes/${courseId}/students`, studentData),
   updateClassNotes: (courseId: number, notes: string) => 
     api.post('/instructor/classes/notes', { courseId, notes }),
   
@@ -401,7 +406,7 @@ export const getInvoices = async () => {
 
 export const getInvoiceDetails = async (invoiceId: number) => {
   const response = await api.get(`/accounting/invoices/${invoiceId}`);
-  return response.data;
+  return extractData(response);
 };
 
 export const updateInvoice = async (invoiceId: number, data: any) => {
@@ -409,14 +414,14 @@ export const updateInvoice = async (invoiceId: number, data: any) => {
     `/accounting/invoices/${invoiceId}`,
     data
   );
-  return response.data;
+  return extractData(response);
 };
 
 export const emailInvoice = async (invoiceId: number) => {
   const response = await api.post(
     `/accounting/invoices/${invoiceId}/email`
   );
-  return response.data;
+  return extractData(response);
 };
 
 export const getInvoicePayments = async (invoiceId: number) => {

@@ -189,7 +189,7 @@ router.get('/classes', authenticateToken, requireRole(['instructor']), async (re
   res.json({ success: true, data: result });
 });
 
-// Get instructor's active classes (non-completed course_requests)
+// Get instructor's active classes (confirmed course_requests)
 router.get('/classes/active', authenticateToken, requireRole(['instructor']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
@@ -213,8 +213,8 @@ router.get('/classes/active', authenticateToken, requireRole(['instructor']), as
       ct.name as coursetypename,
       COALESCE(o.name, 'Unassigned') as organizationname,
       COALESCE(cr.location, '') as notes,
-      0 as studentcount,
-      0 as studentsattendance
+      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as studentcount,
+      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as studentsattendance
      FROM course_requests cr
      JOIN class_types ct ON cr.course_type_id = ct.id
      LEFT JOIN organizations o ON cr.organization_id = o.id
@@ -286,7 +286,7 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor']), asy
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
 
-  // Get confirmed course requests from course_requests table for today
+  // Get confirmed course requests from course_requests table for today with actual student counts
   const courseRequestsDbResult = await pool.query(
     `SELECT 
       cr.id,
@@ -304,8 +304,8 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor']), asy
       ct.name as coursetypename,
       COALESCE(o.name, 'Unassigned') as organizationname,
       COALESCE(cr.location, '') as notes,
-      0 as studentcount,
-      0 as studentsattendance
+      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as studentcount,
+      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as studentsattendance
      FROM course_requests cr
      JOIN class_types ct ON cr.course_type_id = ct.id
      LEFT JOIN organizations o ON cr.organization_id = o.id
@@ -353,8 +353,8 @@ router.get('/schedule', authenticateToken, requireRole(['instructor']), async (r
       ct.name as coursetypename,
       COALESCE(o.name, 'Unassigned') as organizationname,
       COALESCE(cr.location, '') as notes,
-      0 as studentcount,
-      0 as studentsattendance
+      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as studentcount,
+      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as studentsattendance
      FROM course_requests cr
      JOIN class_types ct ON cr.course_type_id = ct.id
      LEFT JOIN organizations o ON cr.organization_id = o.id
@@ -382,25 +382,19 @@ router.get('/classes/:classId/students', authenticateToken, requireRole(['instru
   try {
     const { classId } = req.params;
     
-    // First, get the course_request_id for this class
-    const courseRequestResult = await pool.query(
-      `SELECT cr.id as course_request_id
-       FROM course_requests cr
-       WHERE cr.instructor_id = $1 
-         AND DATE(cr.confirmed_date) = (
-           SELECT DATE(c.start_time) 
-           FROM classes c 
-           WHERE c.id = $2 AND c.instructor_id = $1
-         )
-       LIMIT 1`,
-      [userId, classId]
+    // The frontend is sending course_request_id as classId, so use it directly
+    const courseRequestId = classId;
+    
+    // Verify this course request belongs to the instructor
+    const courseRequestCheck = await pool.query(
+      `SELECT id FROM course_requests 
+       WHERE id = $1 AND instructor_id = $2`,
+      [courseRequestId, userId]
     );
 
-    if (courseRequestResult.rows.length === 0) {
+    if (courseRequestCheck.rows.length === 0) {
       return res.json({ success: true, data: [] });
     }
-
-    const courseRequestId = courseRequestResult.rows[0].course_request_id;
 
     // Now get students from course_students table
     const result = await pool.query(
@@ -427,7 +421,7 @@ router.get('/classes/:classId/students', authenticateToken, requireRole(['instru
       attendanceMarked: row.attendance_marked || false,
     }));
 
-    console.log('[Debug] Students loaded for class:', classId, 'course_request:', courseRequestId, 'count:', students.length);
+    console.log('[Debug] Students loaded for course_request:', courseRequestId, 'count:', students.length);
     res.json({ success: true, data: students });
   } catch (error) {
     console.error('Error fetching class students:', error);
@@ -491,61 +485,41 @@ router.put('/classes/:classId/students/:studentId/attendance', authenticateToken
     return res.status(400).json({ error: 'Attended status must be a boolean' });
   }
 
-  console.log('[Debug] Updating attendance for student ID:', studentId, 'class ID:', classId, 'attended:', attended);
+  console.log('[Debug] Updating attendance for student ID:', studentId, 'course_request ID:', classId, 'attended:', attended);
 
-  // First verify the class belongs to this instructor
-  const classCheck = await pool.query(
-    'SELECT id FROM classes WHERE id = $1 AND instructor_id = $2',
+  // The frontend is sending course_request_id as classId, so verify it belongs to this instructor
+  const courseRequestCheck = await pool.query(
+    'SELECT id FROM course_requests WHERE id = $1 AND instructor_id = $2',
     [classId, instructorId]
   );
 
-  if (classCheck.rows.length === 0) {
-    return res.status(404).json({ error: 'Class not found or not authorized' });
+  if (courseRequestCheck.rows.length === 0) {
+    return res.status(404).json({ error: 'Course request not found or not authorized' });
   }
 
-  // Get course_request_id to update attendance count
-  const courseRequestResult = await pool.query(
-    `SELECT cr.id as course_request_id
-         FROM course_requests cr
-         WHERE cr.instructor_id = $1 
-           AND DATE(cr.confirmed_date) = (
-             SELECT DATE(c.start_time) 
-             FROM classes c 
-             WHERE c.id = $2 AND c.instructor_id = $1
-           )
-         LIMIT 1`,
-    [instructorId, classId]
-  );
-
-  // Update student attendance
+  // Update student attendance directly in course_students table
   const result = await pool.query(
     `UPDATE course_students 
          SET attended = $1, attendance_marked = true, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $2
+         WHERE id = $2 AND course_request_id = $3
          RETURNING id, first_name, last_name, email, attendance_marked, attended`,
-    [attended, studentId]
+    [attended, studentId, classId]
   );
 
   if (result.rows.length === 0) {
     return res.status(404).json({ error: 'Student not found' });
   }
 
-  // Update the current_students count in classes table
-  if (courseRequestResult.rows.length > 0) {
-    const courseRequestId = courseRequestResult.rows[0].course_request_id;
+  // Count the number of students who attended for this course request
+  const attendanceCountResult = await pool.query(
+    `SELECT COUNT(*) as attended_count
+         FROM course_students
+         WHERE course_request_id = $1 AND attended = true`,
+    [classId]
+  );
 
-    // Count the number of students who attended
-    const attendanceCountResult = await pool.query(
-      `SELECT COUNT(*) as attended_count
-             FROM course_students
-             WHERE course_request_id = $1 AND attended = true`,
-      [courseRequestId]
-    );
-
-    const attendedCount = parseInt(attendanceCountResult.rows[0].attended_count);
-
-    console.log('[Debug] Attendance count for course request:', courseRequestId, 'is:', attendedCount);
-  }
+  const attendedCount = parseInt(attendanceCountResult.rows[0].attended_count);
+  console.log('[Debug] Attendance count for course request:', classId, 'is:', attendedCount);
 
   const updatedStudent = {
     studentid: result.rows[0].id.toString(),
@@ -566,56 +540,60 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
   }
   const userId = req.user.id;
   const { classId } = req.params;
-  const { students } = req.body;
+  const { firstName, lastName, email } = req.body; // Frontend sends single student object
 
-  if (!Array.isArray(students) || students.length === 0) {
-    return res.status(400).json({ error: 'Students array is required' });
+  if (!firstName || !lastName) {
+    return res.status(400).json({ error: 'First name and last name are required' });
   }
 
-  // Validate instructor owns the class
-  const classResult = await pool.query(
-    'SELECT * FROM classes WHERE id = $1 AND instructor_id = $2',
-    [classId, userId]
+  // The frontend is sending course_request_id as classId, so use it directly
+  const courseRequestId = classId;
+  
+  // Verify this course request belongs to the instructor
+  const courseRequestCheck = await pool.query(
+    'SELECT id FROM course_requests WHERE id = $1 AND instructor_id = $2',
+    [courseRequestId, userId]
   );
-  if (classResult.rows.length === 0) {
-    return res.status(403).json({ error: 'Not authorized or class not found' });
+  
+  if (courseRequestCheck.rows.length === 0) {
+    return res.status(403).json({ error: 'Not authorized or course request not found' });
   }
 
-  // Find the related course_request (if any)
-  const courseRequestResult = await pool.query(
-    'SELECT id FROM course_requests WHERE instructor_id = $1 AND confirmed_date::date = (SELECT DATE(start_time) FROM classes WHERE id = $2)',
-    [userId, classId]
-  );
-  const courseRequestId = courseRequestResult.rows[0]?.id;
-  if (!courseRequestId) {
-    return res.status(400).json({ error: 'No related course request found for this class' });
-  }
-
-  // Insert students
-  const addedStudents = [];
-  for (const student of students) {
-    // Check for required fields
-    if (!student.first_name || !student.last_name || !student.email) {
-      continue; // skip invalid
-    }
+  try {
     // Check if student already exists for this course_request
     const exists = await pool.query(
       'SELECT id FROM course_students WHERE course_request_id = $1 AND email = $2',
-      [courseRequestId, student.email]
+      [courseRequestId, email]
     );
+    
     if (exists.rows.length > 0) {
-      continue; // skip duplicates
+      return res.status(400).json({ error: 'Student with this email already exists for this course' });
     }
+    
     // Insert student
     const insertResult = await pool.query(
       `INSERT INTO course_students (course_request_id, first_name, last_name, email, status, enrolled_at)
        VALUES ($1, $2, $3, $4, 'enrolled', NOW())
-       RETURNING id, first_name, last_name, email, status, enrolled_at` ,
-      [courseRequestId, student.first_name, student.last_name, student.email]
+       RETURNING id, first_name, last_name, email, status, enrolled_at`,
+      [courseRequestId, firstName, lastName, email || null]
     );
-    addedStudents.push(insertResult.rows[0]);
+    
+    // Transform the response to match frontend expectations
+    const addedStudent = {
+      studentid: insertResult.rows[0].id.toString(),
+      firstname: insertResult.rows[0].first_name,
+      lastname: insertResult.rows[0].last_name,
+      email: insertResult.rows[0].email || '',
+      attendance: false,
+      attendanceMarked: false,
+    };
+    
+    console.log('[Debug] Student added to course_request:', courseRequestId, 'student:', addedStudent);
+    res.json({ success: true, data: addedStudent });
+  } catch (error) {
+    console.error('Error adding student:', error);
+    res.status(500).json({ error: 'Failed to add student' });
   }
-  res.json({ success: true, data: addedStudents });
 });
 
 // Update instructor availability (PUT method)
@@ -710,35 +688,41 @@ router.post('/classes/:classId/complete', authenticateToken, requireRole(['instr
   const { classId } = req.params;
   const { instructor_comments } = req.body;
 
-  // Verify the class belongs to this instructor
-  const classCheck = await pool.query(
-    'SELECT id, status FROM classes WHERE id = $1 AND instructor_id = $2',
-    [classId, userId]
+  // The frontend is sending course_request_id as classId, so use it directly
+  const courseRequestId = classId;
+  
+  // Verify this course request belongs to the instructor
+  const courseRequestCheck = await pool.query(
+    'SELECT id, status FROM course_requests WHERE id = $1 AND instructor_id = $2',
+    [courseRequestId, userId]
   );
 
-  if (classCheck.rows.length === 0) {
-    return res.status(404).json({ error: 'Class not found or not authorized' });
+  if (courseRequestCheck.rows.length === 0) {
+    return res.status(404).json({ error: 'Course request not found or not authorized' });
   }
 
-  if (classCheck.rows[0].status === 'completed') {
+  if (courseRequestCheck.rows[0].status === 'completed') {
     return res.status(400).json({ error: 'Class is already completed' });
   }
 
-  // Update class status to completed
+  // Update course request status to completed
   const result = await pool.query(
-    `UPDATE classes 
-     SET status = 'completed', updated_at = CURRENT_TIMESTAMP
-     WHERE id = $1 AND instructor_id = $2
-     RETURNING id, status, updated_at`,
-    [classId, userId]
+    `UPDATE course_requests 
+     SET status = 'completed', 
+         instructor_comments = COALESCE($1, instructor_comments), 
+         completed_at = CURRENT_TIMESTAMP,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $2 AND instructor_id = $3
+     RETURNING id, status, completed_at, updated_at`,
+    [instructor_comments, courseRequestId, userId]
   );
 
-  // Update course request if exists
+  // Also update the corresponding class if it exists
   await pool.query(
-    `UPDATE course_requests 
-     SET status = 'completed', instructor_comments = COALESCE($1, instructor_comments), updated_at = CURRENT_TIMESTAMP
-     WHERE instructor_id = $2 AND confirmed_date::date = (SELECT DATE(start_time) FROM classes WHERE id = $3)`,
-    [instructor_comments, userId, classId]
+    `UPDATE classes 
+     SET status = 'completed', updated_at = CURRENT_TIMESTAMP
+     WHERE instructor_id = $1 AND DATE(start_time) = (SELECT DATE(confirmed_date) FROM course_requests WHERE id = $2)`,
+    [userId, courseRequestId]
   );
 
   res.json({ success: true, data: result.rows[0], message: 'Class marked as completed' });

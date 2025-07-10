@@ -22,10 +22,10 @@ router.post('/login', async (req: Request, res: Response) => {
 
     // Join with organizations table to get organization name
     const result = await pool.query(
-      `SELECT u.*, o.organizationname as organization_name
-       FROM users u
-       LEFT JOIN organizations o ON u.organization_id = o.organizationid
-       WHERE u.username = $1`,
+              `SELECT u.*, o.name as organization_name
+         FROM users u
+         LEFT JOIN organizations o ON u.organization_id = o.id
+         WHERE u.username = $1`,
       [username]
     );
     const user = result.rows[0];

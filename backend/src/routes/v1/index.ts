@@ -2755,13 +2755,41 @@ router.get(
       const result = await pool.query(
         `
       SELECT 
-        i.*,
-        o.name as organization_name,
-        o.contact_email,
-        o.address as address_street,
-        o.contact_phone
+        i.id,
+        i.invoice_number as invoicenumber,
+        COALESCE(ct.name, i.course_type_name, 'N/A') as name,
+        cr.scheduled_date as course_date,
+        i.students_billed as studentsattendance,
+        i.amount,
+        COALESCE(payments.total_paid, 0) as amount_paid,
+        COALESCE(i.amount - COALESCE(payments.total_paid, 0), i.amount) as balance_due,
+        i.due_date as duedate,
+        i.status as paymentstatus,
+        i.notes,
+        i.created_at as invoicedate,
+        i.updated_at,
+        cr.completed_at as datecompleted,
+        u.username as instructor_name,
+        cr.location,
+        i.organization_id,
+        o.name as organizationname,
+        o.contact_email as contactemail,
+        o.address as addressstreet,
+        o.contact_phone as contactphone,
+        cr.id as coursenumber,
+        i.course_request_id,
+        cr.course_type_id,
+        COALESCE(ct.price, 0) as rateperstudent
       FROM invoices i
       JOIN organizations o ON i.organization_id = o.id
+      LEFT JOIN course_requests cr ON i.course_request_id = cr.id
+      LEFT JOIN users u ON cr.instructor_id = u.id
+      LEFT JOIN course_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN (
+        SELECT invoice_id, SUM(amount) as total_paid
+        FROM payments 
+        GROUP BY invoice_id
+      ) payments ON payments.invoice_id = i.id
       WHERE i.id = $1
     `,
         [id]
