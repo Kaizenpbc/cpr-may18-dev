@@ -33,6 +33,7 @@ import {
   Group as GroupIcon,
   AccessTime as TimeIcon,
   Visibility as VisibilityIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -42,6 +43,7 @@ import {
   useTodayClasses,
   useRefreshInstructorData
 } from '../../services/instructorService';
+import { useQueryClient } from '@tanstack/react-query';
 import WelcomeHeader from './WelcomeHeader';
 import TodayClassesList from './TodayClassesList';
 import QuickActionsGrid from './QuickActionsGrid';
@@ -75,13 +77,25 @@ const InstructorDashboard: React.FC = () => {
   const { data: availableDates = [], isLoading: availabilityLoading, error: availabilityError } = useInstructorAvailability();
   const { data: todayClasses = [], isLoading: todayLoading, error: todayError } = useTodayClasses();
   const refreshData = useRefreshInstructorData();
+  const queryClient = useQueryClient();
 
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [errorState, setErrorState] = useState<string | null>(null);
+  const [forceRefresh, setForceRefresh] = useState(0);
 
   // Combine loading states
   const loading = classesLoading || completedLoading || availabilityLoading || todayLoading;
   const error = classesError || completedError || availabilityError || todayError || errorState;
+
+  // Temporary debugging
+  console.log('[DEBUG] Current data state:', {
+    scheduledClasses: scheduledClasses,
+    scheduledClassesLength: Array.isArray(scheduledClasses) ? scheduledClasses.length : 'not array',
+    completedClasses: completedClasses,
+    completedClassesLength: Array.isArray(completedClasses) ? completedClasses.length : 'not array',
+    dashboardData: dashboardData,
+    forceRefresh: forceRefresh
+  });
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -94,6 +108,8 @@ const InstructorDashboard: React.FC = () => {
           cancelled_courses: 0 // We'll need to get this from API if needed
         };
 
+        console.log('[DEBUG] Setting dashboard stats:', stats);
+
         setDashboardData({
           instructorStats: stats,
           dashboardSummary: stats
@@ -104,6 +120,9 @@ const InstructorDashboard: React.FC = () => {
       }
     };
 
+    // Clear dashboard data first
+    setDashboardData(null);
+    
     if (scheduledClasses && completedClasses) {
       loadDashboardData();
     }
@@ -156,6 +175,23 @@ const InstructorDashboard: React.FC = () => {
     <Box>
       {/* Welcome Section */}
       <WelcomeHeader />
+      
+      {/* Force Refresh Button */}
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={() => {
+            console.log('[DEBUG] Force refreshing all data');
+            queryClient.clear();
+            setDashboardData(null);
+            setForceRefresh(prev => prev + 1);
+            refreshData();
+          }}
+        >
+          Force Refresh
+        </Button>
+      </Box>
       
       {errorState && (
         <Box sx={{ mb: 4 }}>
