@@ -37,6 +37,7 @@ import ScheduleCourseForm from '../../forms/ScheduleCourseForm';
 import CSVUploadDialog from '../../dialogs/CSVUploadDialog';
 import OrganizationArchive from './views/OrganizationArchive';
 import OrganizationPricing from './views/OrganizationPricing';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
 // TypeScript interfaces
 interface User {
@@ -109,8 +110,8 @@ interface OrganizationPortalProps {
   billingSummary: BillingSummary | undefined;
   loading: boolean;
   error: string | null;
-  currentView: string;
-  onViewChange: (view: string) => void;
+  // currentView: string;
+  // onViewChange: (view: string) => void;
   onLogout: () => void;
 }
 
@@ -125,8 +126,8 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
   billingSummary,
   loading,
   error,
-  currentView,
-  onViewChange,
+  // currentView,
+  // onViewChange,
   onLogout,
 }) => {
   const queryClient = useQueryClient();
@@ -164,7 +165,7 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
     }, 5000);
     
     // Switch to courses view to show the updated list
-    onViewChange('courses');
+    // onViewChange('courses'); // This line is removed as per the edit hint
   };
 
   // Handle view students click
@@ -201,95 +202,95 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
   };
 
   // Render current view
-  const renderCurrentView = () => {
-    if (loading) {
-      return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-          <CircularProgress />
-        </Box>
-      );
-    }
+  // const renderCurrentView = () => {
+  //   if (loading) {
+  //     return (
+  //       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+  //         <CircularProgress />
+  //       </Box>
+  //     );
+  //   }
 
-    if (error) {
-      return (
-        <Box sx={{ p: 3 }}>
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        </Box>
-      );
-    }
+  //   if (error) {
+  //     return (
+  //       <Box sx={{ p: 3 }}>
+  //         <Alert severity="error" sx={{ mb: 3 }}>
+  //           {error}
+  //         </Alert>
+  //       </Box>
+  //     );
+  //   }
 
-    switch (currentView) {
-      case 'dashboard':
-        return (
-          <OrganizationDashboard
-            organizationData={organizationData}
-            courses={courses}
-            billingSummary={billingSummary}
-          />
-        );
-      case 'courses':
-        return (
-          <OrganizationCourses
-            courses={courses}
-            onViewStudentsClick={handleViewStudentsClick}
-            onUploadStudentsClick={handleUploadStudentsClick}
-          />
-        );
-      case 'archive':
-        return (
-          <OrganizationArchive
-            courses={archivedCourses}
-            onViewStudentsClick={handleViewStudentsClick}
-          />
-        );
-      case 'schedule':
-        return (
-          <ScheduleCourseForm onCourseScheduled={handleCourseScheduled} />
-        );
-      case 'billing':
-        return (
-          <OrganizationBilling
-            invoices={invoices}
-            billingSummary={billingSummary}
-          />
-        );
-      case 'profile':
-        return (
-          <OrganizationProfile
-            organizationData={organizationData}
-          />
-        );
-      case 'pricing':
-        return (
-          <OrganizationPricing
-            organizationId={user?.organizationId || 0}
-          />
-        );
-      case 'analytics':
-        return (
-          <OrganizationAnalytics
-            courses={courses}
-            invoices={invoices}
-            organizationData={organizationData}
-          />
-        );
-      default:
-        return (
-          <Box sx={{ p: 3 }}>
-            <Typography variant="h6">View not found</Typography>
-          </Box>
-        );
-    }
-  };
+  //   switch (currentView) {
+  //     case 'dashboard':
+  //       return (
+  //         <OrganizationDashboard
+  //           organizationData={organizationData}
+  //           courses={courses}
+  //           billingSummary={billingSummary}
+  //         />
+  //       );
+  //     case 'courses':
+  //       return (
+  //         <OrganizationCourses
+  //           courses={courses}
+  //           onViewStudentsClick={handleViewStudentsClick}
+  //           onUploadStudentsClick={handleUploadStudentsClick}
+  //         />
+  //       );
+  //     case 'archive':
+  //       return (
+  //         <OrganizationArchive
+  //           courses={archivedCourses}
+  //           onViewStudentsClick={handleViewStudentsClick}
+  //         />
+  //       );
+  //     case 'schedule':
+  //       return (
+  //         <ScheduleCourseForm onCourseScheduled={handleCourseScheduled} />
+  //       );
+  //     case 'billing':
+  //       return (
+  //         <OrganizationBilling
+  //           invoices={invoices}
+  //           billingSummary={billingSummary}
+  //         />
+  //       );
+  //     case 'profile':
+  //       return (
+  //         <OrganizationProfile
+  //           organizationData={organizationData}
+  //         />
+  //       );
+  //     case 'pricing':
+  //       return (
+  //         <OrganizationPricing
+  //           organizationId={user?.organizationId || 0}
+  //         />
+  //       );
+  //     case 'analytics':
+  //       return (
+  //         <OrganizationAnalytics
+  //           courses={courses}
+  //           invoices={invoices}
+  //           organizationData={organizationData}
+  //         />
+  //       );
+  //     default:
+  //       return (
+  //         <Box sx={{ p: 3 }}>
+  //           <Typography variant="h6">View not found</Typography>
+  //         </Box>
+  //       );
+  //   }
+  // };
 
   return (
     <>
       <OrganizationLayout
         user={user}
-        currentView={currentView}
-        onViewChange={onViewChange}
+        // currentView={currentView}
+        // onViewChange={onViewChange}
         onLogout={onLogout}
         navigationItems={navigationItems}
         drawerWidth={drawerWidth}
@@ -305,8 +306,36 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
               {successMessage}
             </Alert>
           )}
-          
-          {renderCurrentView()}
+
+          {/* Route-based rendering */}
+          <Routes>
+            <Route path="dashboard" element={
+              loading ? <CircularProgress /> :
+              error ? <Alert severity="error">{error}</Alert> :
+              <OrganizationDashboard organizationData={organizationData} courses={courses} billingSummary={billingSummary} />
+            } />
+            <Route path="courses" element={
+              loading ? <CircularProgress /> :
+              error ? <Alert severity="error">{error}</Alert> :
+              <OrganizationCourses courses={courses} onViewStudentsClick={handleViewStudentsClick} onUploadStudentsClick={handleUploadStudentsClick} />
+            } />
+            <Route path="archive" element={
+              loading ? <CircularProgress /> :
+              error ? <Alert severity="error">{error}</Alert> :
+              <OrganizationArchive courses={archivedCourses} onViewStudentsClick={handleViewStudentsClick} />
+            } />
+            <Route path="schedule" element={<ScheduleCourseForm onCourseScheduled={handleCourseScheduled} />} />
+            <Route path="billing" element={
+              loading ? <CircularProgress /> :
+              error ? <Alert severity="error">{error}</Alert> :
+              <OrganizationBilling invoices={invoices} billingSummary={billingSummary} />
+            } />
+            <Route path="profile" element={<OrganizationProfile organizationData={organizationData} />} />
+            <Route path="pricing" element={<OrganizationPricing organizationId={user?.organizationId || 0} />} />
+            <Route path="analytics" element={<OrganizationAnalytics courses={courses} invoices={invoices} organizationData={organizationData} />} />
+            <Route path="" element={<Navigate to="dashboard" replace />} />
+            <Route path="*" element={<Box sx={{ p: 3 }}><Typography variant="h6">View not found</Typography></Box>} />
+          </Routes>
         </Box>
       </OrganizationLayout>
 

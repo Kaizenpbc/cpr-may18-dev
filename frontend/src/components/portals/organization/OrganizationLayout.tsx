@@ -22,6 +22,7 @@ import {
   Logout as LogoutIcon,
   AccountCircle as AccountIcon,
 } from '@mui/icons-material';
+import { NavLink } from 'react-router-dom';
 
 // TypeScript interfaces
 interface User {
@@ -79,13 +80,6 @@ const OrganizationLayout: React.FC<OrganizationLayoutProps> = ({
     onLogout();
   };
 
-  const handleNavigationClick = (viewId: string) => {
-    onViewChange(viewId);
-    if (isMobile) {
-      setMobileOpen(false);
-    }
-  };
-
   // Drawer content
   const drawerContent = (
     <Box>
@@ -104,9 +98,11 @@ const OrganizationLayout: React.FC<OrganizationLayoutProps> = ({
         {navigationItems.map((item) => (
           <ListItem
             key={item.id}
-            button
-            selected={currentView === item.id}
-            onClick={() => handleNavigationClick(item.id)}
+            component={NavLink}
+            to={`/organization/${item.id}`}
+            style={({ isActive }) => ({
+              backgroundColor: isActive ? '#e3f2fd' : undefined,
+            })}
             sx={{
               '&.Mui-selected': {
                 backgroundColor: 'primary.light',
@@ -116,7 +112,7 @@ const OrganizationLayout: React.FC<OrganizationLayoutProps> = ({
               },
             }}
           >
-            <ListItemIcon sx={{ color: currentView === item.id ? 'primary.main' : 'inherit' }}>
+            <ListItemIcon>
               {item.icon}
             </ListItemIcon>
             <ListItemText primary={item.label} />
