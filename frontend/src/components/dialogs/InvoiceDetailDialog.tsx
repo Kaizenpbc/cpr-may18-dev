@@ -79,25 +79,20 @@ const InvoiceDetailDialog = ({
     );
     try {
       const response = await api.emailInvoice(invoiceId);
-      if (response.success) {
+      if (response && response.success) {
         let message = response.message || 'Email queued successfully.';
         if (response.previewUrl) {
           logger.debug('Ethereal Preview URL:', response.previewUrl);
-          // Optionally include URL hint in message?
-          // message += ' Preview link logged to console.';
         }
-        // Use callback prop to show snackbar in parent
         if (onActionSuccess) onActionSuccess(message);
-        // Optionally update email sent status locally if needed
-        // setInvoice(prev => ({...prev, emailsentat: new Date().toISOString() }));
-        // onClose(); // Optionally close dialog after sending
       } else {
-        throw new Error(response.message || 'Failed to send email via API.');
+        // Handle undefined or malformed response
+        const errorMsg = response?.message || 'Failed to send email via API.';
+        throw new Error(errorMsg);
       }
     } catch (err) {
       logger.error(`Error sending email for invoice ${invoiceId}:`, err);
-      // Use callback prop to show error snackbar in parent
-      if (onActionError) onActionError(err.message || 'Failed to send email.');
+      if (onActionError) onActionError(err?.message || 'Failed to send email.');
     } finally {
       setIsSendingEmail(false);
     }
@@ -134,9 +129,89 @@ const InvoiceDetailDialog = ({
     // Add preview logic here
   };
 
-  const handleDownload = () => {
-    logger.info('Downloading invoice:', invoice.id);
-    // Add download logic here
+  const handleDownload = async () => {
+    if (!invoice?.id) {
+      logger.error('No invoice ID available for download');
+      return;
+    }
+
+    try {
+      logger.info(`[PDF Download] Starting download for invoice ${invoice.id}`);
+
+      // Get the auth token
+      const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+      
+      const response = await fetch(
+        `http://localhost:3001/api/v1/accounting/invoices/${invoice.id}/pdf`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      logger.info(`[PDF Download] Response status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error(`[PDF Download] Error response:`, errorText);
+        throw new Error(
+          `HTTP error! status: ${response.status} - ${errorText}`
+        );
+      }
+
+      // Check if the response is actually a PDF
+      const contentType = response.headers.get('content-type');
+      logger.info(`[PDF Download] Content-Type: ${contentType}`);
+
+      if (!contentType || !contentType.includes('application/pdf')) {
+        logger.error('Response is not a PDF:', contentType);
+        const text = await response.text();
+        logger.error('Response body:', text);
+        throw new Error('Server did not return a PDF file');
+      }
+
+      // Get the PDF blob
+      const blob = await response.blob();
+      logger.info(
+        `[PDF Download] Blob created, size: ${blob.size} bytes, type: ${blob.type}`
+      );
+
+      // Verify the blob size
+      if (blob.size === 0) {
+        throw new Error('PDF file is empty');
+      }
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Invoice-${invoice.invoicenumber}.pdf`;
+      link.style.display = 'none';
+
+      // Add to DOM, click, and remove
+      document.body.appendChild(link);
+      link.click();
+
+      // Clean up after a short delay
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        window.URL.revokeObjectURL(url);
+        logger.info('[PDF Download] Cleanup completed');
+      }, 1000);
+
+      logger.info('[PDF Download] Download initiated successfully');
+    } catch (error) {
+      logger.error('[PDF Download] Error:', error);
+      if (onActionError) {
+        onActionError(`Failed to download PDF: ${error.message}`);
+      }
+    }
   };
 
   return (

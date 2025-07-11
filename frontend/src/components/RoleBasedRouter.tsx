@@ -6,7 +6,7 @@ import InstructorPortal from '../components/portals/InstructorPortalContainer';
 import OrganizationPortalContainer from '../components/portals/organization/OrganizationPortalContainer';
 import CourseAdminPortal from '../components/portals/courseAdmin/CourseAdminPortalContainer';
 import SuperAdminPortal from '../components/portals/SuperAdminPortal';
-import AccountingPortal from '../components/portals/AccountingPortal';
+import AccountingPortal from '../components/portals/AccountingPortal.tsx';
 import SystemAdminPortal from '../components/portals/SystemAdminPortal';
 import { tokenService } from '../services/tokenService';
 

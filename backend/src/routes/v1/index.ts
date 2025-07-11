@@ -2207,6 +2207,13 @@ router.get(
     try {
       const user = (req as any).user;
 
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'User not authenticated',
+        });
+      }
+
       if (user.role === 'accountant' || user.role === 'admin') {
         // For accountants/admins, get all organizations
         const organizations = await cacheService.getOrganizations();

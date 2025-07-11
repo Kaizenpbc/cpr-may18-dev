@@ -421,7 +421,7 @@ export const emailInvoice = async (invoiceId: number) => {
   const response = await api.post(
     `/accounting/invoices/${invoiceId}/email`
   );
-  return extractData(response);
+  return response.data;
 };
 
 export const getInvoicePayments = async (invoiceId: number) => {
