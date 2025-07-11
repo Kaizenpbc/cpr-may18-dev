@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, NavLink, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Tab,
@@ -55,40 +55,20 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-const tabs = [
-  {
-    label: 'Dashboard',
-    icon: <DashboardIcon />,
-    component: <DashboardView />,
-  },
-  {
-    label: 'Instructor Management',
-    icon: <PeopleIcon />,
-    component: <InstructorManagement />,
-  },
-  {
-    label: 'Course Scheduling',
-    icon: <EventIcon />,
-    component: <CourseScheduling />,
-  },
-  {
-    label: 'Email Templates',
-    icon: <EmailIcon />,
-    component: <EmailTemplateManager />,
-  },
-  {
-    label: 'Cancelled Courses',
-    icon: <EventIcon />,
-    component: <CancelledCourses />,
-  },
+const tabRoutes = [
+  { label: 'Dashboard', icon: <DashboardIcon />, path: 'dashboard', component: <DashboardView /> },
+  { label: 'Instructor Management', icon: <PeopleIcon />, path: 'instructors', component: <InstructorManagement /> },
+  { label: 'Course Scheduling', icon: <EventIcon />, path: 'scheduling', component: <CourseScheduling /> },
+  { label: 'Email Templates', icon: <EmailIcon />, path: 'email-templates', component: <EmailTemplateManager /> },
+  { label: 'Cancelled Courses', icon: <EventIcon />, path: 'cancelled-courses', component: <CancelledCourses /> },
 ];
 
 interface CourseAdminPortalProps {
   user: User | null;
-  selectedTab: number;
+  // selectedTab: number;
   anchorEl: HTMLElement | null;
   error: string | null;
-  onTabChange: (event: React.SyntheticEvent, newValue: number) => void;
+  // onTabChange: (event: React.SyntheticEvent, newValue: number) => void;
   onMenuOpen: (event: React.MouseEvent<HTMLElement>) => void;
   onMenuClose: () => void;
   onLogout: () => void;
@@ -97,15 +77,18 @@ interface CourseAdminPortalProps {
 
 const CourseAdminPortal: React.FC<CourseAdminPortalProps> = ({
   user,
-  selectedTab,
+  // selectedTab,
   anchorEl,
   error,
-  onTabChange,
+  // onTabChange,
   onMenuOpen,
   onMenuClose,
   onLogout,
   onPasswordReset,
 }) => {
+  const location = useLocation();
+  const currentPath = location.pathname.split('/').pop();
+
   const handleError = (error: Error, errorInfo: any) => {
     console.error('[CourseAdminPortal] Error caught by boundary:', error, errorInfo);
   };
@@ -176,33 +159,36 @@ const CourseAdminPortal: React.FC<CourseAdminPortalProps> = ({
             )}
 
             <Paper elevation={3} sx={{ mt: 3, mb: 3 }}>
-              <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                <Tabs
-                  value={selectedTab}
-                  onChange={onTabChange}
-                  variant='scrollable'
-                  scrollButtons='auto'
-                  aria-label='course admin tabs'
-                >
-                  {tabs.map((tab, index) => (
-                    <Tab
-                      key={tab.label}
-                      icon={tab.icon}
-                      label={tab.label}
-                      id={`course-admin-tab-${index}`}
-                      aria-controls={`course-admin-tabpanel-${index}`}
-                    />
-                  ))}
-                </Tabs>
+              <Box sx={{ borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center' }}>
+                {tabRoutes.map((tab) => (
+                  <NavLink
+                    key={tab.label}
+                    to={`/admin/${tab.path}`}
+                    style={({ isActive }) => ({
+                      textDecoration: 'none',
+                      color: isActive ? '#1976d2' : 'inherit',
+                      fontWeight: isActive ? 'bold' : 'normal',
+                      padding: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      borderBottom: isActive ? '2px solid #1976d2' : 'none',
+                    })}
+                  >
+                    {tab.icon}
+                    <span style={{ marginLeft: 8 }}>{tab.label}</span>
+                  </NavLink>
+                ))}
               </Box>
 
-              {tabs.map((tab, index) => (
-                <TabPanel key={tab.label} value={selectedTab} index={index}>
-                  <ErrorBoundary context={`course_admin_${tab.label.toLowerCase().replace(' ', '_')}`} onError={handleError}>
-                    {tab.component}
-                  </ErrorBoundary>
-                </TabPanel>
-              ))}
+              <Box sx={{ p: 3 }}>
+                <Routes>
+                  {tabRoutes.map((tab) => (
+                    <Route key={tab.path} path={tab.path} element={tab.component} />
+                  ))}
+                  <Route path="" element={<Navigate to="dashboard" replace />} />
+                  <Route path="*" element={<Box sx={{ p: 3 }}><Typography variant="h6">View not found</Typography></Box>} />
+                </Routes>
+              </Box>
             </Paper>
           </Container>
         </Box>

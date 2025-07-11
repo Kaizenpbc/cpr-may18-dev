@@ -15,7 +15,7 @@ const CourseAdminPortalContainer: React.FC = () => {
   const queryClient = useQueryClient();
   
   // Navigation state
-  const [selectedTab, setSelectedTab] = useState(0);
+  // const [selectedTab, setSelectedTab] = useState(0);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   
   // Error handling
@@ -31,31 +31,15 @@ const CourseAdminPortalContainer: React.FC = () => {
     }
   }, [user]);
 
-  useEffect(() => {
-    analytics.trackPageView(`course_admin_tab_${selectedTab}`, {
-      portal: 'course_admin',
-      tab: selectedTab,
-    });
-  }, [selectedTab]);
-
   // Error handler for error boundaries
   const handleError = useCallback((error: Error, errorInfo: any) => {
     logger.error('Course Admin Portal Error:', error, errorInfo);
     analytics.trackError(error, 'course_admin_portal', {
       componentStack: errorInfo.componentStack,
-      tab: selectedTab,
+      // tab: selectedTab,
     });
     setError(error.message);
-  }, [selectedTab]);
-
-  // Handle tab changes
-  const handleTabChange = useCallback((_event: React.SyntheticEvent, newValue: number) => {
-    setSelectedTab(newValue);
-    analytics.trackCourseAdminAction('tab_change', {
-      from: selectedTab,
-      to: newValue,
-    });
-  }, [selectedTab]);
+  }, []);
 
   // Handle menu operations
   const handleMenuOpen = useCallback((event: React.MouseEvent<HTMLElement>) => {
@@ -106,10 +90,10 @@ const CourseAdminPortalContainer: React.FC = () => {
     <ErrorBoundary context="course_admin_portal" onError={handleError}>
       <CourseAdminPortal
         user={user}
-        selectedTab={selectedTab}
+        // selectedTab={selectedTab}
         anchorEl={anchorEl}
         error={error}
-        onTabChange={handleTabChange}
+        // onTabChange={handleTabChange}
         onMenuOpen={handleMenuOpen}
         onMenuClose={handleMenuClose}
         onLogout={handleLogout}
