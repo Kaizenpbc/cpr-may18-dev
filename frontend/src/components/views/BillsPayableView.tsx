@@ -60,6 +60,8 @@ const BillsPayableView = () => {
 
   const queryClient = useQueryClient();
 
+  console.log('BillsPayableView mounted');
+
   // Fetch billing summary
   const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['organization-billing-summary'],
@@ -93,7 +95,12 @@ const BillsPayableView = () => {
       const response = await api.get('/organization/invoices', {
         params,
       });
-      return response.data.data;
+      const data = response.data.data;
+      // Support both { invoices: [...] } and [...] response shapes
+      if (Array.isArray(data)) {
+        return { invoices: data };
+      }
+      return data;
     },
   });
 
@@ -212,6 +219,9 @@ const BillsPayableView = () => {
       </Box>
     );
   }
+
+  // Debug log for invoicesData
+  console.log('invoicesData:', invoicesData);
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: '100%', overflow: 'hidden' }}>

@@ -157,7 +157,12 @@ const OrganizationPortalContainer: React.FC = () => {
       const response = await api.get('/organization/invoices', {
         params: { _t: Date.now() }
       });
-      return response.data.data;
+      const data = response.data.data;
+      // Map invoices to add id property for compatibility
+      if (data && Array.isArray(data.invoices)) {
+        return data.invoices.map(inv => ({ ...inv, id: inv.invoice_id }));
+      }
+      return [];
     },
     enabled: !!user?.organizationId,
   });
