@@ -13,11 +13,13 @@ import {
   Chip,
   IconButton,
   Link as MuiLink, // Use alias to avoid conflict
+  Button,
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom'; // For linking later if needed
 // Import necessary icons
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EmailIcon from '@mui/icons-material/Email';
+import PaymentIcon from '@mui/icons-material/Payment';
 // Import shared formatters
 import {
   formatDate,
@@ -28,8 +30,9 @@ import {
 const OrgInvoiceHistoryTable = ({
   invoices = [], // Default to empty array
   // Pass handlers for actions if needed from parent page
-  // onViewDetailsClick,
-  // onEmailInvoiceClick
+  onViewDetailsClick,
+  onEmailInvoiceClick,
+  onPayInvoiceClick,
 }) => {
   if (!invoices || invoices.length === 0) {
     return (
@@ -80,7 +83,23 @@ const OrgInvoiceHistoryTable = ({
                   backgroundColor: index % 2 !== 0 ? '#f9f9f9' : 'inherit',
                 }}
               >
-                <TableCell>{invoice.invoicenumber}</TableCell>
+                <TableCell>
+                  <MuiLink
+                    component="button"
+                    variant="body2"
+                    onClick={() => onViewDetailsClick && onViewDetailsClick(invoice.invoiceid)}
+                    sx={{
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                      color: 'primary.main',
+                      '&:hover': {
+                        color: 'primary.dark',
+                      },
+                    }}
+                  >
+                    {invoice.invoicenumber}
+                  </MuiLink>
+                </TableCell>
                 <TableCell>{formatDate(invoice.invoicedate)}</TableCell>
                 <TableCell>{formatDate(invoice.duedate)}</TableCell>
                 <TableCell>{invoice.coursenumber || '-'}</TableCell>
@@ -102,16 +121,37 @@ const OrgInvoiceHistoryTable = ({
                   <Box
                     sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}
                   >
-                    {/* TODO: Link these buttons to parent handlers if actions are needed */}
+                    {/* View Details Button */}
                     <Tooltip title='View Details'>
                       <IconButton
                         color='info'
                         size='small'
-                        // onClick={() => onViewDetailsClick(invoice.invoiceid)} // Example
+                        onClick={() => onViewDetailsClick && onViewDetailsClick(invoice.invoiceid)}
                       >
                         <VisibilityIcon fontSize='small' />
                       </IconButton>
                     </Tooltip>
+                    
+                    {/* Pay Invoice Button */}
+                    <Tooltip title='Pay Invoice'>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        size="small"
+                        startIcon={<PaymentIcon />}
+                        onClick={() => onPayInvoiceClick && onPayInvoiceClick(invoice.invoiceid)}
+                        sx={{ 
+                          minWidth: 'auto',
+                          px: 1,
+                          py: 0.5,
+                          fontSize: '0.75rem'
+                        }}
+                      >
+                        PAY
+                      </Button>
+                    </Tooltip>
+                    
+                    {/* Email Invoice Button */}
                     <Tooltip title='Email Invoice'>
                       <span>
                         {' '}
@@ -120,7 +160,7 @@ const OrgInvoiceHistoryTable = ({
                           color='primary'
                           size='small'
                           disabled={!invoice.contactemail} // Use contactemail from fetched data if available
-                          // onClick={() => onEmailInvoiceClick(invoice.invoiceid)} // Example
+                          onClick={() => onEmailInvoiceClick && onEmailInvoiceClick(invoice.invoiceid)}
                         >
                           <EmailIcon fontSize='small' />
                         </IconButton>

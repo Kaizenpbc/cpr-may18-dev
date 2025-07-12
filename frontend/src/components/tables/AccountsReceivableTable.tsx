@@ -42,9 +42,25 @@ const PaymentDetails = ({ invoiceId }) => {
       setIsLoading(true);
       setError('');
       try {
-        const data = await api.getInvoicePayments(invoiceId);
-        setPayments(data || []);
+        const response = await api.getInvoicePayments(invoiceId);
+        
+        // Ensure we have an array of payments
+        let paymentsData = [];
+        if (response && response.data) {
+          // If response has data property, use that
+          paymentsData = Array.isArray(response.data) ? response.data : [];
+        } else if (Array.isArray(response)) {
+          // If response is directly an array
+          paymentsData = response;
+        } else {
+          // If response is not an array, log and use empty array
+          console.warn('Unexpected payments response format:', response);
+          paymentsData = [];
+        }
+        
+        setPayments(paymentsData);
       } catch (err) {
+        console.error('Error loading payments:', err);
         setError(err.message || 'Could not load payment details.');
         setPayments([]);
       } finally {
@@ -61,7 +77,7 @@ const PaymentDetails = ({ invoiceId }) => {
         {error}
       </Typography>
     );
-  if (payments.length === 0)
+  if (!payments || payments.length === 0)
     return (
       <Typography sx={{ m: 1, fontStyle: 'italic' }}>
         No payments recorded for this invoice.

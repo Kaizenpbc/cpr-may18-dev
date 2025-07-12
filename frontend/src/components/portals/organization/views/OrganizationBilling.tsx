@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -18,12 +18,19 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Link,
 } from '@mui/material';
 import {
   Receipt as ReceiptIcon,
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   Schedule as ScheduleIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { formatDisplayDate } from '../../../../utils/dateUtils';
 
@@ -67,6 +74,10 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   invoices,
   billingSummary,
 }) => {
+  // State for invoice detail dialog
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   // Ensure invoices is an array
   const safeInvoices = Array.isArray(invoices) ? invoices : [];
 
@@ -89,6 +100,18 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
     const today = new Date();
     const due = new Date(dueDate);
     return today > due;
+  };
+
+  // Handle invoice number click
+  const handleInvoiceClick = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setDialogOpen(true);
+  };
+
+  // Handle dialog close
+  const handleDialogClose = () => {
+    setDialogOpen(false);
+    setSelectedInvoice(null);
   };
 
   return (
@@ -231,7 +254,28 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
             <TableBody>
               {safeInvoices.map((invoice) => (
                 <TableRow key={invoice.id}>
-                  <TableCell>{invoice.invoice_number}</TableCell>
+                  <TableCell>
+                    <Link
+                      component="button"
+                      variant="body2"
+                      onClick={() => handleInvoiceClick(invoice)}
+                      sx={{
+                        color: 'primary.main',
+                        textDecoration: 'none',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          textDecoration: 'underline',
+                          color: 'primary.dark',
+                        },
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                      }}
+                    >
+                      <VisibilityIcon fontSize="small" />
+                      {invoice.invoice_number}
+                    </Link>
+                  </TableCell>
                   <TableCell>{invoice.course_type_name}</TableCell>
                   <TableCell>
                     {formatDisplayDate(invoice.course_date)}
@@ -276,6 +320,158 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
           </Table>
         </TableContainer>
       </Paper>
+
+      {/* Invoice Detail Dialog */}
+      <Dialog
+        open={dialogOpen}
+        onClose={handleDialogClose}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Invoice Details - {selectedInvoice?.invoice_number}
+        </DialogTitle>
+        <DialogContent>
+          {selectedInvoice && (
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="h6" gutterBottom>
+                  Invoice Information
+                </Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Invoice Number
+                  </Typography>
+                  <Typography variant="body1">
+                    {selectedInvoice.invoice_number}
+                  </Typography>
+                </Box>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Created Date
+                  </Typography>
+                  <Typography variant="body1">
+                    {formatDisplayDate(selectedInvoice.created_at)}
+                  </Typography>
+                </Box>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Due Date
+                  </Typography>
+                  <Typography 
+                    variant="body1"
+                    color={isOverdue(selectedInvoice.due_date) ? 'error.main' : 'inherit'}
+                  >
+                    {formatDisplayDate(selectedInvoice.due_date)}
+                  </Typography>
+                </Box>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Status
+                  </Typography>
+                  <Chip
+                    label={selectedInvoice.status}
+                    color={getStatusColor(selectedInvoice.status)}
+                    size="small"
+                  />
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="h6" gutterBottom>
+                  Course Information
+                </Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Course Type
+                  </Typography>
+                  <Typography variant="body1">
+                    {selectedInvoice.course_type_name}
+                  </Typography>
+                </Box>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Course Date
+                  </Typography>
+                  <Typography variant="body1">
+                    {formatDisplayDate(selectedInvoice.course_date)}
+                  </Typography>
+                </Box>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Location
+                  </Typography>
+                  <Typography variant="body1">
+                    {selectedInvoice.location}
+                  </Typography>
+                </Box>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Students Billed
+                  </Typography>
+                  <Typography variant="body1">
+                    {selectedInvoice.students_billed}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  Payment Information
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={4}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Total Amount
+                      </Typography>
+                      <Typography variant="h6">
+                        ${selectedInvoice.amount.toLocaleString()}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Amount Paid
+                      </Typography>
+                      <Typography variant="h6" color="success.main">
+                        ${selectedInvoice.amount_paid.toLocaleString()}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Balance Due
+                      </Typography>
+                      <Typography 
+                        variant="h6"
+                        color={selectedInvoice.balance_due > 0 ? 'error.main' : 'success.main'}
+                      >
+                        ${selectedInvoice.balance_due.toLocaleString()}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+                {selectedInvoice.paid_date && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Paid Date
+                    </Typography>
+                    <Typography variant="body1">
+                      {formatDisplayDate(selectedInvoice.paid_date)}
+                    </Typography>
+                  </Box>
+                )}
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDialogClose}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
