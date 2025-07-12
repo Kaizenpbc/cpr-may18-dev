@@ -27,51 +27,50 @@ try {
     console.log('🔧 Attempting to import email service...');
     
     // Since we're in CommonJS, we need to use dynamic import
-    import('../src/services/emailService.js').then(async (emailModule) => {
+    import('./src/services/emailService.js').then(async (emailModule) => {
+        const emailService = emailModule.emailService;
+        
+        console.log('🧪 Testing Email Service Directly...\n');
+        
         try {
-            const emailService = emailModule.emailService;
-            console.log('✅ Email service imported successfully');
-            
-            console.log('📧 Attempting to send test email...');
-            
-            // Test with a simple email
+            // Test instructor assignment notification
+            console.log('1. Testing instructor assignment notification...');
             const testData = {
-                organizationName: 'Test Organization',
-                invoiceNumber: 'TEST-001',
-                invoiceDate: new Date().toLocaleDateString(),
-                dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-                amount: 150.00,
-                courseType: 'CPR Basic',
-                location: 'Test Location',
-                courseDate: new Date().toLocaleDateString(),
-                studentsBilled: 5,
-                portalUrl: 'http://localhost:5173'
+                courseName: 'CPR Basic',
+                date: '2025-07-15',
+                startTime: '09:00',
+                endTime: '17:00',
+                location: 'Markham',
+                organization: 'Iffat College',
+                students: 8
             };
             
-            await emailService.sendInvoicePostedNotification('mike_todo@yahoo.com', testData);
+            const result = await emailService.sendCourseAssignedNotification('mike_todo@yahoo.com', testData);
+            console.log('✅ Instructor notification test result:', result);
             
-            console.log('✅ Email sent successfully!');
-            console.log('📧 Check mike_todo@yahoo.com for the test email');
+            // Test organization notification
+            console.log('\n2. Testing organization notification...');
+            const orgData = {
+                courseName: 'CPR Basic',
+                date: '2025-07-15',
+                startTime: '09:00',
+                endTime: '17:00',
+                location: 'Markham',
+                instructorName: 'Mike Instructor',
+                students: 8
+            };
+            
+            const orgResult = await emailService.sendCourseScheduledToOrganization('iffat@example.com', orgData);
+            console.log('✅ Organization notification test result:', orgResult);
+            
+            console.log('\n🎉 Email service test completed!');
+            console.log('📧 Check the console above for email logs.');
             
         } catch (error) {
-            console.error('❌ Email service error:', error.message);
-            
-            if (error.code === 'EAUTH') {
-                console.error('\n🔐 Authentication Error:');
-                console.error('- Gmail requires an App Password, not a regular password');
-                console.error('- Enable 2-Step Verification on your Gmail account');
-                console.error('- Generate an App Password: Google Account → Security → 2-Step Verification → App passwords');
-                console.error('- Update SMTP_PASS in your .env file with the 16-character App Password');
-            } else if (error.code === 'ECONNECTION') {
-                console.error('\n🌐 Connection Error:');
-                console.error('- Check your internet connection');
-                console.error('- Verify SMTP_HOST and SMTP_PORT are correct');
-            }
+            console.error('❌ Email test failed:', error);
         }
-    }).catch((importError) => {
-        console.error('❌ Failed to import email service:', importError.message);
-        console.log('\n📧 Email service is available but requires proper SMTP configuration.');
-        console.log('🔧 Current issue: Gmail requires an App Password for SMTP access.');
+    }).catch(error => {
+        console.error('❌ Failed to load email service:', error);
     });
     
 } catch (error) {

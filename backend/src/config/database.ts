@@ -18,6 +18,11 @@ const poolConfig: PoolConfig = {
 // Create the connection pool
 const pool = new Pool(poolConfig);
 
+// After pool is created
+pool.query("SET TIME ZONE 'America/Toronto';").catch(err => {
+  console.error('Failed to set timezone to America/Toronto:', err);
+});
+
 // DISABLED: Automatic database initialization to prevent schema conflicts
 // This should only be run manually when needed, not on every startup
 const initializeDatabase = async () => {

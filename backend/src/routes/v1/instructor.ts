@@ -283,8 +283,10 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor']), asy
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user.id;
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+  
+  // Use database current date to avoid timezone issues
+  const currentDateResult = await pool.query('SELECT CURRENT_DATE as current_date');
+  const todayStr = currentDateResult.rows[0].current_date.toISOString().split('T')[0]; // YYYY-MM-DD format
 
   // Get confirmed course requests from course_requests table for today with actual student counts
   const courseRequestsDbResult = await pool.query(
@@ -309,7 +311,7 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor']), asy
      FROM course_requests cr
      JOIN class_types ct ON cr.course_type_id = ct.id
      LEFT JOIN organizations o ON cr.organization_id = o.id
-     WHERE cr.instructor_id = $1 AND cr.status = 'confirmed' AND DATE(cr.confirmed_date) = $2
+     WHERE cr.instructor_id = $1 AND cr.status = 'confirmed' AND cr.confirmed_date::date = $2::date
      ORDER BY cr.confirmed_date ASC`,
     [userId, todayStr]
   );

@@ -108,11 +108,12 @@ const ClassAttendanceView: React.FC = () => {
     try {
       setLoading(true);
       const response = await instructorApi.getClassesToday();
-      setTodaysClasses(response.data || []);
+      const classes = response.data?.data || response.data || [];
+      setTodaysClasses(classes);
 
       // Auto-select the first class if only one exists
-      if (response.data && response.data.length === 1) {
-        setSelectedClass(response.data[0]);
+      if (classes && classes.length === 1) {
+        setSelectedClass(classes[0]);
       }
 
       setError('');
@@ -129,7 +130,7 @@ const ClassAttendanceView: React.FC = () => {
       setStudentsLoading(true);
       const response = await instructorApi.getClassStudents(classId);
       console.log('[Debug] Students loaded from backend:', response.data);
-      setStudents(response.data || []);
+      setStudents(response.data?.data || response.data || []);
       setError('');
     } catch (error: any) {
       handleError(error, { component: 'ClassAttendanceView', action: 'load students' });
@@ -170,7 +171,7 @@ const ClassAttendanceView: React.FC = () => {
       const response = await instructorApi.addStudent(selectedClass.course_id, newStudent);
 
       // Add new student to the list
-      setStudents(prev => [...prev, response.data]);
+      setStudents(prev => [...prev, response.data?.data || response.data]);
 
       // Clear form and close dialog
       setNewStudent({ firstName: '', lastName: '', email: '' });
@@ -223,15 +224,17 @@ const ClassAttendanceView: React.FC = () => {
   };
 
   const getAttendanceStats = () => {
-    const total = students.length;
-    const marked = students.filter(s => s.attendanceMarked).length;
-    const present = students.filter(s => s.attendance && s.attendanceMarked).length;
-    const absent = students.filter(s => !s.attendance && s.attendanceMarked).length;
+    // Ensure students is always an array
+    const studentsArray = Array.isArray(students) ? students : [];
+    const total = studentsArray.length;
+    const marked = studentsArray.filter(s => s.attendanceMarked).length;
+    const present = studentsArray.filter(s => s.attendance && s.attendanceMarked).length;
+    const absent = studentsArray.filter(s => !s.attendance && s.attendanceMarked).length;
     const notMarked = total - marked;
     
     console.log('[Debug] Attendance stats:', { total, marked, present, absent, notMarked });
-    console.log('[Debug] Students with attendanceMarked:', students.filter(s => s.attendanceMarked));
-    console.log('[Debug] Students without attendanceMarked:', students.filter(s => !s.attendanceMarked));
+    console.log('[Debug] Students with attendanceMarked:', studentsArray.filter(s => s.attendanceMarked));
+    console.log('[Debug] Students without attendanceMarked:', studentsArray.filter(s => !s.attendanceMarked));
     
     return { total, marked, present, absent, notMarked };
   };
@@ -447,7 +450,7 @@ const ClassAttendanceView: React.FC = () => {
                 <Box display='flex' justifyContent='center' p={2}>
                   <CircularProgress size={24} />
                 </Box>
-              ) : students.length === 0 ? (
+              ) : (Array.isArray(students) ? students : []).length === 0 ? (
                 <Box sx={{ textAlign: 'center', py: 4 }}>
                   <PersonIcon
                     sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }}
@@ -481,7 +484,7 @@ const ClassAttendanceView: React.FC = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {students.map(student => (
+                      {(Array.isArray(students) ? students : []).map(student => (
                         <TableRow key={student.studentid}>
                           <TableCell>
                             {student.firstname} {student.lastname}

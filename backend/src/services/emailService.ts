@@ -193,16 +193,44 @@ class EmailService {
   private static instance: EmailService;
 
   private constructor() {
-    // Create reusable transporter object using SMTP transport
-    this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER || '',
-        pass: process.env.SMTP_PASS || '',
-      },
-    });
+    // Check if SMTP is configured
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      console.log('🔴 [EMAIL SERVICE] SMTP not configured, using mock transporter');
+      console.log('📧 [EMAIL SERVICE] Emails will be logged to console instead of sent');
+      
+      // Create a mock transporter that logs emails
+      this.transporter = {
+        sendMail: async (mailOptions: any) => {
+          console.log('📧 [EMAIL SERVICE] MOCK EMAIL SENT:');
+          console.log('   From:', mailOptions.from);
+          console.log('   To:', mailOptions.to);
+          console.log('   Subject:', mailOptions.subject);
+          console.log('   HTML Preview:', mailOptions.html.substring(0, 200) + '...');
+          console.log('📧 [EMAIL SERVICE] Mock email logged successfully');
+          return { messageId: `mock_${Date.now()}` };
+        },
+        verify: async () => {
+          console.log('✅ [EMAIL SERVICE] Mock transporter verified');
+          return true;
+        }
+      } as any;
+    } else {
+      console.log('✅ [EMAIL SERVICE] SMTP configured, using real transporter');
+      // Create reusable transporter object using SMTP transport
+      this.transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      });
+    }
   }
 
   public static getInstance(): EmailService {

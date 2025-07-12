@@ -1122,8 +1122,8 @@ router.put(
 
         await client.query('COMMIT');
 
-        // Queue email notifications (non-blocking)
-        console.log('📧 [EMAIL QUEUE] Queuing email notifications...');
+        // Send email notifications directly (since Redis queue is not configured)
+        console.log('📧 [EMAIL] Sending email notifications directly...');
         
         try {
           // Get organization contact email
@@ -1134,13 +1134,12 @@ router.put(
           
           const organizationEmail = orgResult.rows[0]?.contact_email;
           
-          // Queue instructor email
+          // Send instructor email directly
           if (instructor.email) {
-            const { emailQueueService } = await import('../../services/emailQueue.js');
-            await emailQueueService.addEmailJob({
-              type: 'course_assigned_instructor',
-              recipient: instructor.email,
-              data: {
+            const { emailService } = await import('../../services/emailService.js');
+            const emailSent = await emailService.sendCourseAssignedNotification(
+              instructor.email,
+              {
                 courseName: courseRequest.course_type_name,
                 date: scheduledDate,
                 startTime: startTime,
@@ -1149,17 +1148,16 @@ router.put(
                 organization: courseRequest.organization_name,
                 students: courseRequest.registered_students || 0,
               }
-            });
-            console.log('✅ [EMAIL QUEUE] Instructor notification queued');
+            );
+            console.log('✅ [EMAIL] Instructor notification sent:', emailSent);
           }
           
-          // Queue organization email
+          // Send organization email directly
           if (organizationEmail) {
-            const { emailQueueService } = await import('../../services/emailQueue.js');
-            await emailQueueService.addEmailJob({
-              type: 'course_scheduled_organization',
-              recipient: organizationEmail,
-              data: {
+            const { emailService } = await import('../../services/emailService.js');
+            const emailSent = await emailService.sendCourseScheduledToOrganization(
+              organizationEmail,
+              {
                 courseName: courseRequest.course_type_name,
                 date: scheduledDate,
                 startTime: startTime,
@@ -1168,14 +1166,14 @@ router.put(
                 instructorName: instructor.instructor_name,
                 students: courseRequest.registered_students || 0,
               }
-            });
-            console.log('✅ [EMAIL QUEUE] Organization notification queued');
+            );
+            console.log('✅ [EMAIL] Organization notification sent:', emailSent);
           }
           
-          console.log('✅ [EMAIL QUEUE] All email notifications queued successfully');
-        } catch (queueError) {
-          console.error('❌ [EMAIL QUEUE] Error queuing email notifications:', queueError);
-          // Don't fail the entire operation if email queue fails
+          console.log('✅ [EMAIL] All email notifications sent successfully');
+        } catch (emailError) {
+          console.error('❌ [EMAIL] Error sending email notifications:', emailError);
+          // Don't fail the entire operation if email fails
         }
 
         return res.json({

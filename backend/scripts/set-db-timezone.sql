@@ -1,0 +1,1 @@
+ALTER DATABASE cpr_jun21 SET timezone TO 'America/Toronto'; 

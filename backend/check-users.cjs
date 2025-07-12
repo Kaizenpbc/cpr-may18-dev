@@ -1,50 +1,42 @@
 const { Pool } = require('pg');
+require('dotenv').config();
 
 const pool = new Pool({
-  host: 'localhost',
-  port: 5432,
-  database: 'cpr_may18',
-  user: 'postgres',
-  password: 'gtacpr'
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'gtacpr',
+  host: process.env.DB_HOST || '127.0.0.1',
+  port: parseInt(process.env.DB_PORT || '5432'),
+  database: 'cpr_jun21',
 });
 
 async function checkUsers() {
   try {
-    console.log('🔍 Checking users in database...');
+    console.log('Checking all users in database...');
     
-    // Check users table
-    const usersResult = await pool.query(
+    // Get all users
+    const result = await pool.query(
       'SELECT id, username, email, role, organization_id FROM users ORDER BY id'
     );
     
-    console.log('Users in database:');
-    usersResult.rows.forEach(user => {
-      console.log(`  - ID: ${user.id}, Username: ${user.username}, Role: ${user.role}, Org ID: ${user.organization_id || 'none'}`);
+    console.log('All users in database:');
+    result.rows.forEach((user, index) => {
+      console.log(`${index + 1}. ID: ${user.id}, Username: "${user.username}", Email: "${user.email}", Role: ${user.role}, Org ID: ${user.organization_id}`);
     });
     
-    // Check organizations table
-    const orgsResult = await pool.query(
-      'SELECT id, name FROM organizations ORDER BY id'
+    // Check specifically for Mike
+    const mikeResult = await pool.query(
+      'SELECT id, username, email, role, organization_id FROM users WHERE username ILIKE $1 OR email ILIKE $2',
+      ['%mike%', '%mike%']
     );
     
-    console.log('\nOrganizations in database:');
-    orgsResult.rows.forEach(org => {
-      console.log(`  - ID: ${org.id}, Name: ${org.name}`);
+    console.log('\nUsers matching "mike":');
+    mikeResult.rows.forEach((user, index) => {
+      console.log(`${index + 1}. ID: ${user.id}, Username: "${user.username}", Email: "${user.email}", Role: ${user.role}, Org ID: ${user.organization_id}`);
     });
     
-    // Find organization users
-    console.log('\nOrganization users:');
-    const orgUsersResult = await pool.query(
-      'SELECT u.id, u.username, u.role, o.name as org_name FROM users u LEFT JOIN organizations o ON u.organization_id = o.id WHERE u.role = \'organization\' ORDER BY u.id'
-    );
-    
-    orgUsersResult.rows.forEach(user => {
-      console.log(`  - Username: ${user.username}, Organization: ${user.org_name || 'none'}`);
-    });
-    
+    await pool.end();
   } catch (error) {
     console.error('Error:', error);
-  } finally {
     await pool.end();
   }
 }

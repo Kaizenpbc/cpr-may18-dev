@@ -5,6 +5,7 @@ import { EmailTemplateService } from '../../models/EmailTemplate.js';
 import { authorizeRoles } from '../../middleware/authMiddleware.js';
 import { errorCodes } from '../../utils/errorHandler.js';
 import { validateEmailTemplate } from '../../middleware/inputSanitizer.js';
+import { emailService } from '../../services/emailService';
 
 interface EmailTemplateRequestBody {
   name: string;
@@ -518,5 +519,19 @@ router.get(
     return res.json(ApiResponseBuilder.success(commonVariables));
   })
 );
+
+// Simple test email endpoint (for development/testing only)
+router.post('/send-test', async (req, res) => {
+  const { to, subject, body } = req.body;
+  if (!to || !subject || !body) {
+    return res.status(400).json({ error: 'to, subject, and body are required' });
+  }
+  try {
+    const result = await emailService.sendEmail(to, subject, body);
+    res.json({ success: true, result });
+  } catch (error) {
+    res.status(500).json({ error: error.message || 'Failed to send email' });
+  }
+});
 
 export default router;
