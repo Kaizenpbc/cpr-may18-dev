@@ -2782,6 +2782,7 @@ router.put(
                 portalUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/organization/bills-payable`
               };
 
+              const { emailService } = await import('../../services/emailService.js');
               await emailService.sendInvoicePostedNotification(
                 invoice.contact_email,
                 emailData
