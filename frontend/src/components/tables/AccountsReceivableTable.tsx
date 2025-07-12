@@ -104,8 +104,6 @@ const AccountsReceivableTable = ({
   invoices,
   onRecordPaymentClick,
   onViewDetailsClick,
-  onEmailInvoiceClick,
-  onPostToOrgClick,
 }) => {
   const [expandedRowId, setExpandedRowId] = useState(null); // State to track expanded row
 
@@ -142,8 +140,6 @@ const AccountsReceivableTable = ({
               Payment Status
             </TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Aging</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Posted to Org</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Email Sent</TableCell>
             <TableCell align='center' sx={{ fontWeight: 'bold' }}>
               Actions
             </TableCell>
@@ -197,17 +193,6 @@ const AccountsReceivableTable = ({
                   />
                 </TableCell>
                 <TableCell>{invoice.agingbucket || '-'}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={invoice.posted_to_org ? 'Yes' : 'No'}
-                    color={invoice.posted_to_org ? 'success' : 'default'}
-                    size='small'
-                    variant='outlined'
-                  />
-                </TableCell>
-                <TableCell>
-                  {invoice.emailsentat ? formatDate(invoice.emailsentat) : '-'}
-                </TableCell>
                 <TableCell align='center'>
                   <Box
                     sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}
@@ -239,52 +224,8 @@ const AccountsReceivableTable = ({
                         <VisibilityIcon fontSize='small' />
                       </IconButton>
                     </Tooltip>
-                    {/* Post to Org Button */}
-                    <Tooltip
-                      title={
-                        invoice.posted_to_org
-                          ? 'Already Posted to Organization'
-                          : 'Post Invoice to Organization'
-                      }
-                    >
-                      <span>
-                        <IconButton
-                          color='warning'
-                          size='small'
-                          onClick={() => onPostToOrgClick(invoice)}
-                          disabled={invoice.posted_to_org}
-                        >
-                          <PostAddIcon fontSize='small' />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                    {/* Email Button */}
-                    <Tooltip
-                      title={
-                        !invoice.posted_to_org
-                          ? 'Post to Organization First'
-                          : invoice.emailsentat
-                          ? 'Resend Invoice Email'
-                          : 'Email Invoice to Organization'
-                      }
-                    >
-                      {/* Wrap IconButton in span for tooltip on disabled */}
-                      <span>
-                        <IconButton
-                          color='primary'
-                          size='small'
-                          onClick={() => {
-                            logger.debug(
-                              `[AR Table] Email icon clicked for Invoice ID: ${invoice.invoiceid}`
-                            );
-                            onEmailInvoiceClick(invoice.invoiceid);
-                          }}
-                          disabled={!invoice.contactemail || !invoice.posted_to_org}
-                        >
-                          <EmailIcon fontSize='small' />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
+
+
                   </Box>
                 </TableCell>
               </TableRow>
@@ -292,7 +233,7 @@ const AccountsReceivableTable = ({
               <TableRow>
                 <TableCell
                   style={{ paddingBottom: 0, paddingTop: 0 }}
-                  colSpan={13}
+                  colSpan={11}
                 >
                   {/* Adjust colSpan based on total columns */}
                   <Collapse

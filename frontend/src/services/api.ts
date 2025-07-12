@@ -429,6 +429,13 @@ export const emailInvoice = async (invoiceId: number) => {
   return response.data;
 };
 
+export const postInvoiceToOrganization = async (invoiceId: number) => {
+  const response = await api.put(
+    `/accounting/invoices/${invoiceId}/post-to-org`
+  );
+  return response.data;
+};
+
 export const getInvoicePayments = async (invoiceId: number) => {
   const response = await api.get(
     `/accounting/invoices/${invoiceId}/payments`

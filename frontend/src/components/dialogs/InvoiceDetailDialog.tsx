@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import * as api from '../../services/api'; // Adjust path as needed
 import EmailIcon from '@mui/icons-material/Email';
+import PostAddIcon from '@mui/icons-material/PostAdd';
 import logger from '../../utils/logger';
 import { getInvoiceDetails } from '../../services/api';
 import { formatDisplayDate } from '../../utils/dateUtils';
@@ -71,6 +72,32 @@ const InvoiceDetailDialog = ({
       fetchInvoiceDetails();
     }
   }, [open, invoiceId]);
+
+  const handlePostToOrganization = async () => {
+    if (!invoiceId) return;
+    setIsSendingEmail(true);
+    logger.debug(
+      `[InvoiceDetailDialog] Posting invoice to organization: ${invoiceId}`
+    );
+    try {
+      const response = await api.postInvoiceToOrganization(invoiceId);
+      if (response && response.success) {
+        let message = response.message || 'Invoice posted to organization successfully. Email notification sent.';
+        if (onActionSuccess) onActionSuccess(message);
+        // Refresh invoice data to show updated status
+        const updatedInvoice = await getInvoiceDetails(invoiceId);
+        setInvoice(updatedInvoice);
+      } else {
+        const errorMsg = response?.message || 'Failed to post invoice to organization.';
+        throw new Error(errorMsg);
+      }
+    } catch (err) {
+      logger.error(`Error posting invoice to organization ${invoiceId}:`, err);
+      if (onActionError) onActionError(err?.message || 'Failed to post invoice to organization.');
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
 
   const handleSendEmail = async () => {
     if (!invoiceId) return;
@@ -321,12 +348,31 @@ const InvoiceDetailDialog = ({
         )}
       </DialogContent>
       <DialogActions>
-        {/* Add Email button if email available */}
-        {invoice?.contactemail && (
+        {/* Post to Organization Button - Only show if not already posted */}
+        {invoice && !invoice.posted_to_org && (
+          <Button
+            onClick={handlePostToOrganization}
+            color='warning'
+            variant='contained'
+            disabled={isLoading || isSendingEmail || !invoice || !invoice.contactemail}
+            startIcon={
+              isSendingEmail ? (
+                <CircularProgress size={20} color='inherit' />
+              ) : (
+                <PostAddIcon />
+              )
+            }
+          >
+            {isSendingEmail ? 'Posting...' : 'Post to Organization'}
+          </Button>
+        )}
+        
+        {/* Email Button - Only show if already posted */}
+        {invoice?.contactemail && invoice?.posted_to_org && (
           <Button
             onClick={handleSendEmail}
             color='primary'
-            variant='contained'
+            variant='outlined'
             disabled={isLoading || isSendingEmail || !invoice || !invoice.contactemail}
             startIcon={
               isSendingEmail ? (
@@ -343,6 +389,7 @@ const InvoiceDetailDialog = ({
                 : 'Send Email'}
           </Button>
         )}
+        
         {previewUrl && (
           <Button
             color='info'
@@ -355,9 +402,14 @@ const InvoiceDetailDialog = ({
             View Email Preview
           </Button>
         )}
-        <Button onClick={handlePreview}>Preview</Button>
-        <Button onClick={handleDownload}>Download</Button>
-        <Button onClick={onClose}>Close</Button>
+        
+        <Button onClick={handleDownload} color='info' variant='outlined'>
+          Download PDF
+        </Button>
+        
+        <Button onClick={onClose} color='inherit'>
+          Close
+        </Button>
       </DialogActions>
     </Dialog>
   );

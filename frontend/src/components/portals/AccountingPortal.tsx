@@ -120,15 +120,7 @@ const AccountsReceivableView: React.FC = () => {
     setShowInvoiceDetailDialog(true);
   };
 
-  const handleEmailInvoiceClick = (invoice: any) => {
-    console.log('Email invoice:', invoice);
-    // TODO: Implement email functionality
-  };
 
-  const handlePostToOrgClick = (invoice: any) => {
-    console.log('Post to organization:', invoice);
-    // TODO: Implement post to org functionality
-  };
 
   const handleInvoiceDetailDialogClose = () => {
     setShowInvoiceDetailDialog(false);
@@ -156,8 +148,6 @@ const AccountsReceivableView: React.FC = () => {
         invoices={invoices}
         onRecordPaymentClick={handleRecordPaymentClick}
         onViewDetailsClick={handleViewDetailsClick}
-        onEmailInvoiceClick={handleEmailInvoiceClick}
-        onPostToOrgClick={handlePostToOrgClick}
       />
 
       {/* Invoice Detail Dialog */}
