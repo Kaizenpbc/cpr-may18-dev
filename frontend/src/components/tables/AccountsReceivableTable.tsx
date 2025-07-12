@@ -142,6 +142,7 @@ const AccountsReceivableTable = ({
               Payment Status
             </TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Aging</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Posted to Org</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Email Sent</TableCell>
             <TableCell align='center' sx={{ fontWeight: 'bold' }}>
               Actions
@@ -196,6 +197,14 @@ const AccountsReceivableTable = ({
                   />
                 </TableCell>
                 <TableCell>{invoice.agingbucket || '-'}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={invoice.posted_to_org ? 'Yes' : 'No'}
+                    color={invoice.posted_to_org ? 'success' : 'default'}
+                    size='small'
+                    variant='outlined'
+                  />
+                </TableCell>
                 <TableCell>
                   {invoice.emailsentat ? formatDate(invoice.emailsentat) : '-'}
                 </TableCell>
@@ -252,7 +261,9 @@ const AccountsReceivableTable = ({
                     {/* Email Button */}
                     <Tooltip
                       title={
-                        invoice.emailsentat
+                        !invoice.posted_to_org
+                          ? 'Post to Organization First'
+                          : invoice.emailsentat
                           ? 'Resend Invoice Email'
                           : 'Email Invoice to Organization'
                       }
@@ -268,7 +279,7 @@ const AccountsReceivableTable = ({
                             );
                             onEmailInvoiceClick(invoice.invoiceid);
                           }}
-                          disabled={!invoice.contactemail}
+                          disabled={!invoice.contactemail || !invoice.posted_to_org}
                         >
                           <EmailIcon fontSize='small' />
                         </IconButton>
@@ -281,7 +292,7 @@ const AccountsReceivableTable = ({
               <TableRow>
                 <TableCell
                   style={{ paddingBottom: 0, paddingTop: 0 }}
-                  colSpan={12}
+                  colSpan={13}
                 >
                   {/* Adjust colSpan based on total columns */}
                   <Collapse

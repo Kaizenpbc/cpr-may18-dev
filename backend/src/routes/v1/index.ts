@@ -2999,7 +2999,7 @@ router.put(
   })
 );
 
-// Send invoice email
+// Send invoice email (only allowed if posted to organization)
 router.post(
   '/accounting/invoices/:id/email',
   authenticateToken,
@@ -3007,22 +3007,89 @@ router.post(
     try {
       const { id } = req.params;
 
-      // Update email sent timestamp
-      // TODO: Add email_sent_at column to database
-      // await pool.query(`
-      //   UPDATE invoices
-      //   SET email_sent_at = CURRENT_TIMESTAMP
-      //   WHERE id = $1
-      // `, [id]);
+      // Check if invoice is posted to organization first
+      const invoiceCheck = await pool.query(
+        `SELECT id, posted_to_org, contact_email, organization_name, invoice_number, amount, due_date
+         FROM invoices i
+         JOIN organizations o ON i.organization_id = o.id
+         WHERE i.id = $1`,
+        [id]
+      );
 
-      // Here you would integrate with your email service
-      // For now, we'll just simulate success
+      if (invoiceCheck.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Invoice not found'
+        );
+      }
 
-      res.json({
-        success: true,
-        message: 'Invoice email sent successfully',
-        previewUrl: `http://localhost:3001/api/v1/accounting/invoices/${id}/preview`, // For testing
-      });
+      const invoice = invoiceCheck.rows[0];
+
+      if (!invoice.posted_to_org) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Invoice must be posted to organization before sending email. Please post the invoice first.'
+        );
+      }
+
+      if (!invoice.contact_email) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Organization does not have a contact email address'
+        );
+      }
+
+      // Send email notification to organization
+      const { emailService } = await import('../../services/emailService.js');
+      
+      const emailData = {
+        organizationName: invoice.organization_name,
+        invoiceNumber: invoice.invoice_number,
+        invoiceDate: new Date().toLocaleDateString(),
+        dueDate: new Date(invoice.due_date).toLocaleDateString(),
+        amount: parseFloat(invoice.amount),
+        courseType: 'CPR Training Course', // You might want to get this from course_requests
+        location: 'As specified in course', // You might want to get this from course_requests
+        courseDate: 'As completed', // You might want to get this from course_requests
+        studentsBilled: 1, // You might want to get this from course_requests
+        portalUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/organization/bills-payable`
+      };
+
+      const emailSent = await emailService.sendInvoicePostedNotification(
+        invoice.contact_email,
+        emailData
+      );
+
+      if (emailSent) {
+        // Update email sent timestamp
+        await pool.query(
+          `UPDATE invoices 
+           SET email_sent_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [id]
+        );
+
+        console.log(`📧 [EMAIL] Invoice notification sent to ${invoice.contact_email}`);
+        
+        res.json({
+          success: true,
+          message: 'Invoice email sent successfully',
+          data: {
+            emailSent: true,
+            sentTo: invoice.contact_email,
+            sentAt: new Date().toISOString()
+          }
+        });
+      } else {
+        throw new AppError(
+          500,
+          errorCodes.EMAIL_SEND_ERROR,
+          'Failed to send invoice email'
+        );
+      }
     } catch (error) {
       console.error('Error sending invoice email:', error);
       throw error;
