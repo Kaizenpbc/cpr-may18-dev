@@ -63,6 +63,35 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
     });
 
+    socketInstance.on('courseStatusChanged', (data) => {
+      console.log('Course status changed:', data);
+      setLastUpdate(new Date());
+      
+      // Invalidate queries based on the type of status change
+      switch (data.type) {
+        case 'course_completed':
+          queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
+          queryClient.invalidateQueries({ queryKey: ['completedCourses'] });
+          queryClient.invalidateQueries({ queryKey: ['classes'] });
+          break;
+        case 'course_cancelled':
+          queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
+          queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
+          break;
+        case 'course_assigned':
+        case 'course_rescheduled':
+          queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
+          queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
+          queryClient.invalidateQueries({ queryKey: ['instructors'] });
+          break;
+        default:
+          // Invalidate all course-related queries for unknown changes
+          queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
+          queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
+          queryClient.invalidateQueries({ queryKey: ['completedCourses'] });
+      }
+    });
+
     setSocket(socketInstance);
 
     return () => {
@@ -80,8 +109,35 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const data = JSON.parse(event.data);
         console.log('SSE message received:', data);
         setLastUpdate(new Date());
-        queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
-        queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
+        
+        // Handle different event types
+        if (data.type === 'courseStatusChanged') {
+          switch (data.type) {
+            case 'course_completed':
+              queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
+              queryClient.invalidateQueries({ queryKey: ['completedCourses'] });
+              queryClient.invalidateQueries({ queryKey: ['classes'] });
+              break;
+            case 'course_cancelled':
+              queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
+              queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
+              break;
+            case 'course_assigned':
+            case 'course_rescheduled':
+              queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
+              queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
+              queryClient.invalidateQueries({ queryKey: ['instructors'] });
+              break;
+            default:
+              queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
+              queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
+              queryClient.invalidateQueries({ queryKey: ['completedCourses'] });
+          }
+        } else {
+          // Default behavior for other events
+          queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
+          queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
+        }
       };
 
       eventSource.onerror = (error) => {

@@ -107,17 +107,22 @@ const ClassAttendanceView: React.FC = () => {
   const loadTodaysClasses = async () => {
     try {
       setLoading(true);
+      console.log('[Debug] Loading today\'s classes...');
       const response = await instructorApi.getClassesToday();
+      console.log('[Debug] API response:', response);
       const classes = response.data?.data || response.data || [];
+      console.log('[Debug] Classes array:', classes);
       setTodaysClasses(classes);
 
       // Auto-select the first class if only one exists
       if (classes && classes.length === 1) {
+        console.log('[Debug] Auto-selecting first class:', classes[0]);
         setSelectedClass(classes[0]);
       }
 
       setError('');
     } catch (error: any) {
+      console.error('[Debug] Error loading today\'s classes:', error);
       handleError(error, { component: 'ClassAttendanceView', action: 'load today classes' });
       setError("Failed to load today's classes");
     } finally {
@@ -287,301 +292,301 @@ const ClassAttendanceView: React.FC = () => {
         </Snackbar>
       )}
 
-      {todaysClasses.length === 0 ? (
-        <Card sx={{ mt: 2 }}>
-          <CardContent>
-            <Typography variant='h6' color='text.secondary' align='center'>
-              No classes scheduled for today
-            </Typography>
-            <Typography
-              variant='body2'
-              color='text.secondary'
-              align='center'
-              sx={{ mt: 1 }}
-            >
-              Check back on days when you have scheduled classes.
-            </Typography>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          {/* Class Selection */}
-          <Paper sx={{ p: 2, mb: 3 }}>
-            <Typography variant='h6' gutterBottom>
-              Select Class for Attendance
-            </Typography>
-            <FormControl fullWidth>
-              <InputLabel>Today's Classes</InputLabel>
-              <Select
-                value={selectedClass?.course_id || ''}
-                label="Today's Classes"
-                onChange={handleClassChange}
+            {todaysClasses.length === 0 ? (
+          <Card sx={{ mt: 2 }}>
+            <CardContent>
+              <Typography variant='h6' color='text.secondary' align='center'>
+                No classes scheduled for today
+              </Typography>
+              <Typography
+                variant='body2'
+                color='text.secondary'
+                align='center'
+                sx={{ mt: 1 }}
               >
-                {todaysClasses.map(course => (
-                  <MenuItem key={course.course_id} value={course.course_id}>
-                    <Box>
-                      <Typography variant='body1'>
-                        {course.name} - {course.organizationname}
-                      </Typography>
-                      <Typography variant='body2' color='text.secondary'>
-                        {formatTime(course.start_time)} -{' '}
-                        {formatTime(course.end_time)} | {course.location}
-                      </Typography>
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Paper>
+                Check back on days when you have scheduled classes.
+              </Typography>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {/* Class Selection */}
+            <Paper sx={{ p: 2, mb: 3 }}>
+              <Typography variant='h6' gutterBottom>
+                Select Class for Attendance
+              </Typography>
+              <FormControl fullWidth>
+                <InputLabel>Today's Classes</InputLabel>
+                <Select
+                  value={selectedClass?.course_id || ''}
+                  label="Today's Classes"
+                  onChange={handleClassChange}
+                >
+                  {todaysClasses.map(course => (
+                    <MenuItem key={course.course_id} value={course.course_id}>
+                      <Box>
+                        <Typography variant='body1'>
+                          {course.name} - {course.organizationname}
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                          {formatTime(course.start_time)} -{' '}
+                          {formatTime(course.end_time)} | {course.location}
+                        </Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Paper>
 
-          {/* Student Management */}
-          {selectedClass && (
-            <Paper sx={{ p: 2 }}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  mb: 2,
-                }}
-              >
-                <Typography variant='h6'>Student Attendance</Typography>
-                <Stack direction='row' spacing={1}>
-                  <Button
-                    variant='outlined'
-                    startIcon={<AddIcon />}
-                    onClick={() => setAddStudentDialog(true)}
-                    size='small'
-                  >
-                    Add Student
-                  </Button>
-                  <Button
-                    variant='contained'
-                    color='success'
-                    startIcon={<CheckCircleIcon />}
-                    onClick={() => setCompleteDialog(true)}
-                    size='small'
-                    disabled={stats.notMarked > 0}
-                  >
-                    Complete Class
-                  </Button>
-                </Stack>
-              </Box>
+            {/* Student Management */}
+            {selectedClass && (
+              <Paper sx={{ p: 2 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    mb: 2,
+                  }}
+                >
+                  <Typography variant='h6'>Student Attendance</Typography>
+                  <Stack direction='row' spacing={1}>
+                    <Button
+                      variant='outlined'
+                      startIcon={<AddIcon />}
+                      onClick={() => setAddStudentDialog(true)}
+                      size='small'
+                    >
+                      Add Student
+                    </Button>
+                    <Button
+                      variant='contained'
+                      color='success'
+                      startIcon={<CheckCircleIcon />}
+                      onClick={() => setCompleteDialog(true)}
+                      size='small'
+                      disabled={stats.notMarked > 0}
+                    >
+                      Complete Class
+                    </Button>
+                  </Stack>
+                </Box>
 
-              {/* Class Info */}
-              <Box
-                sx={{
-                  mb: 2,
-                  p: 2,
-                  bgcolor: 'background.default',
-                  borderRadius: 1,
-                }}
-              >
-                <Typography variant='subtitle1' gutterBottom>
-                  {selectedClass.name} -{' '}
-                  {selectedClass.organizationname}
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6} md={3}>
+                {/* Class Info */}
+                <Box
+                  sx={{
+                    mb: 2,
+                    p: 2,
+                    bgcolor: 'background.default',
+                    borderRadius: 1,
+                  }}
+                >
+                  <Typography variant='subtitle1' gutterBottom>
+                    {selectedClass.name} -{' '}
+                    {selectedClass.organizationname}
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Chip
+                        icon={<ScheduleIcon />}
+                        label={`${formatTime(selectedClass.start_time)} - ${formatTime(selectedClass.end_time)}`}
+                        size='small'
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Chip
+                        icon={<LocationIcon />}
+                        label={selectedClass.location}
+                        size='small'
+                        variant='outlined'
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Chip
+                        icon={<GroupIcon />}
+                        label={`${stats.total} Students`}
+                        size='small'
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Chip
+                        icon={<CheckCircleIcon />}
+                        label={`${stats.present} Present`}
+                        size='small'
+                        color='success'
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
+
+                {/* Attendance Summary */}
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant='subtitle2' gutterBottom>
+                    Attendance Summary
+                  </Typography>
+                  <Stack direction='row' spacing={1} flexWrap='wrap'>
                     <Chip
-                      icon={<ScheduleIcon />}
-                      label={`${formatTime(selectedClass.start_time)} - ${formatTime(selectedClass.end_time)}`}
+                      label={`Total: ${stats.total}`}
+                      color='primary'
                       size='small'
                     />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
                     <Chip
-                      icon={<LocationIcon />}
-                      label={selectedClass.location}
+                      label={`Present: ${stats.present}`}
+                      color='success'
+                      size='small'
+                    />
+                    <Chip
+                      label={`Absent: ${stats.absent}`}
+                      color='error'
+                      size='small'
+                    />
+                    <Chip
+                      label={`Not Marked: ${stats.notMarked}`}
+                      color='default'
                       size='small'
                       variant='outlined'
                     />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Chip
-                      icon={<GroupIcon />}
-                      label={`${stats.total} Students`}
-                      size='small'
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Chip
-                      icon={<CheckCircleIcon />}
-                      label={`${stats.present} Present`}
-                      size='small'
-                      color='success'
-                    />
-                  </Grid>
-                </Grid>
-              </Box>
-
-              {/* Attendance Summary */}
-              <Box sx={{ mb: 2 }}>
-                <Typography variant='subtitle2' gutterBottom>
-                  Attendance Summary
-                </Typography>
-                <Stack direction='row' spacing={1} flexWrap='wrap'>
-                  <Chip
-                    label={`Total: ${stats.total}`}
-                    color='primary'
-                    size='small'
-                  />
-                  <Chip
-                    label={`Present: ${stats.present}`}
-                    color='success'
-                    size='small'
-                  />
-                  <Chip
-                    label={`Absent: ${stats.absent}`}
-                    color='error'
-                    size='small'
-                  />
-                  <Chip
-                    label={`Not Marked: ${stats.notMarked}`}
-                    color='default'
-                    size='small'
-                    variant='outlined'
-                  />
-                </Stack>
-              </Box>
-
-              {/* Students Table */}
-              {studentsLoading ? (
-                <Box display='flex' justifyContent='center' p={2}>
-                  <CircularProgress size={24} />
+                  </Stack>
                 </Box>
-              ) : (Array.isArray(students) ? students : []).length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <PersonIcon
-                    sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }}
-                  />
-                  <Typography variant='h6' color='text.secondary'>
-                    No Students Registered
-                  </Typography>
-                  <Typography variant='body2' color='text.secondary'>
-                    Add students to this class to mark attendance
-                  </Typography>
-                </Box>
-              ) : (
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 'bold' }}>
-                          Student Name
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
-                        <TableCell
-                          sx={{ fontWeight: 'bold', textAlign: 'center' }}
-                        >
-                          Present
-                        </TableCell>
-                        <TableCell
-                          sx={{ fontWeight: 'bold', textAlign: 'center' }}
-                        >
-                          Status
-                        </TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {(Array.isArray(students) ? students : []).map(student => (
-                        <TableRow key={student.studentid}>
-                          <TableCell>
-                            {student.firstname} {student.lastname}
+
+                {/* Students Table */}
+                {studentsLoading ? (
+                  <Box display='flex' justifyContent='center' p={2}>
+                    <CircularProgress size={24} />
+                  </Box>
+                ) : (Array.isArray(students) ? students : []).length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <PersonIcon
+                      sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }}
+                    />
+                    <Typography variant='h6' color='text.secondary'>
+                      No Students Registered
+                    </Typography>
+                    <Typography variant='body2' color='text.secondary'>
+                      Add students to this class to mark attendance
+                    </Typography>
+                  </Box>
+                ) : (
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 'bold' }}>
+                            Student Name
                           </TableCell>
-                          <TableCell>{student.email || '-'}</TableCell>
-                          <TableCell align='center'>
-                            {student.attendanceMarked ? (
-                              // Show current status with option to change
-                              <Box sx={{ display: 'flex', gap: 1 }}>
-                                <Button
-                                  variant={student.attendance ? 'contained' : 'outlined'}
-                                  color='success'
-                                  size='small'
-                                  onClick={() => handleAttendanceChange(student.studentid, true)}
-                                  disabled={student.attendance}
-                                >
-                                  Present
-                                </Button>
-                                <Button
-                                  variant={!student.attendance ? 'contained' : 'outlined'}
-                                  color='error'
-                                  size='small'
-                                  onClick={() => handleAttendanceChange(student.studentid, false)}
-                                  disabled={!student.attendance}
-                                >
-                                  Absent
-                                </Button>
-                              </Box>
-                            ) : (
-                              // Show buttons to mark attendance for the first time
-                              <Box sx={{ display: 'flex', gap: 1 }}>
-                                <Button
-                                  variant='outlined'
-                                  color='success'
-                                  size='small'
-                                  onClick={() => handleAttendanceChange(student.studentid, true)}
-                                >
-                                  Mark Present
-                                </Button>
-                                <Button
-                                  variant='outlined'
-                                  color='error'
-                                  size='small'
-                                  onClick={() => handleAttendanceChange(student.studentid, false)}
-                                >
-                                  Mark Absent
-                                </Button>
-                              </Box>
-                            )}
+                          <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
+                          <TableCell
+                            sx={{ fontWeight: 'bold', textAlign: 'center' }}
+                          >
+                            Present
                           </TableCell>
-                          <TableCell align='center'>
-                            <Chip
-                              label={
-                                student.attendanceMarked
-                                  ? student.attendance
-                                    ? 'Present'
-                                    : 'Absent'
-                                  : 'Not Marked'
-                              }
-                              color={
-                                student.attendanceMarked
-                                  ? student.attendance
-                                    ? 'success'
-                                    : 'error'
-                                  : 'default'
-                              }
-                              size='small'
-                            />
+                          <TableCell
+                            sx={{ fontWeight: 'bold', textAlign: 'center' }}
+                          >
+                            Status
                           </TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
+                      </TableHead>
+                      <TableBody>
+                        {(Array.isArray(students) ? students : []).map(student => (
+                          <TableRow key={student.studentid}>
+                            <TableCell>
+                              {student.firstname} {student.lastname}
+                            </TableCell>
+                            <TableCell>{student.email || '-'}</TableCell>
+                            <TableCell align='center'>
+                              {student.attendanceMarked ? (
+                                // Show current status with option to change
+                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                  <Button
+                                    variant={student.attendance ? 'contained' : 'outlined'}
+                                    color='success'
+                                    size='small'
+                                    onClick={() => handleAttendanceChange(student.studentid, true)}
+                                    disabled={student.attendance}
+                                  >
+                                    Present
+                                  </Button>
+                                  <Button
+                                    variant={!student.attendance ? 'contained' : 'outlined'}
+                                    color='error'
+                                    size='small'
+                                    onClick={() => handleAttendanceChange(student.studentid, false)}
+                                    disabled={!student.attendance}
+                                  >
+                                    Absent
+                                  </Button>
+                                </Box>
+                              ) : (
+                                // Show buttons to mark attendance for the first time
+                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                  <Button
+                                    variant='outlined'
+                                    color='success'
+                                    size='small'
+                                    onClick={() => handleAttendanceChange(student.studentid, true)}
+                                  >
+                                    Mark Present
+                                  </Button>
+                                  <Button
+                                    variant='outlined'
+                                    color='error'
+                                    size='small'
+                                    onClick={() => handleAttendanceChange(student.studentid, false)}
+                                  >
+                                    Mark Absent
+                                  </Button>
+                                </Box>
+                              )}
+                            </TableCell>
+                            <TableCell align='center'>
+                              <Chip
+                                label={
+                                  student.attendanceMarked
+                                    ? student.attendance
+                                      ? 'Present'
+                                      : 'Absent'
+                                    : 'Not Marked'
+                                }
+                                color={
+                                  student.attendanceMarked
+                                    ? student.attendance
+                                      ? 'success'
+                                      : 'error'
+                                    : 'default'
+                                }
+                                size='small'
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
 
-              {/* Instructor Comments */}
-              <Box sx={{ mt: 3 }}>
-                <Typography variant='h6' gutterBottom>
-                  <CommentIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-                  Instructor Comments
-                </Typography>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={3}
-                  placeholder="Add any notes about today's class (optional)"
-                  value={instructorComments}
-                  onChange={(e) => setInstructorComments(e.target.value)}
-                  variant='outlined'
-                  helperText='Comments will be visible to administrators in completed courses'
-                />
-              </Box>
-            </Paper>
-          )}
-        </>
-      )}
+                {/* Instructor Comments */}
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant='h6' gutterBottom>
+                    <CommentIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                    Instructor Comments
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={3}
+                    placeholder="Add any notes about today's class (optional)"
+                    value={instructorComments}
+                    onChange={(e) => setInstructorComments(e.target.value)}
+                    variant='outlined'
+                    helperText='Comments will be visible to administrators in completed courses'
+                  />
+                </Box>
+              </Paper>
+            )}
+          </>
+        )}
 
       {/* Add Student Dialog */}
       <Dialog

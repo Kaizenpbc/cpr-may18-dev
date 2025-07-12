@@ -63,7 +63,7 @@ const CourseScheduling = () => {
       const response = await api.get('/courses/pending');
       return response.data.data;
     },
-    refetchInterval: 30000, // Poll every 30 seconds
+    refetchInterval: 60000, // Poll every 60 seconds (reduced due to real-time updates)
   });
 
   const handleCancelClick = (course: Course) => {

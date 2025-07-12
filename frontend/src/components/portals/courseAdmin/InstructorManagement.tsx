@@ -157,7 +157,7 @@ const InstructorManagement: React.FC = () => {
       const response = await api.get('/instructors');
       return response.data.data;
     },
-    refetchInterval: 30000, // Poll every 30 seconds
+    refetchInterval: 60000, // Poll every 60 seconds (reduced due to real-time updates)
   });
 
   // Fetch pending courses with React Query
@@ -167,7 +167,7 @@ const InstructorManagement: React.FC = () => {
       const response = await api.get('/courses/pending');
       return response.data.data;
     },
-    refetchInterval: 30000, // Poll every 30 seconds
+    refetchInterval: 60000, // Poll every 60 seconds (reduced due to real-time updates)
   });
 
   // Fetch confirmed courses with React Query
@@ -177,7 +177,7 @@ const InstructorManagement: React.FC = () => {
       const response = await api.get('/courses/confirmed');
       return response.data.data;
     },
-    refetchInterval: 30000, // Poll every 30 seconds
+    refetchInterval: 60000, // Poll every 60 seconds (reduced due to real-time updates)
   });
 
   // Fetch completed courses with React Query
@@ -187,7 +187,7 @@ const InstructorManagement: React.FC = () => {
       const response = await api.get('/courses/completed');
       return response.data.data;
     },
-    refetchInterval: 30000, // Poll every 30 seconds
+    refetchInterval: 60000, // Poll every 60 seconds (reduced due to real-time updates)
   });
 
   useEffect(() => {

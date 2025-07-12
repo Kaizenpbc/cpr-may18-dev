@@ -727,6 +727,19 @@ router.post('/classes/:classId/complete', authenticateToken, requireRole(['instr
     [userId, courseRequestId]
   );
 
+  // Emit real-time update event
+  const io = req.app.get('io');
+  if (io) {
+    io.emit('courseStatusChanged', {
+      type: 'course_completed',
+      courseId: courseRequestId,
+      instructorId: userId,
+      status: 'completed',
+      timestamp: new Date().toISOString()
+    });
+    console.log('📡 [WEBSOCKET] Emitted course completion event for course:', courseRequestId);
+  }
+
   res.json({ success: true, data: result.rows[0], message: 'Class marked as completed' });
 });
 

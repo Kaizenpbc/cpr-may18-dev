@@ -797,6 +797,19 @@ router.put(
 
         await client.query('COMMIT');
 
+        // Emit real-time update event
+        const io = req.app.get('io');
+        if (io) {
+          io.emit('courseStatusChanged', {
+            type: 'course_cancelled',
+            courseId: id,
+            status: 'cancelled',
+            reason: reason,
+            timestamp: new Date().toISOString()
+          });
+          console.log('📡 [WEBSOCKET] Emitted course cancellation event for course:', id);
+        }
+
         return res.json({
           success: true,
           message: 'Course cancelled successfully',
@@ -946,6 +959,20 @@ router.put(
         }
 
         await client.query('COMMIT');
+
+        // Emit real-time update event
+        const io = req.app.get('io');
+        if (io) {
+          io.emit('courseStatusChanged', {
+            type: 'course_rescheduled',
+            courseId: id,
+            status: 'confirmed',
+            scheduledDate: scheduledDate,
+            instructorId: updatedCourse.instructor_id,
+            timestamp: new Date().toISOString()
+          });
+          console.log('📡 [WEBSOCKET] Emitted course reschedule event for course:', id);
+        }
 
         return res.json({
           success: true,
@@ -1122,64 +1149,81 @@ router.put(
 
         await client.query('COMMIT');
 
-        // Send email notifications directly (since Redis queue is not configured)
-        console.log('📧 [EMAIL] Sending email notifications directly...');
-        
-        try {
-          // Get organization contact email
-          const orgResult = await client.query(
-            'SELECT contact_email FROM organizations WHERE id = $1',
-            [courseRequest.organization_id]
-          );
-          
-          const organizationEmail = orgResult.rows[0]?.contact_email;
-          
-          // Send instructor email directly
-          if (instructor.email) {
-            const { emailService } = await import('../../services/emailService.js');
-            const emailSent = await emailService.sendCourseAssignedNotification(
-              instructor.email,
-              {
-                courseName: courseRequest.course_type_name,
-                date: scheduledDate,
-                startTime: startTime,
-                endTime: endTime,
-                location: courseRequest.location,
-                organization: courseRequest.organization_name,
-                students: courseRequest.registered_students || 0,
-              }
-            );
-            console.log('✅ [EMAIL] Instructor notification sent:', emailSent);
-          }
-          
-          // Send organization email directly
-          if (organizationEmail) {
-            const { emailService } = await import('../../services/emailService.js');
-            const emailSent = await emailService.sendCourseScheduledToOrganization(
-              organizationEmail,
-              {
-                courseName: courseRequest.course_type_name,
-                date: scheduledDate,
-                startTime: startTime,
-                endTime: endTime,
-                location: courseRequest.location,
-                instructorName: instructor.instructor_name,
-                students: courseRequest.registered_students || 0,
-              }
-            );
-            console.log('✅ [EMAIL] Organization notification sent:', emailSent);
-          }
-          
-          console.log('✅ [EMAIL] All email notifications sent successfully');
-        } catch (emailError) {
-          console.error('❌ [EMAIL] Error sending email notifications:', emailError);
-          // Don't fail the entire operation if email fails
+        // Emit real-time update event
+        const io = req.app.get('io');
+        if (io) {
+          io.emit('courseStatusChanged', {
+            type: 'course_assigned',
+            courseId: id,
+            status: 'confirmed',
+            instructorId: instructorId,
+            scheduledDate: scheduledDate,
+            timestamp: new Date().toISOString()
+          });
+          console.log('📡 [WEBSOCKET] Emitted course assignment event for course:', id);
         }
+
+        // Send email notifications asynchronously (don't block the response)
+        console.log('📧 [EMAIL] Sending email notifications asynchronously...');
+        
+        // Fire and forget - don't await the emails
+        (async () => {
+          try {
+            // Get organization contact email
+            const orgResult = await pool.query(
+              'SELECT contact_email FROM organizations WHERE id = $1',
+              [courseRequest.organization_id]
+            );
+            
+            const organizationEmail = orgResult.rows[0]?.contact_email;
+            
+            // Send instructor email
+            if (instructor.email) {
+              const { emailService } = await import('../../services/emailService.js');
+              const emailSent = await emailService.sendCourseAssignedNotification(
+                instructor.email,
+                {
+                  courseName: courseRequest.course_type_name,
+                  date: scheduledDate,
+                  startTime: startTime,
+                  endTime: endTime,
+                  location: courseRequest.location,
+                  organization: courseRequest.organization_name,
+                  students: courseRequest.registered_students || 0,
+                }
+              );
+              console.log('✅ [EMAIL] Instructor notification sent:', emailSent);
+            }
+            
+            // Send organization email
+            if (organizationEmail) {
+              const { emailService } = await import('../../services/emailService.js');
+              const emailSent = await emailService.sendCourseScheduledToOrganization(
+                organizationEmail,
+                {
+                  courseName: courseRequest.course_type_name,
+                  date: scheduledDate,
+                  startTime: startTime,
+                  endTime: endTime,
+                  location: courseRequest.location,
+                  instructorName: instructor.instructor_name,
+                  students: courseRequest.registered_students || 0,
+                }
+              );
+              console.log('✅ [EMAIL] Organization notification sent:', emailSent);
+            }
+            
+            console.log('✅ [EMAIL] All email notifications sent successfully');
+          } catch (emailError) {
+            console.error('❌ [EMAIL] Error sending email notifications:', emailError);
+            // Don't fail the entire operation if email fails
+          }
+        })();
 
         return res.json({
           success: true,
           message:
-            'Instructor assigned successfully! Course status updated to Confirmed and added to instructor schedule. Email notifications sent.',
+            'Instructor assigned successfully! Course status updated to Confirmed and added to instructor schedule. Email notifications are being sent.',
           course: courseRequest,
           class: classInsertResult.rows[0],
         });
@@ -2720,42 +2764,45 @@ router.put(
           console.log(`📁 [POST TO ORG] Course ${invoice.course_request_id} archived after invoice posting`);
         }
 
-        // Send email notification to organization
+        // Send email notification to organization asynchronously
         if (invoice.contact_email) {
-          try {
-            const emailData = {
-              organizationName: invoice.organization_name,
-              invoiceNumber: invoice.invoice_number,
-              invoiceDate: new Date(invoice.invoice_date).toLocaleDateString(),
-              dueDate: new Date(invoice.due_date).toLocaleDateString(),
-              amount: parseFloat(invoice.amount),
-              courseType: invoice.course_type_name,
-              location: invoice.location,
-              courseDate: invoice.course_date ? new Date(invoice.course_date).toLocaleDateString() : 'N/A',
-              studentsBilled: invoice.students_billed,
-              portalUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/organization/bills-payable`
-            };
+          // Fire and forget - don't await the email
+          (async () => {
+            try {
+              const emailData = {
+                organizationName: invoice.organization_name,
+                invoiceNumber: invoice.invoice_number,
+                invoiceDate: new Date(invoice.invoice_date).toLocaleDateString(),
+                dueDate: new Date(invoice.due_date).toLocaleDateString(),
+                amount: parseFloat(invoice.amount),
+                courseType: invoice.course_type_name,
+                location: invoice.location,
+                courseDate: invoice.course_date ? new Date(invoice.course_date).toLocaleDateString() : 'N/A',
+                studentsBilled: invoice.students_billed,
+                portalUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/organization/bills-payable`
+              };
 
-            await emailService.sendInvoicePostedNotification(
-              invoice.contact_email,
-              emailData
-            );
+              await emailService.sendInvoicePostedNotification(
+                invoice.contact_email,
+                emailData
+              );
 
-            // Log email sent
-            await client.query(
-              `
-            UPDATE invoices 
-            SET email_sent_at = CURRENT_TIMESTAMP
-            WHERE id = $1
-          `,
-              [id]
-            );
+              // Log email sent
+              await pool.query(
+                `
+              UPDATE invoices 
+              SET email_sent_at = CURRENT_TIMESTAMP
+              WHERE id = $1
+            `,
+                [id]
+              );
 
-            console.log(`📧 [POST TO ORG] Invoice notification sent to ${invoice.contact_email}`);
-          } catch (emailError) {
-            console.error('❌ [POST TO ORG] Email notification failed:', emailError);
-            // Don't fail the entire operation if email fails
-          }
+              console.log(`📧 [POST TO ORG] Invoice notification sent to ${invoice.contact_email}`);
+            } catch (emailError) {
+              console.error('❌ [POST TO ORG] Email notification failed:', emailError);
+              // Don't fail the entire operation if email fails
+            }
+          })();
         }
 
         await client.query('COMMIT');
