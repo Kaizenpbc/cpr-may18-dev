@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+    </style>
+</head>
+<body>
+    <h1>Frontend Accessibility Test</h1>
+    
+    <div class="test-section info">
+        <h3>Test 1: Basic Connectivity</h3>
+        <div id="connectivity-result">Testing...</div>
+    </div>
+    
+    <div class="test-section info">
+        <h3>Test 2: React App Status</h3>
+        <div id="react-result">Testing...</div>
+    </div>
+    
+    <div class="test-section info">
+        <h3>Test 3: Console Errors</h3>
+        <div id="console-result">Testing...</div>
+    </div>
+
+    <script>
+        async function runTests() {
+            // Test 1: Basic connectivity
+            try {
+                const response = await fetch('http://localhost:5173');
+                if (response.ok) {
+                    document.getElementById('connectivity-result').innerHTML = 
+                        '<span class="success">✅ Frontend is accessible</span>';
+                } else {
+                    document.getElementById('connectivity-result').innerHTML = 
+                        '<span class="error">❌ Frontend returned status: ' + response.status + '</span>';
+                }
+            } catch (error) {
+                document.getElementById('connectivity-result').innerHTML = 
+                    '<span class="error">❌ Cannot access frontend: ' + error.message + '</span>';
+            }
+
+            // Test 2: Check if React app is loading
+            try {
+                const iframe = document.createElement('iframe');
+                iframe.src = 'http://localhost:5173';
+                iframe.style.width = '100%';
+                iframe.style.height = '400px';
+                iframe.style.border = '1px solid #ccc';
+                
+                iframe.onload = function() {
+                    try {
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        const rootElement = iframeDoc.getElementById('root');
+                        
+                        if (rootElement) {
+                            const loadingIndicator = iframeDoc.getElementById('loading-indicator');
+                            if (loadingIndicator && loadingIndicator.textContent.includes('Loading')) {
+                                document.getElementById('react-result').innerHTML = 
+                                    '<span class="error">⚠️ React app is loading but may be stuck</span>';
+                            } else {
+                                document.getElementById('react-result').innerHTML = 
+                                    '<span class="success">✅ React app appears to be loaded</span>';
+                            }
+                        } else {
+                            document.getElementById('react-result').innerHTML = 
+                                '<span class="error">❌ Root element not found</span>';
+                        }
+                    } catch (e) {
+                        document.getElementById('react-result').innerHTML = 
+                            '<span class="error">❌ Cannot access iframe content: ' + e.message + '</span>';
+                    }
+                };
+                
+                iframe.onerror = function() {
+                    document.getElementById('react-result').innerHTML = 
+                        '<span class="error">❌ Failed to load iframe</span>';
+                };
+                
+                document.getElementById('react-result').appendChild(iframe);
+            } catch (error) {
+                document.getElementById('react-result').innerHTML = 
+                    '<span class="error">❌ Error testing React app: ' + error.message + '</span>';
+            }
+
+            // Test 3: Check for console errors (simplified)
+            document.getElementById('console-result').innerHTML = 
+                '<span class="info">ℹ️ Check browser console for JavaScript errors</span>';
+        }
+
+        // Run tests when page loads
+        window.onload = runTests;
+    </script>
+</body>
+</html> 

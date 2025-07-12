@@ -32,6 +32,7 @@ import CourseManagement from '../sysadmin/CourseManagement';
 import UserManagement from '../sysadmin/UserManagement';
 import VendorManagement from '../sysadmin/VendorManagement';
 import OrganizationManagement from '../sysadmin/OrganizationManagement';
+import SystemConfiguration from '../sysadmin/SystemConfiguration';
 import OrganizationPricingManager from '../admin/OrganizationPricingManager';
 
 const drawerWidth = 240;
@@ -101,6 +102,12 @@ const SystemAdminPortal = () => {
       label: 'Vendor Management',
       icon: <StoreIcon />,
       path: '/sysadmin/vendors',
+    },
+    {
+      key: 'configuration',
+      label: 'System Configuration',
+      icon: <SettingsIcon />,
+      path: '/sysadmin/configuration',
     },
   ];
 
@@ -241,6 +248,14 @@ const SystemAdminPortal = () => {
                 element={
                   <ErrorBoundary context="system_admin_vendors" onError={handleError}>
                     <VendorManagement />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path='/configuration'
+                element={
+                  <ErrorBoundary context="system_admin_configuration" onError={handleError}>
+                    <SystemConfiguration />
                   </ErrorBoundary>
                 }
               />

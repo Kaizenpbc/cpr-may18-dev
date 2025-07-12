@@ -14,6 +14,7 @@ import healthRouter from './health.js';
 import cacheRouter from './cache.js';
 import organizationRouter from './organization.js';
 import organizationPricingRouter from './organizationPricing.js';
+import sysadminRouter from './sysadmin.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import bcrypt from 'bcryptjs';
@@ -32,6 +33,10 @@ router.use('/organization', organizationRouter);
 // Mount organization pricing routes
 router.use('/organization-pricing', organizationPricingRouter);
 console.log('✅ Organization pricing routes mounted');
+
+// Mount sysadmin routes
+router.use('/sysadmin', sysadminRouter);
+console.log('✅ Sysadmin routes mounted');
 
 console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
 
@@ -1246,7 +1251,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { emailQueueService } = await import('../../services/emailQueue.js');
-      const status = await emailQueueService.getQueueStatus();
+      const status = await emailQueueService.getQueueLength();
       res.json(ApiResponseBuilder.success(status, 'Email queue status retrieved'));
     } catch (error) {
       console.error('❌ [EMAIL QUEUE] Error getting queue status:', error);

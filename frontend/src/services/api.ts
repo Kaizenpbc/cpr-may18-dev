@@ -173,6 +173,15 @@ export const authApi = {
   refreshToken: () => api.post('/auth/refresh'),
 };
 
+// SYSADMIN endpoints
+export const sysadminApi = {
+  getConfigurations: () => api.get('/sysadmin/configurations'),
+  updateConfiguration: (key: string, value: string) => 
+    api.put(`/sysadmin/configurations/${key}`, { value }),
+  getConfiguration: (key: string) => 
+    api.get(`/sysadmin/configurations/${key}`),
+};
+
 // Password reset functions
 export const requestPasswordReset = async (email: string) => {
   const response = await api.post('/auth/forgot-password', { email });
@@ -550,6 +559,47 @@ export const sysAdminApi = {
     const response = await api.delete(
       `/sysadmin/organizations/${orgId}`
     );
+    return response.data;
+  },
+
+  // System Configuration
+  getConfigurations: async () => {
+    const response = await api.get('/sysadmin/configurations');
+    return response.data;
+  },
+
+  getConfigurationsByCategory: async (category: string) => {
+    const response = await api.get(`/sysadmin/configurations/category/${category}`);
+    return response.data;
+  },
+
+  getConfigurationCategories: async () => {
+    const response = await api.get('/sysadmin/configurations/categories');
+    return response.data;
+  },
+
+  getConfiguration: async (key: string) => {
+    const response = await api.get(`/sysadmin/configurations/${key}`);
+    return response.data;
+  },
+
+  updateConfiguration: async (key: string, value: string) => {
+    const response = await api.put(`/sysadmin/configurations/${key}`, { value });
+    return response.data;
+  },
+
+  validateSMTPConfig: async () => {
+    const response = await api.post('/sysadmin/configurations/validate-smtp');
+    return response.data;
+  },
+
+  getInvoiceDueDays: async () => {
+    const response = await api.get('/sysadmin/configurations/invoice/due-days');
+    return response.data;
+  },
+
+  getLateFeePercent: async () => {
+    const response = await api.get('/sysadmin/configurations/invoice/late-fee');
     return response.data;
   },
 };

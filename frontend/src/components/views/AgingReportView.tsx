@@ -256,7 +256,7 @@ const AgingReportView = () => {
       >
         <Box>
           <Typography
-            variant={{ xs: 'h5', sm: 'h4' }}
+            variant="h4"
             gutterBottom
             sx={{ fontWeight: 'bold' }}
           >

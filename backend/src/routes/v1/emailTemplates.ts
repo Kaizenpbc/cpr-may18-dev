@@ -5,7 +5,7 @@ import { EmailTemplateService } from '../../models/EmailTemplate.js';
 import { authorizeRoles } from '../../middleware/authMiddleware.js';
 import { errorCodes } from '../../utils/errorHandler.js';
 import { validateEmailTemplate } from '../../middleware/inputSanitizer.js';
-import { emailService } from '../../services/emailService';
+import { emailService } from '../../services/emailService.js';
 
 interface EmailTemplateRequestBody {
   name: string;
@@ -527,10 +527,21 @@ router.post('/send-test', async (req, res) => {
     return res.status(400).json({ error: 'to, subject, and body are required' });
   }
   try {
-    const result = await emailService.sendEmail(to, subject, body);
+    const result = await emailService.sendInvoicePostedNotification(to, {
+      organizationName: 'Test Organization',
+      invoiceNumber: 'TEST-001',
+      invoiceDate: new Date().toLocaleDateString(),
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+      amount: 100.00,
+      courseType: 'Test Course',
+      location: 'Test Location',
+      courseDate: new Date().toLocaleDateString(),
+      studentsBilled: 1,
+      portalUrl: 'http://localhost:5173'
+    });
     res.json({ success: true, result });
   } catch (error) {
-    res.status(500).json({ error: error.message || 'Failed to send email' });
+    res.status(500).json({ error: (error as Error).message || 'Failed to send email' });
   }
 });
 

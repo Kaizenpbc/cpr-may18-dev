@@ -39,6 +39,7 @@ export const errorCodes = {
   RESOURCE_NOT_FOUND: 'RES_3001',
   RESOURCE_ALREADY_EXISTS: 'RES_3002',
   RESOURCE_DELETED: 'RES_3003',
+  ACCESS_DENIED: 'RES_3004',
 
   // Database Errors (4000-4999)
   DB_CONNECTION_ERROR: 'DB_4001',
@@ -48,6 +49,7 @@ export const errorCodes = {
   // Server Errors (5000-5999)
   INTERNAL_SERVER_ERROR: 'SRV_5001',
   SERVICE_UNAVAILABLE: 'SRV_5002',
+  EMAIL_SEND_ERROR: 'SRV_5003',
 } as const;
 
 export function errorHandler(
