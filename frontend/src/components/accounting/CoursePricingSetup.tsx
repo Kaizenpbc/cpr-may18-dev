@@ -99,8 +99,8 @@ const CoursePricingSetup = () => {
 
   const loadCourseTypes = async () => {
     try {
-      const response = await api.getCourseTypes();
-      setCourseTypes(response.data || []);
+      const response = await api.getClassTypes();
+      setCourseTypes(response || []);
     } catch (err) {
       logger.error('Error loading course types:', err);
       throw err;
@@ -109,7 +109,7 @@ const CoursePricingSetup = () => {
 
   const handleEditStart = pricing => {
     setEditingId(pricing.id);
-    setEditPrice(pricing.price_per_student.toString());
+    setEditPrice(pricing.pricePerStudent.toString());
   };
 
   const handleEditCancel = () => {
@@ -293,17 +293,17 @@ const CoursePricingSetup = () => {
                 >
                   <TableCell>
                     <Typography variant='body2' fontWeight='medium'>
-                      {pricing.organization_name}
+                      {pricing.organizationName}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2' fontWeight='medium'>
-                      {pricing.course_name}
+                      {pricing.classTypeName}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2' color='text.secondary'>
-                      {pricing.course_description || 'No description'}
+                      {pricing.courseDescription || 'No description'}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -327,19 +327,19 @@ const CoursePricingSetup = () => {
                         fontWeight='bold'
                         color='success.main'
                       >
-                        {formatCurrency(pricing.price_per_student)}
+                        {formatCurrency(pricing.pricePerStudent)}
                       </Typography>
                     )}
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2'>
-                      {formatDate(pricing.effective_date)}
+                      {formatDate(pricing.effectiveDate)}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={pricing.is_active ? 'Active' : 'Inactive'}
-                      color={pricing.is_active ? 'success' : 'default'}
+                      label={pricing.isActive ? 'Active' : 'Inactive'}
+                      color={pricing.isActive ? 'success' : 'default'}
                       size='small'
                     />
                   </TableCell>
@@ -371,7 +371,7 @@ const CoursePricingSetup = () => {
                           onClick={() => handleEditStart(pricing)}
                           color='primary'
                           size='small'
-                          disabled={!pricing.is_active}
+                          disabled={!pricing.isActive}
                         >
                           <EditIcon />
                         </IconButton>

@@ -702,6 +702,33 @@ router.get(
   })
 );
 
+// Get cancelled courses
+router.get(
+  '/courses/cancelled',
+  asyncHandler(async (_req: Request, res: Response) => {
+    try {
+      const result = await pool.query(
+        `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, o.name as organization_name, u.username as instructor_name, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended
+         FROM course_requests cr
+         LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+         LEFT JOIN organizations o ON cr.organization_id = o.id
+         LEFT JOIN users u ON cr.instructor_id = u.id
+         WHERE cr.status = 'cancelled' 
+         ORDER BY cr.updated_at DESC`
+      );
+
+      return res.json(ApiResponseBuilder.success(result.rows));
+    } catch (error: any) {
+      console.error('Error fetching cancelled courses:', error);
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch cancelled courses'
+      );
+    }
+  })
+);
+
 // Cancel a course request
 router.put(
   '/courses/:id/cancel',
@@ -2138,6 +2165,7 @@ router.get(
 // Get accounting dashboard data
 router.get(
   '/accounting/dashboard',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       // Monthly Revenue
@@ -2201,6 +2229,7 @@ router.get(
 // Get course pricing for all organizations
 router.get(
   '/accounting/course-pricing',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     console.log('[Debug] Getting course pricing with cache');
 
@@ -2214,19 +2243,13 @@ router.get(
         });
       }
 
-      if (user.role === 'accountant' || user.role === 'admin') {
-        // For accountants/admins, get all organizations
-        const organizations = await cacheService.getOrganizations();
-        const coursePricingPromises = organizations.map(org =>
-          cacheService.getCoursePricing(org.id)
-        );
-
-        const allPricing = await Promise.all(coursePricingPromises);
-        const flatPricing = allPricing.flat();
+      if (user.role === 'accountant' || user.role === 'admin' || user.role === 'sysadmin') {
+        // For accountants/admins/sysadmin, get all pricing
+        const pricing = await cacheService.getAllCoursePricing();
 
         res.json({
           success: true,
-          data: flatPricing,
+          data: pricing,
           cached: true,
         });
       } else if (user.organizationId) {
@@ -2259,6 +2282,7 @@ router.get(
 // Update course pricing
 router.put(
   '/accounting/course-pricing/:id',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -2305,6 +2329,7 @@ router.put(
 // Get organizations list for pricing setup
 router.get(
   '/accounting/organizations',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     console.log('[Debug] Getting organizations with cache');
 
@@ -2330,6 +2355,7 @@ router.get(
 // Get course types for pricing setup
 router.get(
   '/accounting/course-types',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const result = await pool.query(`
@@ -2352,15 +2378,28 @@ router.get(
 // Create new course pricing
 router.post(
   '/accounting/course-pricing',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const { organization_id, course_type_id, price_per_student } = req.body;
+      const { 
+        organization_id, 
+        course_type_id, 
+        price_per_student,
+        organizationId,
+        classTypeId,
+        pricePerStudent
+      } = req.body;
+
+      // Handle both camelCase and snake_case field names
+      const orgId = organization_id || organizationId;
+      const courseTypeId = course_type_id || classTypeId;
+      const price = price_per_student || pricePerStudent;
 
       if (
-        !organization_id ||
-        !course_type_id ||
-        !price_per_student ||
-        price_per_student <= 0
+        !orgId ||
+        !courseTypeId ||
+        !price ||
+        price <= 0
       ) {
         throw new AppError(
           400,
@@ -2375,29 +2414,38 @@ router.post(
       SELECT id FROM course_pricing
       WHERE organization_id = $1 AND course_type_id = $2 AND is_active = true
     `,
-        [organization_id, course_type_id]
+        [orgId, courseTypeId]
       );
 
+      let result;
       if (existingResult.rows.length > 0) {
-        throw new AppError(
-          400,
-          errorCodes.VALIDATION_ERROR,
-          'Pricing already exists for this organization/course type combination'
+        // Update existing pricing
+        result = await pool.query(
+          `
+        UPDATE course_pricing 
+        SET price_per_student = $3, effective_date = CURRENT_DATE
+        WHERE organization_id = $1 AND course_type_id = $2 AND is_active = true
+        RETURNING *
+      `,
+          [orgId, courseTypeId, price]
+        );
+      } else {
+        // Create new pricing
+        result = await pool.query(
+          `
+        INSERT INTO course_pricing (organization_id, course_type_id, price_per_student, effective_date, is_active)
+        VALUES ($1, $2, $3, CURRENT_DATE, true)
+        RETURNING *
+      `,
+          [orgId, courseTypeId, price]
         );
       }
 
-      const result = await pool.query(
-        `
-      INSERT INTO course_pricing (organization_id, course_type_id, price_per_student, effective_date, is_active)
-      VALUES ($1, $2, $3, CURRENT_DATE, true)
-      RETURNING *
-    `,
-        [organization_id, course_type_id, price_per_student]
-      );
-
       res.json({
         success: true,
-        message: 'Course pricing created successfully',
+        message: existingResult.rows.length > 0 
+          ? 'Course pricing updated successfully' 
+          : 'Course pricing created successfully',
         data: result.rows[0],
       });
     } catch (error) {
@@ -2407,9 +2455,47 @@ router.post(
   })
 );
 
+// Delete course pricing
+router.delete(
+  '/accounting/course-pricing/:id',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      const result = await pool.query(
+        `
+      DELETE FROM course_pricing
+      WHERE id = $1
+      RETURNING *
+    `,
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Course pricing not found'
+        );
+      }
+
+      res.json({
+        success: true,
+        message: 'Course pricing deleted successfully',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Error deleting course pricing:', error);
+      throw error;
+    }
+  })
+);
+
 // Get billing queue (completed courses ready for invoicing)
 router.get(
   '/accounting/billing-queue',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const result = await pool.query(`
@@ -2452,6 +2538,7 @@ router.get(
 // Create invoice from completed course
 router.post(
   '/accounting/invoices',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { courseId } = req.body;
@@ -2564,6 +2651,7 @@ router.post(
 // Post invoice to organization (make it visible in their Bills Payable)
 router.put(
   '/accounting/invoices/:id/post-to-org',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -2698,6 +2786,7 @@ router.put(
 // Get all invoices
 router.get(
   '/accounting/invoices',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const result = await pool.query(`
@@ -2755,6 +2844,7 @@ router.get(
 // Get specific invoice details
 router.get(
   '/accounting/invoices/:id',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -2824,6 +2914,7 @@ router.get(
 // Update invoice
 router.put(
   '/accounting/invoices/:id',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -2866,6 +2957,7 @@ router.put(
 // Send invoice email
 router.post(
   '/accounting/invoices/:id/email',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -2896,6 +2988,7 @@ router.post(
 // Get invoice payments
 router.get(
   '/accounting/invoices/:id/payments',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;

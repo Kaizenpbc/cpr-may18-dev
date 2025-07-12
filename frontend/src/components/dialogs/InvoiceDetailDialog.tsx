@@ -36,6 +36,7 @@ const InvoiceDetailDialog = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     amount: '',
     dueDate: '',
@@ -81,12 +82,9 @@ const InvoiceDetailDialog = ({
       const response = await api.emailInvoice(invoiceId);
       if (response && response.success) {
         let message = response.message || 'Email queued successfully.';
-        if (response.previewUrl) {
-          logger.debug('Ethereal Preview URL:', response.previewUrl);
-        }
+        setPreviewUrl(response.previewUrl || null);
         if (onActionSuccess) onActionSuccess(message);
       } else {
-        // Handle undefined or malformed response
         const errorMsg = response?.message || 'Failed to send email via API.';
         throw new Error(errorMsg);
       }
@@ -329,9 +327,7 @@ const InvoiceDetailDialog = ({
             onClick={handleSendEmail}
             color='primary'
             variant='contained'
-            disabled={
-              isLoading || isSendingEmail || !invoice || !invoice.contactemail
-            }
+            disabled={isLoading || isSendingEmail || !invoice || !invoice.contactemail}
             startIcon={
               isSendingEmail ? (
                 <CircularProgress size={20} color='inherit' />
@@ -345,6 +341,18 @@ const InvoiceDetailDialog = ({
               : invoice?.emailsentat
                 ? 'Resend Email'
                 : 'Send Email'}
+          </Button>
+        )}
+        {previewUrl && (
+          <Button
+            color='info'
+            variant='outlined'
+            href={previewUrl}
+            target='_blank'
+            rel='noopener noreferrer'
+            sx={{ ml: 1 }}
+          >
+            View Email Preview
           </Button>
         )}
         <Button onClick={handlePreview}>Preview</Button>

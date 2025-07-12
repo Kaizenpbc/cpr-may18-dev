@@ -132,11 +132,11 @@ function OrganizationPricingDialog({
       };
 
       if (isEditing && pricing) {
-        await api.updateOrganizationPricing(pricing.id, submitData);
-        logger.info(`Organization pricing ${pricing.id} updated successfully`);
+        await api.updateCoursePrice(pricing.id, submitData);
+        logger.info(`Course pricing ${pricing.id} updated successfully`);
       } else {
-        await api.createOrganizationPricing(submitData);
-        logger.info('Organization pricing created successfully');
+        await api.createCoursePricing(submitData);
+        logger.info('Course pricing created successfully');
       }
 
       onSave();
@@ -160,7 +160,7 @@ function OrganizationPricingDialog({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        {isEditing ? 'Edit Organization Pricing' : 'Add Organization Pricing'}
+        {isEditing ? 'Edit Course Pricing' : 'Add Course Pricing'}
       </DialogTitle>
       <DialogContent>
         <Box sx={{ pt: 1 }}>
@@ -226,13 +226,13 @@ function OrganizationPricingDialog({
           <FormControl fullWidth sx={{ mb: 2 }}>
             <InputLabel>Status</InputLabel>
             <Select
-              value={formData.isActive}
+              value={formData.isActive.toString()}
               label="Status"
-              onChange={(e) => handleInputChange('isActive', e.target.value as boolean)}
+              onChange={(e) => handleInputChange('isActive', e.target.value === 'true')}
               disabled={loading}
             >
-              <MenuItem value={true}>Active</MenuItem>
-              <MenuItem value={false}>Inactive</MenuItem>
+              <MenuItem value="true">Active</MenuItem>
+              <MenuItem value="false">Inactive</MenuItem>
             </Select>
           </FormControl>
         </Box>

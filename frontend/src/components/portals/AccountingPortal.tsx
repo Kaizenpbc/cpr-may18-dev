@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Box, Typography, Paper, Container, Button } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
-  AttachMoney as PricingIcon,
   ReceiptLong as BillingIcon,
   RequestQuote as ReceivablesIcon,
   History as HistoryIcon,
@@ -14,7 +13,7 @@ import {
 } from '@mui/icons-material';
 import ErrorBoundary from '../common/ErrorBoundary';
 import AccountingDashboard from './accounting/AccountingDashboard';
-import CoursePricingManagement from './accounting/CoursePricingManagement';
+
 import { NavLink, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 // Import all the missing components
@@ -180,12 +179,7 @@ const tabRoutes = [
     path: 'dashboard', 
     component: <AccountingDashboard /> 
   },
-  { 
-    label: 'Course Pricing Setup', 
-    icon: <PricingIcon />, 
-    path: 'pricing', 
-    component: <CoursePricingManagement /> 
-  },
+
   { 
     label: 'Ready for Billing', 
     icon: <BillingIcon />, 

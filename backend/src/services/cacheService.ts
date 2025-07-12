@@ -200,13 +200,57 @@ class CacheService {
       async () => {
         const result = await pool.query(
           `
-          SELECT cp.*, ct.name as course_name, ct.description
+          SELECT 
+            cp.id,
+            cp.organization_id as "organizationId",
+            cp.course_type_id as "classTypeId", 
+            cp.price_per_student as "pricePerStudent",
+            cp.is_active as "isActive",
+            cp.created_at as "createdAt",
+            cp.updated_at as "updatedAt",
+            o.name as "organizationName",
+            ct.name as "classTypeName"
           FROM course_pricing cp
           JOIN class_types ct ON cp.course_type_id = ct.id
+          JOIN organizations o ON cp.organization_id = o.id
           WHERE cp.organization_id = $1 AND cp.is_active = true
           ORDER BY ct.name
         `,
           [orgId]
+        );
+        return result.rows;
+      },
+      { ttl: 1800, forceRefresh } // 30 minutes TTL
+    );
+  }
+
+  /**
+   * Cache all course pricing (for admin/accountant views)
+   */
+  async getAllCoursePricing(forceRefresh = false): Promise<any[]> {
+    return this.cache(
+      'course_pricing:all',
+      async () => {
+        const result = await pool.query(
+          `
+          SELECT 
+            cp.id,
+            cp.organization_id as "organizationId",
+            cp.course_type_id as "classTypeId", 
+            cp.price_per_student as "pricePerStudent",
+            cp.is_active as "isActive",
+            cp.created_at as "createdAt",
+            cp.updated_at as "updatedAt",
+            cp.effective_date as "effectiveDate",
+            o.name as "organizationName",
+            ct.name as "classTypeName",
+            ct.description as "courseDescription"
+          FROM course_pricing cp
+          JOIN class_types ct ON cp.course_type_id = ct.id
+          JOIN organizations o ON cp.organization_id = o.id
+          WHERE cp.is_active = true
+          ORDER BY o.name, ct.name
+        `
         );
         return result.rows;
       },

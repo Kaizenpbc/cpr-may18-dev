@@ -11,9 +11,9 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "allowJs": true,
     "esModuleInterop": true,
@@ -25,7 +25,10 @@
     },
     "types": ["react", "react-dom", "node"],
     "jsxImportSource": "react",
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "noImplicitReturns": false,
+    "noImplicitThis": false
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]

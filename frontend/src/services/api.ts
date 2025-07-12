@@ -324,7 +324,7 @@ export { api };
 // Accounting and Course Pricing API functions
 export const getCoursePricing = async () => {
   const response = await api.get('/accounting/course-pricing');
-  return response.data;
+  return response.data.data || [];
 };
 
 export const updateCoursePrice = async (pricingId: number, data: any) => {
@@ -337,6 +337,11 @@ export const updateCoursePrice = async (pricingId: number, data: any) => {
 
 export const createCoursePricing = async (data: any): Promise<ApiResponse<any>> => {
   const response = await api.post('/accounting/course-pricing', data);
+  return response.data;
+};
+
+export const deleteCoursePricing = async (id: number) => {
+  const response = await api.delete(`/accounting/course-pricing/${id}`);
   return response.data;
 };
 
@@ -383,8 +388,8 @@ export const getClassTypes = async () => {
   const data = response.data.data || [];
   // Transform the data to match expected format
   return data.map((item: any) => ({
-    id: item.coursetypeid,
-    name: item.coursetypename
+    id: item.id,
+    name: item.name
   }));
 };
 

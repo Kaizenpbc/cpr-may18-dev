@@ -83,7 +83,7 @@ function OrganizationPricingManager() {
     setError('');
     try {
       const [pricingResponse, orgsResponse, typesResponse] = await Promise.all([
-        api.getOrganizationPricing(),
+        api.getCoursePricing(),
         api.getOrganizations(),
         api.getClassTypes(),
       ]);
@@ -132,7 +132,7 @@ function OrganizationPricingManager() {
     if (window.confirm('Are you sure you want to delete this pricing record?')) {
       try {
         setError('');
-        await api.deleteOrganizationPricing(id);
+        await api.deleteCoursePricing(id);
         setPricingData(pricingData.filter(p => p.id !== id));
         logger.info(`Organization pricing ${id} deleted successfully`);
         showSnackbar('Pricing record deleted successfully.', 'success');
@@ -262,7 +262,7 @@ function OrganizationPricingManager() {
         }}
       >
         <Typography variant="h5" component="h2">
-          Organization Pricing Management
+          Course Pricing Management
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
