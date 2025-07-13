@@ -2865,7 +2865,7 @@ router.get(
         i.base_cost,
         i.tax_amount,
         CASE 
-          WHEN i.paid_date IS NOT NULL THEN 'paid'
+          WHEN COALESCE(payments.total_paid, 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
           WHEN CURRENT_DATE > i.due_date THEN 'overdue'
           ELSE 'pending'
         END as paymentstatus,
@@ -4495,10 +4495,15 @@ router.get(
         cr.completed_at as course_date,
         cr.id as course_request_id,
         COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as amount_paid,
-        (i.amount - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due,
+        ((i.base_cost + i.tax_amount) - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due,
         COALESCE(cp.price_per_student, 50.00) as rate_per_student,
         i.base_cost,
-        i.tax_amount
+        i.tax_amount,
+        CASE 
+          WHEN COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
+          WHEN CURRENT_DATE > i.due_date THEN 'overdue'
+          ELSE 'pending'
+        END as payment_status
       FROM invoice_with_breakdown i
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
@@ -4582,10 +4587,15 @@ router.get(
         cr.completed_at as course_date,
         cr.id as course_request_id,
         COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as amount_paid,
-        (i.amount - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due,
+        ((i.base_cost + i.tax_amount) - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due,
         COALESCE(cp.price_per_student, 50.00) as rate_per_student,
         i.base_cost,
-        i.tax_amount
+        i.tax_amount,
+        CASE 
+          WHEN COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
+          WHEN CURRENT_DATE > i.due_date THEN 'overdue'
+          ELSE 'pending'
+        END as payment_status
       FROM invoice_with_breakdown i
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
