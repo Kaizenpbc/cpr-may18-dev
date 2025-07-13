@@ -24,6 +24,9 @@ import {
   DialogActions,
   Button,
   Link,
+  Alert,
+  Snackbar,
+  Divider,
 } from '@mui/material';
 import {
   Receipt as ReceiptIcon,
@@ -31,8 +34,11 @@ import {
   CheckCircle as CheckCircleIcon,
   Schedule as ScheduleIcon,
   Visibility as VisibilityIcon,
+  Payment as PaymentIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import { formatDisplayDate } from '../../../../utils/dateUtils';
+import { api } from '../../../../services/api';
 
 // TypeScript interfaces
 interface Invoice {
@@ -77,6 +83,19 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   // State for invoice detail dialog
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  
+  // State for payment submission
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    amount: '',
+    payment_method: '',
+    reference_number: '',
+    payment_date: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Ensure invoices is an array
   const safeInvoices = Array.isArray(invoices) ? invoices : [];
@@ -90,6 +109,8 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         return 'error';
       case 'pending':
         return 'warning';
+      case 'payment_submitted':
+        return 'info';
       default:
         return 'default';
     }
@@ -112,6 +133,93 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   const handleDialogClose = () => {
     setDialogOpen(false);
     setSelectedInvoice(null);
+  };
+
+  // Handle payment submission
+  const handlePaymentSubmit = async () => {
+    if (!selectedInvoice) return;
+
+    setSubmittingPayment(true);
+    setPaymentError(null);
+
+    try {
+      const response = await api.post(`/organization/invoices/${selectedInvoice.id}/payment-submission`, {
+        amount: parseFloat(paymentForm.amount),
+        payment_method: paymentForm.payment_method,
+        reference_number: paymentForm.reference_number,
+        payment_date: paymentForm.payment_date,
+        notes: paymentForm.notes,
+      });
+
+      if (response.data.success) {
+        setPaymentSuccess(true);
+        setPaymentDialogOpen(false);
+        // Reset form
+        setPaymentForm({
+          amount: '',
+          payment_method: '',
+          reference_number: '',
+          payment_date: new Date().toISOString().split('T')[0],
+          notes: '',
+        });
+        // Close invoice dialog after a delay
+        setTimeout(() => {
+          handleDialogClose();
+        }, 2000);
+      }
+    } catch (error: any) {
+      setPaymentError(error.response?.data?.message || 'Failed to submit payment');
+    } finally {
+      setSubmittingPayment(false);
+    }
+  };
+
+  // Handle payment dialog open
+  const handlePaymentDialogOpen = () => {
+    if (selectedInvoice) {
+      setPaymentForm({
+        amount: selectedInvoice.balance_due.toString(),
+        payment_method: '',
+        reference_number: '',
+        payment_date: new Date().toISOString().split('T')[0],
+        notes: '',
+      });
+      setPaymentDialogOpen(true);
+    }
+  };
+
+  // Check if payment can be submitted
+  const canSubmitPayment = (invoice: Invoice | null) => {
+    if (!invoice) return false;
+    return invoice.balance_due > 0 && 
+           invoice.status !== 'paid' && 
+           invoice.status !== 'payment_submitted';
+  };
+
+  // Check if this is a partial payment
+  const isPartialPayment = (amount: string) => {
+    if (!selectedInvoice || !amount) return false;
+    const paymentAmount = parseFloat(amount);
+    const balanceDue = selectedInvoice.balance_due;
+    return paymentAmount > 0 && paymentAmount < balanceDue;
+  };
+
+  // Get payment status message
+  const getPaymentStatusMessage = (invoice: Invoice | null) => {
+    if (!invoice) return '';
+    
+    switch (invoice.status) {
+      case 'paid':
+        return 'This invoice has been fully paid.';
+      case 'payment_submitted':
+        return 'Payment has been submitted and is pending verification by accounting.';
+      case 'pending':
+        return 'This invoice is pending payment.';
+      case 'overdue':
+        return 'This invoice is overdue and requires immediate attention.';
+      default:
+        return 'This invoice is ready for payment.';
+    }
   };
 
   return (
@@ -214,6 +322,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 <MenuItem value="pending">Pending</MenuItem>
                 <MenuItem value="overdue">Overdue</MenuItem>
                 <MenuItem value="paid">Paid</MenuItem>
+                <MenuItem value="payment_submitted">Payment Submitted</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -463,15 +572,213 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                   </Box>
                 )}
               </Grid>
+              
+              {/* Payment Submission Section */}
+              {canSubmitPayment(selectedInvoice) && (
+                <Grid item xs={12}>
+                  <Divider sx={{ my: 2 }} />
+                  <Box sx={{ 
+                    p: 2, 
+                    bgcolor: 'primary.light', 
+                    borderRadius: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <InfoIcon color="primary" />
+                    <Typography variant="body2" color="primary.dark">
+                      You can submit payment information for this invoice. Payment will be verified by accounting before being applied.
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+
+              {/* Payment Status Section */}
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                <Box sx={{ 
+                  p: 2, 
+                  bgcolor: 'grey.50', 
+                  borderRadius: 1
+                }}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Payment Status
+                  </Typography>
+                  <Typography variant="body1">
+                    {getPaymentStatusMessage(selectedInvoice)}
+                  </Typography>
+                  {selectedInvoice?.status === 'payment_submitted' && (
+                    <Typography variant="body2" color="info.main" sx={{ mt: 1 }}>
+                      Once verified by accounting, the invoice will be marked as paid if the full amount is covered, 
+                      or revert to pending if it's a partial payment.
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
             </Grid>
           )}
         </DialogContent>
         <DialogActions>
+          {selectedInvoice && canSubmitPayment(selectedInvoice) && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<PaymentIcon />}
+              onClick={handlePaymentDialogOpen}
+              sx={{ mr: 'auto' }}
+            >
+              Submit Payment
+            </Button>
+          )}
           <Button onClick={handleDialogClose}>
             Close
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Payment Submission Dialog */}
+      <Dialog
+        open={paymentDialogOpen}
+        onClose={() => setPaymentDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Submit Payment - {selectedInvoice?.invoice_number}
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Payment information will be submitted for verification by accounting. 
+            The invoice status will be updated once payment is verified.
+          </Alert>
+          
+          {selectedInvoice && (
+            <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Invoice Details
+              </Typography>
+              <Typography variant="body2">
+                Total Amount: ${selectedInvoice.amount.toLocaleString()}
+              </Typography>
+              <Typography variant="body2">
+                Amount Paid: ${selectedInvoice.amount_paid.toLocaleString()}
+              </Typography>
+              <Typography variant="body2" color="error.main" fontWeight="bold">
+                Balance Due: ${selectedInvoice.balance_due.toLocaleString()}
+              </Typography>
+            </Box>
+          )}
+          
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Payment Amount"
+                type="number"
+                value={paymentForm.amount}
+                onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                InputProps={{
+                  startAdornment: <Typography variant="body2" sx={{ mr: 1 }}>$</Typography>,
+                }}
+                helperText={
+                  isPartialPayment(paymentForm.amount) 
+                    ? `This is a partial payment. Remaining balance will be $${(selectedInvoice?.balance_due || 0) - parseFloat(paymentForm.amount || '0')} after this payment.`
+                    : parseFloat(paymentForm.amount || '0') > (selectedInvoice?.balance_due || 0)
+                    ? "Payment amount exceeds balance due. Please adjust."
+                    : ""
+                }
+                error={parseFloat(paymentForm.amount || '0') > (selectedInvoice?.balance_due || 0)}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Payment Method</InputLabel>
+                <Select
+                  value={paymentForm.payment_method}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
+                  label="Payment Method"
+                >
+                  <MenuItem value="check">Check</MenuItem>
+                  <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
+                  <MenuItem value="credit_card">Credit Card</MenuItem>
+                  <MenuItem value="cash">Cash</MenuItem>
+                  <MenuItem value="other">Other</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Reference Number"
+                value={paymentForm.reference_number}
+                onChange={(e) => setPaymentForm({ ...paymentForm, reference_number: e.target.value })}
+                placeholder="Check #, Transaction ID, etc."
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Payment Date"
+                type="date"
+                value={paymentForm.payment_date}
+                onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Notes"
+                multiline
+                rows={3}
+                value={paymentForm.notes}
+                onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                placeholder="Additional payment details..."
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPaymentDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handlePaymentSubmit}
+            disabled={
+              submittingPayment || 
+              !paymentForm.amount || 
+              !paymentForm.payment_method ||
+              parseFloat(paymentForm.amount || '0') > (selectedInvoice?.balance_due || 0) ||
+              parseFloat(paymentForm.amount || '0') <= 0
+            }
+            startIcon={<PaymentIcon />}
+          >
+            {submittingPayment ? 'Submitting...' : 'Submit Payment'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success/Error Messages */}
+      <Snackbar
+        open={paymentSuccess}
+        autoHideDuration={6000}
+        onClose={() => setPaymentSuccess(false)}
+      >
+        <Alert severity="success" onClose={() => setPaymentSuccess(false)}>
+          Payment submitted successfully! It will be verified by accounting.
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={!!paymentError}
+        autoHideDuration={6000}
+        onClose={() => setPaymentError(null)}
+      >
+        <Alert severity="error" onClose={() => setPaymentError(null)}>
+          {paymentError}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

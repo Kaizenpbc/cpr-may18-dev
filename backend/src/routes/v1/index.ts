@@ -2860,8 +2860,8 @@ router.get(
         cr.location,
         ct.name as course_type_name,
         cr.completed_at as date_completed,
-        0 as paidtodate,
-        i.amount as balancedue,
+        COALESCE(payments.total_paid, 0) as paidtodate,
+        (i.amount - COALESCE(payments.total_paid, 0)) as balancedue,
         CASE 
           WHEN i.paid_date IS NOT NULL THEN 'paid'
           WHEN CURRENT_DATE > i.due_date THEN 'overdue'
@@ -2878,6 +2878,12 @@ router.get(
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN (
+        SELECT invoice_id, SUM(amount) as total_paid
+        FROM payments 
+        WHERE status = 'verified'
+        GROUP BY invoice_id
+      ) payments ON payments.invoice_id = i.id
       ORDER BY i.created_at DESC
     `);
 
@@ -3121,9 +3127,10 @@ router.get(
         p.payment_method,
         p.reference_number,
         p.notes,
+        p.status,
         p.created_at
       FROM payments p
-      WHERE p.invoice_id = $1
+      WHERE p.invoice_id = $1 AND p.status = 'verified'
       ORDER BY p.payment_date DESC
     `,
         [id]
@@ -3143,6 +3150,7 @@ router.get(
 // Record payment for invoice
 router.post(
   '/accounting/invoices/:id/payments',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -3170,8 +3178,8 @@ router.post(
         // Record the payment
         const paymentResult = await client.query(
           `
-        INSERT INTO payments (invoice_id, amount, payment_date, payment_method, reference_number, notes)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO payments (invoice_id, amount, payment_date, payment_method, reference_number, notes, status)
+        VALUES ($1, $2, $3, $4, $5, $6, 'verified')
         RETURNING *
       `,
           [
@@ -3187,7 +3195,7 @@ router.post(
         // Update invoice status if fully paid
         const invoiceResult = await client.query(
           `
-        SELECT amount, (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE invoice_id = $1) as total_paid
+        SELECT amount, (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE invoice_id = $1 AND status = 'verified') as total_paid
         FROM invoices WHERE id = $1
       `,
           [id]
@@ -3197,7 +3205,15 @@ router.post(
         if (invoice && invoice.total_paid >= invoice.amount) {
           await client.query(
             `
-          UPDATE invoices SET status = 'paid' WHERE id = $1
+          UPDATE invoices SET status = 'paid', paid_date = NOW() WHERE id = $1
+        `,
+            [id]
+          );
+        } else {
+          // Ensure invoice status is 'pending' for partial payments
+          await client.query(
+            `
+          UPDATE invoices SET status = 'pending' WHERE id = $1
         `,
             [id]
           );
@@ -4474,8 +4490,8 @@ router.get(
         ct.name as course_type_name,
         cr.completed_at as course_date,
         cr.id as course_request_id,
-        COALESCE(SUM(p.amount), 0) as amount_paid,
-        (i.amount - COALESCE(SUM(p.amount), 0)) as balance_due
+        COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as amount_paid,
+        (i.amount - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due
       FROM invoices i
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
@@ -4557,8 +4573,8 @@ router.get(
         ct.name as course_type_name,
         cr.completed_at as course_date,
         cr.id as course_request_id,
-        COALESCE(SUM(p.amount), 0) as amount_paid,
-        (i.amount - COALESCE(SUM(p.amount), 0)) as balance_due
+        COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as amount_paid,
+        (i.amount - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due
       FROM invoices i
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
@@ -4582,16 +4598,18 @@ router.get(
       const paymentsResult = await pool.query(
         `
       SELECT 
-        id,
-        amount,
-        payment_date,
-        payment_method,
-        reference_number,
-        notes,
-        created_at
-      FROM payments
-      WHERE invoice_id = $1
-      ORDER BY payment_date DESC
+        p.id,
+        p.invoice_id,
+        p.amount as amount_paid,
+        p.payment_date,
+        p.payment_method,
+        p.reference_number,
+        p.notes,
+        p.status,
+        p.created_at
+      FROM payments p
+      WHERE p.invoice_id = $1 AND p.status = 'verified'
+      ORDER BY p.payment_date DESC
     `,
         [id]
       );
@@ -4928,8 +4946,9 @@ router.post(
           const totalPaid = parseFloat(totalPaidResult.rows[0].total_paid);
           const invoiceAmount = parseFloat(payment.invoice_amount);
 
-          // Update invoice status if fully paid
+          // Update invoice status based on payment amount
           if (totalPaid >= invoiceAmount) {
+            // Fully paid - mark as paid
             await client.query(
               `
                 UPDATE invoices 
@@ -4938,10 +4957,56 @@ router.post(
               `,
               [payment.invoice_id]
             );
+          } else {
+            // Partial payment - revert to pending status
+            await client.query(
+              `
+                UPDATE invoices 
+                SET status = 'pending', updated_at = NOW()
+                WHERE id = $1
+              `,
+              [payment.invoice_id]
+            );
           }
+        } else if (action === 'reject') {
+          // Reject payment - mark as rejected
+          await client.query(
+            `
+              UPDATE payments 
+              SET status = 'rejected', 
+                  verified_by_accounting_at = NOW(),
+                  notes = COALESCE(notes, '') || CASE WHEN notes IS NOT NULL AND notes != '' THEN E'\n\n' ELSE '' END || $2
+              WHERE id = $1
+            `,
+            [id, `Rejected by ${user.username}: ${notes}`]
+          );
+
+          // Revert invoice status to pending
+          await client.query(
+            `
+              UPDATE invoices 
+              SET status = 'pending', updated_at = NOW()
+              WHERE id = $1
+            `,
+            [payment.invoice_id]
+          );
         }
+
+        await client.query('COMMIT');
+
+        // Send success response
+        res.json({
+          success: true,
+          message: `Payment ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
+          data: {
+            paymentId: id,
+            action: action,
+            invoiceId: payment.invoice_id
+          }
+        });
       } catch (error) {
         await client.query('ROLLBACK');
+        console.error('Error recording payment:', error);
         throw error;
       } finally {
         client.release();

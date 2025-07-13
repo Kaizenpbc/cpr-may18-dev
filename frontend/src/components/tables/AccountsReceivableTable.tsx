@@ -102,11 +102,11 @@ const PaymentDetails = ({ invoiceId }) => {
         </TableHead>
         <TableBody>
           {payments.map(payment => (
-            <TableRow key={payment.paymentid}>
-              <TableCell>{formatDate(payment.paymentdate)}</TableCell>
-              <TableCell>{`$${parseFloat(payment.amountpaid || 0).toFixed(2)}`}</TableCell>
-              <TableCell>{payment.paymentmethod || '-'}</TableCell>
-              <TableCell>{payment.referencenumber || '-'}</TableCell>
+            <TableRow key={payment.id}>
+              <TableCell>{formatDate(payment.payment_date)}</TableCell>
+              <TableCell>{`$${parseFloat(payment.amount_paid || 0).toFixed(2)}`}</TableCell>
+              <TableCell>{payment.payment_method || '-'}</TableCell>
+              <TableCell>{payment.reference_number || '-'}</TableCell>
               <TableCell>{payment.notes || '-'}</TableCell>
             </TableRow>
           ))}

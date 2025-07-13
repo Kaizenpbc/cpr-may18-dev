@@ -30,10 +30,9 @@ const formatCurrency = amount => {
 const RecordPaymentDialog = ({
   open,
   onClose,
-  invoiceId,
-  invoiceNumber,
-  invoiceAmount,
-  onPaymentRecorded,
+  invoice,
+  onSuccess,
+  onError,
 }) => {
   const [paymentData, setPaymentData] = useState({
     paymentDate: new Date().toISOString().split('T')[0], // Default to today
@@ -46,7 +45,7 @@ const RecordPaymentDialog = ({
   const [error, setError] = useState('');
   // State for payment summary
   const [paidToDate, setPaidToDate] = useState(0);
-  const [balanceDue, setBalanceDue] = useState(invoiceAmount || 0);
+  const [balanceDue, setBalanceDue] = useState(invoice?.amount || 0);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
 
   const handleChange = event => {
@@ -67,6 +66,10 @@ const RecordPaymentDialog = ({
     setError('');
     setIsSubmitting(true);
 
+    console.log('🔍 [RecordPaymentDialog] Starting payment submission...');
+    console.log('🔍 [RecordPaymentDialog] Invoice:', invoice);
+    console.log('🔍 [RecordPaymentDialog] Payment data:', paymentData);
+
     // Basic Validation
     const amount = parseFloat(paymentData.amountPaid);
     if (isNaN(amount) || amount <= 0) {
@@ -81,17 +84,30 @@ const RecordPaymentDialog = ({
     }
 
     try {
-      logger.info(`Recording payment for invoice: ${invoiceId}`);
-      await recordPayment(invoiceId, {
-        ...paymentData,
-        amountPaid: amount, // Send parsed amount
-      });
-      logger.info(`Payment recorded successfully for invoice: ${invoiceId}`);
-      onPaymentRecorded(paymentData.notes || 'Payment recorded successfully.'); // Notify parent
-      onClose(); // Close dialog on success
+      console.log('🔍 [RecordPaymentDialog] Calling recordPayment API...');
+      logger.info(`Recording payment for invoice: ${invoice?.invoiceid}`);
+      
+      const paymentPayload = {
+        amount_paid: amount,
+        payment_date: paymentData.paymentDate,
+        payment_method: paymentData.paymentMethod,
+        reference_number: paymentData.referenceNumber,
+        notes: paymentData.notes,
+      };
+      
+      console.log('🔍 [RecordPaymentDialog] Payment payload:', paymentPayload);
+      
+      await recordPayment(invoice?.invoiceid, paymentPayload);
+      
+      console.log('🔍 [RecordPaymentDialog] Payment recorded successfully!');
+      logger.info(`Payment recorded successfully for invoice: ${invoice?.invoiceid}`);
+      onSuccess(paymentData.notes || 'Payment recorded successfully.'); // Notify parent
     } catch (err) {
+      console.error('❌ [RecordPaymentDialog] Payment recording failed:', err);
       logger.error('Failed to record payment:', err);
-      setError(err.message || 'Failed to record payment');
+      const errorMessage = err.message || 'Failed to record payment';
+      setError(errorMessage);
+      onError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -99,7 +115,7 @@ const RecordPaymentDialog = ({
 
   // Reset form and fetch payment summary when dialog opens
   React.useEffect(() => {
-    if (open && invoiceId) {
+    if (open && invoice?.invoiceid) {
       // Reset form state
       setPaymentData({
         paymentDate: new Date().toISOString().split('T')[0],
@@ -115,12 +131,12 @@ const RecordPaymentDialog = ({
       const fetchPaymentSummary = async () => {
         setIsLoadingSummary(true);
         try {
-          const payments = await api.getInvoicePayments(invoiceId);
+          const payments = await api.getInvoicePayments(invoice.invoiceid);
           const totalPaid = payments.reduce(
-            (sum, p) => sum + parseFloat(p.amountpaid || 0),
+            (sum, p) => sum + parseFloat(p.amount_paid || 0),
             0
           );
-          const originalAmount = parseFloat(invoiceAmount || 0);
+          const originalAmount = parseFloat(invoice.amount || 0);
           setPaidToDate(totalPaid);
           setBalanceDue(originalAmount - totalPaid);
           logger.debug(
@@ -131,18 +147,20 @@ const RecordPaymentDialog = ({
           // Don't block the dialog, but maybe show a small error?
           // For now, just default to 0 paid / full balance
           setPaidToDate(0);
-          setBalanceDue(parseFloat(invoiceAmount || 0));
+          setBalanceDue(parseFloat(invoice.amount || 0));
         } finally {
           setIsLoadingSummary(false);
         }
       };
       fetchPaymentSummary();
     }
-  }, [open, invoiceId, invoiceAmount]);
+  }, [open, invoice]);
+
+  if (!invoice) return null;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth='sm' fullWidth>
-      <DialogTitle>Record Payment for Invoice #{invoiceNumber}</DialogTitle>
+      <DialogTitle>Record Payment for Invoice #{invoice.invoicenumber}</DialogTitle>
       <DialogContent dividers>
         {/* Payment Summary Section */}
         <Box
@@ -166,7 +184,7 @@ const RecordPaymentDialog = ({
               </Grid>
               <Grid item xs={6}>
                 <Typography variant='body2' align='right'>
-                  {formatCurrency(invoiceAmount)}
+                  {formatCurrency(invoice.amount)}
                 </Typography>
               </Grid>
               <Grid item xs={6}>

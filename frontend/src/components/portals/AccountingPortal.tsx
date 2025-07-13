@@ -23,6 +23,7 @@ import TransactionHistoryView from '../views/TransactionHistoryView';
 import AgingReportView from '../views/AgingReportView';
 import PaymentVerificationView from '../views/PaymentVerificationView';
 import InvoiceDetailDialog from '../dialogs/InvoiceDetailDialog';
+import RecordPaymentDialog from '../dialogs/RecordPaymentDialog';
 import { getBillingQueue, createInvoice, getInvoices } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
@@ -89,6 +90,8 @@ const AccountsReceivableView: React.FC = () => {
   const [error, setError] = useState('');
   const [showInvoiceDetailDialog, setShowInvoiceDetailDialog] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
+  const [showRecordPaymentDialog, setShowRecordPaymentDialog] = useState(false);
+  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<any>(null);
   const { showSuccess, showError } = useSnackbar();
 
   React.useEffect(() => {
@@ -111,7 +114,8 @@ const AccountsReceivableView: React.FC = () => {
 
   const handleRecordPaymentClick = (invoice: any) => {
     console.log('Record payment for invoice:', invoice);
-    // TODO: Implement payment recording
+    setSelectedInvoiceForPayment(invoice);
+    setShowRecordPaymentDialog(true);
   };
 
   const handleViewDetailsClick = (invoiceId: string | number) => {
@@ -133,6 +137,36 @@ const AccountsReceivableView: React.FC = () => {
 
   const handleInvoiceActionError = (message: string) => {
     showError(message);
+  };
+
+  const handleRecordPaymentSuccess = (message: string) => {
+    showSuccess(message);
+    setShowRecordPaymentDialog(false);
+    setSelectedInvoiceForPayment(null);
+    // Refresh invoices after payment record
+    const fetchInvoices = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await getInvoices();
+        setInvoices(data || []);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load invoices.');
+        setInvoices([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchInvoices();
+  };
+
+  const handleRecordPaymentError = (message: string) => {
+    showError(message);
+  };
+
+  const handleRecordPaymentDialogClose = () => {
+    setShowRecordPaymentDialog(false);
+    setSelectedInvoiceForPayment(null);
   };
 
   return (
@@ -157,6 +191,15 @@ const AccountsReceivableView: React.FC = () => {
         invoiceId={selectedInvoiceId}
         onActionSuccess={handleInvoiceActionSuccess}
         onActionError={handleInvoiceActionError}
+      />
+
+      {/* Record Payment Dialog */}
+      <RecordPaymentDialog
+        open={showRecordPaymentDialog}
+        onClose={handleRecordPaymentDialogClose}
+        invoice={selectedInvoiceForPayment}
+        onSuccess={handleRecordPaymentSuccess}
+        onError={handleRecordPaymentError}
       />
     </Box>
   );
