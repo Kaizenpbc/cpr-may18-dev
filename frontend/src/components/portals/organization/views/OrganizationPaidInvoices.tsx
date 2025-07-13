@@ -309,8 +309,8 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
                   <TableCell>{invoice.students_billed}</TableCell>
                   <TableCell align="right">${Number(invoice.base_cost || 0).toFixed(2)}</TableCell>
                   <TableCell align="right">${Number(invoice.tax_amount || 0).toFixed(2)}</TableCell>
-                  <TableCell align="right">${(Number(invoice.base_cost || 0) + Number(invoice.tax_amount || 0)).toLocaleString()}</TableCell>
-                  <TableCell align="right">${Number(invoice.amount_paid).toLocaleString()}</TableCell>
+                  <TableCell align="right">${(Number(invoice.base_cost || 0) + Number(invoice.tax_amount || 0)).toFixed(2)}</TableCell>
+                  <TableCell align="right">${Number(invoice.amount_paid).toFixed(2)}</TableCell>
                   <TableCell>
                     {invoice.paid_date ? formatDisplayDate(invoice.paid_date) : 'N/A'}
                   </TableCell>

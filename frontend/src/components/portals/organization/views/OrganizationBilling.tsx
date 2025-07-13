@@ -429,14 +429,14 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                   <TableCell>{invoice.students_billed}</TableCell>
                   <TableCell align="right">${Number(invoice.base_cost || 0).toFixed(2)}</TableCell>
                   <TableCell align="right">${Number(invoice.tax_amount || 0).toFixed(2)}</TableCell>
-                  <TableCell align="right">${(Number(invoice.base_cost || 0) + Number(invoice.tax_amount || 0)).toLocaleString()}</TableCell>
-                  <TableCell align="right">${Number(invoice.amount_paid).toLocaleString()}</TableCell>
+                  <TableCell align="right">${(Number(invoice.base_cost || 0) + Number(invoice.tax_amount || 0)).toFixed(2)}</TableCell>
+                  <TableCell align="right">${Number(invoice.amount_paid).toFixed(2)}</TableCell>
                   <TableCell align="right">
                     <Typography
                       variant="body2"
                       color={invoice.balance_due > 0 ? 'error.main' : 'success.main'}
                     >
-                      ${Number(invoice.balance_due).toLocaleString()}
+                      ${Number(invoice.balance_due).toFixed(2)}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -605,7 +605,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                         Total Amount
                       </Typography>
                       <Typography variant="h6">
-                        ${(Number(selectedInvoice.base_cost || 0) + Number(selectedInvoice.tax_amount || 0)).toLocaleString()}
+                        ${(Number(selectedInvoice.base_cost || 0) + Number(selectedInvoice.tax_amount || 0)).toFixed(2)}
                       </Typography>
                     </Box>
                   </Grid>
@@ -615,7 +615,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                         Amount Paid
                       </Typography>
                       <Typography variant="h6" color="success.main">
-                        ${Number(selectedInvoice.amount_paid).toLocaleString()}
+                        ${Number(selectedInvoice.amount_paid).toFixed(2)}
                       </Typography>
                     </Box>
                   </Grid>
@@ -630,7 +630,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                         variant="h6"
                         color={selectedInvoice.balance_due > 0 ? 'error.main' : 'success.main'}
                       >
-                        ${Number(selectedInvoice.balance_due).toLocaleString()}
+                        ${Number(selectedInvoice.balance_due).toFixed(2)}
                       </Typography>
                     </Box>
                   </Grid>
@@ -744,13 +744,13 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 Invoice Details
               </Typography>
               <Typography variant="body2">
-                Total Amount: ${Number(selectedInvoice.amount).toLocaleString()}
+                Total Amount: ${Number(selectedInvoice.amount).toFixed(2)}
               </Typography>
               <Typography variant="body2">
-                Amount Paid: ${Number(selectedInvoice.amount_paid).toLocaleString()}
+                Amount Paid: ${Number(selectedInvoice.amount_paid).toFixed(2)}
               </Typography>
               <Typography variant="body2" color="error.main" fontWeight="bold">
-                Balance Due: ${Number(selectedInvoice.balance_due).toLocaleString()}
+                Balance Due: ${Number(selectedInvoice.balance_due).toFixed(2)}
               </Typography>
             </Box>
           )}
@@ -768,7 +768,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 }}
                 helperText={
                   isPartialPayment(paymentForm.amount) 
-                    ? `This is a partial payment. Remaining balance will be $${(selectedInvoice?.balance_due || 0) - parseFloat(paymentForm.amount || '0')} after this payment.`
+                    ? `This is a partial payment. Remaining balance will be $${((selectedInvoice?.balance_due || 0) - parseFloat(paymentForm.amount || '0')).toFixed(2)} after this payment.`
                     : parseFloat(paymentForm.amount || '0') > (selectedInvoice?.balance_due || 0)
                     ? "Payment amount exceeds balance due. Please adjust."
                     : ""
