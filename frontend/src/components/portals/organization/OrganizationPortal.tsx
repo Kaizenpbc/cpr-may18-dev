@@ -25,6 +25,7 @@ import {
   School as CoursesIconAlt,
   Archive as ArchiveIcon,
   AttachMoney as PricingIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { useQueryClient } from '@tanstack/react-query';
 import OrganizationLayout from './OrganizationLayout';
@@ -37,6 +38,7 @@ import ScheduleCourseForm from '../../forms/ScheduleCourseForm';
 import CSVUploadDialog from '../../dialogs/CSVUploadDialog';
 import OrganizationArchive from './views/OrganizationArchive';
 import OrganizationPricing from './views/OrganizationPricing';
+import OrganizationPaidInvoices from './views/OrganizationPaidInvoices';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 // TypeScript interfaces
@@ -107,6 +109,8 @@ interface OrganizationPortalProps {
   courses: Course[];
   archivedCourses: Course[];
   invoices: Invoice[];
+  paidInvoices: Invoice[];
+  paidInvoicesSummary: any;
   billingSummary: BillingSummary | undefined;
   loading: boolean;
   error: string | null;
@@ -123,6 +127,8 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
   courses,
   archivedCourses,
   invoices,
+  paidInvoices,
+  paidInvoicesSummary,
   billingSummary,
   loading,
   error,
@@ -145,6 +151,7 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
     { id: 'archive', label: 'Archive', icon: <ArchiveIcon /> },
     { id: 'schedule', label: 'Schedule a Course', icon: <EventIcon /> },
     { id: 'billing', label: 'Bills Payable', icon: <BillingIcon /> },
+    { id: 'paid-invoices', label: 'Paid Invoices', icon: <CheckCircleIcon /> },
     { id: 'pricing', label: 'Pricing', icon: <PricingIcon /> },
     { id: 'profile', label: 'Profile', icon: <ProfileIcon /> },
     { id: 'analytics', label: 'Analytics', icon: <AnalyticsIcon /> },
@@ -329,6 +336,11 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
               loading ? <CircularProgress /> :
               error ? <Alert severity="error">{error}</Alert> :
               <OrganizationBilling invoices={invoices} billingSummary={billingSummary} />
+            } />
+            <Route path="paid-invoices" element={
+              loading ? <CircularProgress /> :
+              error ? <Alert severity="error">{error}</Alert> :
+              <OrganizationPaidInvoices invoices={paidInvoices} paidInvoicesSummary={paidInvoicesSummary} />
             } />
             <Route path="profile" element={<OrganizationProfile organizationData={organizationData} />} />
             <Route path="pricing" element={<OrganizationPricing organizationId={user?.organizationId || 0} />} />

@@ -101,6 +101,11 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
+  // State for marking invoice as paid
+  const [markingAsPaid, setMarkingAsPaid] = useState<number | null>(null);
+  const [markAsPaidSuccess, setMarkAsPaidSuccess] = useState(false);
+  const [markAsPaidError, setMarkAsPaidError] = useState<string | null>(null);
+
   // Ensure invoices is an array
   const safeInvoices = Array.isArray(invoices) ? invoices : [];
 
@@ -137,6 +142,27 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   const handleDialogClose = () => {
     setDialogOpen(false);
     setSelectedInvoice(null);
+  };
+
+  // Handle mark invoice as paid
+  const handleMarkAsPaid = async (invoiceId: number) => {
+    setMarkingAsPaid(invoiceId);
+    setMarkAsPaidError(null);
+    
+    try {
+      const response = await api.post(`/organization/invoices/${invoiceId}/mark-as-paid`);
+      
+      if (response.data.success) {
+        setMarkAsPaidSuccess(true);
+        // Refresh the page or update the invoice list
+        window.location.reload();
+      }
+    } catch (error: any) {
+      console.error('Error marking invoice as paid:', error);
+      setMarkAsPaidError(error.response?.data?.message || 'Failed to mark invoice as paid');
+    } finally {
+      setMarkingAsPaid(null);
+    }
   };
 
   // Handle payment submission
@@ -366,12 +392,13 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 <TableCell align="right">Amount Paid</TableCell>
                 <TableCell align="right">Balance Due</TableCell>
                 <TableCell>Due Date</TableCell>
-                <TableCell>Status</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {safeInvoices.map((invoice) => (
-                <TableRow key={invoice.id}>
+                                  <TableCell>Status</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {safeInvoices.map((invoice) => (
+                  <TableRow key={invoice.id}>
                   <TableCell>
                     <Link
                       component="button"
@@ -426,6 +453,20 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                       color={getStatusColor(invoice.payment_status || invoice.status)}
                       size="small"
                     />
+                  </TableCell>
+                  <TableCell>
+                    {invoice.balance_due <= 0 && invoice.payment_status !== 'paid' && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="success"
+                        onClick={() => handleMarkAsPaid(invoice.id)}
+                        disabled={markingAsPaid === invoice.id}
+                        startIcon={<CheckCircleIcon />}
+                      >
+                        {markingAsPaid === invoice.id ? 'Marking...' : 'Mark as Paid'}
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -822,6 +863,27 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
       >
         <Alert severity="error" onClose={() => setPaymentError(null)}>
           {paymentError}
+        </Alert>
+      </Snackbar>
+
+      {/* Mark as Paid Success/Error Messages */}
+      <Snackbar
+        open={markAsPaidSuccess}
+        autoHideDuration={6000}
+        onClose={() => setMarkAsPaidSuccess(false)}
+      >
+        <Alert severity="success" onClose={() => setMarkAsPaidSuccess(false)}>
+          Invoice marked as paid successfully!
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={!!markAsPaidError}
+        autoHideDuration={6000}
+        onClose={() => setMarkAsPaidError(null)}
+      >
+        <Alert severity="error" onClose={() => setMarkAsPaidError(null)}>
+          {markAsPaidError}
         </Alert>
       </Snackbar>
     </Box>

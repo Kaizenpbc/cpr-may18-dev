@@ -5051,4 +5051,260 @@ const formatCourseRow = (row: Record<string, any>): Record<string, any> => ({
   request_submitted_date: row.request_submitted_date ? formatDateOnly(row.request_submitted_date) : null,
 });
 
+// Organization Paid Invoices - Get paid invoices
+router.get(
+  '/organization/paid-invoices',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+
+      if (user.role !== 'organization') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Organization role required.'
+        );
+      }
+
+      const {
+        page = 1,
+        limit = 10,
+        sort_by = 'paid_date',
+        sort_order = 'desc',
+      } = req.query;
+      const offset = (Number(page) - 1) * Number(limit);
+
+      const orderClause = `ORDER BY i.${sort_by} ${sort_order.toString().toUpperCase()}`;
+
+      const result = await pool.query(
+        `
+      SELECT 
+        i.id as invoice_id,
+        i.invoice_number,
+        i.created_at as invoice_date,
+        i.due_date,
+        i.amount,
+        i.status,
+        i.students_billed,
+        i.paid_date,
+        cr.location,
+        ct.name as course_type_name,
+        cr.completed_at as course_date,
+        cr.id as course_request_id,
+        COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as amount_paid,
+        ((i.base_cost + i.tax_amount) - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due,
+        COALESCE(cp.price_per_student, 50.00) as rate_per_student,
+        i.base_cost,
+        i.tax_amount,
+        CASE 
+          WHEN COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
+          WHEN CURRENT_DATE > i.due_date THEN 'overdue'
+          ELSE 'pending'
+        END as payment_status
+      FROM invoice_with_breakdown i
+      LEFT JOIN course_requests cr ON i.course_request_id = cr.id
+      LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+      LEFT JOIN payments p ON i.id = p.invoice_id
+      WHERE i.organization_id = $1 
+        AND i.posted_to_org = TRUE
+        AND COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) >= (i.base_cost + i.tax_amount)
+      GROUP BY i.id, i.invoice_number, i.created_at, i.due_date, i.amount, i.status, i.students_billed, i.paid_date, i.base_cost, i.tax_amount, cr.id, ct.id, cp.price_per_student
+      ${orderClause}
+      LIMIT $2 OFFSET $3
+    `,
+        [user.organizationId, Number(limit), offset]
+      );
+
+      // Get total count for pagination
+      const countResult = await pool.query(
+        `
+      SELECT COUNT(DISTINCT i.id) as total
+      FROM invoice_with_breakdown i
+      LEFT JOIN course_requests cr ON i.course_request_id = cr.id
+      LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+      LEFT JOIN payments p ON i.id = p.invoice_id
+      WHERE i.organization_id = $1 
+        AND i.posted_to_org = TRUE
+        AND COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) >= (i.base_cost + i.tax_amount)
+      GROUP BY i.id
+    `,
+        [user.organizationId]
+      );
+
+      const total = countResult.rows.length;
+      const totalPages = Math.ceil(total / Number(limit));
+
+      res.json({
+        success: true,
+        data: {
+          invoices: result.rows,
+          pagination: {
+            current_page: Number(page),
+            total_pages: totalPages,
+            total_records: total,
+            per_page: Number(limit),
+          },
+        },
+      });
+    } catch (error) {
+      console.error('[Organization Paid Invoices] Error:', error);
+      throw error;
+    }
+  })
+);
+
+// Organization Paid Invoices - Move invoice to paid when balance = 0
+router.post(
+  '/organization/invoices/:id/mark-as-paid',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+
+      if (user.role !== 'organization') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Organization role required.'
+        );
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query('BEGIN');
+
+        // Get invoice details with payment calculations
+        const invoiceResult = await client.query(
+          `
+        SELECT 
+          i.id,
+          i.invoice_number,
+          i.organization_id,
+          i.base_cost,
+          i.tax_amount,
+          COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as amount_paid,
+          ((i.base_cost + i.tax_amount) - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due
+        FROM invoice_with_breakdown i
+        LEFT JOIN payments p ON i.id = p.invoice_id
+        WHERE i.id = $1 AND i.organization_id = $2
+        GROUP BY i.id, i.invoice_number, i.organization_id, i.base_cost, i.tax_amount
+      `,
+          [id, user.organizationId]
+        );
+
+        if (invoiceResult.rows.length === 0) {
+          throw new AppError(
+            404,
+            errorCodes.RESOURCE_NOT_FOUND,
+            'Invoice not found'
+          );
+        }
+
+        const invoice = invoiceResult.rows[0];
+
+        // Check if invoice is already fully paid
+        if (invoice.balance_due <= 0) {
+          // Update invoice status to paid and set paid date
+          await client.query(
+            `
+          UPDATE invoices 
+          SET status = 'paid', 
+              paid_date = CURRENT_DATE,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+        `,
+            [id]
+          );
+
+          await client.query('COMMIT');
+
+          res.json({
+            success: true,
+            message: 'Invoice marked as paid successfully',
+            data: {
+              invoice_id: id,
+              invoice_number: invoice.invoice_number,
+              paid_date: new Date().toISOString().split('T')[0],
+              balance_due: 0
+            }
+          });
+        } else {
+          throw new AppError(
+            400,
+            errorCodes.VALIDATION_ERROR,
+            `Invoice has outstanding balance of $${invoice.balance_due.toFixed(2)}. Cannot mark as paid until fully paid.`
+          );
+        }
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('[Organization Mark Invoice as Paid] Error:', error);
+      throw error;
+    }
+  })
+);
+
+// Organization Paid Invoices - Get paid invoices summary
+router.get(
+  '/organization/paid-invoices-summary',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+
+      if (user.role !== 'organization') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Organization role required.'
+        );
+      }
+
+      const result = await pool.query(
+        `
+      SELECT 
+        COUNT(*) as total_paid_invoices,
+        COALESCE(SUM(i.amount), 0) as total_paid_amount,
+        COALESCE(AVG(i.amount), 0) as average_paid_amount,
+        COUNT(CASE WHEN i.paid_date >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as paid_last_30_days,
+        COALESCE(SUM(CASE WHEN i.paid_date >= CURRENT_DATE - INTERVAL '30 days' THEN i.amount ELSE 0 END), 0) as amount_paid_last_30_days
+      FROM invoice_with_breakdown i
+      LEFT JOIN course_requests cr ON i.course_request_id = cr.id
+      LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+      LEFT JOIN payments p ON i.id = p.invoice_id
+      WHERE i.organization_id = $1 
+        AND i.posted_to_org = TRUE
+        AND COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) >= (i.base_cost + i.tax_amount)
+      GROUP BY i.organization_id
+    `,
+        [user.organizationId]
+      );
+
+      const summary = result.rows[0] || {
+        total_paid_invoices: 0,
+        total_paid_amount: 0,
+        average_paid_amount: 0,
+        paid_last_30_days: 0,
+        amount_paid_last_30_days: 0
+      };
+
+      res.json({
+        success: true,
+        data: summary,
+      });
+    } catch (error) {
+      console.error('[Organization Paid Invoices Summary] Error:', error);
+      throw error;
+    }
+  })
+);
+
 export default router;

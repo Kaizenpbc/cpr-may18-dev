@@ -167,6 +167,33 @@ const OrganizationPortalContainer: React.FC = () => {
     enabled: !!user?.organizationId,
   });
 
+  const { data: paidInvoices, isLoading: paidInvoicesLoading } = useQuery({
+    queryKey: ['organization-paid-invoices', user?.organizationId],
+    queryFn: async () => {
+      const response = await api.get('/organization/paid-invoices', {
+        params: { _t: Date.now() }
+      });
+      const data = response.data.data;
+      // Map invoices to add id property for compatibility
+      if (data && Array.isArray(data.invoices)) {
+        return data.invoices.map(inv => ({ ...inv, id: inv.invoice_id }));
+      }
+      return [];
+    },
+    enabled: !!user?.organizationId,
+  });
+
+  const { data: paidInvoicesSummary, isLoading: paidInvoicesSummaryLoading } = useQuery({
+    queryKey: ['organization-paid-invoices-summary', user?.organizationId],
+    queryFn: async () => {
+      const response = await api.get('/organization/paid-invoices-summary', {
+        params: { _t: Date.now() }
+      });
+      return response.data.data;
+    },
+    enabled: !!user?.organizationId,
+  });
+
   // Handle view changes
   const handleViewChange = useCallback((view: string) => {
     setCurrentView(view);
@@ -193,7 +220,7 @@ const OrganizationPortalContainer: React.FC = () => {
   }, [user, logout, navigate]);
 
   // Loading state
-  const isLoading = orgLoading || coursesLoading || billingLoading || invoicesLoading || archivedLoading;
+  const isLoading = orgLoading || coursesLoading || billingLoading || invoicesLoading || archivedLoading || paidInvoicesLoading || paidInvoicesSummaryLoading;
 
   if (isLoading) {
     return (
@@ -215,19 +242,21 @@ const OrganizationPortalContainer: React.FC = () => {
 
   return (
     <ErrorBoundary onError={handleError}>
-      <OrganizationPortal
-        user={user}
-        organizationData={organizationData}
-        courses={courses || []}
-        archivedCourses={archivedCourses || []}
-        invoices={invoices || []}
-        billingSummary={billingSummary}
-        loading={isLoading}
-        error={error}
-        currentView={currentView}
-        onViewChange={handleViewChange}
-        onLogout={handleLogout}
-      />
+              <OrganizationPortal
+          user={user}
+          organizationData={organizationData}
+          courses={courses || []}
+          archivedCourses={archivedCourses || []}
+          invoices={invoices || []}
+          paidInvoices={paidInvoices || []}
+          paidInvoicesSummary={paidInvoicesSummary}
+          billingSummary={billingSummary}
+          loading={isLoading}
+          error={error}
+          currentView={currentView}
+          onViewChange={handleViewChange}
+          onLogout={handleLogout}
+        />
     </ErrorBoundary>
   );
 };
