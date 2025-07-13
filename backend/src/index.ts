@@ -326,22 +326,47 @@ console.log('✅ Organization pricing routes configured');
 // SSE endpoint
 console.log('12. Setting up SSE endpoint...');
 app.get('/api/v1/events', (req: Request, res: Response) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  console.log('[SSE] Client attempting to connect to events endpoint');
+  
+  try {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Cache-Control');
 
-  const sendEvent = (data: any) => {
-    res.write(`data: ${JSON.stringify(data)}\n\n`);
-  };
+    const sendEvent = (data: any) => {
+      try {
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+      } catch (error) {
+        console.error('[SSE] Error sending event:', error);
+      }
+    };
 
-  // Send initial connection message
-  sendEvent({ type: 'connected', timestamp: new Date().toISOString() });
+    // Send initial connection message
+    console.log('[SSE] Sending initial connection message');
+    sendEvent({ type: 'connected', timestamp: new Date().toISOString() });
 
-  // Handle client disconnect
-  req.on('close', () => {
-    writeToLog('SSE client disconnected', 'INFO');
-  });
+    // Handle client disconnect
+    req.on('close', () => {
+      console.log('[SSE] Client disconnected');
+      writeToLog('SSE client disconnected', 'INFO');
+    });
+
+    // Handle errors
+    req.on('error', (error) => {
+      console.error('[SSE] Request error:', error);
+    });
+
+    res.on('error', (error) => {
+      console.error('[SSE] Response error:', error);
+    });
+
+    console.log('[SSE] SSE connection established successfully');
+  } catch (error) {
+    console.error('[SSE] Error setting up SSE endpoint:', error);
+    res.status(500).json({ error: 'SSE setup failed' });
+  }
 });
 console.log('✅ SSE endpoint configured');
 

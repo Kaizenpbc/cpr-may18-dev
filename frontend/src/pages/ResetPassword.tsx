@@ -10,7 +10,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
-import { resetPassword } from '../services/api';
+import { api } from '../services/api';
 
 console.log('[Debug] ResetPassword.tsx - Component loading');
 
@@ -35,17 +35,8 @@ const ResetPassword = () => {
   }, [token, navigate]);
 
   const validatePassword = (password: string): string | null => {
-    if (password.length < 8) {
-      return 'Password must be at least 8 characters long';
-    }
-    if (!/[A-Z]/.test(password)) {
-      return 'Password must contain at least one uppercase letter';
-    }
-    if (!/[a-z]/.test(password)) {
-      return 'Password must contain at least one lowercase letter';
-    }
-    if (!/[0-9]/.test(password)) {
-      return 'Password must contain at least one number';
+    if (password.length < 6) {
+      return 'Password must be at least 6 characters long';
     }
     return null;
   };
@@ -76,7 +67,11 @@ const ResetPassword = () => {
       setIsLoading(true);
       console.log('[Debug] ResetPassword - Attempting to reset password');
 
-      await resetPassword(token, password);
+      const response = await api.post('/auth/reset-password', {
+        token,
+        newPassword: password,
+      });
+
       console.log('[Debug] ResetPassword - Password reset successful');
       setIsSuccess(true);
 
@@ -84,12 +79,12 @@ const ResetPassword = () => {
       setTimeout(() => {
         navigate('/login');
       }, 3000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Debug] ResetPassword - Password reset error:', err);
       setError(
-        err instanceof Error
-          ? err.message
-          : 'An error occurred while resetting your password. Please try again.'
+        err.response?.data?.error || 
+        err.message ||
+        'An error occurred while resetting your password. Please try again.'
       );
     } finally {
       setIsLoading(false);
@@ -151,10 +146,7 @@ const ResetPassword = () => {
               <Typography variant='body2' sx={{ mb: 3 }}>
                 Please enter your new password. The password must:
                 <ul>
-                  <li>Be at least 8 characters long</li>
-                  <li>Contain at least one uppercase letter</li>
-                  <li>Contain at least one lowercase letter</li>
-                  <li>Contain at least one number</li>
+                  <li>Be at least 6 characters long</li>
                 </ul>
               </Typography>
 

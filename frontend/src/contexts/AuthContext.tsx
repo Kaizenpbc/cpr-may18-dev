@@ -71,11 +71,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (username: string, password: string) => {
+    console.log('[DEEP TRACE] AuthContext.login - Starting login process:', {
+      username,
+      timestamp: new Date().toISOString()
+    });
+    
     try {
       setLoading(true);
       setError(null);
+      
+      console.log('[DEEP TRACE] AuthContext.login - Calling authService.login');
       const response = await authService.login(username, password);
+      console.log('[DEEP TRACE] AuthContext.login - Login response received:', {
+        user: response.user,
+        timestamp: new Date().toISOString()
+      });
+      
       setUser(response.user);
+      console.log('[DEEP TRACE] AuthContext.login - User state updated');
 
       // Navigate based on user role
       const roleRoutes = {
@@ -88,12 +101,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       const targetRoute = roleRoutes[response.user.role as keyof typeof roleRoutes] || '/';
+      console.log('[DEEP TRACE] AuthContext.login - Navigating to:', {
+        role: response.user.role,
+        targetRoute,
+        timestamp: new Date().toISOString()
+      });
+      
       navigate(targetRoute);
+      console.log('[DEEP TRACE] AuthContext.login - Navigation completed');
     } catch (err) {
+      console.error('[DEEP TRACE] AuthContext.login - Error occurred:', {
+        error: err,
+        message: err instanceof Error ? err.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
       setError(err instanceof Error ? err.message : 'Login failed');
       throw err;
     } finally {
       setLoading(false);
+      console.log('[DEEP TRACE] AuthContext.login - Login process completed');
     }
   };
 
