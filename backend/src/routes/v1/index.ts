@@ -4505,7 +4505,7 @@ router.get(
       LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
       LEFT JOIN payments p ON i.id = p.invoice_id
       ${whereClause}
-      GROUP BY i.id, cr.id, ct.id, cp.price_per_student
+      GROUP BY i.id, i.invoice_number, i.created_at, i.due_date, i.amount, i.status, i.students_billed, i.paid_date, i.base_cost, i.tax_amount, cr.id, ct.id, cp.price_per_student
       ${orderClause}
       LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
     `,
@@ -4593,7 +4593,7 @@ router.get(
       LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
       LEFT JOIN payments p ON i.id = p.invoice_id
       WHERE i.id = $1 AND i.organization_id = $2
-      GROUP BY i.id, o.id, cr.id, ct.id, cp.price_per_student
+      GROUP BY i.id, i.invoice_number, i.due_date, i.amount, i.status, i.students_billed, i.paid_date, i.base_cost, i.tax_amount, o.id, cr.id, ct.id, cp.price_per_student
     `,
         [id, user.organizationId]
       );
