@@ -191,6 +191,7 @@ const AccountsReceivableView: React.FC = () => {
         invoiceId={selectedInvoiceId}
         onActionSuccess={handleInvoiceActionSuccess}
         onActionError={handleInvoiceActionError}
+        showPostToOrgButton={false} // Hide Post to Org button in AR section
       />
 
       {/* Record Payment Dialog */}

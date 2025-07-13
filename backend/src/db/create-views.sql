@@ -26,4 +26,12 @@ SELECT
 FROM course_requests cr
 LEFT JOIN organizations o ON cr.organization_id = o.id
 LEFT JOIN class_types ct ON cr.course_type_id = ct.id
-LEFT JOIN users u ON cr.instructor_id = u.id; 
+LEFT JOIN users u ON cr.instructor_id = u.id;
+
+-- Invoice breakdown view for consistent cost calculations
+CREATE OR REPLACE VIEW invoice_with_breakdown AS
+SELECT 
+  i.*,
+  (i.amount / 1.13) as base_cost,
+  (i.amount - (i.amount / 1.13)) as tax_amount
+FROM invoices i; 

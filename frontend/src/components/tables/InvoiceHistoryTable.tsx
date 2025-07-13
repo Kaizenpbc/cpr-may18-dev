@@ -202,7 +202,13 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
               Students
             </TableCell>
             <TableCell align='right' sx={{ fontWeight: 'bold' }}>
-              Amount
+              Base Cost
+            </TableCell>
+            <TableCell align='right' sx={{ fontWeight: 'bold' }}>
+              Tax (HST)
+            </TableCell>
+            <TableCell align='right' sx={{ fontWeight: 'bold' }}>
+              Total
             </TableCell>
             <TableCell align='right' sx={{ fontWeight: 'bold' }}>
               Paid
@@ -264,6 +270,12 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
                 <strong>{formatCurrency(invoice.amount)}</strong>
               </TableCell>
               <TableCell align='right'>
+                <strong>{formatCurrency(parseFloat(invoice.amount || 0) * 0.13)}</strong>
+              </TableCell>
+              <TableCell align='right'>
+                <strong>{formatCurrency(parseFloat(invoice.amount || 0) * 1.13)}</strong>
+              </TableCell>
+              <TableCell align='right'>
                 {formatCurrency(
                   invoice.paidtodate || invoice.paid_to_date || 0
                 )}
@@ -271,7 +283,7 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
               <TableCell align='right'>
                 <strong>
                   {formatCurrency(
-                    invoice.balancedue || invoice.balance_due || invoice.amount
+                    (parseFloat(invoice.amount || 0) * 1.13) - parseFloat(invoice.paidtodate || invoice.paid_to_date || 0)
                   )}
                 </strong>
               </TableCell>

@@ -144,7 +144,13 @@ const AccountsReceivableTable = ({
             <TableCell sx={{ fontWeight: 'bold' }}>Organization</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Course #</TableCell>
             <TableCell align='right' sx={{ fontWeight: 'bold' }}>
-              Amount
+              Base Cost
+            </TableCell>
+            <TableCell align='right' sx={{ fontWeight: 'bold' }}>
+              Tax (HST)
+            </TableCell>
+            <TableCell align='right' sx={{ fontWeight: 'bold' }}>
+              Total
             </TableCell>
             <TableCell align='right' sx={{ fontWeight: 'bold' }}>
               Paid To Date
@@ -199,8 +205,10 @@ const AccountsReceivableTable = ({
                 </TableCell>
                 <TableCell>{invoice.coursenumber || '-'}</TableCell>
                 <TableCell align='right'>{`$${parseFloat(invoice.amount || 0).toFixed(2)}`}</TableCell>
+                <TableCell align='right'>{`$${(parseFloat(invoice.amount || 0) * 0.13).toFixed(2)}`}</TableCell>
+                <TableCell align='right'>{`$${(parseFloat(invoice.amount || 0) * 1.13).toFixed(2)}`}</TableCell>
                 <TableCell align='right'>{`$${parseFloat(invoice.paidtodate || 0).toFixed(2)}`}</TableCell>
-                <TableCell align='right'>{`$${parseFloat(invoice.balancedue || 0).toFixed(2)}`}</TableCell>
+                <TableCell align='right'>{`$${((parseFloat(invoice.amount || 0) * 1.13) - parseFloat(invoice.paidtodate || 0)).toFixed(2)}`}</TableCell>
                 <TableCell align='center'>
                   <Chip
                     label={invoice.paymentstatus || 'Unknown'}

@@ -494,7 +494,25 @@ const BillsPayableView = () => {
                     fontWeight: 'bold',
                   }}
                 >
-                  Amount
+                  Base Cost
+                </TableCell>
+                <TableCell
+                  align='right'
+                  sx={{
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    fontWeight: 'bold',
+                  }}
+                >
+                  Tax (HST)
+                </TableCell>
+                <TableCell
+                  align='right'
+                  sx={{
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    fontWeight: 'bold',
+                  }}
+                >
+                  Total
                 </TableCell>
                 <TableCell
                   align='right'
@@ -527,13 +545,13 @@ const BillsPayableView = () => {
             <TableBody>
               {invoicesLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align='center'>
+                  <TableCell colSpan={10} align='center'>
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
               ) : invoicesData?.invoices?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align='center'>
+                  <TableCell colSpan={10} align='center'>
                     <Typography variant='body2' color='text.secondary'>
                       No invoices found
                     </Typography>
@@ -569,6 +587,16 @@ const BillsPayableView = () => {
                         }
                       >
                         {formatDate(invoice.due_date)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align='right'>
+                      <Typography variant='body2' fontWeight='medium'>
+                        {formatCurrency(invoice.base_cost || invoice.amount / 1.13)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align='right'>
+                      <Typography variant='body2' fontWeight='medium'>
+                        {formatCurrency(invoice.tax_amount || (invoice.amount - invoice.amount / 1.13))}
                       </Typography>
                     </TableCell>
                     <TableCell align='right'>
@@ -848,51 +876,78 @@ const BillsPayableView = () => {
                 <Grid item xs={12}>
                   <Divider sx={{ my: 2 }} />
                   <Typography variant='h6' gutterBottom>
-                    Payment Summary
+                    Cost Breakdown
                   </Typography>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      mb: 1,
-                    }}
-                  >
-                    <Typography>Total Amount:</Typography>
-                    <Typography fontWeight='medium'>
-                      {formatCurrency(selectedInvoice.amount)}
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      mb: 1,
-                    }}
-                  >
-                    <Typography>Amount Paid:</Typography>
-                    <Typography color='success.main'>
-                      {formatCurrency(selectedInvoice.amount_paid)}
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      mb: 2,
-                    }}
-                  >
-                    <Typography fontWeight='medium'>Balance Due:</Typography>
-                    <Typography
-                      fontWeight='medium'
-                      color={
-                        selectedInvoice.balance_due > 0 ? 'error' : 'success'
-                      }
-                    >
-                      {formatCurrency(selectedInvoice.balance_due)}
-                    </Typography>
-                  </Box>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={3}>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant='body2' color='text.secondary'>
+                          Base Cost
+                        </Typography>
+                        <Typography variant='h6'>
+                          {formatCurrency(selectedInvoice.base_cost || selectedInvoice.amount / 1.13)}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant='body2' color='text.secondary'>
+                          Tax (HST)
+                        </Typography>
+                        <Typography variant='h6'>
+                          {formatCurrency(selectedInvoice.tax_amount || (selectedInvoice.amount - selectedInvoice.amount / 1.13))}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant='body2' color='text.secondary'>
+                          Total Amount
+                        </Typography>
+                        <Typography variant='h6'>
+                          {formatCurrency(selectedInvoice.amount)}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant='body2' color='text.secondary'>
+                          Amount Paid
+                        </Typography>
+                        <Typography variant='h6' color='success.main'>
+                          {formatCurrency(selectedInvoice.amount_paid)}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                  <Grid container spacing={2} sx={{ mt: 1 }}>
+                    <Grid item xs={12} md={6}>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant='body2' color='text.secondary'>
+                          Balance Due
+                        </Typography>
+                        <Typography 
+                          variant='h6'
+                          color={selectedInvoice.balance_due > 0 ? 'error.main' : 'success.main'}
+                        >
+                          {formatCurrency(selectedInvoice.balance_due)}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant='body2' color='text.secondary'>
+                          Rate per Student
+                        </Typography>
+                        <Typography variant='h6'>
+                          {formatCurrency(selectedInvoice.rate_per_student || (selectedInvoice.amount / selectedInvoice.students_billed))}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
                 </Grid>
               </Grid>
+            </Box>
             </Box>
           )}
         </DialogContent>

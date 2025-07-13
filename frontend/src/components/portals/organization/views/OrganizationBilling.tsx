@@ -56,6 +56,9 @@ interface Invoice {
   course_request_id: number;
   amount_paid: number;
   balance_due: number;
+  rate_per_student?: number;
+  base_cost?: number;
+  tax_amount?: number;
 }
 
 interface BillingSummary {
@@ -353,9 +356,11 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 <TableCell>Course Date</TableCell>
                 <TableCell>Location</TableCell>
                 <TableCell>Students</TableCell>
-                <TableCell>Amount</TableCell>
-                <TableCell>Amount Paid</TableCell>
-                <TableCell>Balance Due</TableCell>
+                <TableCell align="right">Base Cost</TableCell>
+                <TableCell align="right">Tax (HST)</TableCell>
+                <TableCell align="right">Total</TableCell>
+                <TableCell align="right">Amount Paid</TableCell>
+                <TableCell align="right">Balance Due</TableCell>
                 <TableCell>Due Date</TableCell>
                 <TableCell>Status</TableCell>
               </TableRow>
@@ -391,14 +396,16 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                   </TableCell>
                   <TableCell>{invoice.location}</TableCell>
                   <TableCell>{invoice.students_billed}</TableCell>
-                  <TableCell>${invoice.amount.toLocaleString()}</TableCell>
-                  <TableCell>${invoice.amount_paid.toLocaleString()}</TableCell>
-                  <TableCell>
+                  <TableCell align="right">${(Number(invoice.base_cost) || Number(invoice.amount) / 1.13).toFixed(2)}</TableCell>
+                  <TableCell align="right">${(Number(invoice.tax_amount) || (Number(invoice.amount) - Number(invoice.amount) / 1.13)).toFixed(2)}</TableCell>
+                  <TableCell align="right">${Number(invoice.amount).toLocaleString()}</TableCell>
+                  <TableCell align="right">${Number(invoice.amount_paid).toLocaleString()}</TableCell>
+                  <TableCell align="right">
                     <Typography
                       variant="body2"
                       color={invoice.balance_due > 0 ? 'error.main' : 'success.main'}
                     >
-                      ${invoice.balance_due.toLocaleString()}
+                      ${Number(invoice.balance_due).toLocaleString()}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -524,30 +531,52 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
               </Grid>
               <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom>
-                  Payment Information
+                  Cost Breakdown
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Base Cost
+                      </Typography>
+                      <Typography variant="h6">
+                        ${(Number(selectedInvoice.base_cost) || Number(selectedInvoice.amount) / 1.13).toFixed(2)}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={3}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Tax (HST)
+                      </Typography>
+                      <Typography variant="h6">
+                        ${(Number(selectedInvoice.tax_amount) || (Number(selectedInvoice.amount) - Number(selectedInvoice.amount) / 1.13)).toFixed(2)}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={3}>
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="body2" color="text.secondary">
                         Total Amount
                       </Typography>
                       <Typography variant="h6">
-                        ${selectedInvoice.amount.toLocaleString()}
+                        ${Number(selectedInvoice.amount).toLocaleString()}
                       </Typography>
                     </Box>
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="body2" color="text.secondary">
                         Amount Paid
                       </Typography>
                       <Typography variant="h6" color="success.main">
-                        ${selectedInvoice.amount_paid.toLocaleString()}
+                        ${Number(selectedInvoice.amount_paid).toLocaleString()}
                       </Typography>
                     </Box>
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                </Grid>
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                  <Grid item xs={12} md={6}>
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="body2" color="text.secondary">
                         Balance Due
@@ -556,12 +585,24 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                         variant="h6"
                         color={selectedInvoice.balance_due > 0 ? 'error.main' : 'success.main'}
                       >
-                        ${selectedInvoice.balance_due.toLocaleString()}
+                        ${Number(selectedInvoice.balance_due).toLocaleString()}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Rate per Student
+                      </Typography>
+                      <Typography variant="h6">
+                        ${(Number(selectedInvoice.rate_per_student) || (Number(selectedInvoice.amount) / Number(selectedInvoice.students_billed))).toFixed(2)}
                       </Typography>
                     </Box>
                   </Grid>
                 </Grid>
-                {selectedInvoice.paid_date && (
+              </Grid>
+              {selectedInvoice.paid_date && (
+                <Grid item xs={12}>
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="body2" color="text.secondary">
                       Paid Date
@@ -570,8 +611,8 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                       {formatDisplayDate(selectedInvoice.paid_date)}
                     </Typography>
                   </Box>
-                )}
-              </Grid>
+                </Grid>
+              )}
               
               {/* Payment Submission Section */}
               {canSubmitPayment(selectedInvoice) && (
@@ -658,13 +699,13 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 Invoice Details
               </Typography>
               <Typography variant="body2">
-                Total Amount: ${selectedInvoice.amount.toLocaleString()}
+                Total Amount: ${Number(selectedInvoice.amount).toLocaleString()}
               </Typography>
               <Typography variant="body2">
-                Amount Paid: ${selectedInvoice.amount_paid.toLocaleString()}
+                Amount Paid: ${Number(selectedInvoice.amount_paid).toLocaleString()}
               </Typography>
               <Typography variant="body2" color="error.main" fontWeight="bold">
-                Balance Due: ${selectedInvoice.balance_due.toLocaleString()}
+                Balance Due: ${Number(selectedInvoice.balance_due).toLocaleString()}
               </Typography>
             </Box>
           )}

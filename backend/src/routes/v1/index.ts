@@ -2862,6 +2862,8 @@ router.get(
         cr.completed_at as date_completed,
         COALESCE(payments.total_paid, 0) as paidtodate,
         (i.amount - COALESCE(payments.total_paid, 0)) as balancedue,
+        i.base_cost,
+        i.tax_amount,
         CASE 
           WHEN i.paid_date IS NOT NULL THEN 'paid'
           WHEN CURRENT_DATE > i.due_date THEN 'overdue'
@@ -2874,7 +2876,7 @@ router.get(
           WHEN CURRENT_DATE <= i.due_date + INTERVAL '90 days' THEN '61-90 days'
           ELSE '90+ days'
         END as agingbucket
-      FROM invoices i
+      FROM invoice_with_breakdown i
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
@@ -2917,6 +2919,8 @@ router.get(
         i.amount,
         COALESCE(payments.total_paid, 0) as amount_paid,
         COALESCE(i.amount - COALESCE(payments.total_paid, 0), i.amount) as balance_due,
+        i.base_cost,
+        i.tax_amount,
         i.due_date as duedate,
         i.status as paymentstatus,
         i.notes,
@@ -2934,7 +2938,7 @@ router.get(
         i.course_request_id,
         cr.course_type_id,
         COALESCE(ct.price, 0) as rateperstudent
-      FROM invoices i
+      FROM invoice_with_breakdown i
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN users u ON cr.instructor_id = u.id
@@ -4491,13 +4495,17 @@ router.get(
         cr.completed_at as course_date,
         cr.id as course_request_id,
         COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as amount_paid,
-        (i.amount - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due
-      FROM invoices i
+        (i.amount - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due,
+        COALESCE(cp.price_per_student, 50.00) as rate_per_student,
+        i.base_cost,
+        i.tax_amount
+      FROM invoice_with_breakdown i
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
       LEFT JOIN payments p ON i.id = p.invoice_id
       ${whereClause}
-      GROUP BY i.id, cr.id, ct.id
+      GROUP BY i.id, cr.id, ct.id, cp.price_per_student
       ${orderClause}
       LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
     `,
@@ -4574,14 +4582,18 @@ router.get(
         cr.completed_at as course_date,
         cr.id as course_request_id,
         COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as amount_paid,
-        (i.amount - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due
-      FROM invoices i
+        (i.amount - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due,
+        COALESCE(cp.price_per_student, 50.00) as rate_per_student,
+        i.base_cost,
+        i.tax_amount
+      FROM invoice_with_breakdown i
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
       LEFT JOIN payments p ON i.id = p.invoice_id
       WHERE i.id = $1 AND i.organization_id = $2
-      GROUP BY i.id, o.id, cr.id, ct.id
+      GROUP BY i.id, o.id, cr.id, ct.id, cp.price_per_student
     `,
         [id, user.organizationId]
       );

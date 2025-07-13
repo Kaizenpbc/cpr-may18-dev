@@ -1,49 +1,24 @@
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  user: 'postgres',
   host: 'localhost',
-  database: 'cpr_jun21',
-  password: 'gtacpr',
   port: 5432,
+  database: 'cpr_jun21',
+  user: 'postgres',
+  password: 'gtacpr'
 });
 
 async function checkUsers() {
   try {
-    console.log('Checking available users...');
+    // First check what columns exist in users table
+    const columnsResult = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'");
+    console.log('Available columns:', columnsResult.rows.map(r => r.column_name));
     
-    const result = await pool.query(`
-      SELECT username, role, status, email 
-      FROM users 
-      WHERE status = 'active' 
-      ORDER BY username
-    `);
-    
-    console.log('\nAvailable users:');
-    if (result.rows.length === 0) {
-      console.log('No active users found');
-    } else {
-      result.rows.forEach(user => {
-        console.log(`- ${user.username} (${user.role}) - ${user.email || 'no email'}`);
-      });
-    }
-    
-    // Also check for sysadmin user
-    const sysadminResult = await pool.query(`
-      SELECT username, role, status 
-      FROM users 
-      WHERE username = 'sysadmin'
-    `);
-    
-    if (sysadminResult.rows.length > 0) {
-      console.log('\nSysadmin user:');
-      sysadminResult.rows.forEach(user => {
-        console.log(`- ${user.username} (${user.role}) - ${user.status}`);
-      });
-    }
-    
+    // Then get user data
+    const result = await pool.query('SELECT username, role FROM users WHERE username IN ($1, $2)', ['orguser', 'iffat']);
+    console.log('Users:', result.rows);
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error:', error);
   } finally {
     await pool.end();
   }

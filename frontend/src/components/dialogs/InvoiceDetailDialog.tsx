@@ -32,6 +32,7 @@ const InvoiceDetailDialog = ({
   invoiceId,
   onActionSuccess,
   onActionError,
+  showPostToOrgButton = true, // New prop to control Post to Org button visibility
 }) => {
   const [invoice, setInvoice] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -338,9 +339,21 @@ const InvoiceDetailDialog = ({
                 </Typography>
               </Grid>
               <Grid xs={12} sm={6}>
+                <Typography variant='body2'>
+                  <strong>Base Cost:</strong>{' '}
+                  {formatCurrency(invoice.amount)}
+                </Typography>
+              </Grid>
+              <Grid xs={12} sm={6}>
+                <Typography variant='body2'>
+                  <strong>Tax (HST):</strong>{' '}
+                  {formatCurrency(parseFloat(invoice.amount || 0) * 0.13)}
+                </Typography>
+              </Grid>
+              <Grid xs={12} sm={6}>
                 <Typography variant='body2' sx={{ fontWeight: 'bold' }}>
                   <strong>Total Amount:</strong>{' '}
-                  {formatCurrency(invoice.amount)}
+                  {formatCurrency(parseFloat(invoice.amount || 0) * 1.13)}
                 </Typography>
               </Grid>
             </Grid>
@@ -349,7 +362,7 @@ const InvoiceDetailDialog = ({
       </DialogContent>
       <DialogActions>
         {/* Post to Organization Button - Only show if not already posted */}
-        {invoice && !invoice.posted_to_org && (
+        {showPostToOrgButton && invoice && !invoice.posted_to_org && (
           <Button
             onClick={handlePostToOrganization}
             color='warning'
