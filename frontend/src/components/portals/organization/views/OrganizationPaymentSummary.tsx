@@ -202,13 +202,13 @@ const OrganizationPaymentSummary: React.FC<OrganizationPaymentSummaryProps> = ({
         <Typography variant="h6" gutterBottom>
           Recent Payments
         </Typography>
-        {summary.recent_payments.length === 0 ? (
+        {(!summary.recent_payments || summary.recent_payments.length === 0) ? (
           <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
             No recent payments found
           </Typography>
         ) : (
           <List>
-            {summary.recent_payments.map((payment, index) => (
+            {(Array.isArray(summary.recent_payments) ? summary.recent_payments : []).map((payment, index) => (
               <React.Fragment key={payment.id}>
                 <ListItem>
                   <ListItemText
@@ -243,7 +243,7 @@ const OrganizationPaymentSummary: React.FC<OrganizationPaymentSummaryProps> = ({
                     </Typography>
                   </ListItemSecondaryAction>
                 </ListItem>
-                {index < summary.recent_payments.length - 1 && <Divider />}
+                                 {index < (Array.isArray(summary.recent_payments) ? summary.recent_payments : []).length - 1 && <Divider />}
               </React.Fragment>
             ))}
           </List>

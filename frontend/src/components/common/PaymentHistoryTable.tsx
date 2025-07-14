@@ -39,10 +39,12 @@ interface PaymentHistoryTableProps {
 }
 
 const PaymentHistoryTable: React.FC<PaymentHistoryTableProps> = ({
-  payments = [],
+  payments,
   isLoading = false,
   showVerificationDetails = false,
 }) => {
+  // Ensure payments is always an array
+  const safePayments = Array.isArray(payments) ? payments : [];
   // Get payment status color
   const getPaymentStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -100,7 +102,7 @@ const PaymentHistoryTable: React.FC<PaymentHistoryTableProps> = ({
     );
   }
 
-  if (payments.length === 0) {
+  if (safePayments.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', p: 2 }}>
         No payments recorded for this invoice.
@@ -129,7 +131,7 @@ const PaymentHistoryTable: React.FC<PaymentHistoryTableProps> = ({
           </TableRow>
         </TableHead>
         <TableBody>
-          {payments.map((payment) => (
+          {safePayments.map((payment) => (
             <TableRow key={payment.id} hover>
               <TableCell>
                 {formatDisplayDate(payment.payment_date)}
