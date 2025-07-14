@@ -102,7 +102,13 @@ const AccountsReceivableView: React.FC = () => {
       setError('');
       try {
         const data = await getInvoices();
-        setInvoices(data || []);
+        // Filter to show only invoices with outstanding balances for AR
+        const arInvoices = (data || []).filter((invoice: any) => {
+          const balanceDue = parseFloat(invoice.balancedue || 0);
+          const paymentStatus = invoice.paymentstatus?.toLowerCase();
+          return balanceDue > 0 && paymentStatus !== 'paid';
+        });
+        setInvoices(arInvoices);
       } catch (err: any) {
         setError(err.message || 'Failed to load invoices.');
         setInvoices([]);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -13,13 +13,19 @@ import {
   Chip,
   IconButton,
   Link as MuiLink,
+  Collapse,
+  CircularProgress,
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EmailIcon from '@mui/icons-material/Email';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import PreviewIcon from '@mui/icons-material/Preview';
 import { formatDisplayDate } from '../../utils/dateUtils';
+import PaymentHistoryTable from '../common/PaymentHistoryTable';
+import * as api from '../../services/api';
 
 // Helper functions (copied from AccountsReceivableTable - consider moving to utils)
 const formatCurrency = amount => {
@@ -39,8 +45,80 @@ const getStatusChipColor = status => {
   }
 };
 
+// Component to display within the expanded row
+const PaymentDetails = ({ invoiceId }) => {
+  const [payments, setPayments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  React.useEffect(() => {
+    const loadPayments = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const response = await api.getInvoicePayments(invoiceId);
+        
+        // Ensure we have an array of payments
+        let paymentsData = [];
+        if (response && response.data) {
+          // If response has data property, use that
+          paymentsData = Array.isArray(response.data) ? response.data : [];
+        } else if (Array.isArray(response)) {
+          // If response is directly an array
+          paymentsData = response;
+        } else {
+          // If response is not an array, log and use empty array
+          console.warn('Unexpected payments response format:', response);
+          paymentsData = [];
+        }
+        
+        setPayments(paymentsData);
+      } catch (err) {
+        console.error('Error loading payments:', err);
+        setError(err.message || 'Could not load payment details.');
+        setPayments([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadPayments();
+  }, [invoiceId]);
+
+  if (isLoading) return <CircularProgress size={20} sx={{ m: 1 }} />;
+  if (error)
+    return (
+      <Typography color='error' sx={{ m: 1 }}>
+        {error}
+      </Typography>
+    );
+  if (!payments || payments.length === 0)
+    return (
+      <Typography sx={{ m: 1, fontStyle: 'italic' }}>
+        No payments recorded for this invoice.
+      </Typography>
+    );
+
+  // Use the reusable PaymentHistoryTable component
+  return (
+    <Box sx={{ margin: 1 }}>
+      <Typography variant='subtitle2' gutterBottom component='div'>
+        Payment History
+      </Typography>
+      <PaymentHistoryTable 
+        payments={payments}
+        isLoading={isLoading}
+        showVerificationDetails={false}
+      />
+    </Box>
+  );
+};
+
 const InvoiceHistoryTable = ({ invoices = [] }) => {
-  // Removed state/handlers for expansion from AR table
+  const [expandedRowId, setExpandedRowId] = useState(null); // State to track expanded row
+
+  const handleExpandClick = invoiceId => {
+    setExpandedRowId(expandedRowId === invoiceId ? null : invoiceId); // Toggle expansion
+  };
 
   const handlePreview = invoiceId => {
     const previewUrl = `http://localhost:3001/api/v1/accounting/invoices/${invoiceId}/preview`;
@@ -190,6 +268,8 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
       <Table stickyHeader size='small' aria-label='invoice history table'>
         <TableHead>
           <TableRow>
+            <TableCell sx={{ width: '10px', fontWeight: 'bold' }} />
+            {/* Empty cell for expand button */}
             <TableCell sx={{ fontWeight: 'bold' }}>Invoice #</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Invoice Date</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Due Date</TableCell>
@@ -230,16 +310,33 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
         </TableHead>
         <TableBody>
           {invoices.map((invoice, index) => (
-            <TableRow
-              key={invoice.invoiceid || invoice.invoice_id || index}
-              hover
-              sx={{ backgroundColor: index % 2 !== 0 ? '#f9f9f9' : 'inherit' }}
-            >
-              <TableCell>
-                <strong>
-                  {invoice.invoicenumber || invoice.invoice_number}
-                </strong>
-              </TableCell>
+            <React.Fragment key={invoice.invoiceid || invoice.invoice_id || index}>
+              <TableRow
+                hover
+                sx={{
+                  '& > *': { borderBottom: 'unset' },
+                  backgroundColor: index % 2 !== 0 ? '#f9f9f9' : 'inherit',
+                }}
+              >
+                <TableCell>
+                  {/* Expand/Collapse Button */}
+                  <IconButton
+                    aria-label='expand row'
+                    size='small'
+                    onClick={() => handleExpandClick(invoice.invoiceid || invoice.invoice_id)}
+                  >
+                    {expandedRowId === (invoice.invoiceid || invoice.invoice_id) ? (
+                      <KeyboardArrowUpIcon />
+                    ) : (
+                      <KeyboardArrowDownIcon />
+                    )}
+                  </IconButton>
+                </TableCell>
+                <TableCell>
+                  <strong>
+                    {invoice.invoicenumber || invoice.invoice_number}
+                  </strong>
+                </TableCell>
               <TableCell>
                 {formatDisplayDate(invoice.invoicedate || invoice.invoice_date)}
               </TableCell>
@@ -351,6 +448,26 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
                 </Box>
               </TableCell>
             </TableRow>
+            {/* Expanded Row for Payment Details */}
+            <TableRow>
+              <TableCell
+                style={{ paddingBottom: 0, paddingTop: 0 }}
+                colSpan={16}
+              >
+                {/* Adjust colSpan based on total columns */}
+                <Collapse
+                  in={expandedRowId === (invoice.invoiceid || invoice.invoice_id)}
+                  timeout='auto'
+                  unmountOnExit
+                >
+                  {/* Render PaymentDetails component only when expanded */}
+                  {expandedRowId === (invoice.invoiceid || invoice.invoice_id) && (
+                    <PaymentDetails invoiceId={invoice.invoiceid || invoice.invoice_id} />
+                  )}
+                </Collapse>
+              </TableCell>
+            </TableRow>
+            </React.Fragment>
           ))}
         </TableBody>
       </Table>
