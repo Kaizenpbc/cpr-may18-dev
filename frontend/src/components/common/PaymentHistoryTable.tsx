@@ -135,9 +135,9 @@ const PaymentHistoryTable: React.FC<PaymentHistoryTableProps> = ({
                 {formatDisplayDate(payment.payment_date)}
               </TableCell>
               <TableCell align="right">
-                <Typography variant="body2" fontWeight="medium">
-                  ${payment.amount_paid.toFixed(2)}
-                </Typography>
+                               <Typography variant="body2" fontWeight="medium">
+                 ${Number(payment.amount_paid || 0).toFixed(2)}
+               </Typography>
               </TableCell>
               <TableCell>
                 {formatPaymentMethod(payment.payment_method)}

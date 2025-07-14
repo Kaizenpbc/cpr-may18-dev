@@ -628,42 +628,42 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                     <Typography variant="body2" color="text.secondary">
                       Base Cost:
                     </Typography>
-                    <Typography variant="body1">
-                      ${(selectedInvoice.base_cost || 0).toFixed(2)}
-                    </Typography>
+                                         <Typography variant="body1">
+                       ${Number(selectedInvoice.base_cost || 0).toFixed(2)}
+                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
                     <Typography variant="body2" color="text.secondary">
                       Tax (HST):
                     </Typography>
-                    <Typography variant="body1">
-                      ${(selectedInvoice.tax_amount || 0).toFixed(2)}
-                    </Typography>
+                                         <Typography variant="body1">
+                       ${Number(selectedInvoice.tax_amount || 0).toFixed(2)}
+                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
                     <Typography variant="body2" color="text.secondary">
                       Total Amount:
                     </Typography>
-                    <Typography variant="body1" fontWeight="bold">
-                      ${selectedInvoice.amount.toFixed(2)}
-                    </Typography>
+                                         <Typography variant="body1" fontWeight="bold">
+                       ${Number(selectedInvoice.amount || 0).toFixed(2)}
+                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
                     <Typography variant="body2" color="text.secondary">
                       Amount Paid:
                     </Typography>
-                    <Typography variant="body1" color="success.main" fontWeight="bold">
-                      ${selectedInvoice.amount_paid.toFixed(2)}
-                    </Typography>
+                                         <Typography variant="body1" color="success.main" fontWeight="bold">
+                       ${Number(selectedInvoice.amount_paid || 0).toFixed(2)}
+                     </Typography>
                   </Grid>
                   <Grid item xs={12}>
                     <Divider sx={{ my: 1 }} />
                     <Typography variant="body2" color="text.secondary">
                       Balance Due:
                     </Typography>
-                    <Typography variant="h6" color={selectedInvoice.balance_due > 0 ? 'error.main' : 'success.main'} fontWeight="bold">
-                      ${selectedInvoice.balance_due.toFixed(2)}
-                    </Typography>
+                                         <Typography variant="h6" color={Number(selectedInvoice.balance_due || 0) > 0 ? 'error.main' : 'success.main'} fontWeight="bold">
+                       ${Number(selectedInvoice.balance_due || 0).toFixed(2)}
+                     </Typography>
                   </Grid>
                 </Grid>
               </Paper>

@@ -148,9 +148,9 @@ const OrganizationPaymentSummary: React.FC<OrganizationPaymentSummaryProps> = ({
                   Total Amount
                 </Typography>
               </Box>
-              <Typography variant="h4" fontWeight="bold" color="success.main">
-                ${summary.total_amount_paid.toFixed(2)}
-              </Typography>
+                               <Typography variant="h4" fontWeight="bold" color="success.main">
+                   ${Number(summary.total_amount_paid || 0).toFixed(2)}
+                 </Typography>
               <Typography variant="body2" color="text.secondary">
                 Total amount paid
               </Typography>
@@ -214,9 +214,9 @@ const OrganizationPaymentSummary: React.FC<OrganizationPaymentSummaryProps> = ({
                   <ListItemText
                     primary={
                       <Box display="flex" alignItems="center" gap={1}>
-                        <Typography variant="body1" fontWeight="medium">
-                          ${payment.amount_paid.toFixed(2)}
-                        </Typography>
+                                                 <Typography variant="body1" fontWeight="medium">
+                           ${Number(payment.amount_paid || 0).toFixed(2)}
+                         </Typography>
                         <Chip
                           label={payment.status.replace('_', ' ')}
                           color={getStatusColor(payment.status)}
