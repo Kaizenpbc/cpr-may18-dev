@@ -14,7 +14,6 @@ class TokenService {
    */
   getAccessToken(): string | null {
     const token = sessionStorage.getItem(ACCESS_TOKEN_KEY);
-    console.log('[TRACE] Token service - Getting access token:', !!token);
     // Return token without 'Bearer ' prefix if it exists
     return token ? token.replace('Bearer ', '') : null;
   }
@@ -24,7 +23,6 @@ class TokenService {
    * @param token - The access token to store
    */
   setAccessToken(token: string): void {
-    console.log('[TRACE] Token service - Setting access token');
     // Ensure token is properly formatted
     const formattedToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
     sessionStorage.setItem(ACCESS_TOKEN_KEY, formattedToken);
@@ -36,7 +34,6 @@ class TokenService {
    * @returns Always returns null as the refresh token is in an HTTP-only cookie
    */
   getRefreshToken(): null {
-    console.log('[TRACE] Token service - Getting refresh token (HTTP-only cookie)');
     return null; // Refresh token is managed by HTTP-only cookies
   }
 
@@ -71,7 +68,6 @@ class TokenService {
    */
   getSavedLocation(): string | null {
     const location = sessionStorage.getItem(LAST_LOCATION_KEY);
-    console.log('[TRACE] Token service - Getting saved location:', location);
     return location;
   }
 
@@ -87,7 +83,6 @@ class TokenService {
    * Clears all tokens from storage.
    */
   clearTokens(): void {
-    console.log('[TRACE] Token service - Clearing tokens');
     sessionStorage.removeItem(ACCESS_TOKEN_KEY);
   }
 
@@ -97,7 +92,6 @@ class TokenService {
    */
   hasTokens(): boolean {
     const hasToken = !!this.getAccessToken();
-    console.log('[TRACE] Token service - Checking if tokens exist:', hasToken);
     return hasToken;
   }
 
@@ -106,7 +100,6 @@ class TokenService {
    */
   getAuthHeader() {
     const token = this.getAccessToken();
-    console.log('[TRACE] Token service - Getting auth header - Token exists:', !!token);
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 

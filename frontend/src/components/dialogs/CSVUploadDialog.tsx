@@ -63,7 +63,7 @@ const CSVUploadDialog: React.FC<CSVUploadDialogProps> = ({
         setParseResult(null);
       }
     } else {
-      console.log('[TRACE] CSVUploadDialog - No file selected');
+      // No file selected
     }
   };
 
@@ -78,64 +78,43 @@ const CSVUploadDialog: React.FC<CSVUploadDialogProps> = ({
 
     try {
       // Check authentication before upload
-      console.log('[TRACE] CSVUploadDialog - Checking authentication...');
       const token = window.tokenService?.getAccessToken();
       if (!token) {
-        console.error('[TRACE] CSVUploadDialog - No access token found');
+        console.error('[CSVUploadDialog] No access token found');
         setError('Authentication required. Please log in again.');
         return;
       }
-      console.log('[TRACE] CSVUploadDialog - Authentication token found');
 
-      console.log('[TRACE] CSVUploadDialog - Reading file content...');
       const text = await selectedFile.text();
-      console.log('[TRACE] CSVUploadDialog - File content read successfully');
-      console.log('[TRACE] CSVUploadDialog - Content length:', text.length);
-      console.log('[TRACE] CSVUploadDialog - Content preview:', text.substring(0, 200));
       
       // Parse CSV
-      console.log('[TRACE] CSVUploadDialog - Parsing CSV...');
       const parsed = parseCSV(text, courseRequestId, organizationId);
       setParseResult(parsed);
-      console.log('[TRACE] CSVUploadDialog - Parse result:', parsed);
       
       if (!parsed.success) {
-        console.log('[TRACE] CSVUploadDialog - CSV parsing failed');
         setError(`CSV parsing failed: ${parsed.errors.join(', ')}`);
         return;
       }
 
       if (parsed.students.length === 0) {
-        console.log('[TRACE] CSVUploadDialog - No valid students found');
         setError('No valid student data found in CSV');
         return;
       }
 
       // Send to backend
-      console.log('[TRACE] CSVUploadDialog - Sending to backend API...');
-      console.log('[TRACE] CSVUploadDialog - Course Request ID:', courseRequestId);
-      console.log('[TRACE] CSVUploadDialog - Students count:', parsed.students.length);
-      console.log('[TRACE] CSVUploadDialog - Auth header:', window.tokenService?.getAuthHeader());
-      
       const response = await organizationApi.uploadStudents(courseRequestId, parsed.students);
-      console.log('[TRACE] CSVUploadDialog - Backend response:', response);
       
-      console.log('[TRACE] CSVUploadDialog - Calling onUploadSuccess callback');
       const result = { 
         fileName: selectedFile.name, 
         content: text,
         parsed: parsed,
         response: response
       };
-      console.log('[TRACE] CSVUploadDialog - Result data:', result);
       
       onUploadSuccess?.(result);
-      console.log('[TRACE] CSVUploadDialog - Upload success callback completed');
-      
-      console.log('[TRACE] CSVUploadDialog - Closing dialog');
       onClose();
     } catch (err) {
-      console.error('[TRACE] CSVUploadDialog - Upload error:', err);
+      console.error('[CSVUploadDialog] Upload error:', err);
       
       // Enhanced error handling
       if (err.response?.status === 401) {
@@ -152,13 +131,11 @@ const CSVUploadDialog: React.FC<CSVUploadDialogProps> = ({
         setError('Failed to upload file. Please try again.');
       }
     } finally {
-      console.log('[TRACE] CSVUploadDialog - Setting uploading to false');
       setUploading(false);
     }
   };
 
   const handleClose = () => {
-    console.log('[TRACE] CSVUploadDialog - handleClose called');
     setSelectedFile(null);
     setError(null);
     setUploading(false);
@@ -166,14 +143,7 @@ const CSVUploadDialog: React.FC<CSVUploadDialogProps> = ({
     onClose();
   };
 
-  console.log('[TRACE] CSVUploadDialog - Rendering with props:', {
-    open,
-    hasSelectedFile: !!selectedFile,
-    uploading,
-    error,
-    courseRequestId,
-    organizationId
-  });
+  // Debug logging removed for cleaner console
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
