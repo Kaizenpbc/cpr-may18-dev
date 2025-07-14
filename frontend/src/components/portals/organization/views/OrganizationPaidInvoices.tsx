@@ -170,7 +170,7 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
                 <PaymentIcon color="success" sx={{ mr: 2, fontSize: 40 }} />
                 <Box>
                   <Typography variant="h4" component="div">
-                    ${paidInvoicesSummary?.total_paid_amount?.toLocaleString() || 0}
+                    ${Number(paidInvoicesSummary?.total_paid_amount || 0).toLocaleString()}
                   </Typography>
                   <Typography color="text.secondary">
                     Total Amount Paid
@@ -188,7 +188,7 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
                 <InfoIcon color="info" sx={{ mr: 2, fontSize: 40 }} />
                 <Box>
                   <Typography variant="h4" component="div">
-                    ${paidInvoicesSummary?.average_paid_amount?.toFixed(2) || 0}
+                    ${Number(paidInvoicesSummary?.average_paid_amount || 0).toFixed(2)}
                   </Typography>
                   <Typography color="text.secondary">
                     Average Invoice Amount
@@ -486,7 +486,7 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
                         Balance Due
                       </Typography>
                       <Typography variant="h6" color="success.main">
-                        ${Number(selectedInvoice.balance_due).toFixed(2)}
+                        ${Number(selectedInvoice.balance_due || 0).toFixed(2)}
                       </Typography>
                     </Box>
                   </Grid>

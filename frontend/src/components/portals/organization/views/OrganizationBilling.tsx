@@ -159,8 +159,55 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   const loadPaymentHistory = async (invoiceId: number) => {
     setLoadingPaymentHistory(true);
     try {
+      console.log('Loading payment history for invoice:', invoiceId);
       const response = await api.get(`/organization/invoices/${invoiceId}/payments`);
-      setPaymentHistory(response.data || []);
+      console.log('Payment history response:', response);
+      
+      // Handle different response structures
+      let paymentsData = [];
+      if (response.data && response.data.data) {
+        // If response has nested data structure
+        paymentsData = Array.isArray(response.data.data) ? response.data.data : [];
+      } else if (response.data && Array.isArray(response.data)) {
+        // If response.data is directly an array
+        paymentsData = response.data;
+      } else if (Array.isArray(response.data)) {
+        // If response.data is an array
+        paymentsData = response.data;
+      } else {
+        console.warn('Unexpected payment history response format:', response);
+        paymentsData = [];
+      }
+      
+      console.log('Raw payment data structure:', paymentsData);
+      console.log('Payment data sample:', paymentsData[0]);
+      
+      console.log('Processed payment history data:', paymentsData);
+      
+      // Filter out invalid payments and remove duplicates
+      const validPayments = paymentsData.filter(payment => {
+        return payment && 
+               payment.id && 
+               payment.amount_paid && 
+               payment.payment_date && 
+               payment.payment_method;
+      });
+      
+      // Remove duplicates based on payment ID and ensure valid data
+      const uniquePayments = validPayments
+        .filter((payment, index, self) => 
+          index === self.findIndex(p => p.id === payment.id)
+        )
+        .map(payment => ({
+          ...payment,
+          amount_paid: Number(payment.amount_paid || 0),
+          payment_date: payment.payment_date || payment.created_at,
+          payment_method: payment.payment_method || 'unknown',
+          status: payment.status || 'pending_verification'
+        }));
+      
+      console.log('Filtered unique payments:', uniquePayments);
+      setPaymentHistory(uniquePayments);
     } catch (error) {
       console.error('Error loading payment history:', error);
       setPaymentHistory([]);
@@ -171,9 +218,12 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
 
   // Handle invoice click with payment history
   const handleInvoiceClick = async (invoice: Invoice) => {
+    console.log('Invoice clicked:', invoice);
+    console.log('Invoice ID:', invoice.id);
     setSelectedInvoice(invoice);
     setDialogOpen(true);
-    // Load payment history when dialog opens
+    // Clear previous payment history and load new one
+    setPaymentHistory([]);
     await loadPaymentHistory(invoice.id);
   };
 
@@ -181,6 +231,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   const handleDialogClose = () => {
     setDialogOpen(false);
     setSelectedInvoice(null);
+    setPaymentHistory([]); // Clear payment history when dialog closes
   };
 
   // Handle mark invoice as paid
@@ -231,10 +282,17 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
           payment_date: new Date().toISOString().split('T')[0],
           notes: '',
         });
+        
+        // Refresh payment history for the current invoice
+        await loadPaymentHistory(selectedInvoice.id);
+        
         // Close invoice dialog after a delay
         setTimeout(() => {
           handleDialogClose();
         }, 2000);
+        
+        // Trigger a page refresh to update the invoice list
+        window.location.reload();
       }
     } catch (error: any) {
       setPaymentError(error.response?.data?.message || 'Failed to submit payment');
@@ -247,7 +305,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   const handlePaymentDialogOpen = () => {
     if (selectedInvoice) {
       setPaymentForm({
-        amount: selectedInvoice.balance_due.toString(),
+        amount: Number(selectedInvoice.balance_due || 0).toFixed(2),
         payment_method: '',
         reference_number: '',
         payment_date: new Date().toISOString().split('T')[0],
@@ -261,9 +319,17 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   const canSubmitPayment = (invoice: Invoice | null) => {
     if (!invoice) return false;
     const status = invoice.payment_status || invoice.status;
-    return invoice.balance_due > 0 && 
+    const balanceDue = Number(invoice.balance_due || 0);
+    
+    // Cannot submit payment if:
+    // 1. Balance is 0 or negative
+    // 2. Invoice is already paid
+    // 3. Payment is already submitted and pending verification
+    // 4. There are older unpaid invoices that should be paid first
+    return balanceDue > 0 && 
            status !== 'paid' && 
-           status !== 'payment_submitted';
+           status !== 'payment_submitted' &&
+           !hasOlderUnpaidInvoices(invoice);
   };
 
   // Check if this is a partial payment
@@ -312,6 +378,42 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   const formatPaymentMethod = (method: string) => {
     if (!method) return '-';
     return method.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  // Check if there are older unpaid invoices that should be paid first
+  const hasOlderUnpaidInvoices = (currentInvoice: Invoice | null) => {
+    if (!currentInvoice || !safeInvoices || safeInvoices.length === 0) return false;
+    
+    const currentInvoiceDate = new Date(currentInvoice.created_at);
+    
+    // Find older invoices with outstanding balance
+    const olderUnpaidInvoices = safeInvoices.filter(invoice => {
+      const invoiceDate = new Date(invoice.created_at);
+      const balanceDue = Number(invoice.balance_due || 0);
+      
+      return invoiceDate < currentInvoiceDate && 
+             balanceDue > 0 && 
+             invoice.id !== currentInvoice.id;
+    });
+    
+    return olderUnpaidInvoices.length > 0;
+  };
+
+  // Get the oldest unpaid invoice
+  const getOldestUnpaidInvoice = () => {
+    if (!safeInvoices || safeInvoices.length === 0) return null;
+    
+    const unpaidInvoices = safeInvoices.filter(invoice => {
+      const balanceDue = Number(invoice.balance_due || 0);
+      return balanceDue > 0;
+    });
+    
+    if (unpaidInvoices.length === 0) return null;
+    
+    // Sort by creation date (oldest first)
+    return unpaidInvoices.sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )[0];
   };
 
   return (
@@ -456,29 +558,55 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {safeInvoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                  <TableCell>
-                    <Link
-                      component="button"
-                      variant="body2"
-                      onClick={() => handleInvoiceClick(invoice)}
+                {safeInvoices.map((invoice, index) => {
+                  const oldestUnpaid = getOldestUnpaidInvoice();
+                  const isOldestUnpaid = oldestUnpaid?.id === invoice.id;
+                  const hasOlderUnpaid = hasOlderUnpaidInvoices(invoice);
+                  
+                  return (
+                    <TableRow 
+                      key={invoice.id}
                       sx={{
-                        color: 'primary.main',
-                        textDecoration: 'none',
-                        cursor: 'pointer',
+                        backgroundColor: isOldestUnpaid ? 'warning.light' : 
+                                       hasOlderUnpaid ? 'grey.100' : 'inherit',
                         '&:hover': {
-                          textDecoration: 'underline',
-                          color: 'primary.dark',
-                        },
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.5,
+                          backgroundColor: isOldestUnpaid ? 'warning.main' : 
+                                         hasOlderUnpaid ? 'grey.200' : 'inherit',
+                        }
                       }}
                     >
-                      <VisibilityIcon fontSize="small" />
-                      {invoice.invoice_number}
-                    </Link>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {isOldestUnpaid && (
+                        <Chip 
+                          label="PRIORITY" 
+                          size="small" 
+                          color="warning" 
+                          variant="outlined"
+                          sx={{ fontSize: '0.7rem', height: 20 }}
+                        />
+                      )}
+                      <Link
+                        component="button"
+                        variant="body2"
+                        onClick={() => handleInvoiceClick(invoice)}
+                        sx={{
+                          color: 'primary.main',
+                          textDecoration: 'none',
+                          cursor: 'pointer',
+                          '&:hover': {
+                            textDecoration: 'underline',
+                            color: 'primary.dark',
+                          },
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                        }}
+                      >
+                        <VisibilityIcon fontSize="small" />
+                        {invoice.invoice_number}
+                      </Link>
+                    </Box>
                   </TableCell>
                   <TableCell>{invoice.course_type_name}</TableCell>
                   <TableCell>
@@ -489,13 +617,13 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                   <TableCell align="right">${Number(invoice.base_cost || 0).toFixed(2)}</TableCell>
                   <TableCell align="right">${Number(invoice.tax_amount || 0).toFixed(2)}</TableCell>
                   <TableCell align="right">${(Number(invoice.base_cost || 0) + Number(invoice.tax_amount || 0)).toFixed(2)}</TableCell>
-                  <TableCell align="right">${Number(invoice.amount_paid).toFixed(2)}</TableCell>
+                  <TableCell align="right">${Number(invoice.amount_paid || 0).toFixed(2)}</TableCell>
                   <TableCell align="right">
                     <Typography
                       variant="body2"
                       color={invoice.balance_due > 0 ? 'error.main' : 'success.main'}
                     >
-                      ${Number(invoice.balance_due).toFixed(2)}
+                      ${Number(invoice.balance_due || 0).toFixed(2)}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -528,7 +656,8 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                     )}
                   </TableCell>
                 </TableRow>
-              ))}
+                  );
+                })}
               {safeInvoices.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={10} align="center">
@@ -561,6 +690,16 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         <DialogContent>
           {selectedInvoice && (
             <Box sx={{ mt: 2 }}>
+              {/* Warning for older unpaid invoices */}
+              {selectedInvoice && hasOlderUnpaidInvoices(selectedInvoice) && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    <strong>Payment Order Warning:</strong> There are older unpaid invoices that should be paid first. 
+                    Please pay invoices in chronological order.
+                  </Typography>
+                </Alert>
+              )}
+              
               {/* Invoice Summary */}
               <Paper sx={{ p: 2, mb: 2 }}>
                 <Typography variant="h6" gutterBottom>
@@ -694,6 +833,14 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
               Submit Payment
             </Button>
           )}
+          
+          {selectedInvoice && hasOlderUnpaidInvoices(selectedInvoice) && (
+            <Alert severity="warning" sx={{ mr: 'auto', flex: 1 }}>
+              <Typography variant="body2">
+                Please pay older invoices first: {getOldestUnpaidInvoice()?.invoice_number}
+              </Typography>
+            </Alert>
+          )}
           <Button onClick={handleDialogClose}>
             Close
           </Button>
@@ -716,6 +863,15 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
             The invoice status will be updated once payment is verified.
           </Alert>
           
+          {selectedInvoice && hasOlderUnpaidInvoices(selectedInvoice) && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                <strong>Payment Order:</strong> Please pay invoice {getOldestUnpaidInvoice()?.invoice_number} first 
+                (due {getOldestUnpaidInvoice()?.due_date ? new Date(getOldestUnpaidInvoice()?.due_date).toLocaleDateString() : 'N/A'}).
+              </Typography>
+            </Alert>
+          )}
+          
           {selectedInvoice && (
             <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
               <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -728,7 +884,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 Amount Paid: ${Number(selectedInvoice.amount_paid).toFixed(2)}
               </Typography>
               <Typography variant="body2" color="error.main" fontWeight="bold">
-                Balance Due: ${Number(selectedInvoice.balance_due).toFixed(2)}
+                Balance Due: ${Number(selectedInvoice.balance_due || 0).toFixed(2)}
               </Typography>
             </Box>
           )}
@@ -828,11 +984,13 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
               !paymentForm.payment_method ||
               parseFloat(paymentForm.amount || '0') > (selectedInvoice?.balance_due || 0) ||
               parseFloat(paymentForm.amount || '0') <= 0 ||
-              isNaN(parseFloat(paymentForm.amount || '0'))
+              isNaN(parseFloat(paymentForm.amount || '0')) ||
+              (selectedInvoice && hasOlderUnpaidInvoices(selectedInvoice))
             }
             startIcon={<PaymentIcon />}
           >
-            {submittingPayment ? 'Submitting...' : 'Submit Payment'}
+            {submittingPayment ? 'Submitting...' : 
+             (selectedInvoice && hasOlderUnpaidInvoices(selectedInvoice)) ? 'Pay Older Invoice First' : 'Submit Payment'}
           </Button>
         </DialogActions>
       </Dialog>

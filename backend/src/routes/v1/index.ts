@@ -3132,9 +3132,13 @@ router.get(
         p.reference_number,
         p.notes,
         p.status,
-        p.created_at
+        p.created_at,
+        p.submitted_by_org_at,
+        p.verified_by_accounting_at,
+        p.reversed_at,
+        p.reversed_by
       FROM payments p
-      WHERE p.invoice_id = $1 AND p.status = 'verified'
+      WHERE p.invoice_id = $1
       ORDER BY p.payment_date DESC
     `,
         [id]
@@ -3182,8 +3186,8 @@ router.post(
         // Record the payment
         const paymentResult = await client.query(
           `
-        INSERT INTO payments (invoice_id, amount, payment_date, payment_method, reference_number, notes, status)
-        VALUES ($1, $2, $3, $4, $5, $6, 'verified')
+        INSERT INTO payments (invoice_id, amount, payment_date, payment_method, reference_number, notes, status, submitted_by_org_at, verified_by_accounting_at, reversed_at, reversed_by)
+        VALUES ($1, $2, $3, $4, $5, $6, 'verified', $7, $8, $9, $10)
         RETURNING *
       `,
           [
@@ -3193,6 +3197,11 @@ router.post(
             payment_method,
             reference_number,
             notes,
+            new Date(),
+            null,
+            null,
+            null,
+            null
           ]
         );
 
@@ -3209,7 +3218,7 @@ router.post(
         if (invoice && invoice.total_paid >= invoice.amount) {
           await client.query(
             `
-          UPDATE invoices SET status = 'paid', paid_date = NOW() WHERE id = $1
+          UPDATE invoices SET status = 'paid', paid_date = NOW(), updated_at = NOW() WHERE id = $1
         `,
             [id]
           );
@@ -4477,6 +4486,9 @@ router.get(
         queryParams.push(status);
       }
 
+      // Exclude fully paid invoices from AR
+      whereClause += ' AND (i.status != \'paid\' AND (i.base_cost + i.tax_amount - COALESCE((SELECT SUM(amount) FROM payments WHERE invoice_id = i.id AND status = \'verified\'), 0)) > 0)';
+
       const orderClause = `ORDER BY i.${sort_by} ${sort_order.toString().toUpperCase()}`;
 
       const result = await pool.query(
@@ -4495,7 +4507,7 @@ router.get(
         cr.completed_at as course_date,
         cr.id as course_request_id,
         COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as amount_paid,
-        ((i.base_cost + i.tax_amount) - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due,
+        GREATEST(0, (i.base_cost + i.tax_amount) - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due,
         COALESCE(cp.price_per_student, 50.00) as rate_per_student,
         i.base_cost,
         i.tax_amount,
@@ -4521,7 +4533,7 @@ router.get(
       const countResult = await pool.query(
         `
       SELECT COUNT(DISTINCT i.id) as total
-      FROM invoices i
+      FROM invoice_with_breakdown i
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       ${whereClause}
     `,
@@ -4587,7 +4599,7 @@ router.get(
         cr.completed_at as course_date,
         cr.id as course_request_id,
         COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as amount_paid,
-        ((i.base_cost + i.tax_amount) - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due,
+        GREATEST(0, (i.base_cost + i.tax_amount) - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due,
         COALESCE(cp.price_per_student, 50.00) as rate_per_student,
         i.base_cost,
         i.tax_amount,
@@ -4628,9 +4640,13 @@ router.get(
         p.reference_number,
         p.notes,
         p.status,
-        p.created_at
+        p.created_at,
+        p.submitted_by_org_at,
+        p.verified_by_accounting_at,
+        p.reversed_at,
+        p.reversed_by
       FROM payments p
-      WHERE p.invoice_id = $1 AND p.status = 'verified'
+      WHERE p.invoice_id = $1
       ORDER BY p.payment_date DESC
     `,
         [id]
@@ -4697,7 +4713,9 @@ router.get(
         p.status,
         p.created_at,
         p.submitted_by_org_at,
-        p.verified_by_accounting_at
+        p.verified_by_accounting_at,
+        p.reversed_at,
+        p.reversed_by
       FROM payments p
       WHERE p.invoice_id = $1
       ORDER BY p.payment_date DESC
@@ -4948,6 +4966,68 @@ router.get(
   })
 );
 
+// Accounting - Get verified payments for reversal
+router.get(
+  '/accounting/verified-payments',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      const { status = 'verified' } = req.query;
+
+      if (user.role !== 'accountant' && user.role !== 'admin') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Accountant role required.'
+        );
+      }
+
+      let whereClause = '';
+      if (status === 'verified') {
+        whereClause = "WHERE p.status = 'verified'";
+      } else if (status === 'reversed') {
+        whereClause = "WHERE p.status = 'reversed'";
+      } else {
+        whereClause = "WHERE p.status IN ('verified', 'reversed')";
+      }
+
+      const result = await pool.query(`
+          SELECT 
+            p.id as payment_id,
+            p.amount,
+            p.payment_date,
+            p.payment_method,
+            p.reference_number,
+            p.notes,
+            p.status,
+            p.verified_by_accounting_at,
+            p.reversed_at,
+            p.reversed_by,
+            i.id as invoice_id,
+            i.invoice_number,
+            o.name as organization_name,
+            o.contact_email
+          FROM payments p
+          JOIN invoices i ON p.invoice_id = i.id
+          JOIN organizations o ON i.organization_id = o.id
+          ${whereClause}
+          ORDER BY p.verified_by_accounting_at DESC
+        `);
+
+      res.json({
+        success: true,
+        data: {
+          payments: result.rows,
+        },
+      });
+    } catch (error) {
+      console.error('[Verified Payments] Error:', error);
+      throw error;
+    }
+  })
+);
+
 // Accounting - Verify payment (approve/reject)
 router.post(
   '/accounting/payments/:id/verify',
@@ -5159,7 +5239,7 @@ router.get(
         cr.completed_at as course_date,
         cr.id as course_request_id,
         COALESCE(payments.total_paid, 0) as amount_paid,
-        ((i.base_cost + i.tax_amount) - COALESCE(payments.total_paid, 0)) as balance_due,
+        GREATEST(0, (i.base_cost + i.tax_amount) - COALESCE(payments.total_paid, 0)) as balance_due,
         COALESCE(cp.price_per_student, 50.00) as rate_per_student,
         i.base_cost,
         i.tax_amount,
@@ -5529,6 +5609,149 @@ router.get(
       });
     } catch (error) {
       console.error('[Organization Payment Summary] Error:', error);
+      throw error;
+    }
+  })
+);
+
+// Accounting - Reverse payment
+router.post(
+  '/accounting/payments/:id/reverse',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      if (user.role !== 'accountant' && user.role !== 'admin') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Accountant role required.'
+        );
+      }
+
+      if (!reason?.trim()) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Reason for reversal is required'
+        );
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query('BEGIN');
+
+        // Get payment and invoice details
+        const paymentResult = await client.query(
+          `
+            SELECT p.*, i.organization_id, i.amount as invoice_amount, i.invoice_number
+            FROM payments p
+            JOIN invoices i ON p.invoice_id = i.id
+            WHERE p.id = $1 AND p.status = 'verified'
+          `,
+          [id]
+        );
+
+        if (paymentResult.rows.length === 0) {
+          throw new AppError(
+            404,
+            errorCodes.RESOURCE_NOT_FOUND,
+            'Payment not found or not verified'
+          );
+        }
+
+        const payment = paymentResult.rows[0];
+
+        // Check if payment is within reversal time limit (48 hours)
+        const paymentDate = new Date(payment.verified_by_accounting_at);
+        const now = new Date();
+        const hoursSinceVerification = (now.getTime() - paymentDate.getTime()) / (1000 * 60 * 60);
+        
+        if (hoursSinceVerification > 48) {
+          throw new AppError(
+            400,
+            errorCodes.VALIDATION_ERROR,
+            'Payment can only be reversed within 48 hours of verification'
+          );
+        }
+
+        // Reverse the payment
+        await client.query(
+          `
+            UPDATE payments 
+            SET status = 'reversed', 
+                notes = COALESCE(notes, '') || CASE WHEN notes IS NOT NULL AND notes != '' THEN E'\n\n' ELSE '' END || $2,
+                reversed_at = NOW(),
+                reversed_by = $3
+            WHERE id = $1
+          `,
+          [id, `Reversed by ${user.username}: ${reason}`, user.id]
+        );
+
+        // Recalculate invoice balance and status
+        const totalPaidResult = await client.query(
+          `
+            SELECT COALESCE(SUM(amount), 0) as total_paid
+            FROM payments
+            WHERE invoice_id = $1 AND status = 'verified'
+          `,
+          [payment.invoice_id]
+        );
+
+        const totalPaid = parseFloat(totalPaidResult.rows[0].total_paid);
+        const invoiceAmount = parseFloat(payment.invoice_amount);
+
+        // Update invoice status based on new balance
+        if (totalPaid >= invoiceAmount) {
+          // Still fully paid
+          await client.query(
+            `
+              UPDATE invoices 
+              SET status = 'paid', updated_at = NOW()
+              WHERE id = $1
+            `,
+            [payment.invoice_id]
+          );
+        } else {
+          // No longer fully paid
+          await client.query(
+            `
+              UPDATE invoices 
+              SET status = 'pending', paid_date = NULL, updated_at = NOW()
+              WHERE id = $1
+            `,
+            [payment.invoice_id]
+          );
+        }
+
+        await client.query('COMMIT');
+
+        // Send success response
+        res.json({
+          success: true,
+          message: 'Payment reversed successfully',
+          data: {
+            paymentId: id,
+            invoiceId: payment.invoice_id,
+            invoiceNumber: payment.invoice_number,
+            reversedAmount: payment.amount,
+            reason: reason,
+            reversedBy: user.username,
+            reversedAt: new Date().toISOString()
+          }
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Error reversing payment:', error);
       throw error;
     }
   })

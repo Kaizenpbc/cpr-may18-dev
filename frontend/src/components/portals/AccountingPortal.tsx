@@ -9,6 +9,7 @@ import {
   TrendingUp as AgingIcon,
   Payment as PaymentIcon,
   VerifiedUser as VerificationIcon,
+  Undo as ReverseIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
 import ErrorBoundary from '../common/ErrorBoundary';
@@ -22,6 +23,7 @@ import AccountsReceivableTable from '../tables/AccountsReceivableTable';
 import TransactionHistoryView from '../views/TransactionHistoryView';
 import AgingReportView from '../views/AgingReportView';
 import PaymentVerificationView from '../views/PaymentVerificationView';
+import PaymentReversalView from '../views/PaymentReversalView';
 import InvoiceDetailDialog from '../dialogs/InvoiceDetailDialog';
 import RecordPaymentDialog from '../dialogs/RecordPaymentDialog';
 import { getBillingQueue, createInvoice, getInvoices } from '../../services/api';
@@ -243,6 +245,12 @@ const tabRoutes = [
     icon: <VerificationIcon />, 
     path: 'verification', 
     component: <PaymentVerificationView /> 
+  },
+  { 
+    label: 'Payment Reversal', 
+    icon: <ReverseIcon />, 
+    path: 'reversal', 
+    component: <PaymentReversalView /> 
   },
 ];
 

@@ -54,6 +54,8 @@ const PaymentHistoryTable: React.FC<PaymentHistoryTableProps> = ({
         return 'warning';
       case 'rejected':
         return 'error';
+      case 'reversed':
+        return 'error';
       default:
         return 'default';
     }
@@ -131,18 +133,20 @@ const PaymentHistoryTable: React.FC<PaymentHistoryTableProps> = ({
           </TableRow>
         </TableHead>
         <TableBody>
-          {safePayments.map((payment) => (
+          {safePayments
+            .filter(payment => payment && payment.id && payment.amount_paid)
+            .map((payment) => (
             <TableRow key={payment.id} hover>
               <TableCell>
-                {formatDisplayDate(payment.payment_date)}
+                {payment.payment_date ? formatDisplayDate(payment.payment_date) : '-'}
               </TableCell>
               <TableCell align="right">
-                               <Typography variant="body2" fontWeight="medium">
-                 ${Number(payment.amount_paid || 0).toFixed(2)}
-               </Typography>
+                <Typography variant="body2" fontWeight="medium">
+                  ${Number(payment.amount_paid || 0).toFixed(2)}
+                </Typography>
               </TableCell>
               <TableCell>
-                {formatPaymentMethod(payment.payment_method)}
+                {payment.payment_method ? formatPaymentMethod(payment.payment_method) : '-'}
               </TableCell>
               <TableCell>
                 {payment.reference_number || '-'}
