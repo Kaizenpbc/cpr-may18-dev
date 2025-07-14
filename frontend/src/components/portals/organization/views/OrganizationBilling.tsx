@@ -760,12 +760,23 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
               <TextField
                 fullWidth
                 label="Payment Amount"
-                type="number"
+                type="text"
                 value={paymentForm.amount}
-                onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Only allow numbers and decimal point
+                  const numericValue = value.replace(/[^0-9.]/g, '');
+                  // Ensure only one decimal point
+                  const parts = numericValue.split('.');
+                  const formattedValue = parts.length > 2 
+                    ? parts[0] + '.' + parts.slice(1).join('')
+                    : numericValue;
+                  setPaymentForm({ ...paymentForm, amount: formattedValue });
+                }}
                 InputProps={{
                   startAdornment: <Typography variant="body2" sx={{ mr: 1 }}>$</Typography>,
                 }}
+                placeholder="0.00"
                 helperText={
                   isPartialPayment(paymentForm.amount) 
                     ? `This is a partial payment. Remaining balance will be $${((selectedInvoice?.balance_due || 0) - parseFloat(paymentForm.amount || '0')).toFixed(2)} after this payment.`
@@ -836,7 +847,8 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
               !paymentForm.amount || 
               !paymentForm.payment_method ||
               parseFloat(paymentForm.amount || '0') > (selectedInvoice?.balance_due || 0) ||
-              parseFloat(paymentForm.amount || '0') <= 0
+              parseFloat(paymentForm.amount || '0') <= 0 ||
+              isNaN(parseFloat(paymentForm.amount || '0'))
             }
             startIcon={<PaymentIcon />}
           >
