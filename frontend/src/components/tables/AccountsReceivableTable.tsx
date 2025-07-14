@@ -30,6 +30,7 @@ import EmailIcon from '@mui/icons-material/Email'; // For Email Invoice
 import PostAddIcon from '@mui/icons-material/PostAdd'; // For Post to Org
 // Import shared formatters
 import { formatDate, getStatusChipColor } from '../../utils/formatters'; // Correct path
+import PaymentHistoryTable from '../common/PaymentHistoryTable';
 
 // Component to display within the expanded row
 const PaymentDetails = ({ invoiceId }) => {
@@ -84,34 +85,17 @@ const PaymentDetails = ({ invoiceId }) => {
       </Typography>
     );
 
-  // Simple table to display payments
+  // Use the reusable PaymentHistoryTable component
   return (
     <Box sx={{ margin: 1 }}>
       <Typography variant='subtitle2' gutterBottom component='div'>
         Payment History
       </Typography>
-      <Table size='small' aria-label='payment history'>
-        <TableHead>
-          <TableRow>
-            <TableCell>Payment Date</TableCell>
-            <TableCell>Amount Paid</TableCell>
-            <TableCell>Method</TableCell>
-            <TableCell>Reference</TableCell>
-            <TableCell>Notes</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {payments.map(payment => (
-            <TableRow key={payment.id}>
-              <TableCell>{formatDate(payment.payment_date)}</TableCell>
-              <TableCell>{`$${parseFloat(payment.amount_paid || 0).toFixed(2)}`}</TableCell>
-              <TableCell>{payment.payment_method || '-'}</TableCell>
-              <TableCell>{payment.reference_number || '-'}</TableCell>
-              <TableCell>{payment.notes || '-'}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <PaymentHistoryTable 
+        payments={payments}
+        isLoading={isLoading}
+        showVerificationDetails={false}
+      />
     </Box>
   );
 };

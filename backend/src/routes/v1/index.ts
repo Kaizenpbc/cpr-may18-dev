@@ -4650,6 +4650,72 @@ router.get(
   })
 );
 
+// Organization Bills Payable - Get invoice payment history
+router.get(
+  '/organization/invoices/:id/payments',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+
+      if (user.role !== 'organization') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Organization role required.'
+        );
+      }
+
+      // Verify invoice belongs to organization
+      const invoiceCheck = await pool.query(
+        `
+      SELECT id FROM invoices 
+      WHERE id = $1 AND organization_id = $2
+    `,
+        [id, user.organizationId]
+      );
+
+      if (invoiceCheck.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Invoice not found'
+        );
+      }
+
+      const result = await pool.query(
+        `
+      SELECT 
+        p.id,
+        p.invoice_id,
+        p.amount as amount_paid,
+        p.payment_date,
+        p.payment_method,
+        p.reference_number,
+        p.notes,
+        p.status,
+        p.created_at,
+        p.submitted_by_org_at,
+        p.verified_by_accounting_at
+      FROM payments p
+      WHERE p.invoice_id = $1
+      ORDER BY p.payment_date DESC
+    `,
+        [id]
+      );
+
+      res.json({
+        success: true,
+        data: result.rows,
+      });
+    } catch (error) {
+      console.error('[Organization Invoice Payments] Error:', error);
+      throw error;
+    }
+  })
+);
+
 // Organization Bills Payable - Submit payment information
 router.post(
   '/organization/invoices/:id/payment-submission',
@@ -5092,13 +5158,13 @@ router.get(
         ct.name as course_type_name,
         cr.completed_at as course_date,
         cr.id as course_request_id,
-        COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as amount_paid,
-        ((i.base_cost + i.tax_amount) - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due,
+        COALESCE(payments.total_paid, 0) as amount_paid,
+        ((i.base_cost + i.tax_amount) - COALESCE(payments.total_paid, 0)) as balance_due,
         COALESCE(cp.price_per_student, 50.00) as rate_per_student,
         i.base_cost,
         i.tax_amount,
         CASE 
-          WHEN COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
+          WHEN COALESCE(payments.total_paid, 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
           WHEN CURRENT_DATE > i.due_date THEN 'overdue'
           ELSE 'pending'
         END as payment_status
@@ -5106,11 +5172,15 @@ router.get(
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
       LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
-      LEFT JOIN payments p ON i.id = p.invoice_id
+      LEFT JOIN (
+        SELECT invoice_id, SUM(amount) as total_paid
+        FROM payments 
+        WHERE status = 'verified'
+        GROUP BY invoice_id
+      ) payments ON payments.invoice_id = i.id
       WHERE i.organization_id = $1 
         AND i.posted_to_org = TRUE
-        AND COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) >= (i.base_cost + i.tax_amount)
-      GROUP BY i.id, i.invoice_number, i.created_at, i.due_date, i.amount, i.status, i.students_billed, i.paid_date, i.base_cost, i.tax_amount, cr.id, ct.id, cp.price_per_student
+        AND COALESCE(payments.total_paid, 0) >= (i.base_cost + i.tax_amount)
       ${orderClause}
       LIMIT $2 OFFSET $3
     `,
@@ -5120,15 +5190,19 @@ router.get(
       // Get total count for pagination
       const countResult = await pool.query(
         `
-      SELECT COUNT(DISTINCT i.id) as total
+      SELECT COUNT(*) as total
       FROM invoice_with_breakdown i
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
-      LEFT JOIN payments p ON i.id = p.invoice_id
+      LEFT JOIN (
+        SELECT invoice_id, SUM(amount) as total_paid
+        FROM payments 
+        WHERE status = 'verified'
+        GROUP BY invoice_id
+      ) payments ON payments.invoice_id = i.id
       WHERE i.organization_id = $1 
         AND i.posted_to_org = TRUE
-        AND COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) >= (i.base_cost + i.tax_amount)
-      GROUP BY i.id
+        AND COALESCE(payments.total_paid, 0) >= (i.base_cost + i.tax_amount)
     `,
         [user.organizationId]
       );
@@ -5279,11 +5353,15 @@ router.get(
       FROM invoice_with_breakdown i
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
-      LEFT JOIN payments p ON i.id = p.invoice_id
+      LEFT JOIN (
+        SELECT invoice_id, SUM(amount) as total_paid
+        FROM payments 
+        WHERE status = 'verified'
+        GROUP BY invoice_id
+      ) payments ON payments.invoice_id = i.id
       WHERE i.organization_id = $1 
         AND i.posted_to_org = TRUE
-        AND COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) >= (i.base_cost + i.tax_amount)
-      GROUP BY i.organization_id
+        AND COALESCE(payments.total_paid, 0) >= (i.base_cost + i.tax_amount)
     `,
         [user.organizationId]
       );
@@ -5302,6 +5380,155 @@ router.get(
       });
     } catch (error) {
       console.error('[Organization Paid Invoices Summary] Error:', error);
+      throw error;
+    }
+  })
+);
+
+// Generate PDF for payment receipt
+router.get(
+  '/accounting/payments/:id/receipt',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      console.log(`[PDF] Generating payment receipt for payment ${id}`);
+
+      // Get payment details with invoice and organization info
+      const result = await pool.query(
+        `
+      SELECT 
+        p.id as payment_id,
+        p.amount as payment_amount,
+        p.payment_date,
+        p.payment_method,
+        p.reference_number,
+        p.notes as payment_notes,
+        p.status as payment_status,
+        p.created_at as payment_created_at,
+        p.verified_by_accounting_at,
+        i.id as invoice_id,
+        i.invoice_number,
+        i.amount as invoice_amount,
+        i.created_at as invoice_date,
+        i.due_date,
+        o.name as organization_name,
+        o.contact_email,
+        o.address,
+        cr.location,
+        ct.name as course_type_name,
+        cr.completed_at as course_date
+      FROM payments p
+      JOIN invoices i ON p.invoice_id = i.id
+      JOIN organizations o ON i.organization_id = o.id
+      LEFT JOIN course_requests cr ON i.course_request_id = cr.id
+      LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+      WHERE p.id = $1
+    `,
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        console.log(`[PDF] Payment ${id} not found`);
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Payment not found'
+        );
+      }
+
+      const payment = result.rows[0];
+      console.log(`[PDF] Generating receipt for payment ${payment.payment_id}`);
+
+      const pdfBuffer = await PDFService.generatePaymentReceipt(payment);
+      console.log(
+        `[PDF] Payment receipt generated successfully, size: ${pdfBuffer.length} bytes`
+      );
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="Payment-Receipt-${payment.payment_id}.pdf"`
+      );
+      res.setHeader('Content-Length', pdfBuffer.length.toString());
+      res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader(
+        'Access-Control-Expose-Headers',
+        'Content-Disposition, Content-Length, Content-Type'
+      );
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error('Error generating payment receipt:', error);
+      throw error;
+    }
+  })
+);
+
+// Organization Payment Summary
+router.get(
+  '/organization/payment-summary',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+
+      if (user.role !== 'organization') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Organization role required.'
+        );
+      }
+
+      // Get payment summary statistics
+      const summaryResult = await pool.query(
+        `
+      SELECT 
+        COUNT(*) as total_payments,
+        COALESCE(SUM(amount), 0) as total_amount_paid,
+        COUNT(CASE WHEN status = 'verified' THEN 1 END) as verified_payments,
+        COUNT(CASE WHEN status = 'pending_verification' THEN 1 END) as pending_payments
+      FROM payments p
+      JOIN invoices i ON p.invoice_id = i.id
+      WHERE i.organization_id = $1
+    `,
+        [user.organizationId]
+      );
+
+      // Get recent payments
+      const recentPaymentsResult = await pool.query(
+        `
+      SELECT 
+        p.id,
+        p.invoice_id,
+        p.amount as amount_paid,
+        p.payment_date,
+        p.payment_method,
+        p.reference_number,
+        p.status,
+        i.invoice_number,
+        ct.name as course_type_name
+      FROM payments p
+      JOIN invoices i ON p.invoice_id = i.id
+      LEFT JOIN course_requests cr ON i.course_request_id = cr.id
+      LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+      WHERE i.organization_id = $1
+      ORDER BY p.payment_date DESC
+      LIMIT 10
+    `,
+        [user.organizationId]
+      );
+
+      const summary = summaryResult.rows[0];
+      summary.recent_payments = recentPaymentsResult.rows;
+
+      res.json({
+        success: true,
+        data: summary,
+      });
+    } catch (error) {
+      console.error('[Organization Payment Summary] Error:', error);
       throw error;
     }
   })

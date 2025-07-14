@@ -16,6 +16,29 @@ interface InvoiceData {
   organization_id: number;
 }
 
+interface PaymentData {
+  payment_id: number;
+  payment_amount: number;
+  payment_date: string;
+  payment_method: string;
+  reference_number?: string;
+  payment_notes?: string;
+  payment_status: string;
+  payment_created_at: string;
+  verified_by_accounting_at?: string;
+  invoice_id: number;
+  invoice_number: string;
+  invoice_amount: number;
+  invoice_date: string;
+  due_date: string;
+  organization_name: string;
+  contact_email: string;
+  address?: string;
+  location?: string;
+  course_type_name?: string;
+  course_date?: string;
+}
+
 export class PDFService {
   private static getInvoiceHTML(invoice: InvoiceData): string {
     const invoiceDate = new Date(invoice.invoice_date).toLocaleDateString();
@@ -292,6 +315,248 @@ export class PDFService {
     `;
   }
 
+  private static getPaymentReceiptHTML(payment: PaymentData): string {
+    const paymentDate = new Date(payment.payment_date).toLocaleDateString();
+    const receiptDate = new Date(payment.payment_created_at).toLocaleDateString();
+    const courseDate = payment.course_date ? new Date(payment.course_date).toLocaleDateString() : 'N/A';
+
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Payment Receipt ${payment.payment_id}</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 20px;
+                color: #333;
+                line-height: 1.4;
+            }
+            .receipt-container {
+                max-width: 800px;
+                margin: 0 auto;
+                background: white;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 30px;
+                border-bottom: 3px solid #4CAF50;
+                padding-bottom: 20px;
+            }
+            .company-name {
+                font-size: 24px;
+                font-weight: bold;
+                color: #4CAF50;
+                margin-bottom: 5px;
+            }
+            .company-details {
+                font-size: 12px;
+                color: #666;
+            }
+            .receipt-title {
+                font-size: 28px;
+                font-weight: bold;
+                text-align: center;
+                margin: 30px 0;
+                color: #4CAF50;
+            }
+            .receipt-info {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 30px;
+            }
+            .receipt-details, .payment-to {
+                width: 48%;
+            }
+            .receipt-details h3, .payment-to h3 {
+                margin-top: 0;
+                color: #4CAF50;
+                border-bottom: 1px solid #eee;
+                padding-bottom: 5px;
+            }
+            .detail-row {
+                margin-bottom: 5px;
+            }
+            .label {
+                font-weight: bold;
+                display: inline-block;
+                width: 120px;
+            }
+            .payment-details {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 30px 0;
+            }
+            .payment-details th {
+                background-color: #4CAF50;
+                color: white;
+                padding: 12px;
+                text-align: left;
+                font-weight: bold;
+            }
+            .payment-details td {
+                padding: 12px;
+                border-bottom: 1px solid #eee;
+            }
+            .payment-details tr:nth-child(even) {
+                background-color: #f9f9f9;
+            }
+            .amount-column {
+                text-align: right;
+            }
+            .status-badge {
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: bold;
+                text-transform: uppercase;
+            }
+            .status-verified {
+                background-color: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            .status-pending {
+                background-color: #fff3cd;
+                color: #856404;
+                border: 1px solid #ffeaa7;
+            }
+            .status-rejected {
+                background-color: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+            .footer {
+                margin-top: 40px;
+                text-align: center;
+                font-size: 12px;
+                color: #666;
+                border-top: 1px solid #eee;
+                padding-top: 20px;
+            }
+            .thank-you {
+                text-align: center;
+                margin: 30px 0;
+                font-size: 18px;
+                color: #4CAF50;
+                font-weight: bold;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="receipt-container">
+            <div class="header">
+                <div class="company-name">GTA CPR TRAINING SERVICES</div>
+                <div class="company-details">
+                    123 Training Way, Toronto, ON M5V 3A8<br>
+                    Phone: (416) 555-0123 | Email: billing@gtacpr.com<br>
+                    HST#: 123456789RT0001
+                </div>
+            </div>
+
+            <div class="receipt-title">PAYMENT RECEIPT</div>
+
+            <div class="receipt-info">
+                <div class="receipt-details">
+                    <h3>Receipt Details</h3>
+                    <div class="detail-row">
+                        <span class="label">Receipt #:</span>
+                        <strong>${payment.payment_id}</strong>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Receipt Date:</span>
+                        ${receiptDate}
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Payment Date:</span>
+                        ${paymentDate}
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Payment Method:</span>
+                        ${payment.payment_method.replace('_', ' ').toUpperCase()}
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Reference #:</span>
+                        ${payment.reference_number || 'N/A'}
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Status:</span>
+                        <span class="status-badge status-${payment.payment_status}">
+                            ${payment.payment_status.replace('_', ' ').toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+                <div class="payment-to">
+                    <h3>Payment From</h3>
+                    <div class="detail-row">
+                        <span class="label">Organization:</span>
+                        <strong>${payment.organization_name}</strong>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Contact Email:</span>
+                        ${payment.contact_email}
+                    </div>
+                    ${payment.address ? `
+                    <div class="detail-row">
+                        <span class="label">Address:</span>
+                        ${payment.address}
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+
+            <table class="payment-details">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Invoice #</th>
+                        <th>Course</th>
+                        <th>Date</th>
+                        <th class="amount-column">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>CPR Training Services</td>
+                        <td>${payment.invoice_number}</td>
+                        <td>${payment.course_type_name || 'N/A'}</td>
+                        <td>${courseDate}</td>
+                        <td class="amount-column">$${payment.payment_amount.toFixed(2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="text-align: right; margin-top: 20px;">
+                <div style="font-size: 18px; font-weight: bold; color: #4CAF50;">
+                    Total Payment: $${payment.payment_amount.toFixed(2)}
+                </div>
+            </div>
+
+            ${payment.payment_notes ? `
+            <div style="margin-top: 20px; padding: 15px; background-color: #f5f5f5; border-left: 4px solid #4CAF50;">
+                <strong>Payment Notes:</strong><br>
+                ${payment.payment_notes}
+            </div>
+            ` : ''}
+
+            <div class="thank-you">
+                Thank you for your payment!
+            </div>
+
+            <div class="footer">
+                <p>This receipt serves as proof of payment for the above services.</p>
+                <p>For questions regarding this payment, please contact billing@gtacpr.com</p>
+                <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+  }
+
   static async generateInvoicePDF(invoice: InvoiceData): Promise<Buffer> {
     const browser = await puppeteer.launch({
       headless: true,
@@ -323,5 +588,34 @@ export class PDFService {
 
   static getInvoicePreviewHTML(invoice: InvoiceData): string {
     return this.getInvoiceHTML(invoice);
+  }
+
+  static async generatePaymentReceipt(payment: PaymentData): Promise<Buffer> {
+    const browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    try {
+      const page = await browser.newPage();
+      const html = this.getPaymentReceiptHTML(payment);
+      
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '0.5in',
+          right: '0.5in',
+          bottom: '0.5in',
+          left: '0.5in'
+        }
+      });
+
+      return pdfBuffer;
+    } finally {
+      await browser.close();
+    }
   }
 }

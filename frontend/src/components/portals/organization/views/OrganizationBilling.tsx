@@ -27,6 +27,8 @@ import {
   Alert,
   Snackbar,
   Divider,
+  CircularProgress,
+  IconButton,
 } from '@mui/material';
 import {
   Receipt as ReceiptIcon,
@@ -36,9 +38,11 @@ import {
   Visibility as VisibilityIcon,
   Payment as PaymentIcon,
   Info as InfoIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { formatDisplayDate } from '../../../../utils/dateUtils';
 import { api } from '../../../../services/api';
+import PaymentHistoryTable from '../../../common/PaymentHistoryTable';
 
 // TypeScript interfaces
 interface Invoice {
@@ -60,6 +64,21 @@ interface Invoice {
   rate_per_student?: number;
   base_cost?: number;
   tax_amount?: number;
+  payments?: Payment[];
+}
+
+interface Payment {
+  id: number;
+  invoice_id: number;
+  amount_paid: number;
+  payment_date: string;
+  payment_method: string;
+  reference_number?: string;
+  notes?: string;
+  status: string;
+  created_at: string;
+  submitted_by_org_at?: string;
+  verified_by_accounting_at?: string;
 }
 
 interface BillingSummary {
@@ -106,6 +125,10 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   const [markAsPaidSuccess, setMarkAsPaidSuccess] = useState(false);
   const [markAsPaidError, setMarkAsPaidError] = useState<string | null>(null);
 
+  // State for payment history
+  const [paymentHistory, setPaymentHistory] = useState<Payment[]>([]);
+  const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
+
   // Ensure invoices is an array
   const safeInvoices = Array.isArray(invoices) ? invoices : [];
 
@@ -132,10 +155,26 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
     return today > due;
   };
 
-  // Handle invoice number click
-  const handleInvoiceClick = (invoice: Invoice) => {
+  // Load payment history for an invoice
+  const loadPaymentHistory = async (invoiceId: number) => {
+    setLoadingPaymentHistory(true);
+    try {
+      const response = await api.get(`/organization/invoices/${invoiceId}/payments`);
+      setPaymentHistory(response.data || []);
+    } catch (error) {
+      console.error('Error loading payment history:', error);
+      setPaymentHistory([]);
+    } finally {
+      setLoadingPaymentHistory(false);
+    }
+  };
+
+  // Handle invoice click with payment history
+  const handleInvoiceClick = async (invoice: Invoice) => {
     setSelectedInvoice(invoice);
     setDialogOpen(true);
+    // Load payment history when dialog opens
+    await loadPaymentHistory(invoice.id);
   };
 
   // Handle dialog close
@@ -253,6 +292,26 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
       default:
         return 'This invoice is ready for payment.';
     }
+  };
+
+  // Get payment status color
+  const getPaymentStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'verified':
+        return 'success';
+      case 'pending_verification':
+        return 'warning';
+      case 'rejected':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  // Format payment method for display
+  const formatPaymentMethod = (method: string) => {
+    if (!method) return '-';
+    return method.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
   return (
@@ -482,226 +541,145 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         </TableContainer>
       </Paper>
 
-      {/* Invoice Detail Dialog */}
-      <Dialog
-        open={dialogOpen}
-        onClose={handleDialogClose}
-        maxWidth="md"
+      {/* Invoice Details Dialog */}
+      <Dialog 
+        open={dialogOpen} 
+        onClose={handleDialogClose} 
+        maxWidth="md" 
         fullWidth
       >
         <DialogTitle>
-          Invoice Details - {selectedInvoice?.invoice_number}
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">
+              Invoice Details - {selectedInvoice?.invoice_number}
+            </Typography>
+            <IconButton onClick={handleDialogClose}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
         </DialogTitle>
         <DialogContent>
           {selectedInvoice && (
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
+            <Box sx={{ mt: 2 }}>
+              {/* Invoice Summary */}
+              <Paper sx={{ p: 2, mb: 2 }}>
                 <Typography variant="h6" gutterBottom>
-                  Invoice Information
+                  Invoice Summary
                 </Typography>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Invoice Number
-                  </Typography>
-                  <Typography variant="body1">
-                    {selectedInvoice.invoice_number}
-                  </Typography>
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Created Date
-                  </Typography>
-                  <Typography variant="body1">
-                    {formatDisplayDate(selectedInvoice.created_at)}
-                  </Typography>
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Due Date
-                  </Typography>
-                  <Typography 
-                    variant="body1"
-                    color={isOverdue(selectedInvoice.due_date) ? 'error.main' : 'inherit'}
-                  >
-                    {formatDisplayDate(selectedInvoice.due_date)}
-                  </Typography>
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Status
-                  </Typography>
-                  <Chip
-                    label={selectedInvoice.payment_status || selectedInvoice.status}
-                    color={getStatusColor(selectedInvoice.payment_status || selectedInvoice.status)}
-                    size="small"
-                  />
-                </Box>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>
-                  Course Information
-                </Typography>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Course Type
-                  </Typography>
-                  <Typography variant="body1">
-                    {selectedInvoice.course_type_name}
-                  </Typography>
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Course Date
-                  </Typography>
-                  <Typography variant="body1">
-                    {formatDisplayDate(selectedInvoice.course_date)}
-                  </Typography>
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Location
-                  </Typography>
-                  <Typography variant="body1">
-                    {selectedInvoice.location}
-                  </Typography>
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Students Billed
-                  </Typography>
-                  <Typography variant="body1">
-                    {selectedInvoice.students_billed}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12}>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Invoice Number:
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium">
+                      {selectedInvoice.invoice_number}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Invoice Date:
+                    </Typography>
+                    <Typography variant="body1">
+                      {formatDisplayDate(selectedInvoice.created_at)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Due Date:
+                    </Typography>
+                    <Typography variant="body1">
+                      {formatDisplayDate(selectedInvoice.due_date)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Course Type:
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedInvoice.course_type_name}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Location:
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedInvoice.location}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Students Billed:
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedInvoice.students_billed}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* Cost Breakdown */}
+              <Paper sx={{ p: 2, mb: 2 }}>
                 <Typography variant="h6" gutterBottom>
                   Cost Breakdown
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} md={3}>
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Base Cost
-                      </Typography>
-                      <Typography variant="h6">
-                        ${Number(selectedInvoice.base_cost || 0).toFixed(2)}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Tax (HST)
-                      </Typography>
-                      <Typography variant="h6">
-                        ${Number(selectedInvoice.tax_amount || 0).toFixed(2)}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Total Amount
-                      </Typography>
-                      <Typography variant="h6">
-                        ${(Number(selectedInvoice.base_cost || 0) + Number(selectedInvoice.tax_amount || 0)).toFixed(2)}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Amount Paid
-                      </Typography>
-                      <Typography variant="h6" color="success.main">
-                        ${Number(selectedInvoice.amount_paid).toFixed(2)}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Balance Due
-                      </Typography>
-                      <Typography 
-                        variant="h6"
-                        color={selectedInvoice.balance_due > 0 ? 'error.main' : 'success.main'}
-                      >
-                        ${Number(selectedInvoice.balance_due).toFixed(2)}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Rate per Student
-                      </Typography>
-                      <Typography variant="h6">
-                        ${(Number(selectedInvoice.rate_per_student) || (Number(selectedInvoice.amount) / Number(selectedInvoice.students_billed))).toFixed(2)}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </Grid>
-              {selectedInvoice.paid_date && (
-                <Grid item xs={12}>
-                  <Box sx={{ mt: 2 }}>
+                  <Grid item xs={6}>
                     <Typography variant="body2" color="text.secondary">
-                      Paid Date
+                      Base Cost:
                     </Typography>
                     <Typography variant="body1">
-                      {formatDisplayDate(selectedInvoice.paid_date)}
+                      ${(selectedInvoice.base_cost || 0).toFixed(2)}
                     </Typography>
-                  </Box>
-                </Grid>
-              )}
-              
-              {/* Payment Submission Section */}
-              {canSubmitPayment(selectedInvoice) && (
-                <Grid item xs={12}>
-                  <Divider sx={{ my: 2 }} />
-                  <Box sx={{ 
-                    p: 2, 
-                    bgcolor: 'primary.light', 
-                    borderRadius: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <InfoIcon color="primary" />
-                    <Typography variant="body2" color="primary.dark">
-                      You can submit payment information for this invoice. Payment will be verified by accounting before being applied.
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Tax (HST):
                     </Typography>
-                  </Box>
+                    <Typography variant="body1">
+                      ${(selectedInvoice.tax_amount || 0).toFixed(2)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Total Amount:
+                    </Typography>
+                    <Typography variant="body1" fontWeight="bold">
+                      ${selectedInvoice.amount.toFixed(2)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Amount Paid:
+                    </Typography>
+                    <Typography variant="body1" color="success.main" fontWeight="bold">
+                      ${selectedInvoice.amount_paid.toFixed(2)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Divider sx={{ my: 1 }} />
+                    <Typography variant="body2" color="text.secondary">
+                      Balance Due:
+                    </Typography>
+                    <Typography variant="h6" color={selectedInvoice.balance_due > 0 ? 'error.main' : 'success.main'} fontWeight="bold">
+                      ${selectedInvoice.balance_due.toFixed(2)}
+                    </Typography>
+                  </Grid>
                 </Grid>
-              )}
+              </Paper>
 
-              {/* Payment Status Section */}
-              <Grid item xs={12}>
-                <Divider sx={{ my: 2 }} />
-                <Box sx={{ 
-                  p: 2, 
-                  bgcolor: 'grey.50', 
-                  borderRadius: 1
-                }}>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Payment Status
-                  </Typography>
-                  <Typography variant="body1">
-                    {getPaymentStatusMessage(selectedInvoice)}
-                  </Typography>
-                  {selectedInvoice?.status === 'payment_submitted' && (
-                    <Typography variant="body2" color="info.main" sx={{ mt: 1 }}>
-                      Once verified by accounting, the invoice will be marked as paid if the full amount is covered, 
-                      or revert to pending if it's a partial payment.
-                    </Typography>
-                  )}
-                </Box>
-              </Grid>
-            </Grid>
+              {/* Payment History */}
+              <Paper sx={{ p: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  Payment History
+                </Typography>
+                <PaymentHistoryTable 
+                  payments={paymentHistory}
+                  isLoading={loadingPaymentHistory}
+                  showVerificationDetails={true}
+                />
+              </Paper>
+            </Box>
           )}
         </DialogContent>
         <DialogActions>
@@ -770,6 +748,8 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                   const parts = numericValue.split('.');
                   const formattedValue = parts.length > 2 
                     ? parts[0] + '.' + parts.slice(1).join('')
+                    : parts.length === 2 && parts[1].length > 2
+                    ? parts[0] + '.' + parts[1].substring(0, 2) // Limit to 2 decimal places
                     : numericValue;
                   setPaymentForm({ ...paymentForm, amount: formattedValue });
                 }}
