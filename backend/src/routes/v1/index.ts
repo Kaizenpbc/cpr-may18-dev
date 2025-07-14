@@ -15,6 +15,7 @@ import cacheRouter from './cache.js';
 import organizationRouter from './organization.js';
 import organizationPricingRouter from './organizationPricing.js';
 import sysadminRouter from './sysadmin.js';
+import profileChangesRouter from './profile-changes.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import bcrypt from 'bcryptjs';
@@ -37,6 +38,10 @@ console.log('✅ Organization pricing routes mounted');
 // Mount sysadmin routes
 router.use('/sysadmin', sysadminRouter);
 console.log('✅ Sysadmin routes mounted');
+
+// Mount profile changes routes
+router.use('/profile-changes', profileChangesRouter);
+console.log('✅ Profile changes routes mounted');
 
 console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
 
@@ -5756,5 +5761,154 @@ router.post(
     }
   })
 );
+
+// Add HR role to existing roles
+const VALID_ROLES = ['instructor', 'organization', 'courseadmin', 'accountant', 'sysadmin', 'hr'];
+
+// HR Portal endpoints
+router.get('/hr/dashboard', authenticateToken, asyncHandler(async (req, res) => {
+  const { role } = req.user;
+  
+  if (role !== 'hr' && role !== 'sysadmin') {
+    return res.status(403).json({ success: false, message: 'Access denied. HR role required.' });
+  }
+
+  try {
+    // Get pending profile approvals count
+    const pendingApprovalsResult = await pool.query(`
+      SELECT COUNT(*) as count FROM profile_changes WHERE status = 'pending'
+    `);
+    
+    // Get active instructors count
+    const activeInstructorsResult = await pool.query(`
+      SELECT COUNT(*) as count FROM users WHERE role = 'instructor' AND status = 'active'
+    `);
+    
+    // Get organizations count
+    const organizationsResult = await pool.query(`
+      SELECT COUNT(*) as count FROM organizations WHERE status = 'active'
+    `);
+    
+    // Get expiring certifications count (within 30 days)
+    const expiringCertificationsResult = await pool.query(`
+      SELECT COUNT(*) as count FROM instructor_certifications 
+      WHERE expiration_date <= CURRENT_DATE + INTERVAL '30 days' 
+      AND expiration_date > CURRENT_DATE
+    `);
+
+    const dashboardData = {
+      pendingApprovals: pendingApprovalsResult.rows[0]?.count || 0,
+      activeInstructors: activeInstructorsResult.rows[0]?.count || 0,
+      organizations: organizationsResult.rows[0]?.count || 0,
+      expiringCertifications: expiringCertificationsResult.rows[0]?.count || 0,
+    };
+
+    res.json({ success: true, data: dashboardData });
+  } catch (error) {
+    console.error('HR Dashboard Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load HR dashboard data' });
+  }
+}));
+
+// Get pending profile changes
+router.get('/hr/profile-changes', authenticateToken, asyncHandler(async (req, res) => {
+  const { role } = req.user;
+  
+  if (role !== 'hr' && role !== 'sysadmin') {
+    return res.status(403).json({ success: false, message: 'Access denied. HR role required.' });
+  }
+
+  try {
+    const result = await pool.query(`
+      SELECT 
+        pc.id,
+        pc.user_id,
+        pc.change_type,
+        pc.field_name,
+        pc.old_value,
+        pc.new_value,
+        pc.status,
+        pc.created_at,
+        pc.updated_at,
+        u.username,
+        u.role,
+        CASE 
+          WHEN u.role = 'instructor' THEN i.name
+          WHEN u.role = 'organization' THEN o.name
+          ELSE u.username
+        END as display_name
+      FROM profile_changes pc
+      JOIN users u ON pc.user_id = u.id
+      LEFT JOIN instructors i ON u.id = i.user_id
+      LEFT JOIN organizations o ON u.id = o.user_id
+      WHERE pc.status = 'pending'
+      ORDER BY pc.created_at ASC
+    `);
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Profile Changes Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load profile changes' });
+  }
+}));
+
+// Approve/reject profile change
+router.post('/hr/profile-changes/:id/approve', authenticateToken, asyncHandler(async (req, res) => {
+  const { role } = req.user;
+  const { id } = req.params;
+  const { action, comment } = req.body; // action: 'approve' or 'reject'
+  
+  if (role !== 'hr' && role !== 'sysadmin') {
+    return res.status(403).json({ success: false, message: 'Access denied. HR role required.' });
+  }
+
+  try {
+    // Get the profile change
+    const changeResult = await pool.query(`
+      SELECT * FROM profile_changes WHERE id = $1
+    `, [id]);
+
+    if (changeResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Profile change not found' });
+    }
+
+    const change = changeResult.rows[0];
+
+    if (action === 'approve') {
+      // Apply the change to the user's profile
+      await pool.query(`
+        UPDATE profile_changes 
+        SET status = 'approved', updated_at = CURRENT_TIMESTAMP, hr_comment = $1
+        WHERE id = $2
+      `, [comment, id]);
+
+      // Update the actual profile data based on change_type
+      if (change.change_type === 'instructor') {
+        await pool.query(`
+          UPDATE instructors SET ${change.field_name} = $1 WHERE user_id = $2
+        `, [change.new_value, change.user_id]);
+      } else if (change.change_type === 'organization') {
+        await pool.query(`
+          UPDATE organizations SET ${change.field_name} = $1 WHERE user_id = $2
+        `, [change.new_value, change.user_id]);
+      }
+
+      res.json({ success: true, message: 'Profile change approved successfully' });
+    } else if (action === 'reject') {
+      await pool.query(`
+        UPDATE profile_changes 
+        SET status = 'rejected', updated_at = CURRENT_TIMESTAMP, hr_comment = $1
+        WHERE id = $2
+      `, [comment, id]);
+
+      res.json({ success: true, message: 'Profile change rejected' });
+    } else {
+      res.status(400).json({ success: false, message: 'Invalid action. Use "approve" or "reject"' });
+    }
+  } catch (error) {
+    console.error('Profile Change Approval Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to process profile change' });
+  }
+}));
 
 export default router;

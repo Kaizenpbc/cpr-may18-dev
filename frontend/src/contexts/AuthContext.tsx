@@ -98,6 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         accountant: '/accounting/dashboard',
         superadmin: '/superadmin/dashboard',
         sysadmin: '/sysadmin/dashboard',
+        hr: '/hr',
       };
 
       const targetRoute = roleRoutes[response.user.role as keyof typeof roleRoutes] || '/';

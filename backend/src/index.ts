@@ -323,6 +323,12 @@ import organizationPricingRoutes from './routes/v1/organizationPricing.js';
 app.use('/api/v1/organization-pricing', organizationPricingRoutes);
 console.log('✅ Organization pricing routes configured');
 
+// Profile changes routes
+console.log('11d. Setting up profile changes routes...');
+import profileChangesRoutes from './routes/v1/profile-changes.js';
+app.use('/api/v1/profile-changes', profileChangesRoutes);
+console.log('✅ Profile changes routes configured');
+
 // SSE endpoint
 console.log('12. Setting up SSE endpoint...');
 app.get('/api/v1/events', (req: Request, res: Response) => {

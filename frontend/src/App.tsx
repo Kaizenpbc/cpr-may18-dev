@@ -18,6 +18,7 @@ import TestCSV from './pages/TestCSV';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RealtimeProvider } from './contexts/RealtimeContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
+import HRPortal from './components/portals/HRPortal';
 
 console.log('[DEEP TRACE] App.tsx - Starting to load dependencies');
 
@@ -54,7 +55,7 @@ function App() {
                 <Route path='/forgot-password' element={<ForgotPassword />} />
                 <Route path='/reset-password' element={<ResetPassword />} />
                 <Route path='/test-csv' element={<TestCSV />} />
-                <Route path='/' element={<Navigate to="/login" replace />} />
+                <Route path='/' element={<RoleBasedRouter />} />
 
                 {/* Protected routes */}
                 <Route
@@ -109,6 +110,16 @@ function App() {
                       <SystemAdminPortal />
                     </PrivateRoute>
                   }
+                />
+
+                {/* HR Portal Route */}
+                <Route 
+                  path="/hr" 
+                  element={
+                    <PrivateRoute allowedRoles={['hr', 'sysadmin']}>
+                      <HRPortal />
+                    </PrivateRoute>
+                  } 
                 />
 
                 {/* Legacy routes for backward compatibility */}
