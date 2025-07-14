@@ -83,6 +83,13 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
       showInBottomNav: true,
     },
     {
+      id: 'timesheet',
+      label: 'Timesheet',
+      icon: <AssignmentIcon />,
+      path: '/instructor/timesheet',
+      showInBottomNav: true,
+    },
+    {
       id: 'class-attendance',
       label: 'Class Attendance',
       icon: <AttendanceIcon />,

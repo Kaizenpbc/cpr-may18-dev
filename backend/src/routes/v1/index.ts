@@ -17,6 +17,9 @@ import organizationPricingRouter from './organizationPricing.js';
 import sysadminRouter from './sysadmin.js';
 import profileChangesRouter from './profile-changes.js';
 import hrDashboardRouter from './hr-dashboard.js';
+import timesheetRouter from './timesheet.js';
+import payrollRouter from './payroll.js';
+import notificationsRouter from './notifications.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import bcrypt from 'bcryptjs';
@@ -47,6 +50,18 @@ console.log('✅ Profile changes routes mounted');
 // Mount HR dashboard routes
 router.use('/hr-dashboard', hrDashboardRouter);
 console.log('✅ HR dashboard routes mounted');
+
+// Mount timesheet routes
+router.use('/timesheet', timesheetRouter);
+console.log('✅ Timesheet routes mounted');
+
+// Mount payroll routes
+router.use('/payroll', payrollRouter);
+console.log('✅ Payroll routes mounted');
+
+// Mount notifications routes
+router.use('/notifications', notificationsRouter);
+console.log('✅ Notifications routes mounted');
 
 console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
 

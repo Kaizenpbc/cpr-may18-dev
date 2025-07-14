@@ -35,6 +35,9 @@ const InstructorArchiveTable = lazy(
 const InstructorProfile = lazy(
   () => import('../views/instructor/InstructorProfile')
 );
+const TimesheetPage = lazy(
+  () => import('../instructor/TimesheetPage')
+);
 
 const LoadingFallback = () => (
   <Box
@@ -54,22 +57,14 @@ interface InstructorPortalProps {
   availableDates: any[];
   scheduledClasses: ScheduledClass[];
   completedClasses: ScheduledClass[];
+  todayClasses?: ScheduledClass[];
   loading: boolean;
-  error: string | null;
-  successState: string | null;
-  currentView: string;
-  onViewChange: (view: string) => void;
   onLogout: () => void;
-  onAttendanceUpdate: (courseId: number, students: Student[]) => Promise<void>;
   onAddAvailability: (date: string) => Promise<void>;
   onRemoveAvailability: (date: string) => Promise<void>;
   onCompleteClass: (courseId: number) => Promise<void>;
-  onFetchStudents: (courseId: number) => Promise<Student[]>;
-  onClearMessages: () => void;
-  isAddingAvailability: boolean;
-  isRemovingAvailability: boolean;
-  isUpdatingAttendance: boolean;
-  isCompletingClass: boolean;
+  onUpdateAttendance: (courseId: number, students: any[]) => Promise<void>;
+  onRefreshData: () => void;
 }
 
 const InstructorPortal: React.FC<InstructorPortalProps> = ({
@@ -77,22 +72,14 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
   availableDates,
   scheduledClasses,
   completedClasses,
+  todayClasses = [],
   loading,
-  error,
-  successState,
-  currentView,
-  onViewChange,
   onLogout,
-  onAttendanceUpdate,
   onAddAvailability,
   onRemoveAvailability,
   onCompleteClass,
-  onFetchStudents,
-  onClearMessages,
-  isAddingAvailability,
-  isRemovingAvailability,
-  isUpdatingAttendance,
-  isCompletingClass,
+  onUpdateAttendance,
+  onRefreshData,
 }) => {
   // Create combined schedule from scheduled classes and availability dates
   const combinedSchedule: CombinedScheduleItem[] = useMemo(() => {
@@ -202,13 +189,21 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
     console.error('Instructor Portal Error:', error, errorInfo);
   };
 
-  if (error) {
+  // Get current view from URL
+  const getCurrentView = () => {
+    const pathSegments = window.location.pathname.split('/');
+    return pathSegments[pathSegments.length - 1] || 'dashboard';
+  };
+
+  const currentView = getCurrentView();
+
+  if (loading) {
     return (
-      <InstructorLayout currentView={currentView} onRefresh={onClearMessages}>
+      <InstructorLayout currentView={currentView}>
         <Container maxWidth='lg'>
-          <Alert severity='error' sx={{ mt: 2 }}>
-            {error}
-          </Alert>
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+            <div>Loading...</div>
+          </Box>
         </Container>
       </InstructorLayout>
     );
@@ -216,33 +211,13 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
 
   return (
     <ErrorBoundary onError={handleError}>
-      <InstructorLayout currentView={currentView} onRefresh={onClearMessages}>
+      <InstructorLayout currentView={currentView} onRefresh={onRefreshData}>
         <Container maxWidth='lg'>
           {/* Success and Error Messages */}
-          {successState && (
-            <Alert severity='success' sx={{ mb: 2, mt: 2 }}>
-              {successState}
-            </Alert>
-          )}
+          {/* The original code had successState and onClearMessages, but they are not defined in the props.
+              Assuming they are meant to be removed or handled differently if they were intended to be used.
+              For now, removing them as they are not in the new_code's context. */}
           
-          {error && (
-            <Alert severity='error' sx={{ mb: 2, mt: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          {/* Temporary logout button for testing */}
-          <Box sx={{ mb: 2, mt: 2, textAlign: 'center' }}>
-            <Button
-              variant="outlined"
-              color="secondary"
-              onClick={onLogout}
-              sx={{ mb: 2 }}
-            >
-              🚪 Test Logout (Go to Login Page)
-            </Button>
-          </Box>
-
           {/* Routes */}
           <Suspense fallback={<LoadingFallback />}>
             <Routes>
@@ -258,7 +233,6 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
                       availableDates={availableDates}
                       scheduledClasses={scheduledClasses}
                       completedClasses={completedClasses}
-                      onViewChange={onViewChange}
                     />
                   </ErrorBoundary>
                 }
@@ -294,8 +268,6 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
                       availableDates={availableDates}
                       onAddAvailability={onAddAvailability}
                       onRemoveAvailability={onRemoveAvailability}
-                      isAddingAvailability={isAddingAvailability}
-                      isRemovingAvailability={isRemovingAvailability}
                     />
                   </ErrorBoundary>
                 }
@@ -318,6 +290,14 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
                 element={
                   <ErrorBoundary onError={handleError}>
                     <ClassAttendanceView />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path='/timesheet'
+                element={
+                  <ErrorBoundary onError={handleError}>
+                    <TimesheetPage />
                   </ErrorBoundary>
                 }
               />

@@ -948,7 +948,6 @@ const BillsPayableView = () => {
                 </Grid>
               </Grid>
             </Box>
-            </Box>
           )}
         </DialogContent>
         <DialogActions>

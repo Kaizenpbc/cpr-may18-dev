@@ -37,9 +37,9 @@ const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({
     },
     {
       icon: <AssignmentIcon />,
-      title: 'View Archive',
-      buttonText: 'Past Classes',
-      route: '/instructor/archive',
+      title: 'Timesheet Management',
+      buttonText: 'Submit Timesheet',
+      route: '/instructor/timesheet',
       color: 'info'
     },
     {

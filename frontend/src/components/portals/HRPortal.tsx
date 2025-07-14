@@ -40,15 +40,11 @@ import { useNavigate } from 'react-router-dom';
 import HRDashboard from './HRDashboard';
 import PersonnelManagement from './PersonnelManagement';
 import TestProfileChanges from '../TestProfileChanges';
+import TimesheetManagement from '../hr/TimesheetManagement';
+import PayrollManagement from '../hr/PayrollManagement';
+import NotificationsPanel from '../hr/NotificationsPanel';
 
 // Placeholder components for Phase 2
-const TimesheetManagement = () => (
-  <Box>
-    <Typography variant="h4" gutterBottom>Timesheet Management</Typography>
-    <Typography>Instructor timesheet tracking and approval will be implemented here.</Typography>
-  </Box>
-);
-
 const HRReports = () => (
   <Box>
     <Typography variant="h4" gutterBottom>HR Reports</Typography>
@@ -71,6 +67,8 @@ const HRPortal: React.FC = () => {
     { text: 'Dashboard', icon: <DashboardIcon />, value: 'dashboard' },
     { text: 'Personnel Management', icon: <PeopleIcon />, value: 'personnel' },
     { text: 'Timesheet Management', icon: <AssignmentIcon />, value: 'timesheet' },
+    { text: 'Payroll Management', icon: <PaymentIcon />, value: 'payroll' },
+    { text: 'Notifications', icon: <NotificationsIcon />, value: 'notifications' },
     { text: 'HR Reports', icon: <AssessmentIcon />, value: 'reports' },
   ];
 
@@ -82,6 +80,10 @@ const HRPortal: React.FC = () => {
         return <PersonnelManagement onViewChange={setSelectedView} />;
       case 'timesheet':
         return <TimesheetManagement />;
+      case 'payroll':
+        return <PayrollManagement />;
+      case 'notifications':
+        return <NotificationsPanel />;
       case 'reports':
         return <HRReports />;
       default:

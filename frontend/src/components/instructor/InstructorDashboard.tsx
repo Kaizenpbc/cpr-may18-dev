@@ -199,80 +199,73 @@ const InstructorDashboard: React.FC = () => {
         </Box>
       )}
 
-      {/* Dashboard Stats Component */}
-
-      {/* Quick Stats Cards */}
+      {/* Quick Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ bgcolor: 'primary.main' }}>
-                  <ClassIcon />
-                </Avatar>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <ClassIcon sx={{ mr: 1, color: 'primary.main' }} />
                 <Box>
-                  <Typography variant="h6" component="div">
-                    {dashboardData?.instructorStats.total_courses || 0}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" component="div">
+                  <Typography color="textSecondary" gutterBottom>
                     Total Classes
                   </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ bgcolor: 'info.main' }}>
-                  <ScheduleIcon />
-                </Avatar>
-                <Box>
-                  <Typography variant="h6" component="div">
-                    {dashboardData?.instructorStats.scheduled_courses || 0}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" component="div">
-                    Upcoming Classes
+                  <Typography variant="h4">
+                    {totalClasses}
                   </Typography>
                 </Box>
               </Box>
             </CardContent>
           </Card>
         </Grid>
+        
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ bgcolor: 'success.main' }}>
-                  <PeopleIcon />
-                </Avatar>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <ScheduleIcon sx={{ mr: 1, color: 'success.main' }} />
                 <Box>
-                  <Typography variant="h6" component="div">
-                    {dashboardData?.instructorStats.completed_courses || 0}
+                  <Typography color="textSecondary" gutterBottom>
+                    Today's Classes
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" component="div">
-                    Completed Classes
+                  <Typography variant="h4">
+                    {todayClassesCount}
                   </Typography>
                 </Box>
               </Box>
             </CardContent>
           </Card>
         </Grid>
+        
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ bgcolor: 'warning.main' }}>
-                  <CalendarIcon />
-                </Avatar>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <PeopleIcon sx={{ mr: 1, color: 'info.main' }} />
                 <Box>
-                  <Typography variant="h6" component="div">
+                  <Typography color="textSecondary" gutterBottom>
+                    Total Students
+                  </Typography>
+                  <Typography variant="h4">
                     {totalStudents}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" component="div">
-                    Total Students
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <EventAvailableIcon sx={{ mr: 1, color: 'warning.main' }} />
+                <Box>
+                  <Typography color="textSecondary" gutterBottom>
+                    Available Dates
+                  </Typography>
+                  <Typography variant="h4">
+                    {(availableDates as any[]).length}
                   </Typography>
                 </Box>
               </Box>
@@ -281,68 +274,82 @@ const InstructorDashboard: React.FC = () => {
         </Grid>
       </Grid>
 
-      {/* Today's Classes */}
-      <TodayClassesList classes={todayClasses as any[]} />
-
       {/* Quick Actions */}
       <QuickActionsGrid />
 
-      {/* Upcoming Classes Section */}
-      {upcomingClasses.length > 0 && (
-        <Paper sx={{ p: 3, mt: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6" component="div">Upcoming Classes</Typography>
-            <Button
-              variant="outlined"
-              endIcon={<ArrowForwardIcon />}
-              onClick={() => navigate('/instructor/classes')}
-            >
-              View All
-            </Button>
-          </Box>
-          
-          <List>
-            {upcomingClasses.slice(0, 5).map((cls) => (
-              <ListItem key={cls.course_id} divider>
-                <ListItemText
-                  primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="subtitle1" component="div">
-                        {cls.name}
-                      </Typography>
-                      <Chip
-                        label={cls.status || 'Scheduled'}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
+      {/* Today's Classes */}
+      <Box sx={{ mb: 4 }}>
+        <TodayClassesList classes={todayClasses || []} />
+      </Box>
+
+      {/* Recent Classes */}
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Upcoming Classes
+              </Typography>
+              {upcomingClasses.length > 0 ? (
+                <List>
+                  {upcomingClasses.slice(0, 5).map((cls: any, index: number) => (
+                    <ListItem key={index} divider>
+                      <ListItemText
+                        primary={cls.coursename || 'Course'}
+                        secondary={`${formatDate(cls.date)} • ${cls.studentcount || 0} students`}
                       />
-                    </Box>
-                  }
-                  secondary={
-                    <Box component="div">
-                      <Typography variant="body2" color="text.secondary" component="div">
-                        {formatDate(cls.date)} • {cls.location} • {cls.organizationname}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" component="div">
-                        Students: {cls.studentcount || 0}
-                      </Typography>
-                    </Box>
-                  }
-                />
-                <ListItemSecondaryAction>
-                  <IconButton
-                    edge="end"
-                    onClick={() => navigate(`/instructor/attendance/${cls.course_id}`)}
-                    color="primary"
-                  >
-                    <AssignmentIcon />
-                  </IconButton>
-                </ListItemSecondaryAction>
-              </ListItem>
-            ))}
-          </List>
-        </Paper>
-      )}
+                      <ListItemSecondaryAction>
+                        <IconButton
+                          edge="end"
+                          onClick={() => navigate(`/instructor/classes/${cls.id}`)}
+                        >
+                          <ArrowForwardIcon />
+                        </IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <Typography color="textSecondary">
+                  No upcoming classes scheduled.
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Recent Completed Classes
+              </Typography>
+              {(completedClasses as any[]).length > 0 ? (
+                <List>
+                  {(completedClasses as any[]).slice(0, 5).map((cls: any, index: number) => (
+                    <ListItem key={index} divider>
+                      <ListItemText
+                        primary={cls.coursename || 'Course'}
+                        secondary={`${formatDate(cls.date)} • ${cls.studentcount || 0} students`}
+                      />
+                      <Chip 
+                        label="Completed" 
+                        color="success" 
+                        size="small"
+                        sx={{ ml: 1 }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <Typography color="textSecondary">
+                  No completed classes yet.
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
     </Box>
   );
 };

@@ -27,10 +27,10 @@ interface ClassData {
 }
 
 interface TodayClassesListProps {
-  classes: ClassData[];
+  classes?: ClassData[];
 }
 
-const TodayClassesList: React.FC<TodayClassesListProps> = ({ classes }) => {
+const TodayClassesList: React.FC<TodayClassesListProps> = ({ classes = [] }) => {
   const navigate = useNavigate();
 
   return (
