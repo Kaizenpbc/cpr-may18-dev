@@ -36,61 +36,16 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-// Placeholder components - will be implemented next
-const HRDashboard = () => (
-  <Box>
-    <Typography variant="h4" gutterBottom>HR Dashboard</Typography>
-    <Grid container spacing={3}>
-      <Grid item xs={12} md={6} lg={3}>
-        <Card>
-          <CardContent>
-            <Typography color="textSecondary" gutterBottom>Pending Approvals</Typography>
-            <Typography variant="h4">12</Typography>
-          </CardContent>
-        </Card>
-      </Grid>
-      <Grid item xs={12} md={6} lg={3}>
-        <Card>
-          <CardContent>
-            <Typography color="textSecondary" gutterBottom>Active Instructors</Typography>
-            <Typography variant="h4">45</Typography>
-          </CardContent>
-        </Card>
-      </Grid>
-      <Grid item xs={12} md={6} lg={3}>
-        <Card>
-          <CardContent>
-            <Typography color="textSecondary" gutterBottom>Organizations</Typography>
-            <Typography variant="h4">23</Typography>
-          </CardContent>
-        </Card>
-      </Grid>
-      <Grid item xs={12} md={6} lg={3}>
-        <Card>
-          <CardContent>
-            <Typography color="textSecondary" gutterBottom>Expiring Certifications</Typography>
-            <Typography variant="h4">8</Typography>
-          </CardContent>
-        </Card>
-      </Grid>
-    </Grid>
-  </Box>
-);
-
+// Import the new components
+import HRDashboard from './HRDashboard';
+import PersonnelManagement from './PersonnelManagement';
 import TestProfileChanges from '../TestProfileChanges';
 
-const PersonnelManagement = () => (
-  <Box>
-    <Typography variant="h4" gutterBottom>Personnel Management</Typography>
-    <Typography>Instructor and Organization profile management will be implemented here.</Typography>
-    <TestProfileChanges />
-  </Box>
-);
-
+// Placeholder components for Phase 2
 const TimesheetManagement = () => (
   <Box>
     <Typography variant="h4" gutterBottom>Timesheet Management</Typography>
-    <Typography>Timesheet approval and payroll processing will be implemented here.</Typography>
+    <Typography>Instructor timesheet tracking and approval will be implemented here.</Typography>
   </Box>
 );
 
@@ -122,15 +77,15 @@ const HRPortal: React.FC = () => {
   const renderView = () => {
     switch (selectedView) {
       case 'dashboard':
-        return <HRDashboard />;
+        return <HRDashboard onViewChange={setSelectedView} />;
       case 'personnel':
-        return <PersonnelManagement />;
+        return <PersonnelManagement onViewChange={setSelectedView} />;
       case 'timesheet':
         return <TimesheetManagement />;
       case 'reports':
         return <HRReports />;
       default:
-        return <HRDashboard />;
+        return <HRDashboard onViewChange={setSelectedView} />;
     }
   };
 
@@ -199,19 +154,19 @@ const HRPortal: React.FC = () => {
               />
             </ListItem>
             <ListItem disablePadding>
-              <ListItemButton>
+              <ListItemButton onClick={() => setSelectedView('personnel')}>
                 <ListItemIcon><PersonIcon /></ListItemIcon>
                 <ListItemText primary="Instructor Profiles" />
               </ListItemButton>
             </ListItem>
             <ListItem disablePadding>
-              <ListItemButton>
+              <ListItemButton onClick={() => setSelectedView('personnel')}>
                 <ListItemIcon><BusinessIcon /></ListItemIcon>
                 <ListItemText primary="Organization Profiles" />
               </ListItemButton>
             </ListItem>
             <ListItem disablePadding>
-              <ListItemButton>
+              <ListItemButton onClick={() => setSelectedView('timesheet')}>
                 <ListItemIcon><ScheduleIcon /></ListItemIcon>
                 <ListItemText primary="Timesheet Approval" />
               </ListItemButton>

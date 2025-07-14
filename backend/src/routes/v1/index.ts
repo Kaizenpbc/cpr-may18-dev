@@ -16,6 +16,7 @@ import organizationRouter from './organization.js';
 import organizationPricingRouter from './organizationPricing.js';
 import sysadminRouter from './sysadmin.js';
 import profileChangesRouter from './profile-changes.js';
+import hrDashboardRouter from './hr-dashboard.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import bcrypt from 'bcryptjs';
@@ -42,6 +43,10 @@ console.log('✅ Sysadmin routes mounted');
 // Mount profile changes routes
 router.use('/profile-changes', profileChangesRouter);
 console.log('✅ Profile changes routes mounted');
+
+// Mount HR dashboard routes
+router.use('/hr-dashboard', hrDashboardRouter);
+console.log('✅ HR dashboard routes mounted');
 
 console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
 
