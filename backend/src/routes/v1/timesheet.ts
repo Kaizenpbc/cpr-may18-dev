@@ -1,7 +1,7 @@
 import express from 'express';
 import { authenticateToken } from '../../middleware/authMiddleware';
 import { asyncHandler } from '../../middleware/asyncHandler';
-import { AppError } from '../../utils/errorHandler';
+import { AppError, errorCodes } from '../../utils/errorHandler';
 import { pool } from '../../config/database';
 
 const router = express.Router();
@@ -9,7 +9,7 @@ const router = express.Router();
 // Middleware to ensure HR or instructor role
 const requireTimesheetAccess = (req: any, res: any, next: any) => {
   if (!['hr', 'instructor'].includes(req.user.role)) {
-    throw new AppError('Access denied. HR or instructor role required.', 403);
+    throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. HR or instructor role required.');
   }
   next();
 };
@@ -17,7 +17,7 @@ const requireTimesheetAccess = (req: any, res: any, next: any) => {
 // Get Timesheet Statistics (HR only)
 router.get('/stats', authenticateToken, asyncHandler(async (req, res) => {
   if (req.user.role !== 'hr') {
-    throw new AppError('Access denied. HR role required.', 403);
+    throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. HR role required.');
   }
 
   const client = await pool.connect();
@@ -165,7 +165,7 @@ router.get('/:timesheetId', authenticateToken, requireTimesheetAccess, asyncHand
     `, params);
     
     if (timesheetResult.rows.length === 0) {
-      throw new AppError('Timesheet not found.', 404);
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Timesheet not found.');
     }
     
     res.json({
@@ -180,13 +180,21 @@ router.get('/:timesheetId', authenticateToken, requireTimesheetAccess, asyncHand
 // Submit Timesheet (Instructors only)
 router.post('/', authenticateToken, asyncHandler(async (req, res) => {
   if (req.user.role !== 'instructor') {
-    throw new AppError('Only instructors can submit timesheets.', 403);
+    throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only instructors can submit timesheets.');
   }
 
   const { week_start_date, total_hours, courses_taught, notes } = req.body;
   
-  if (!week_start_date || !total_hours) {
-    throw new AppError('Week start date and total hours are required.', 400);
+  if (!week_start_date) {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Week start date is required.');
+  }
+
+  // Validate that week_start_date is a Monday (frontend now auto-populates this correctly)
+  const [year, month, day] = week_start_date.split('-').map(Number);
+  const startDate = new Date(year, month - 1, day); // month is 0-indexed
+  const dayOfWeek = startDate.getDay();
+  if (dayOfWeek !== 1) { // 1 = Monday
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Week start date must be a Monday.');
   }
 
   const client = await pool.connect();
@@ -199,7 +207,7 @@ router.post('/', authenticateToken, asyncHandler(async (req, res) => {
     `, [req.user.id, week_start_date]);
     
     if (existingResult.rows.length > 0) {
-      throw new AppError('Timesheet already exists for this week.', 400);
+      throw new AppError(400, errorCodes.RESOURCE_ALREADY_EXISTS, 'Timesheet already exists for this week.');
     }
     
     // Insert new timesheet
@@ -209,7 +217,7 @@ router.post('/', authenticateToken, asyncHandler(async (req, res) => {
         courses_taught, notes, status, created_at, updated_at
       ) VALUES ($1, $2, $3, $4, $5, 'pending', NOW(), NOW())
       RETURNING *
-    `, [req.user.id, week_start_date, total_hours, courses_taught || 0, notes || '']);
+    `, [req.user.id, week_start_date, total_hours || 0, courses_taught || 0, notes || '']);
     
     res.json({
       success: true,
@@ -224,7 +232,7 @@ router.post('/', authenticateToken, asyncHandler(async (req, res) => {
 // Update Timesheet (Instructors only)
 router.put('/:timesheetId', authenticateToken, asyncHandler(async (req, res) => {
   if (req.user.role !== 'instructor') {
-    throw new AppError('Only instructors can update timesheets.', 403);
+    throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only instructors can update timesheets.');
   }
 
   const { timesheetId } = req.params;
@@ -240,11 +248,11 @@ router.put('/:timesheetId', authenticateToken, asyncHandler(async (req, res) => 
     `, [timesheetId, req.user.id]);
     
     if (existingResult.rows.length === 0) {
-      throw new AppError('Timesheet not found.', 404);
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Timesheet not found.');
     }
     
     if (existingResult.rows[0].status !== 'pending') {
-      throw new AppError('Cannot update approved or rejected timesheet.', 400);
+      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Cannot update approved or rejected timesheet.');
     }
     
     // Update timesheet
@@ -268,14 +276,14 @@ router.put('/:timesheetId', authenticateToken, asyncHandler(async (req, res) => 
 // Approve/Reject Timesheet (HR only)
 router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req, res) => {
   if (req.user.role !== 'hr') {
-    throw new AppError('Access denied. HR role required.', 403);
+    throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. HR role required.');
   }
 
   const { timesheetId } = req.params;
   const { action, comment } = req.body; // action: 'approve' or 'reject'
   
   if (!['approve', 'reject'].includes(action)) {
-    throw new AppError('Invalid action. Must be "approve" or "reject".', 400);
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid action. Must be "approve" or "reject".');
   }
   
   const client = await pool.connect();
@@ -289,7 +297,7 @@ router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req,
     `, [timesheetId]);
     
     if (timesheetResult.rows.length === 0) {
-      throw new AppError('Timesheet not found or already processed.', 404);
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Timesheet not found or already processed.');
     }
     
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
@@ -348,6 +356,65 @@ router.get('/instructor/:instructorId/summary', authenticateToken, requireTimesh
       data: {
         summary: summaryResult.rows[0],
         recentTimesheets: recentTimesheetsResult.rows
+      }
+    });
+  } finally {
+    client.release();
+  }
+}));
+
+// Get courses for a specific week (Monday to Sunday)
+router.get('/week/:weekStartDate/courses', authenticateToken, asyncHandler(async (req, res) => {
+  if (req.user.role !== 'instructor') {
+    throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only instructors can access this endpoint.');
+  }
+
+  const { weekStartDate } = req.params;
+  
+  // Validate that weekStartDate is a Monday (frontend now auto-populates this correctly)
+  const [year, month, day] = weekStartDate.split('-').map(Number);
+  const startDate = new Date(year, month - 1, day); // month is 0-indexed
+  const dayOfWeek = startDate.getDay();
+  if (dayOfWeek !== 1) { // 1 = Monday
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Week start date must be a Monday.');
+  }
+
+  // Calculate the end of the week (Sunday)
+  const endDate = new Date(startDate);
+  endDate.setDate(startDate.getDate() + 6); // Add 6 days to get to Sunday
+
+  const client = await pool.connect();
+  
+  try {
+    // Get courses for the week (Monday to Sunday)
+    const coursesResult = await client.query(`
+      SELECT 
+        cr.id,
+        cr.confirmed_date::text as date,
+        cr.confirmed_start_time::text as start_time,
+        cr.confirmed_end_time::text as end_time,
+        cr.status,
+        cr.location,
+        ct.name as course_type,
+        o.name as organization_name,
+        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as student_count
+      FROM course_requests cr
+      JOIN class_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN organizations o ON cr.organization_id = o.id
+      WHERE cr.instructor_id = $1
+      AND cr.confirmed_date >= $2::date
+      AND cr.confirmed_date <= $3::date
+      AND cr.status IN ('confirmed', 'completed')
+      ORDER BY cr.confirmed_date, cr.confirmed_start_time
+    `, [req.user.id, weekStartDate, endDate.toISOString().split('T')[0]]);
+    
+    res.json({
+      success: true,
+      data: {
+        week_start_date: weekStartDate,
+        week_end_date: endDate.toISOString().split('T')[0],
+        courses: coursesResult.rows,
+        total_courses: coursesResult.rows.length
       }
     });
   } finally {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -12,13 +12,20 @@ import {
   CardContent,
   Chip,
   Divider,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
 } from '@mui/material';
 import {
   Assignment as AssignmentIcon,
   Add as AddIcon,
   CheckCircle as CheckCircleIcon,
+  Event as EventIcon,
+  LocationOn as LocationIcon,
+  Group as GroupIcon,
 } from '@mui/icons-material';
-import { timesheetService, TimesheetSubmission as TimesheetSubmissionData } from '../../services/timesheetService';
+import { timesheetService, TimesheetSubmission as TimesheetSubmissionData, WeekCourses } from '../../services/timesheetService';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface TimesheetSubmissionProps {
@@ -33,9 +40,41 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
     courses_taught: 0,
     notes: '',
   });
+  const [weekCourses, setWeekCourses] = useState<WeekCourses | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingCourses, setLoadingCourses] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [existingTimesheet, setExistingTimesheet] = useState<any>(null);
+  const [checkingExisting, setCheckingExisting] = useState(false);
+
+  // Auto-populate week start date on component mount and check for existing timesheet
+  useEffect(() => {
+    const currentWeekStart = getCurrentWeekStart();
+    setFormData(prev => ({
+      ...prev,
+      week_start_date: currentWeekStart,
+    }));
+    
+    // Check if timesheet already exists for this week
+    checkExistingTimesheet(currentWeekStart);
+  }, []);
+
+  const checkExistingTimesheet = async (weekStartDate: string) => {
+    setCheckingExisting(true);
+    try {
+      const response = await timesheetService.getTimesheets();
+      const existing = response.timesheets.find(ts => 
+        ts.week_start_date === weekStartDate || 
+        ts.week_start_date.startsWith(weekStartDate)
+      );
+      setExistingTimesheet(existing);
+    } catch (err) {
+      console.error('Error checking existing timesheet:', err);
+    } finally {
+      setCheckingExisting(false);
+    }
+  };
 
   const handleChange = (field: keyof TimesheetSubmissionData) => (
     event: React.ChangeEvent<HTMLInputElement>
@@ -54,11 +93,54 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
     setSuccess(null);
   };
 
+  // Fetch courses when week start date changes
+  useEffect(() => {
+    if (formData.week_start_date) {
+      fetchWeekCourses(formData.week_start_date);
+    } else {
+      setWeekCourses(null);
+      setFormData(prev => ({ ...prev, courses_taught: 0 }));
+    }
+  }, [formData.week_start_date]);
+
+  const fetchWeekCourses = async (weekStartDate: string) => {
+    setLoadingCourses(true);
+    try {
+      const courses = await timesheetService.getWeekCourses(weekStartDate);
+      setWeekCourses(courses);
+      // Auto-populate courses taught
+      setFormData(prev => ({ ...prev, courses_taught: courses.total_courses }));
+    } catch (err: any) {
+      console.error('Error fetching week courses:', err);
+      setWeekCourses(null);
+      setFormData(prev => ({ ...prev, courses_taught: 0 }));
+    } finally {
+      setLoadingCourses(false);
+    }
+  };
+
+  const canSubmitTimesheet = (): boolean => {
+    if (!formData.week_start_date) return false;
+    
+    const today = new Date();
+    const weekStart = new Date(formData.week_start_date);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6); // Sunday
+    
+    // Can submit if today is between Monday and Sunday of the week
+    return today >= weekStart && today <= weekEnd;
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
-    if (!formData.week_start_date || formData.total_hours <= 0) {
-      setError('Please fill in all required fields (Week Start Date and Total Hours)');
+    if (!formData.week_start_date) {
+      setError('Week start date is required');
+      return;
+    }
+
+    if (!canSubmitTimesheet()) {
+      setError('You can only submit timesheets during the week (Monday to Sunday)');
       return;
     }
 
@@ -71,20 +153,31 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
       
       setSuccess('Timesheet submitted successfully! HR will review and approve it.');
       
-      // Reset form
+      // Reset form to current week
+      const currentWeekStart = getCurrentWeekStart();
       setFormData({
-        week_start_date: '',
+        week_start_date: currentWeekStart,
         total_hours: 0,
         courses_taught: 0,
         notes: '',
       });
+      setWeekCourses(null);
       
       // Notify parent component
       if (onTimesheetSubmitted) {
         onTimesheetSubmitted();
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to submit timesheet');
+      // Handle specific error cases with user-friendly messages
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to submit timesheet';
+      
+      if (errorMessage.includes('already exists for this week')) {
+        setError('You have already submitted a timesheet for this week. You can view or update your existing timesheet in the timesheet history.');
+      } else if (errorMessage.includes('Week start date must be a Monday')) {
+        setError('The week start date must be a Monday. Please contact support if you see this error.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -96,8 +189,45 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
     const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday = 1, Sunday = 0
     const monday = new Date(today);
     monday.setDate(today.getDate() - daysToSubtract);
-    return monday.toISOString().split('T')[0];
+    
+    // Format as YYYY-MM-DD in local time (not UTC)
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${monday.getFullYear()}-${pad(monday.getMonth() + 1)}-${pad(monday.getDate())}`;
   };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
+  const formatTime = (timeString: string) => {
+    if (!timeString) return '';
+    return timeString.substring(0, 5); // Extract HH:MM
+  };
+
+  const getSubmissionStatus = () => {
+    if (!formData.week_start_date) return { canSubmit: false, message: 'Loading...' };
+    
+    const today = new Date();
+    const weekStart = new Date(formData.week_start_date);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    
+    if (today < weekStart) {
+      return { canSubmit: false, message: 'Week has not started yet' };
+    } else if (today > weekEnd) {
+      return { canSubmit: false, message: 'Week has ended - cannot submit' };
+    } else {
+      return { canSubmit: true, message: 'Can submit timesheet' };
+    }
+  };
+
+  const submissionStatus = getSubmissionStatus();
 
   return (
     <Card>
@@ -110,8 +240,50 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert 
+            severity="error" 
+            sx={{ mb: 2 }}
+            action={
+              error.includes('already submitted a timesheet for this week') ? (
+                <Button 
+                  color="inherit" 
+                  size="small" 
+                  onClick={() => {
+                    // This could navigate to timesheet history or trigger a callback
+                    if (onTimesheetSubmitted) {
+                      onTimesheetSubmitted();
+                    }
+                  }}
+                >
+                  View Timesheets
+                </Button>
+              ) : undefined
+            }
+          >
             {error}
+          </Alert>
+        )}
+
+        {existingTimesheet && !checkingExisting && (
+          <Alert 
+            severity="warning" 
+            sx={{ mb: 2 }}
+            action={
+              <Button 
+                color="inherit" 
+                size="small" 
+                onClick={() => {
+                  if (onTimesheetSubmitted) {
+                    onTimesheetSubmitted();
+                  }
+                }}
+              >
+                View Timesheets
+              </Button>
+            }
+          >
+            You have already submitted a timesheet for this week (Week of {formatDate(existingTimesheet.week_start_date)}). 
+            You can view or update your existing timesheet in the timesheet history.
           </Alert>
         )}
 
@@ -127,16 +299,18 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
-                  label="Week Start Date"
+                  label="Week Start Date (Monday)"
                   type="date"
                   value={formData.week_start_date}
-                  onChange={handleChange('week_start_date')}
                   InputLabelProps={{ shrink: true }}
                   required
-                  disabled={loading}
-                  helperText="Select the Monday of the week you're reporting"
-                  inputProps={{
-                    min: getCurrentWeekStart(),
+                  disabled={true}
+                  helperText="Auto-set to Monday of current week (read-only)"
+                  sx={{
+                    '& .MuiInputBase-input.Mui-disabled': {
+                      WebkitTextFillColor: 'rgba(0, 0, 0, 0.87)',
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                    }
                   }}
                 />
               </Grid>
@@ -148,10 +322,9 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
                   type="number"
                   value={formData.total_hours}
                   onChange={handleChange('total_hours')}
-                  required
                   disabled={loading}
                   inputProps={{ min: 0, step: 0.5 }}
-                  helperText="Total hours worked this week"
+                  helperText="Total hours worked this week (optional)"
                 />
               </Grid>
               
@@ -161,10 +334,9 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
                   label="Courses Taught"
                   type="number"
                   value={formData.courses_taught}
-                  onChange={handleChange('courses_taught')}
-                  disabled={loading}
+                  disabled={true}
                   inputProps={{ min: 0 }}
-                  helperText="Number of courses taught this week (optional)"
+                  helperText="Auto-calculated from your scheduled courses"
                 />
               </Grid>
               
@@ -191,22 +363,100 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
                     <Typography variant="body2" color="textSecondary">
                       Status: <Chip label="PENDING" color="warning" size="small" />
                     </Typography>
+                    <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                      {submissionStatus.message}
+                    </Typography>
                   </Box>
                   
                   <Button
                     type="submit"
                     variant="contained"
                     startIcon={loading ? <CircularProgress size={20} /> : <AddIcon />}
-                    disabled={loading || !formData.week_start_date || formData.total_hours <= 0}
+                    disabled={loading || !submissionStatus.canSubmit || existingTimesheet}
                     size="large"
                   >
-                    {loading ? 'Submitting...' : 'Submit Timesheet'}
+                    {loading ? 'Submitting...' : existingTimesheet ? 'Timesheet Already Submitted' : 'Submit Timesheet'}
                   </Button>
                 </Box>
               </Grid>
             </Grid>
           </Box>
         </Paper>
+
+        {/* Week Courses Section */}
+        {formData.week_start_date && (
+          <Paper sx={{ p: 3, mt: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <EventIcon sx={{ mr: 1, color: 'primary.main' }} />
+              <Typography variant="h6" component="h3">
+                Courses for Week of {formatDate(formData.week_start_date)}
+              </Typography>
+            </Box>
+
+            {loadingCourses ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : weekCourses ? (
+              <Box>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
+                  Week: {formatDate(weekCourses.week_start_date)} to {formatDate(weekCourses.week_end_date)}
+                </Typography>
+                
+                {weekCourses.courses.length > 0 ? (
+                  <List>
+                    {weekCourses.courses.map((course, index) => (
+                      <ListItem key={course.id} divider={index < weekCourses.courses.length - 1}>
+                        <ListItemIcon>
+                          <CheckCircleIcon color="primary" />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={
+                            <Box>
+                              <Typography variant="subtitle1" component="span">
+                                {course.course_type}
+                              </Typography>
+                              <Chip 
+                                label={course.status} 
+                                color={course.status === 'completed' ? 'success' : 'primary'} 
+                                size="small" 
+                                sx={{ ml: 1 }}
+                              />
+                            </Box>
+                          }
+                          secondary={
+                            <Box>
+                              <Typography variant="body2" component="div">
+                                <EventIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
+                                {formatDate(course.date)} at {formatTime(course.start_time)} - {formatTime(course.end_time)}
+                              </Typography>
+                              <Typography variant="body2" component="div">
+                                <LocationIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
+                                {course.location || 'TBD'}
+                              </Typography>
+                              <Typography variant="body2" component="div">
+                                <GroupIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
+                                {course.organization_name} ({course.student_count} students)
+                              </Typography>
+                            </Box>
+                          }
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                ) : (
+                  <Alert severity="info">
+                    No courses scheduled for this week.
+                  </Alert>
+                )}
+              </Box>
+            ) : (
+              <Alert severity="warning">
+                Unable to load courses for this week. Please try again.
+              </Alert>
+            )}
+          </Paper>
+        )}
 
         <Divider sx={{ my: 2 }} />
         
@@ -216,6 +466,15 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
           </Typography>
           <Typography variant="body2" color="textSecondary" paragraph>
             • Submit one timesheet per week (Monday to Sunday)
+          </Typography>
+          <Typography variant="body2" color="textSecondary" paragraph>
+            • Week start date is automatically set to Monday of the current week
+          </Typography>
+          <Typography variant="body2" color="textSecondary" paragraph>
+            • You can submit your timesheet any day from Monday to Sunday of the week
+          </Typography>
+          <Typography variant="body2" color="textSecondary" paragraph>
+            • Courses taught is automatically calculated from your scheduled courses
           </Typography>
           <Typography variant="body2" color="textSecondary" paragraph>
             • Include all hours worked, including preparation and travel time

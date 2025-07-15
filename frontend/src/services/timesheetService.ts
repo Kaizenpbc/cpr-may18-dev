@@ -42,9 +42,26 @@ export interface TimesheetFilters {
 
 export interface TimesheetSubmission {
   week_start_date: string;
-  total_hours: number;
+  total_hours?: number;
   courses_taught?: number;
   notes?: string;
+}
+
+export interface WeekCourses {
+  week_start_date: string;
+  week_end_date: string;
+  courses: Array<{
+    id: number;
+    date: string;
+    start_time: string;
+    end_time: string;
+    status: string;
+    location: string;
+    course_type: string;
+    organization_name: string;
+    student_count: number;
+  }>;
+  total_courses: number;
 }
 
 export interface TimesheetUpdate {
@@ -116,6 +133,12 @@ class TimesheetService {
     recentTimesheets: Timesheet[];
   }> {
     const response = await api.get(`/timesheet/instructor/${instructorId}/summary`);
+    return response.data.data;
+  }
+
+  // Get courses for a specific week (Monday to Sunday)
+  async getWeekCourses(weekStartDate: string): Promise<WeekCourses> {
+    const response = await api.get(`/timesheet/week/${weekStartDate}/courses`);
     return response.data.data;
   }
 }
