@@ -113,7 +113,7 @@ const PaymentDetailsDialog: React.FC<PaymentDetailsDialogProps> = ({
               Amount
             </Typography>
             <Typography variant="body1" gutterBottom>
-              ${payment.amount.toFixed(2)}
+              ${Number(payment.amount || 0).toFixed(2)}
             </Typography>
           </Grid>
           <Grid item xs={12} md={6}>
@@ -443,7 +443,7 @@ const PayrollManagement: React.FC = () => {
       )}
 
       {/* Statistics Cards */}
-      {stats && (
+      {stats && stats.totalPayrollThisMonth !== undefined && (
         <Grid container spacing={3} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={6} md={3}>
             <Card>
@@ -452,7 +452,7 @@ const PayrollManagement: React.FC = () => {
                   Total Payroll This Month
                 </Typography>
                 <Typography variant="h4">
-                  ${stats.totalPayrollThisMonth.toFixed(2)}
+                  ${Number(stats.totalPayrollThisMonth || 0).toFixed(2)}
                 </Typography>
               </CardContent>
             </Card>
@@ -488,7 +488,7 @@ const PayrollManagement: React.FC = () => {
                   Average Payment
                 </Typography>
                 <Typography variant="h4">
-                  ${stats.averagePayment.toFixed(2)}
+                  ${Number(stats.averagePayment || 0).toFixed(2)}
                 </Typography>
               </CardContent>
             </Card>
@@ -594,7 +594,7 @@ const PayrollManagement: React.FC = () => {
                           {payment.instructor_email}
                         </Typography>
                       </TableCell>
-                      <TableCell>${payment.amount.toFixed(2)}</TableCell>
+                      <TableCell>${Number(payment.amount || 0).toFixed(2)}</TableCell>
                       <TableCell>
                         {new Date(payment.payment_date).toLocaleDateString()}
                       </TableCell>
@@ -691,7 +691,7 @@ const PayrollManagement: React.FC = () => {
                         Base Amount
                       </Typography>
                       <Typography variant="h5">
-                        ${calculation.calculation.baseAmount.toFixed(2)}
+                        ${Number(calculation.calculation.baseAmount || 0).toFixed(2)}
                       </Typography>
                     </CardContent>
                   </Card>
@@ -703,7 +703,7 @@ const PayrollManagement: React.FC = () => {
                         Course Bonus
                       </Typography>
                       <Typography variant="h5">
-                        ${calculation.calculation.courseBonus.toFixed(2)}
+                        ${Number(calculation.calculation.courseBonus || 0).toFixed(2)}
                       </Typography>
                     </CardContent>
                   </Card>
@@ -715,7 +715,7 @@ const PayrollManagement: React.FC = () => {
                         Total Amount
                       </Typography>
                       <Typography variant="h5" color="primary">
-                        ${calculation.calculation.totalAmount.toFixed(2)}
+                        ${Number(calculation.calculation.totalAmount || 0).toFixed(2)}
                       </Typography>
                     </CardContent>
                   </Card>

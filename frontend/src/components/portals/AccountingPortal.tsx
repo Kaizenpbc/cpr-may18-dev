@@ -182,10 +182,10 @@ const AccountsReceivableView: React.FC = () => {
   return (
     <Box>
       <Typography variant="h5" gutterBottom>
-        💰 Accounts Receivable
+        💰 Organization Receivables
       </Typography>
       <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
-        Manage outstanding invoices and payment tracking
+        Manage outstanding invoices from organizations and payment tracking
       </Typography>
       
       <AccountsReceivableTable
@@ -231,13 +231,13 @@ const tabRoutes = [
     component: <ReadyForBillingView /> 
   },
   { 
-    label: 'Accounts Receivable', 
+    label: 'Organization Receivables', 
     icon: <ReceivablesIcon />, 
     path: 'receivables', 
     component: <AccountsReceivableView /> 
   },
   { 
-    label: 'Payment Requests', 
+    label: 'Instructor Payment Requests', 
     icon: <PaymentRequestsIcon />, 
     path: 'payment-requests', 
     component: <PaymentRequestsDashboard /> 

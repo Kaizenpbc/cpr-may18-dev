@@ -406,6 +406,16 @@ const PaymentRequestsDashboard: React.FC = () => {
 
   return (
     <Box>
+      {/* Page Header */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          👨‍🏫 Instructor Payment Requests
+        </Typography>
+        <Typography variant="body1" color="textSecondary">
+          Review and process payment requests from HR for instructor compensation
+        </Typography>
+      </Box>
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}

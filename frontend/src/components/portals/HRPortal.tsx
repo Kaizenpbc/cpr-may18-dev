@@ -72,7 +72,7 @@ const HRPortal: React.FC = () => {
     { text: 'Personnel Management', icon: <PeopleIcon />, value: 'personnel' },
     { text: 'Timesheet Management', icon: <AssignmentIcon />, value: 'timesheet' },
     { text: 'Pay Rate Management', icon: <MoneyIcon />, value: 'payrates' },
-    { text: 'Payroll Management', icon: <PaymentIcon />, value: 'payroll' },
+    { text: 'Instructor Payroll', icon: <PaymentIcon />, value: 'payroll' },
     { text: 'Returned Payment Requests', icon: <WarningIcon />, value: 'returned-payments' },
     { text: 'Notifications', icon: <NotificationsIcon />, value: 'notifications' },
     { text: 'HR Reports', icon: <AssessmentIcon />, value: 'reports' },
@@ -184,9 +184,9 @@ const HRPortal: React.FC = () => {
               </ListItemButton>
             </ListItem>
             <ListItem disablePadding>
-              <ListItemButton>
+              <ListItemButton onClick={() => setSelectedView('payroll')}>
                 <ListItemIcon><PaymentIcon /></ListItemIcon>
-                <ListItemText primary="Payroll Processing" />
+                <ListItemText primary="Instructor Payroll" />
               </ListItemButton>
             </ListItem>
           </List>
