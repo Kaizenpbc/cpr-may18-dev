@@ -12,10 +12,16 @@ import {
   Grid,
   Divider,
   TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import * as api from '../../services/api'; // Adjust path as needed
 import EmailIcon from '@mui/icons-material/Email';
 import PostAddIcon from '@mui/icons-material/PostAdd';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 import logger from '../../utils/logger';
 import { getInvoiceDetails } from '../../services/api';
 import { formatDisplayDate } from '../../utils/dateUtils';
@@ -45,6 +51,12 @@ const InvoiceDetailDialog = ({
     status: '',
     notes: '',
   });
+  
+  // Payment request processing state
+  const [paymentAction, setPaymentAction] = useState<'approve' | 'reject'>('approve');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
 
   useEffect(() => {
     if (open && invoiceId) {
@@ -240,6 +252,36 @@ const InvoiceDetailDialog = ({
     }
   };
 
+  const handleProcessPayment = async () => {
+    if (!invoice?.id) return;
+    
+    setProcessingPayment(true);
+    try {
+      logger.info(`Processing payment request for invoice ${invoice.id}: ${paymentAction}`);
+      
+      // For now, we'll create a simple payment record since payment requests are linked to timesheets, not invoices
+      // In a real implementation, you might want to link payment requests to invoices
+      const response = await api.post(`/accounting/invoices/${invoice.id}/process-payment`, {
+        action: paymentAction,
+        notes: paymentNotes,
+        payment_method: paymentMethod
+      });
+      
+      if (response.data.success) {
+        const message = `Payment ${paymentAction}d successfully`;
+        if (onActionSuccess) onActionSuccess(message);
+        onClose();
+      } else {
+        throw new Error(response.data.message || `Failed to ${paymentAction} payment`);
+      }
+    } catch (err) {
+      logger.error(`Error processing payment:`, err);
+      if (onActionError) onActionError(err?.message || `Failed to ${paymentAction} payment`);
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth='md' fullWidth>
       <DialogTitle>
@@ -357,10 +399,78 @@ const InvoiceDetailDialog = ({
                 </Typography>
               </Grid>
             </Grid>
+            
+            {/* Payment Method Section */}
+            <Divider sx={{ my: 2 }} />
+            <Typography variant='subtitle1' gutterBottom>
+              Payment Information:
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Payment Method</InputLabel>
+                  <Select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    label="Payment Method"
+                  >
+                    <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
+                    <MenuItem value="check">Check</MenuItem>
+                    <MenuItem value="cash">Cash</MenuItem>
+                    <MenuItem value="credit_card">Credit Card</MenuItem>
+                    <MenuItem value="direct_deposit">Direct Deposit</MenuItem>
+                    <MenuItem value="other">Other</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+            
+            {/* Payment Request Processing Section - Show for all invoices */}
+            <Divider sx={{ my: 2 }} />
+            <Typography variant='subtitle1' gutterBottom>
+              Process Payment Request:
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Action</InputLabel>
+                  <Select
+                    value={paymentAction}
+                    onChange={(e) => setPaymentAction(e.target.value as 'approve' | 'reject')}
+                    label="Action"
+                  >
+                    <MenuItem value="approve">Approve</MenuItem>
+                    <MenuItem value="reject">Reject</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid xs={12}>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={3}
+                  label="Notes"
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  placeholder="Add notes about this decision..."
+                />
+              </Grid>
+            </Grid>
           </Box>
         )}
       </DialogContent>
       <DialogActions>
+        {/* Payment Request Processing Buttons - Show for all invoices */}
+        <Button
+          onClick={handleProcessPayment}
+          variant="contained"
+          color={paymentAction === 'approve' ? 'success' : 'error'}
+          disabled={processingPayment}
+          startIcon={processingPayment ? <CircularProgress size={20} /> : paymentAction === 'approve' ? <CheckCircleIcon /> : <CancelIcon />}
+        >
+          {processingPayment ? 'Processing...' : paymentAction === 'approve' ? 'Approve' : 'Reject'}
+        </Button>
+        
         {/* Post to Organization Button - Only show if not already posted */}
         {showPostToOrgButton && invoice && !invoice.posted_to_org && (
           <Button

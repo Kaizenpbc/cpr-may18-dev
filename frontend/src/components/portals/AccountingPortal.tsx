@@ -11,9 +11,11 @@ import {
   VerifiedUser as VerificationIcon,
   Undo as ReverseIcon,
   Logout as LogoutIcon,
+  Assignment as PaymentRequestsIcon,
 } from '@mui/icons-material';
 import ErrorBoundary from '../common/ErrorBoundary';
 import AccountingDashboard from './accounting/AccountingDashboard';
+import PaymentRequestsDashboard from '../accounting/PaymentRequestsDashboard';
 
 import { NavLink, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
@@ -233,6 +235,12 @@ const tabRoutes = [
     icon: <ReceivablesIcon />, 
     path: 'receivables', 
     component: <AccountsReceivableView /> 
+  },
+  { 
+    label: 'Payment Requests', 
+    icon: <PaymentRequestsIcon />, 
+    path: 'payment-requests', 
+    component: <PaymentRequestsDashboard /> 
   },
   { 
     label: 'Invoice History', 

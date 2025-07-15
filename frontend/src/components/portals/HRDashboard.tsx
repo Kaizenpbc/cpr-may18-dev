@@ -34,6 +34,8 @@ import {
   Cancel as CancelIcon,
   Visibility as ViewIcon,
   Refresh as RefreshIcon,
+  AttachMoney as MoneyIcon,
+  Assessment as AssessmentIcon,
 } from '@mui/icons-material';
 import { hrDashboardService, HRDashboardStats, ProfileChange } from '../../services/hrDashboardService';
 
@@ -251,6 +253,13 @@ const HRDashboard: React.FC<HRDashboardProps> = ({ onViewChange }) => {
               </Button>
               <Button
                 variant="outlined"
+                onClick={() => onViewChange?.('payrates')}
+                startIcon={<MoneyIcon />}
+              >
+                Pay Rate Management
+              </Button>
+              <Button
+                variant="outlined"
                 onClick={() => onViewChange?.('timesheet')}
                 startIcon={<AssignmentIcon />}
               >
@@ -259,7 +268,7 @@ const HRDashboard: React.FC<HRDashboardProps> = ({ onViewChange }) => {
               <Button
                 variant="outlined"
                 onClick={() => onViewChange?.('reports')}
-                startIcon={<AssignmentIcon />}
+                startIcon={<AssessmentIcon />}
               >
                 HR Reports
               </Button>

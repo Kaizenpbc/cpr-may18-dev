@@ -32,6 +32,7 @@ import {
   Business as BusinessIcon,
   Schedule as ScheduleIcon,
   Payment as PaymentIcon,
+  AttachMoney as MoneyIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -42,6 +43,7 @@ import PersonnelManagement from './PersonnelManagement';
 import TestProfileChanges from '../TestProfileChanges';
 import TimesheetManagement from '../hr/TimesheetManagement';
 import PayrollManagement from '../hr/PayrollManagement';
+import PayRateManagement from '../hr/PayRateManagement';
 import NotificationsPanel from '../hr/NotificationsPanel';
 
 // Placeholder components for Phase 2
@@ -67,6 +69,7 @@ const HRPortal: React.FC = () => {
     { text: 'Dashboard', icon: <DashboardIcon />, value: 'dashboard' },
     { text: 'Personnel Management', icon: <PeopleIcon />, value: 'personnel' },
     { text: 'Timesheet Management', icon: <AssignmentIcon />, value: 'timesheet' },
+    { text: 'Pay Rate Management', icon: <MoneyIcon />, value: 'payrates' },
     { text: 'Payroll Management', icon: <PaymentIcon />, value: 'payroll' },
     { text: 'Notifications', icon: <NotificationsIcon />, value: 'notifications' },
     { text: 'HR Reports', icon: <AssessmentIcon />, value: 'reports' },
@@ -80,6 +83,8 @@ const HRPortal: React.FC = () => {
         return <PersonnelManagement onViewChange={setSelectedView} />;
       case 'timesheet':
         return <TimesheetManagement />;
+      case 'payrates':
+        return <PayRateManagement />;
       case 'payroll':
         return <PayrollManagement />;
       case 'notifications':

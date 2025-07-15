@@ -19,6 +19,7 @@ import profileChangesRouter from './profile-changes.js';
 import hrDashboardRouter from './hr-dashboard.js';
 import timesheetRouter from './timesheet.js';
 import payrollRouter from './payroll.js';
+import payRatesRouter from './payRates.js';
 import notificationsRouter from './notifications.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
@@ -58,6 +59,10 @@ console.log('✅ Timesheet routes mounted');
 // Mount payroll routes
 router.use('/payroll', payrollRouter);
 console.log('✅ Payroll routes mounted');
+
+// Mount pay rates routes
+router.use('/pay-rates', payRatesRouter);
+console.log('✅ Pay rates routes mounted');
 
 // Mount notifications routes
 router.use('/notifications', notificationsRouter);
@@ -5930,5 +5935,9 @@ router.post('/hr/profile-changes/:id/approve', authenticateToken, asyncHandler(a
     res.status(500).json({ success: false, message: 'Failed to process profile change' });
   }
 }));
+
+// Payment Requests Routes
+import paymentRequestsRouter from './paymentRequests';
+router.use('/payment-requests', paymentRequestsRouter);
 
 export default router;

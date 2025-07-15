@@ -309,12 +309,35 @@ router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req,
       WHERE id = $3
     `, [newStatus, comment, timesheetId]);
     
+    // If approved, automatically create payment request
+    let paymentRequest = null;
+    if (action === 'approve') {
+      try {
+        // Import the service dynamically to avoid circular dependencies
+        const { PaymentRequestService } = await import('../../services/paymentRequestService');
+        paymentRequest = await PaymentRequestService.createPaymentRequest(timesheetId);
+      } catch (paymentError) {
+        console.error('Error creating payment request:', paymentError);
+        // Don't fail the timesheet approval if payment request creation fails
+        // Just log the error and continue
+      }
+    }
+    
     await client.query('COMMIT');
     
-    res.json({
+    const response: any = {
       success: true,
       message: `Timesheet ${action}d successfully.`
-    });
+    };
+    
+    if (paymentRequest) {
+      response.data = {
+        paymentRequest,
+        message: `Timesheet approved and payment request created for $${paymentRequest.amount}.`
+      };
+    }
+    
+    res.json(response);
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

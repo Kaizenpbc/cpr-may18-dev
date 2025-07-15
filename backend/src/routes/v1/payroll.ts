@@ -158,8 +158,8 @@ router.post('/calculate/:instructorId', authenticateToken, requireHRRole, asyncH
   const { instructorId } = req.params;
   const { start_date, end_date, hourly_rate } = req.body;
   
-  if (!start_date || !end_date || !hourly_rate) {
-    throw new AppError('Start date, end date, and hourly rate are required.', 400);
+  if (!start_date || !end_date) {
+    throw new AppError('Start date and end date are required.', 400);
   }
   
   const client = await pool.connect();
@@ -183,9 +183,40 @@ router.post('/calculate/:instructorId', authenticateToken, requireHRRole, asyncH
     const totalCourses = parseInt(timesheetData.total_courses) || 0;
     const timesheetCount = parseInt(timesheetData.timesheet_count) || 0;
     
+    // Get instructor's pay rate for the period
+    let payRate = parseFloat(hourly_rate) || 25.00; // Default rate
+    let courseBonusRate = 50.00; // Default bonus
+    let tierName = 'Default';
+    let isDefaultRate = true;
+    
+    if (!hourly_rate) {
+      // Get the instructor's stored pay rate for the start date
+      const payRateResult = await client.query(`
+        SELECT 
+          ipr.hourly_rate,
+          ipr.course_bonus,
+          prt.name as tier_name
+        FROM instructor_pay_rates ipr
+        LEFT JOIN pay_rate_tiers prt ON ipr.tier_id = prt.id
+        WHERE ipr.instructor_id = $1 
+        AND ipr.is_active = true
+        AND ipr.effective_date <= $2
+        AND (ipr.end_date IS NULL OR ipr.end_date >= $2)
+        ORDER BY ipr.effective_date DESC
+        LIMIT 1
+      `, [instructorId, start_date]);
+      
+      if (payRateResult.rows.length > 0) {
+        payRate = parseFloat(payRateResult.rows[0].hourly_rate);
+        courseBonusRate = parseFloat(payRateResult.rows[0].course_bonus);
+        tierName = payRateResult.rows[0].tier_name || 'Custom';
+        isDefaultRate = false;
+      }
+    }
+    
     // Calculate payment
-    const baseAmount = totalHours * parseFloat(hourly_rate);
-    const courseBonus = totalCourses * 50; // $50 bonus per course
+    const baseAmount = totalHours * payRate;
+    const courseBonus = totalCourses * courseBonusRate;
     const totalAmount = baseAmount + courseBonus;
     
     // Get instructor info
@@ -206,8 +237,10 @@ router.post('/calculate/:instructorId', authenticateToken, requireHRRole, asyncH
         totalCourses
       },
       rates: {
-        hourlyRate: parseFloat(hourly_rate),
-        courseBonus: 50
+        hourlyRate: payRate,
+        courseBonus: courseBonusRate,
+        tierName,
+        isDefaultRate
       },
       calculation: {
         baseAmount,
