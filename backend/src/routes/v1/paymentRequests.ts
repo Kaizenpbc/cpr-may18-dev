@@ -78,33 +78,57 @@ router.get('/:requestId', authenticateToken, requireAccountantRole, asyncHandler
   }
 }));
 
-// Process Payment Request (approve/reject)
+// Get Detailed Payment Request Information
+router.get('/:requestId/detail', authenticateToken, requireAccountantRole, asyncHandler(async (req, res) => {
+  const { requestId } = req.params;
+  
+  try {
+    const paymentRequestDetail = await PaymentRequestService.getPaymentRequestDetail(parseInt(requestId));
+    
+    res.json({
+      success: true,
+      data: paymentRequestDetail
+    });
+  } catch (error) {
+    throw error;
+  }
+}));
+
+// Process Payment Request (approve/return to HR)
 router.post('/:requestId/process', authenticateToken, requireAccountantRole, asyncHandler(async (req, res) => {
   const { requestId } = req.params;
-  const { action, notes } = req.body; // action: 'approve' or 'reject'
+  const { action, payment_method, notes } = req.body; // action: 'approve' or 'return_to_hr'
   
-  if (!['approve', 'reject'].includes(action)) {
-    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid action. Must be "approve" or "reject".');
+  if (!['approve', 'return_to_hr'].includes(action)) {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid action. Must be "approve" or "return_to_hr".');
   }
   
-  await PaymentRequestService.processPaymentRequest(requestId, action, notes);
+  if (action === 'return_to_hr' && !notes?.trim()) {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Notes are required when returning to HR.');
+  }
+  
+  await PaymentRequestService.processPaymentRequest(requestId, action, payment_method, notes);
   
   res.json({
     success: true,
-    message: `Payment request ${action}d successfully.`
+    message: `Payment request ${action === 'approve' ? 'approved' : 'returned to HR'} successfully.`
   });
 }));
 
 // Bulk Process Payment Requests
 router.post('/bulk-process', authenticateToken, requireAccountantRole, asyncHandler(async (req, res) => {
-  const { requestIds, action, notes } = req.body;
+  const { requestIds, action, payment_method, notes } = req.body;
   
   if (!Array.isArray(requestIds) || requestIds.length === 0) {
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Request IDs array is required.');
   }
   
-  if (!['approve', 'reject'].includes(action)) {
-    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid action. Must be "approve" or "reject".');
+  if (!['approve', 'return_to_hr'].includes(action)) {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid action. Must be "approve" or "return_to_hr".');
+  }
+  
+  if (action === 'return_to_hr' && !notes?.trim()) {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Notes are required when returning to HR.');
   }
   
   const results = [];
@@ -112,7 +136,7 @@ router.post('/bulk-process', authenticateToken, requireAccountantRole, asyncHand
   
   for (const requestId of requestIds) {
     try {
-      await PaymentRequestService.processPaymentRequest(requestId, action, notes);
+      await PaymentRequestService.processPaymentRequest(requestId, action, payment_method, notes);
       results.push({ requestId, status: 'success' });
     } catch (error) {
       errors.push({ requestId, status: 'error', message: error.message });

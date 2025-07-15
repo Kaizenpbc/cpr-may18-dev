@@ -14,6 +14,28 @@ export interface PaymentRequest {
   updated_at?: string;
 }
 
+export interface PaymentRequestDetail extends PaymentRequest {
+  instructor_name: string;
+  instructor_email: string;
+  week_start_date: string;
+  total_hours: number;
+  courses_taught: number;
+  hourly_rate: number;
+  course_bonus: number;
+  base_amount: number;
+  bonus_amount: number;
+  tier_name: string;
+  hr_comment?: string;
+  class_details?: ClassDetail[];
+}
+
+export interface ClassDetail {
+  course_name: string;
+  hours: number;
+  date: string;
+  location?: string;
+}
+
 export interface TimesheetPaymentCalculation {
   instructor_id: number;
   timesheet_id: number;
@@ -176,7 +198,7 @@ export class PaymentRequestService {
     instructor_id?: number;
     page?: number;
     limit?: number;
-  } = {}): Promise<{ requests: PaymentRequest[]; pagination: any }> {
+  } = {}): Promise<{ requests: PaymentRequestDetail[]; pagination: any }> {
     const client = await pool.connect();
     
     try {
@@ -199,7 +221,7 @@ export class PaymentRequestService {
         paramIndex++;
       }
       
-      // Get payment requests with instructor info
+      // Get payment requests with instructor info and payment calculation details
       const requestsResult = await client.query(`
         SELECT 
           pr.*,
@@ -207,10 +229,28 @@ export class PaymentRequestService {
           u.email as instructor_email,
           t.week_start_date,
           t.total_hours,
-          t.courses_taught
+          t.courses_taught,
+          t.hr_comment,
+          -- Calculate payment breakdown
+          CASE 
+            WHEN ipr.hourly_rate IS NOT NULL THEN ipr.hourly_rate 
+            ELSE 25.00 
+          END as hourly_rate,
+          CASE 
+            WHEN ipr.course_bonus IS NOT NULL THEN ipr.course_bonus 
+            ELSE 50.00 
+          END as course_bonus,
+          (t.total_hours * COALESCE(ipr.hourly_rate, 25.00)) as base_amount,
+          (t.courses_taught * COALESCE(ipr.course_bonus, 50.00)) as bonus_amount,
+          COALESCE(prt.name, 'Default') as tier_name
         FROM payment_requests pr
         JOIN users u ON pr.instructor_id = u.id
         JOIN timesheets t ON pr.timesheet_id = t.id
+        LEFT JOIN instructor_pay_rates ipr ON ipr.instructor_id = pr.instructor_id 
+          AND ipr.is_active = true 
+          AND ipr.effective_date <= t.week_start_date
+          AND (ipr.end_date IS NULL OR ipr.end_date >= t.week_start_date)
+        LEFT JOIN pay_rate_tiers prt ON ipr.tier_id = prt.id
         ${whereClause}
         ORDER BY pr.created_at DESC
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -238,11 +278,75 @@ export class PaymentRequestService {
   }
   
   /**
-   * Process a payment request (approve/reject)
+   * Get detailed payment request information including class details
+   */
+  static async getPaymentRequestDetail(requestId: number): Promise<PaymentRequestDetail> {
+    const client = await pool.connect();
+    
+    try {
+      // Get payment request with all details
+      const requestResult = await client.query(`
+        SELECT 
+          pr.*,
+          u.username as instructor_name,
+          u.email as instructor_email,
+          t.week_start_date,
+          t.total_hours,
+          t.courses_taught,
+          t.hr_comment,
+          -- Calculate payment breakdown
+          CASE 
+            WHEN ipr.hourly_rate IS NOT NULL THEN ipr.hourly_rate 
+            ELSE 25.00 
+          END as hourly_rate,
+          CASE 
+            WHEN ipr.course_bonus IS NOT NULL THEN ipr.course_bonus 
+            ELSE 50.00 
+          END as course_bonus,
+          (t.total_hours * COALESCE(ipr.hourly_rate, 25.00)) as base_amount,
+          (t.courses_taught * COALESCE(ipr.course_bonus, 50.00)) as bonus_amount,
+          COALESCE(prt.name, 'Default') as tier_name
+        FROM payment_requests pr
+        JOIN users u ON pr.instructor_id = u.id
+        JOIN timesheets t ON pr.timesheet_id = t.id
+        LEFT JOIN instructor_pay_rates ipr ON ipr.instructor_id = pr.instructor_id 
+          AND ipr.is_active = true 
+          AND ipr.effective_date <= t.week_start_date
+          AND (ipr.end_date IS NULL OR ipr.end_date >= t.week_start_date)
+        LEFT JOIN pay_rate_tiers prt ON ipr.tier_id = prt.id
+        WHERE pr.id = $1
+      `, [requestId]);
+      
+      if (requestResult.rows.length === 0) {
+        throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Payment request not found.');
+      }
+      
+      const request = requestResult.rows[0];
+      
+      // Create default class details since class_details column doesn't exist
+      const classDetails: ClassDetail[] = [{
+        course_name: 'CPR Training',
+        hours: request.total_hours,
+        date: request.week_start_date,
+        location: 'Training Center'
+      }];
+      
+      return {
+        ...request,
+        class_details: classDetails
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Process a payment request (approve/return to HR)
    */
   static async processPaymentRequest(
     requestId: number, 
-    action: 'approve' | 'reject', 
+    action: 'approve' | 'return_to_hr', 
+    paymentMethod?: string,
     notes?: string
   ): Promise<void> {
     const client = await pool.connect();
@@ -259,24 +363,34 @@ export class PaymentRequestService {
         throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Payment request not found or already processed.');
       }
       
-      const newStatus = action === 'approve' ? 'approved' : 'rejected';
+      const newStatus = action === 'approve' ? 'approved' : 'returned_to_hr';
       
-      // Update the payment request status
-      await client.query(`
-        UPDATE payment_requests 
-        SET status = $1, notes = $2, updated_at = NOW()
-        WHERE id = $3
-      `, [newStatus, notes || '', requestId]);
-      
-      // If approved, also update the corresponding payroll payment
+      // Update the payment request status and payment method if provided
       if (action === 'approve') {
         await client.query(`
+          UPDATE payment_requests 
+          SET status = $1, payment_method = $2, notes = $3, updated_at = NOW()
+          WHERE id = $4
+        `, [newStatus, paymentMethod || 'direct_deposit', notes || '', requestId]);
+        
+        // Also update the corresponding payroll payment
+        await client.query(`
           UPDATE payroll_payments 
-          SET status = 'completed', updated_at = NOW()
-          WHERE instructor_id = $1 AND amount = $2 AND status = 'pending'
-          ORDER BY created_at DESC
-          LIMIT 1
-        `, [requestResult.rows[0].instructor_id, requestResult.rows[0].amount]);
+          SET status = 'completed', payment_method = $1, updated_at = NOW()
+          WHERE id = (
+            SELECT id FROM payroll_payments 
+            WHERE instructor_id = $2 AND amount = $3 AND status = 'pending'
+            ORDER BY created_at DESC
+            LIMIT 1
+          )
+        `, [paymentMethod || 'direct_deposit', requestResult.rows[0].instructor_id, requestResult.rows[0].amount]);
+      } else {
+        // Return to HR - update status and add accountant notes
+        await client.query(`
+          UPDATE payment_requests 
+          SET status = $1, notes = $2, updated_at = NOW()
+          WHERE id = $3
+        `, [newStatus, notes || '', requestId]);
       }
       
       await client.query('COMMIT');
@@ -288,6 +402,75 @@ export class PaymentRequestService {
     }
   }
   
+  /**
+   * Get returned payment requests for HR review
+   */
+  static async getReturnedPaymentRequests(filters: {
+    page?: number;
+    limit?: number;
+  } = {}): Promise<{ requests: PaymentRequestDetail[]; pagination: any }> {
+    const client = await pool.connect();
+    
+    try {
+      const { page = 1, limit = 10 } = filters;
+      const offset = (page - 1) * limit;
+      
+      // Get returned payment requests with instructor info and payment calculation details
+      const requestsResult = await client.query(`
+        SELECT 
+          pr.*,
+          u.username as instructor_name,
+          u.email as instructor_email,
+          t.week_start_date,
+          t.total_hours,
+          t.courses_taught,
+          t.hr_comment,
+          -- Calculate payment breakdown
+          CASE 
+            WHEN ipr.hourly_rate IS NOT NULL THEN ipr.hourly_rate 
+            ELSE 25.00 
+          END as hourly_rate,
+          CASE 
+            WHEN ipr.course_bonus IS NOT NULL THEN ipr.course_bonus 
+            ELSE 50.00 
+          END as course_bonus,
+          (t.total_hours * COALESCE(ipr.hourly_rate, 25.00)) as base_amount,
+          (t.courses_taught * COALESCE(ipr.course_bonus, 50.00)) as bonus_amount,
+          COALESCE(prt.name, 'Default') as tier_name
+        FROM payment_requests pr
+        JOIN users u ON pr.instructor_id = u.id
+        JOIN timesheets t ON pr.timesheet_id = t.id
+        LEFT JOIN instructor_pay_rates ipr ON ipr.instructor_id = pr.instructor_id 
+          AND ipr.is_active = true 
+          AND ipr.effective_date <= t.week_start_date
+          AND (ipr.end_date IS NULL OR ipr.end_date >= t.week_start_date)
+        LEFT JOIN pay_rate_tiers prt ON ipr.tier_id = prt.id
+        WHERE pr.status = 'returned_to_hr'
+        ORDER BY pr.updated_at DESC
+        LIMIT $1 OFFSET $2
+      `, [limit, offset]);
+      
+      // Get total count for pagination
+      const countResult = await client.query(`
+        SELECT COUNT(*) as total
+        FROM payment_requests 
+        WHERE status = 'returned_to_hr'
+      `);
+      
+      return {
+        requests: requestsResult.rows,
+        pagination: {
+          page,
+          limit,
+          total: parseInt(countResult.rows[0].total),
+          pages: Math.ceil(parseInt(countResult.rows[0].total) / limit)
+        }
+      };
+    } finally {
+      client.release();
+    }
+  }
+
   /**
    * Get payment request statistics for dashboard
    */

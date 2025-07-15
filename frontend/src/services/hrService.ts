@@ -75,6 +75,24 @@ export const hrService = {
     return response.data.data;
   },
 
+  // Get returned payment requests for HR review
+  async getReturnedPaymentRequests(filters?: { page?: number; limit?: number }): Promise<any> {
+    const response = await api.get('/hr-dashboard/returned-payment-requests', { params: filters });
+    return response.data.data;
+  },
+
+  // Process returned payment request (override/final reject)
+  async processReturnedPaymentRequest(
+    requestId: number, 
+    action: 'override_approve' | 'final_reject', 
+    notes: string
+  ): Promise<void> {
+    await api.post(`/hr-dashboard/returned-payment-requests/${requestId}/process`, {
+      action,
+      notes
+    });
+  },
+
   // Get HR reports
   async getReports(reportType: string, filters?: any): Promise<any> {
     const response = await api.get(`/hr/reports/${reportType}`, { params: filters });

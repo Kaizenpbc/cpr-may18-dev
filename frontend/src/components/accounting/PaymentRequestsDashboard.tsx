@@ -52,63 +52,286 @@ interface PaymentRequestDetailDialogProps {
   open: boolean;
   request: PaymentRequest | null;
   onClose: () => void;
+  onActionSuccess?: () => void;
 }
 
 const PaymentRequestDetailDialog: React.FC<PaymentRequestDetailDialogProps> = ({
   open,
   request,
-  onClose
+  onClose,
+  onActionSuccess
 }) => {
+  const [action, setAction] = useState<'approve' | 'return_to_hr'>('approve');
+  const [paymentMethod, setPaymentMethod] = useState('direct_deposit');
+  const [notes, setNotes] = useState('');
+  const [processing, setProcessing] = useState(false);
+
   const handleClose = () => {
     onClose();
+    setAction('approve');
+    setPaymentMethod('direct_deposit');
+    setNotes('');
+    setProcessing(false);
+  };
+
+  const handleProcessPayment = async () => {
+    if (!request) return;
+    
+    if (action === 'return_to_hr' && !notes.trim()) {
+      alert('Notes are required when returning to HR.');
+      return;
+    }
+    
+    setProcessing(true);
+    try {
+      await paymentRequestService.processPaymentRequest(request.id, {
+        action,
+        payment_method: action === 'approve' ? paymentMethod : undefined,
+        notes: notes.trim()
+      });
+      
+      if (onActionSuccess) {
+        onActionSuccess();
+      }
+      handleClose();
+    } catch (error) {
+      console.error('Error processing payment request:', error);
+      alert('Failed to process payment request. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   if (!request) return null;
 
+  // Calculate payment breakdown if available
+  const baseAmount = request.base_amount || (request.total_hours * (request.hourly_rate || 25));
+  const bonusAmount = request.bonus_amount || (request.courses_taught * (request.course_bonus || 50));
+  const totalAmount = request.amount || (baseAmount + bonusAmount);
+
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
       <DialogTitle>
-        Payment Request Details
-        <Chip 
-          label={request.status.toUpperCase()} 
-          color={request.status === 'pending' ? 'warning' : request.status === 'approved' ? 'success' : 'error'}
-          size="small"
-          sx={{ ml: 2 }}
-        />
+        <Box display="flex" alignItems="center" justifyContent="space-between">
+          <Typography variant="h5">
+            Payment Request Details
+          </Typography>
+          <Chip 
+            label={request.status.toUpperCase()} 
+            color={request.status === 'pending' ? 'warning' : request.status === 'approved' ? 'success' : 'error'}
+            size="medium"
+          />
+        </Box>
       </DialogTitle>
       <DialogContent>
         <Grid container spacing={3}>
+          {/* Instructor Information */}
           <Grid item xs={12} md={6}>
-            <Typography variant="h6" gutterBottom>Instructor Information</Typography>
-            <Typography><strong>Name:</strong> {request.instructor_name}</Typography>
-            <Typography><strong>Email:</strong> {request.instructor_email}</Typography>
-            <Typography><strong>ID:</strong> {request.instructor_id}</Typography>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="h6" gutterBottom color="primary">
+                  👤 Instructor Information
+                </Typography>
+                <Typography><strong>Name:</strong> {request.instructor_name}</Typography>
+                <Typography><strong>Email:</strong> {request.instructor_email}</Typography>
+                <Typography><strong>ID:</strong> {request.instructor_id}</Typography>
+              </CardContent>
+            </Card>
           </Grid>
+
+          {/* Payment Information */}
           <Grid item xs={12} md={6}>
-            <Typography variant="h6" gutterBottom>Payment Information</Typography>
-            <Typography><strong>Amount:</strong> ${Number(request.amount).toFixed(2)}</Typography>
-            <Typography><strong>Payment Date:</strong> {new Date(request.payment_date).toLocaleDateString()}</Typography>
-            <Typography><strong>Payment Method:</strong> {request.payment_method}</Typography>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="h6" gutterBottom color="primary">
+                  💰 Payment Information
+                </Typography>
+                <Typography variant="h5" color="success.main" fontWeight="bold">
+                  ${Number(totalAmount).toFixed(2)}
+                </Typography>
+                <Typography><strong>Payment Date:</strong> {new Date(request.payment_date).toLocaleDateString()}</Typography>
+                <Typography><strong>Payment Method:</strong> {request.payment_method?.replace('_', ' ').toUpperCase()}</Typography>
+              </CardContent>
+            </Card>
           </Grid>
+
+          {/* Timesheet Information */}
           <Grid item xs={12} md={6}>
-            <Typography variant="h6" gutterBottom>Timesheet Information</Typography>
-            <Typography><strong>Week Starting:</strong> {request.week_start_date}</Typography>
-            <Typography><strong>Total Hours:</strong> {request.total_hours}</Typography>
-            <Typography><strong>Courses Taught:</strong> {request.courses_taught}</Typography>
-            {request.timesheet_comment && (
-              <Typography><strong>HR Comment:</strong> {request.timesheet_comment}</Typography>
-            )}
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="h6" gutterBottom color="primary">
+                  📅 Timesheet Information
+                </Typography>
+                <Typography><strong>Week Starting:</strong> {new Date(request.week_start_date).toLocaleDateString()}</Typography>
+                <Typography><strong>Total Hours:</strong> {request.total_hours} hours</Typography>
+                <Typography><strong>Courses Taught:</strong> {request.courses_taught} courses</Typography>
+                {request.timesheet_comment && (
+                  <Typography><strong>HR Comment:</strong> {request.timesheet_comment}</Typography>
+                )}
+              </CardContent>
+            </Card>
           </Grid>
+
+          {/* Payment Breakdown */}
           <Grid item xs={12} md={6}>
-            <Typography variant="h6" gutterBottom>Request Information</Typography>
-            <Typography><strong>Created:</strong> {new Date(request.created_at).toLocaleString()}</Typography>
-            <Typography><strong>Updated:</strong> {new Date(request.updated_at).toLocaleString()}</Typography>
-            <Typography><strong>Notes:</strong> {request.notes}</Typography>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="h6" gutterBottom color="primary">
+                  🧮 Payment Breakdown
+                </Typography>
+                <Typography><strong>Hourly Rate:</strong> ${request.hourly_rate || 25}/hr</Typography>
+                <Typography><strong>Course Bonus:</strong> ${request.course_bonus || 50}/course</Typography>
+                <Typography><strong>Base Amount:</strong> ${Number(baseAmount).toFixed(2)} ({request.total_hours}h × ${request.hourly_rate || 25})</Typography>
+                <Typography><strong>Bonus Amount:</strong> ${Number(bonusAmount).toFixed(2)} ({request.courses_taught} courses × ${request.course_bonus || 50})</Typography>
+                <Typography variant="h6" color="success.main" fontWeight="bold">
+                  Total: ${Number(totalAmount).toFixed(2)}
+                </Typography>
+                {request.tier_name && (
+                  <Typography><strong>Pay Tier:</strong> {request.tier_name}</Typography>
+                )}
+              </CardContent>
+            </Card>
           </Grid>
+
+          {/* Class Details */}
+          {request.class_details && request.class_details.length > 0 && (
+            <Grid item xs={12}>
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="h6" gutterBottom color="primary">
+                    📚 Classes Covered
+                  </Typography>
+                  <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
+                    {request.class_details.map((classDetail, index) => (
+                      <Box key={index} sx={{ mb: 1, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+                        <Typography variant="subtitle2" fontWeight="bold">
+                          {classDetail.course_name}
+                        </Typography>
+                        <Typography variant="body2">
+                          Hours: {classDetail.hours} | Date: {new Date(classDetail.date).toLocaleDateString()}
+                          {classDetail.location && ` | Location: ${classDetail.location}`}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
+
+          {/* Request Information */}
+          <Grid item xs={12}>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="h6" gutterBottom color="primary">
+                  📋 Request Information
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <Typography><strong>Created:</strong> {new Date(request.created_at).toLocaleString()}</Typography>
+                    <Typography><strong>Updated:</strong> {new Date(request.updated_at).toLocaleString()}</Typography>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography><strong>Timesheet ID:</strong> {request.timesheet_id}</Typography>
+                    <Typography><strong>Request ID:</strong> {request.id}</Typography>
+                  </Grid>
+                  {request.notes && (
+                    <Grid item xs={12}>
+                      <Typography><strong>Notes:</strong></Typography>
+                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 1, borderRadius: 1 }}>
+                        {request.notes}
+                      </Typography>
+                    </Grid>
+                  )}
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Payment Processing Section - Only show for pending requests */}
+          {request.status === 'pending' && (
+            <Grid item xs={12}>
+              <Card variant="outlined" sx={{ bgcolor: 'primary.50' }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom color="primary">
+                    ⚙️ Process Payment Request
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Action</InputLabel>
+                        <Select
+                          value={action}
+                          onChange={(e) => setAction(e.target.value as 'approve' | 'return_to_hr')}
+                          label="Action"
+                        >
+                          <MenuItem value="approve">✅ Approve Payment</MenuItem>
+                          <MenuItem value="return_to_hr">🔄 Return to HR</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    {action === 'approve' && (
+                      <Grid item xs={12} md={6}>
+                        <FormControl fullWidth>
+                          <InputLabel>Payment Method</InputLabel>
+                          <Select
+                            value={paymentMethod}
+                            onChange={(e) => setPaymentMethod(e.target.value)}
+                            label="Payment Method"
+                          >
+                            <MenuItem value="direct_deposit">Direct Deposit</MenuItem>
+                            <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
+                            <MenuItem value="check">Check</MenuItem>
+                            <MenuItem value="cash">Cash</MenuItem>
+                            <MenuItem value="credit_card">Credit Card</MenuItem>
+                            <MenuItem value="other">Other</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                    )}
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={3}
+                        label={action === 'approve' ? 'Notes (Optional)' : 'Notes (Required)'}
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder={
+                          action === 'approve' 
+                            ? 'Add optional notes about this approval...'
+                            : 'Required: Explain why this payment request is being returned to HR...'
+                        }
+                        required={action === 'return_to_hr'}
+                      />
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
         </Grid>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>Close</Button>
+        <Button onClick={handleClose} disabled={processing}>
+          Cancel
+        </Button>
+        {request.status === 'pending' && (
+          <Button
+            onClick={handleProcessPayment}
+            variant="contained"
+            color={action === 'approve' ? 'success' : 'warning'}
+            disabled={processing || (action === 'return_to_hr' && !notes.trim())}
+            startIcon={processing ? <CircularProgress size={20} /> : undefined}
+          >
+            {processing 
+              ? 'Processing...' 
+              : action === 'approve' 
+                ? 'Approve Payment' 
+                : 'Return to HR'
+            }
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );
@@ -166,6 +389,7 @@ const PaymentRequestsDashboard: React.FC = () => {
     switch (status) {
       case 'pending': return 'warning';
       case 'approved': return 'success';
+      case 'returned_to_hr': return 'info';
       case 'rejected': return 'error';
       case 'completed': return 'info';
       default: return 'default';
@@ -277,6 +501,7 @@ const PaymentRequestsDashboard: React.FC = () => {
                   <MenuItem value="">All Statuses</MenuItem>
                   <MenuItem value="pending">Pending</MenuItem>
                   <MenuItem value="approved">Approved</MenuItem>
+                  <MenuItem value="returned_to_hr">Returned to HR</MenuItem>
                   <MenuItem value="rejected">Rejected</MenuItem>
                   <MenuItem value="completed">Completed</MenuItem>
                 </Select>
@@ -415,6 +640,7 @@ const PaymentRequestsDashboard: React.FC = () => {
         open={detailDialogOpen}
         request={selectedRequest}
         onClose={() => setDetailDialogOpen(false)}
+        onActionSuccess={loadData}
       />
 
       {/* Removed Bulk Action Dialog */}

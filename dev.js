@@ -33,13 +33,18 @@ concurrently([
   handleInput: true,
   raw: true,
   timestampFormat: 'HH:mm:ss',
-}).then(
-  () => {
-    console.log(chalk.yellow('\n[Shutdown] All processes completed successfully'));
-    process.exit(0);
-  },
-  (error) => {
-    console.error(chalk.red('\n[Error] Process failed:'), error);
-    process.exit(1);
-  }
-); 
+}).catch((error) => {
+  console.error(chalk.red('\n[Error] Process failed:'), error);
+  process.exit(1);
+});
+
+// Handle graceful shutdown
+process.on('SIGINT', () => {
+  console.log(chalk.yellow('\n[Shutdown] Received SIGINT, shutting down gracefully...'));
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log(chalk.yellow('\n[Shutdown] Received SIGTERM, shutting down gracefully...'));
+  process.exit(0);
+}); 

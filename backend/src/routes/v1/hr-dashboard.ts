@@ -368,4 +368,136 @@ router.get('/user/:userId', authenticateToken, requireHRRole, asyncHandler(async
   }
 }));
 
+// Get returned payment requests for HR review
+router.get('/returned-payment-requests', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10 } = req.query;
+  const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+  
+  const client = await pool.connect();
+  
+  try {
+    // Get returned payment requests with details
+    const requestsResult = await client.query(`
+      SELECT 
+        pr.*,
+        u.username as instructor_name,
+        u.email as instructor_email,
+        t.week_start_date,
+        t.total_hours,
+        t.courses_taught,
+        t.hr_comment as timesheet_comment,
+        -- Calculate payment breakdown
+        CASE 
+          WHEN ipr.hourly_rate IS NOT NULL THEN ipr.hourly_rate 
+          ELSE 25.00 
+        END as hourly_rate,
+        CASE 
+          WHEN ipr.course_bonus IS NOT NULL THEN ipr.course_bonus 
+          ELSE 50.00 
+        END as course_bonus,
+        (t.total_hours * COALESCE(ipr.hourly_rate, 25.00)) as base_amount,
+        (t.courses_taught * COALESCE(ipr.course_bonus, 50.00)) as bonus_amount,
+        COALESCE(prt.name, 'Default') as tier_name
+      FROM payment_requests pr
+      JOIN users u ON pr.instructor_id = u.id
+      JOIN timesheets t ON pr.timesheet_id = t.id
+      LEFT JOIN instructor_pay_rates ipr ON ipr.instructor_id = pr.instructor_id 
+        AND ipr.is_active = true 
+        AND ipr.effective_date <= t.week_start_date
+        AND (ipr.end_date IS NULL OR ipr.end_date >= t.week_start_date)
+      LEFT JOIN pay_rate_tiers prt ON ipr.tier_id = prt.id
+      WHERE pr.status = 'returned_to_hr'
+      ORDER BY pr.updated_at DESC
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
+    
+    // Get total count for pagination
+    const countResult = await client.query(`
+      SELECT COUNT(*) as total
+      FROM payment_requests 
+      WHERE status = 'returned_to_hr'
+    `);
+    
+    res.json({
+      success: true,
+      data: {
+        requests: requestsResult.rows,
+        pagination: {
+          page: parseInt(page as string),
+          limit: parseInt(limit as string),
+          total: parseInt(countResult.rows[0].total),
+          pages: Math.ceil(parseInt(countResult.rows[0].total) / parseInt(limit as string))
+        }
+      }
+    });
+  } finally {
+    client.release();
+  }
+}));
+
+// HR process returned payment request (override/final reject)
+router.post('/returned-payment-requests/:requestId/process', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+  const { requestId } = req.params;
+  const { action, notes } = req.body; // action: 'override_approve' or 'final_reject'
+  
+  if (!['override_approve', 'final_reject'].includes(action)) {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid action. Must be "override_approve" or "final_reject".');
+  }
+  
+  if (!notes?.trim()) {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Notes are required when processing returned payment request.');
+  }
+  
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Get the payment request
+    const requestResult = await client.query(`
+      SELECT * FROM payment_requests WHERE id = $1 AND status = 'returned_to_hr'
+    `, [requestId]);
+    
+    if (requestResult.rows.length === 0) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Returned payment request not found or already processed.');
+    }
+    
+    const newStatus = action === 'override_approve' ? 'approved' : 'rejected';
+    const hrNotes = `HR Decision (${action === 'override_approve' ? 'Override' : 'Final Reject'}): ${notes}`;
+    
+    // Update the payment request status
+    await client.query(`
+      UPDATE payment_requests 
+      SET status = $1, notes = $2, updated_at = NOW()
+      WHERE id = $3
+    `, [newStatus, hrNotes, requestId]);
+    
+    // If overriding to approve, also update the corresponding payroll payment
+    if (action === 'override_approve') {
+      await client.query(`
+        UPDATE payroll_payments 
+        SET status = 'completed', updated_at = NOW()
+        WHERE id = (
+          SELECT id FROM payroll_payments 
+          WHERE instructor_id = $1 AND amount = $2 AND status = 'pending'
+          ORDER BY created_at DESC
+          LIMIT 1
+        )
+      `, [requestResult.rows[0].instructor_id, requestResult.rows[0].amount]);
+    }
+    
+    await client.query('COMMIT');
+    
+    res.json({
+      success: true,
+      message: `Payment request ${action === 'override_approve' ? 'approved by HR override' : 'finally rejected by HR'} successfully.`
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}));
+
 export default router; 
