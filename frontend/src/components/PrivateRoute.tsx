@@ -64,21 +64,23 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
     return <Navigate to='/login' state={{ from: location }} replace />;
   }
 
-  // Check role requirements
-  if (role && user.role !== role) {
-    // Redirect to their appropriate dashboard based on role
-    const roleRoutes = {
-      instructor: '/instructor/dashboard',
-      organization: '/organization/dashboard',
-      admin: '/admin/dashboard',
-      accountant: '/accounting/dashboard',
-      superadmin: '/superadmin/dashboard',
-      sysadmin: '/sysadmin/dashboard',
-    };
+      // Check role requirements
+    if (role && user.role !== role) {
+      // Redirect to their appropriate dashboard based on role
+      const roleRoutes = {
+        instructor: '/instructor/dashboard',
+        organization: '/organization/dashboard',
+        admin: '/admin/dashboard',
+        accountant: '/accounting/dashboard',
+        superadmin: '/superadmin/dashboard',
+        sysadmin: '/sysadmin/dashboard',
+        hr: '/hr',
+        vendor: '/vendor/dashboard',
+      };
 
-    const targetRoute = roleRoutes[user.role as keyof typeof roleRoutes] || '/';
-    return <Navigate to={targetRoute} replace />;
-  }
+      const targetRoute = roleRoutes[user.role as keyof typeof roleRoutes] || '/';
+      return <Navigate to={targetRoute} replace />;
+    }
 
   return <>{children}</>;
 };

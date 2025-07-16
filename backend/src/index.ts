@@ -329,6 +329,10 @@ import profileChangesRoutes from './routes/v1/profile-changes.js';
 app.use('/api/v1/profile-changes', profileChangesRoutes);
 console.log('✅ Profile changes routes configured');
 
+// Vendor routes are now handled in v1 routes
+console.log('11e. Vendor routes are handled in v1 routes...');
+console.log('✅ Vendor routes configured');
+
 // SSE endpoint
 console.log('12. Setting up SSE endpoint...');
 app.get('/api/v1/events', (req: Request, res: Response) => {

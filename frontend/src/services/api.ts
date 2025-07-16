@@ -729,6 +729,56 @@ export const fetchAccountingDashboardData = async () => {
   }
 };
 
+// Vendor API functions
+export const vendorApi = {
+  // Dashboard
+  getDashboard: async () => {
+    const response = await api.get('/vendor/dashboard');
+    return response.data;
+  },
+
+  // Profile
+  getProfile: async () => {
+    const response = await api.get('/vendor/profile');
+    return response.data;
+  },
+  updateProfile: async (profileData: any) => {
+    const response = await api.put('/vendor/profile', profileData);
+    return response.data;
+  },
+
+  // Invoices
+  getInvoices: async (params?: { status?: string; search?: string }) => {
+    const response = await api.get('/vendor/invoices', { params });
+    return response.data;
+  },
+  uploadInvoice: async (formData: FormData) => {
+    console.log('🚀 [VENDOR API] uploadInvoice called with FormData:', formData);
+    console.log('📁 [VENDOR API] FormData entries:');
+    for (let [key, value] of formData.entries()) {
+      console.log(`  ${key}:`, value instanceof File ? `File(${value.name}, ${value.size} bytes)` : value);
+    }
+    
+    const response = await api.post('/vendor/invoices', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    console.log('✅ [VENDOR API] uploadInvoice response:', response.data);
+    return response.data;
+  },
+  getInvoice: async (invoiceId: number) => {
+    const response = await api.get(`/vendor/invoices/${invoiceId}`);
+    return response.data;
+  },
+  downloadInvoice: async (invoiceId: number) => {
+    const response = await api.get(`/vendor/invoices/${invoiceId}/download`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+};
+
 export default api;
 
 console.log('[Debug] api.ts - API service initialized');

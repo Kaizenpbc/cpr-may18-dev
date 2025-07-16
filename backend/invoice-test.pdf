@@ -1,0 +1,86 @@
+%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 4 0 R
+>>
+endobj
+
+4 0 obj
+<<
+/Length 500
+>>
+stream
+BT
+/F1 12 Tf
+72 720 Td
+(INVOICE) Tj
+/F1 10 Tf
+72 700 Td
+(Invoice Number: INV-2025-001) Tj
+72 680 Td
+(Date: 2025-07-16) Tj
+72 660 Td
+(Due Date: 2025-08-16) Tj
+72 640 Td
+(Vendor: Test Vendor Company) Tj
+72 620 Td
+(Contact: vendor@example.com) Tj
+72 600 Td
+(Phone: 555-1234) Tj
+72 580 Td
+(Address: 123 Vendor St, Vendor City, ON, A1B 2C3) Tj
+72 540 Td
+(DESCRIPTION) Tj
+72 520 Td
+(Manual Supplies - First Aid Kits) Tj
+72 500 Td
+(Quantity: 50 units) Tj
+72 480 Td
+(Unit Price: $25.00) Tj
+72 460 Td
+(Total Amount: $1,250.00) Tj
+72 420 Td
+(TERMS AND CONDITIONS) Tj
+72 400 Td
+(Payment due within 30 days) Tj
+72 380 Td
+(Late payment may incur additional charges) Tj
+72 360 Td
+(Thank you for your business!) Tj
+ET
+endstream
+endobj
+
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000204 00000 n 
+trailer
+<<
+/Size 5
+/Root 1 0 R
+>>
+startxref
+789
+%%EOF 

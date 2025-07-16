@@ -9,6 +9,7 @@ import SuperAdminPortal from '../components/portals/SuperAdminPortal';
 import AccountingPortal from '../components/portals/AccountingPortal.tsx';
 import SystemAdminPortal from '../components/portals/SystemAdminPortal';
 import HRPortal from '../components/portals/HRPortal';
+import VendorPortal from '../components/portals/VendorPortal';
 import { tokenService } from '../services/tokenService';
 
 const RoleBasedRouter: React.FC = () => {
@@ -33,6 +34,7 @@ const RoleBasedRouter: React.FC = () => {
         superadmin: '/superadmin/dashboard',
         sysadmin: '/sysadmin/dashboard',
         hr: '/hr',
+        vendor: '/vendor/dashboard',
       };
 
       const targetRoute = roleRoutes[user.role as keyof typeof roleRoutes];
@@ -90,6 +92,8 @@ const RoleBasedRouter: React.FC = () => {
       return <SystemAdminPortal />;
     case 'hr':
       return <HRPortal />;
+    case 'vendor':
+      return <VendorPortal />;
     default:
       return (
         <Box

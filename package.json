@@ -43,6 +43,8 @@
     "ts-jest": "^29.4.0"
   },
   "dependencies": {
-    "jsonwebtoken": "^9.0.2"
+    "@types/multer": "^2.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.1"
   }
 }

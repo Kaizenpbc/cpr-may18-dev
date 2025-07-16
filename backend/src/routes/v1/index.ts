@@ -21,6 +21,7 @@ import timesheetRouter from './timesheet.js';
 import payrollRouter from './payroll.js';
 import payRatesRouter from './payRates.js';
 import notificationsRouter from './notifications.js';
+import vendorRouter from './vendor.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import bcrypt from 'bcryptjs';
@@ -67,6 +68,10 @@ console.log('✅ Pay rates routes mounted');
 // Mount notifications routes
 router.use('/notifications', notificationsRouter);
 console.log('✅ Notifications routes mounted');
+
+// Mount vendor routes
+router.use('/vendor', vendorRouter);
+console.log('✅ Vendor routes mounted');
 
 console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
 

@@ -19,6 +19,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RealtimeProvider } from './contexts/RealtimeContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
 import HRPortal from './components/portals/HRPortal';
+import VendorPortal from './components/portals/VendorPortal';
 
 console.log('[DEEP TRACE] App.tsx - Starting to load dependencies');
 
@@ -116,8 +117,18 @@ function App() {
                 <Route 
                   path="/hr" 
                   element={
-                    <PrivateRoute allowedRoles={['hr', 'sysadmin']}>
+                    <PrivateRoute role="hr">
                       <HRPortal />
+                    </PrivateRoute>
+                  } 
+                />
+
+                {/* Vendor Portal Route */}
+                <Route 
+                  path="/vendor/*" 
+                  element={
+                    <PrivateRoute role="vendor">
+                      <VendorPortal />
                     </PrivateRoute>
                   } 
                 />
