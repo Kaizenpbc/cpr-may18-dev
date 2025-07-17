@@ -16,7 +16,8 @@ export default defineConfig({
   },
   define: {
     'process.env.NODE_ENV': '"test"',
-    'process.env.VITE_API_URL': '"http://localhost:3002"',
+    'process.env.VITE_API_URL': '"http://localhost:3002/api/v1"',
+    'process.env.VITE_WS_URL': '"http://localhost:3002"',
   },
   test: {
     globals: true,

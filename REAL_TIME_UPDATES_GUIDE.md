@@ -12,6 +12,7 @@ The system now supports **real-time updates** for course status changes across a
 - **Course Assignment**: `courseStatusChanged` event when instructor is assigned
 - **Course Rescheduling**: `courseStatusChanged` event when course is rescheduled
 - **New Course Request**: `newCourseRequest` event when organization submits new request
+- **Payment Verification**: `paymentStatusChanged` event when accountant approves/rejects payment
 
 ### Frontend Real-Time Handling
 - **WebSocket Connection**: Automatic connection to backend WebSocket server
@@ -46,6 +47,7 @@ The system now supports **real-time updates** for course status changes across a
 - **Course Assignment**: Assign instructor to pending course → Watch real-time update
 - **Course Cancellation**: Cancel a course → Watch it disappear from lists
 - **Course Rescheduling**: Reschedule a course → Watch updates across portals
+- **Payment Verification**: Approve/reject payment in Accounting Portal → Watch Organization Portal update immediately
 
 ## 🔧 Technical Details
 
@@ -70,6 +72,17 @@ The system now supports **real-time updates** for course status changes across a
   scheduledDate: '2025-07-15',
   timestamp: '2025-07-12T19:30:00.000Z'
 }
+
+// Payment Verification Event
+{
+  type: 'payment_verified',
+  paymentId: 456,
+  invoiceId: 789,
+  organizationId: 101,
+  action: 'approve',
+  amount: 1000.00,
+  timestamp: '2025-07-12T19:30:00.000Z'
+}
 ```
 
 ### Query Invalidation Strategy
@@ -80,6 +93,8 @@ The system now supports **real-time updates** for course status changes across a
 | `course_cancelled` | `pendingCourses`, `confirmedCourses` |
 | `course_assigned` | `pendingCourses`, `confirmedCourses`, `instructors` |
 | `course_rescheduled` | `pendingCourses`, `confirmedCourses`, `instructors` |
+| `payment_verified` | `organization-invoices`, `organization-paid-invoices`, `organization-billing-summary` |
+| `payment_rejected` | `organization-invoices`, `organization-billing-summary` |
 
 ### Fallback Mechanisms
 

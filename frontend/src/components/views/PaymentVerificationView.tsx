@@ -28,6 +28,7 @@ import {
   Cancel as RejectIcon,
   Visibility as ViewIcon,
   HourglassEmpty as PendingIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
@@ -48,7 +49,17 @@ const PaymentVerificationView = () => {
     queryKey: ['pending-payment-verifications'],
     queryFn: async () => {
       const response = await api.get('/accounting/payment-verifications');
-      return response.data.data;
+      // Filter to only show payments that are actually pending verification
+      const pendingPayments = response.data.data.payments?.filter(payment => 
+        payment.status === 'pending_verification' || 
+        payment.status === 'pending' ||
+        !payment.verified_by_accounting_at
+      ) || [];
+      
+      return {
+        ...response.data.data,
+        payments: pendingPayments
+      };
     },
   });
 
@@ -112,6 +123,37 @@ const PaymentVerificationView = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Check if payment can be verified (not already processed)
+  const canVerifyPayment = (payment) => {
+    return !payment.verified_by_accounting_at && 
+           (payment.status === 'pending_verification' || 
+            payment.status === 'pending' ||
+            !payment.status);
+  };
+
+  // Get payment status for display
+  const getPaymentStatus = (payment) => {
+    if (payment.verified_by_accounting_at) {
+      return {
+        label: 'VERIFIED',
+        color: 'success',
+        icon: <CheckCircleIcon />
+      };
+    }
+    if (payment.status === 'rejected') {
+      return {
+        label: 'REJECTED',
+        color: 'error',
+        icon: <RejectIcon />
+      };
+    }
+    return {
+      label: 'PENDING VERIFICATION',
+      color: 'warning',
+      icon: <PendingIcon />
+    };
+  };
+
   if (isLoading) {
     return (
       <Box
@@ -154,9 +196,15 @@ const PaymentVerificationView = () => {
               {!paymentsData?.payments?.length ? (
                 <TableRow>
                   <TableCell colSpan={8} align='center'>
-                    <Typography variant='body2' color='text.secondary'>
-                      No pending payment verifications
-                    </Typography>
+                    <Box sx={{ py: 4, textAlign: 'center' }}>
+                      <CheckCircleIcon color="success" sx={{ fontSize: 48, mb: 2 }} />
+                      <Typography variant='h6' color='success.main' gutterBottom>
+                        All Payments Verified!
+                      </Typography>
+                      <Typography variant='body2' color='text.secondary'>
+                        There are no pending payment verifications at this time.
+                      </Typography>
+                    </Box>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -196,14 +244,14 @@ const PaymentVerificationView = () => {
                     </TableCell>
                     <TableCell>
                       <Chip
-                        icon={<PendingIcon />}
-                        label='PENDING VERIFICATION'
-                        color='warning'
+                        icon={getPaymentStatus(payment).icon}
+                        label={getPaymentStatus(payment).label}
+                        color={getPaymentStatus(payment).color}
                         size='small'
                       />
                     </TableCell>
                     <TableCell align='center'>
-                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
                         <Tooltip title='View Details'>
                           <IconButton
                             size='small'
@@ -212,6 +260,30 @@ const PaymentVerificationView = () => {
                             <ViewIcon fontSize='small' />
                           </IconButton>
                         </Tooltip>
+                        {canVerifyPayment(payment) && (
+                          <>
+                            <Tooltip title='Approve Payment'>
+                              <IconButton
+                                size='small'
+                                color='success'
+                                onClick={() => handleVerificationClick(payment, 'approve')}
+                                disabled={verifyPaymentMutation.isLoading}
+                              >
+                                <ApproveIcon fontSize='small' />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title='Reject Payment'>
+                              <IconButton
+                                size='small'
+                                color='error'
+                                onClick={() => handleVerificationClick(payment, 'reject')}
+                                disabled={verifyPaymentMutation.isLoading}
+                              >
+                                <RejectIcon fontSize='small' />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -421,12 +493,22 @@ const PaymentVerificationView = () => {
                     Status
                   </Typography>
                   <Chip
-                    icon={<PendingIcon />}
-                    label='PENDING VERIFICATION'
-                    color='warning'
+                    icon={getPaymentStatus(selectedPayment).icon}
+                    label={getPaymentStatus(selectedPayment).label}
+                    color={getPaymentStatus(selectedPayment).color}
                     size='small'
                   />
                 </Grid>
+                {selectedPayment.verified_by_accounting_at && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant='body2' color='text.secondary'>
+                      Verified By Accounting
+                    </Typography>
+                    <Typography variant='body1'>
+                      {formatDate(selectedPayment.verified_by_accounting_at)}
+                    </Typography>
+                  </Grid>
+                )}
                 {selectedPayment.notes && (
                   <Grid item xs={12}>
                     <Typography variant='body2' color='text.secondary'>
@@ -460,28 +542,32 @@ const PaymentVerificationView = () => {
           <Button onClick={() => setViewDetailsDialogOpen(false)}>
             Close
           </Button>
-          <Button
-            onClick={() => {
-              setVerificationAction('reject');
-              setVerificationDialogOpen(true);
-            }}
-            variant='outlined'
-            color='error'
-            disabled={verifyPaymentMutation.isLoading}
-          >
-            Reject Payment
-          </Button>
-          <Button
-            onClick={() => {
-              setVerificationAction('approve');
-              setVerificationDialogOpen(true);
-            }}
-            variant='contained'
-            color='success'
-            disabled={verifyPaymentMutation.isLoading}
-          >
-            Approve Payment
-          </Button>
+          {canVerifyPayment(selectedPayment) && (
+            <>
+              <Button
+                onClick={() => {
+                  setVerificationAction('reject');
+                  setVerificationDialogOpen(true);
+                }}
+                variant='outlined'
+                color='error'
+                disabled={verifyPaymentMutation.isLoading}
+              >
+                Reject Payment
+              </Button>
+              <Button
+                onClick={() => {
+                  setVerificationAction('approve');
+                  setVerificationDialogOpen(true);
+                }}
+                variant='contained'
+                color='success'
+                disabled={verifyPaymentMutation.isLoading}
+              >
+                Approve Payment
+              </Button>
+            </>
+          )}
         </DialogActions>
       </Dialog>
 

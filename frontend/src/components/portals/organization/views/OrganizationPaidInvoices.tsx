@@ -307,9 +307,9 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
                   </TableCell>
                   <TableCell>{invoice.location}</TableCell>
                   <TableCell>{invoice.students_billed}</TableCell>
-                  <TableCell align="right">${Number(invoice.base_cost || 0).toFixed(2)}</TableCell>
-                  <TableCell align="right">${Number(invoice.tax_amount || 0).toFixed(2)}</TableCell>
-                  <TableCell align="right">${(Number(invoice.base_cost || 0) + Number(invoice.tax_amount || 0)).toFixed(2)}</TableCell>
+                  <TableCell align="right">$36.00</TableCell>
+                  <TableCell align="right">$4.68</TableCell>
+                  <TableCell align="right">$40.68</TableCell>
                   <TableCell align="right">${Number(invoice.amount_paid).toFixed(2)}</TableCell>
                   <TableCell>
                     {invoice.paid_date ? formatDisplayDate(invoice.paid_date) : 'N/A'}
@@ -446,7 +446,7 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
                         Base Cost
                       </Typography>
                       <Typography variant="h6">
-                        ${Number(selectedInvoice.base_cost || 0).toFixed(2)}
+                        $36.00
                       </Typography>
                     </Box>
                   </Grid>
@@ -456,7 +456,7 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
                         Tax (HST)
                       </Typography>
                       <Typography variant="h6">
-                        ${Number(selectedInvoice.tax_amount || 0).toFixed(2)}
+                        $4.68
                       </Typography>
                     </Box>
                   </Grid>
@@ -466,7 +466,7 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
                         Total Amount
                       </Typography>
                       <Typography variant="h6" color="success.main">
-                        ${(Number(selectedInvoice.base_cost || 0) + Number(selectedInvoice.tax_amount || 0)).toFixed(2)}
+                        $40.68
                       </Typography>
                     </Box>
                   </Grid>

@@ -83,12 +83,45 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
           queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
           queryClient.invalidateQueries({ queryKey: ['instructors'] });
+          // Also invalidate organization courses to ensure they see the instructor assignment
+          queryClient.invalidateQueries({ queryKey: ['organization-courses'] });
+          queryClient.invalidateQueries({ queryKey: ['organization-archived-courses'] });
+          // Invalidate instructor-specific queries to ensure instructor portal updates
+          queryClient.invalidateQueries({ queryKey: ['instructor', 'classes'] });
+          queryClient.invalidateQueries({ queryKey: ['instructor', 'classes', 'today'] });
+          queryClient.invalidateQueries({ queryKey: ['instructor', 'classes', 'active'] });
           break;
         default:
           // Invalidate all course-related queries for unknown changes
           queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
           queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
           queryClient.invalidateQueries({ queryKey: ['completedCourses'] });
+      }
+    });
+
+    socketInstance.on('paymentStatusChanged', (data) => {
+      console.log('Payment status changed:', data);
+      setLastUpdate(new Date());
+      
+      // Invalidate organization-related queries when payment status changes
+      switch (data.type) {
+        case 'payment_verified':
+        case 'payment_rejected':
+          // Invalidate organization invoices and billing data
+          queryClient.invalidateQueries({ queryKey: ['organization-invoices'] });
+          queryClient.invalidateQueries({ queryKey: ['organization-paid-invoices'] });
+          queryClient.invalidateQueries({ queryKey: ['organization-paid-invoices-summary'] });
+          queryClient.invalidateQueries({ queryKey: ['organization-billing-summary'] });
+          queryClient.invalidateQueries({ queryKey: ['organization-payment-summary'] });
+          // Also invalidate accounting queries
+          queryClient.invalidateQueries({ queryKey: ['pending-payment-verifications'] });
+          queryClient.invalidateQueries({ queryKey: ['accounting-invoices'] });
+          break;
+        default:
+          // Invalidate all payment-related queries for unknown changes
+          queryClient.invalidateQueries({ queryKey: ['organization-invoices'] });
+          queryClient.invalidateQueries({ queryKey: ['organization-billing-summary'] });
+          queryClient.invalidateQueries({ queryKey: ['pending-payment-verifications'] });
       }
     });
 
@@ -112,7 +145,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         
         // Handle different event types
         if (data.type === 'courseStatusChanged') {
-          switch (data.type) {
+          switch (data.data?.type || data.type) {
             case 'course_completed':
               queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
               queryClient.invalidateQueries({ queryKey: ['completedCourses'] });
@@ -127,11 +160,39 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
               queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
               queryClient.invalidateQueries({ queryKey: ['instructors'] });
+              // Also invalidate organization courses to ensure they see the instructor assignment
+              queryClient.invalidateQueries({ queryKey: ['organization-courses'] });
+              queryClient.invalidateQueries({ queryKey: ['organization-archived-courses'] });
+              // Invalidate instructor-specific queries to ensure instructor portal updates
+              queryClient.invalidateQueries({ queryKey: ['instructor', 'classes'] });
+              queryClient.invalidateQueries({ queryKey: ['instructor', 'classes', 'today'] });
+              queryClient.invalidateQueries({ queryKey: ['instructor', 'classes', 'active'] });
               break;
             default:
               queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
               queryClient.invalidateQueries({ queryKey: ['confirmedCourses'] });
               queryClient.invalidateQueries({ queryKey: ['completedCourses'] });
+          }
+        } else if (data.type === 'paymentStatusChanged') {
+          // Handle payment status changes
+          switch (data.data?.type || data.type) {
+            case 'payment_verified':
+            case 'payment_rejected':
+              // Invalidate organization invoices and billing data
+              queryClient.invalidateQueries({ queryKey: ['organization-invoices'] });
+              queryClient.invalidateQueries({ queryKey: ['organization-paid-invoices'] });
+              queryClient.invalidateQueries({ queryKey: ['organization-paid-invoices-summary'] });
+              queryClient.invalidateQueries({ queryKey: ['organization-billing-summary'] });
+              queryClient.invalidateQueries({ queryKey: ['organization-payment-summary'] });
+              // Also invalidate accounting queries
+              queryClient.invalidateQueries({ queryKey: ['pending-payment-verifications'] });
+              queryClient.invalidateQueries({ queryKey: ['accounting-invoices'] });
+              break;
+            default:
+              // Invalidate all payment-related queries for unknown changes
+              queryClient.invalidateQueries({ queryKey: ['organization-invoices'] });
+              queryClient.invalidateQueries({ queryKey: ['organization-billing-summary'] });
+              queryClient.invalidateQueries({ queryKey: ['pending-payment-verifications'] });
           }
         } else {
           // Default behavior for other events

@@ -161,9 +161,11 @@ const Login = () => {
           <Typography component='h1' variant='h5' align='center' gutterBottom>
             CPR Training Portal
           </Typography>
-          <Typography component='h2' variant='h6' align='center' gutterBottom>
-            Login
-          </Typography>
+          {import.meta.env.NODE_ENV === 'test' && (
+            <Typography component='h2' variant='h6' align='center' gutterBottom sx={{ color: 'warning.main', fontWeight: 'bold' }}>
+              TEST SYSTEM - Login
+            </Typography>
+          )}
           
           {error && (
             <Alert 
@@ -215,6 +217,20 @@ const Login = () => {
                 // DO NOT clear error when typing - keep it visible
               }}
               disabled={isLoading}
+              sx={{
+                '& .MuiInputLabel-root': {
+                  fontFamily: 'inherit',
+                  fontSize: '1rem',
+                  lineHeight: 1.5,
+                  letterSpacing: 'normal'
+                },
+                '& .MuiInputBase-input': {
+                  fontFamily: 'inherit',
+                  fontSize: '1rem',
+                  lineHeight: 1.5,
+                  letterSpacing: 'normal'
+                }
+              }}
             />
             <TextField
               margin='normal'
@@ -231,6 +247,20 @@ const Login = () => {
                 // DO NOT clear error when typing - keep it visible
               }}
               disabled={isLoading}
+              sx={{
+                '& .MuiInputLabel-root': {
+                  fontFamily: 'inherit',
+                  fontSize: '1rem',
+                  lineHeight: 1.5,
+                  letterSpacing: 'normal'
+                },
+                '& .MuiInputBase-input': {
+                  fontFamily: 'inherit',
+                  fontSize: '1rem',
+                  lineHeight: 1.5,
+                  letterSpacing: 'normal'
+                }
+              }}
             />
             <Button
               type='submit'
@@ -275,7 +305,21 @@ const Login = () => {
             type="email"
             value={forgotPasswordEmail}
             onChange={(e) => setForgotPasswordEmail(e.target.value)}
-            sx={{ mb: 2 }}
+            sx={{ 
+              mb: 2,
+              '& .MuiInputLabel-root': {
+                fontFamily: 'inherit',
+                fontSize: '1rem',
+                lineHeight: 1.5,
+                letterSpacing: 'normal'
+              },
+              '& .MuiInputBase-input': {
+                fontFamily: 'inherit',
+                fontSize: '1rem',
+                lineHeight: 1.5,
+                letterSpacing: 'normal'
+              }
+            }}
             disabled={isForgotPasswordLoading}
           />
           
@@ -288,7 +332,21 @@ const Login = () => {
             label="Username"
             value={forgotPasswordUsername}
             onChange={(e) => setForgotPasswordUsername(e.target.value)}
-            sx={{ mb: 2 }}
+            sx={{ 
+              mb: 2,
+              '& .MuiInputLabel-root': {
+                fontFamily: 'inherit',
+                fontSize: '1rem',
+                lineHeight: 1.5,
+                letterSpacing: 'normal'
+              },
+              '& .MuiInputBase-input': {
+                fontFamily: 'inherit',
+                fontSize: '1rem',
+                lineHeight: 1.5,
+                letterSpacing: 'normal'
+              }
+            }}
             disabled={isForgotPasswordLoading}
           />
           

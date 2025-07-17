@@ -9,14 +9,14 @@ import type {
 } from '../types/api';
 import { API_URL } from '../config.js';
 
-console.log('🌐 [API] Initializing API service with base URL:', import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1');
+console.log('🌐 [API] Initializing API service with base URL:', API_URL);
 
 // Initialize API service with single base URL
 console.log('[TRACE] Initializing API service at:', API_URL);
 
 // Create axios instance
 const api = axios.create({
-  baseURL: 'http://localhost:3001/api/v1',
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },

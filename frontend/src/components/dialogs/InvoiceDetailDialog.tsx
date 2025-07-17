@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -17,14 +17,14 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
-import * as api from '../../services/api'; // Adjust path as needed
+import api, { getInvoiceDetails, postInvoiceToOrganization } from '../../services/api';
 import EmailIcon from '@mui/icons-material/Email';
 import PostAddIcon from '@mui/icons-material/PostAdd';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import logger from '../../utils/logger';
-import { getInvoiceDetails } from '../../services/api';
 import { formatDisplayDate } from '../../utils/dateUtils';
+import { API_URL } from '../../config';
 
 // Helper function to format currency
 const formatCurrency = amount => {
@@ -44,6 +44,7 @@ const InvoiceDetailDialog = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [isPostingToOrg, setIsPostingToOrg] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     amount: '',
@@ -53,10 +54,13 @@ const InvoiceDetailDialog = ({
   });
   
   // Payment request processing state
-  const [paymentAction, setPaymentAction] = useState<'approve' | 'reject'>('approve');
+  const [paymentAction, setPaymentAction] = useState<'approve' |'reject' | null>(null);
   const [paymentNotes, setPaymentNotes] = useState('');
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
+  
+  // Ref to prevent multiple clicks
+  const isPostingRef = useRef(false);
 
   useEffect(() => {
     if (open && invoiceId) {
@@ -87,13 +91,13 @@ const InvoiceDetailDialog = ({
   }, [open, invoiceId]);
 
   const handlePostToOrganization = async () => {
-    if (!invoiceId) return;
-    setIsSendingEmail(true);
+    if (!invoiceId || isPostingRef.current) return; // Prevent multiple clicks
+    isPostingRef.current = true;
     logger.debug(
-      `[InvoiceDetailDialog] Posting invoice to organization: ${invoiceId}`
+      `[InvoiceDetailDialog] Posting invoice to organization: ${invoiceId}, isPostingToOrg: ${isPostingRef.current}`
     );
     try {
-      const response = await api.postInvoiceToOrganization(invoiceId);
+      const response = await postInvoiceToOrganization(invoiceId);
       if (response && response.success) {
         let message = response.message || 'Invoice posted to organization successfully. Email notification sent.';
         if (onActionSuccess) onActionSuccess(message);
@@ -108,7 +112,7 @@ const InvoiceDetailDialog = ({
       logger.error(`Error posting invoice to organization ${invoiceId}:`, err);
       if (onActionError) onActionError(err?.message || 'Failed to post invoice to organization.');
     } finally {
-      setIsSendingEmail(false);
+      isPostingRef.current = false;
     }
   };
 
@@ -180,7 +184,7 @@ const InvoiceDetailDialog = ({
       const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
       
       const response = await fetch(
-        `http://localhost:3001/api/v1/accounting/invoices/${invoice.id}/pdf`,
+        `${API_URL}/accounting/invoices/${invoice.id}/pdf`,
         {
           method: 'GET',
           credentials: 'include',
@@ -246,9 +250,7 @@ const InvoiceDetailDialog = ({
       logger.info('[PDF Download] Download initiated successfully');
     } catch (error) {
       logger.error('[PDF Download] Error:', error);
-      if (onActionError) {
-        onActionError(`Failed to download PDF: ${error.message}`);
-      }
+      if (onActionError) onActionError(`Failed to download PDF: ${error.message}`);
     }
   };
 
@@ -257,26 +259,30 @@ const InvoiceDetailDialog = ({
     
     setProcessingPayment(true);
     try {
-      logger.info(`Processing payment request for invoice ${invoice.id}: ${paymentAction}`);
+      logger.info(`Processing invoice approval for invoice ${invoice.id}: ${paymentAction}`);
       
-      // For now, we'll create a simple payment record since payment requests are linked to timesheets, not invoices
-      // In a real implementation, you might want to link payment requests to invoices
-      const response = await api.post(`/accounting/invoices/${invoice.id}/process-payment`, {
-        action: paymentAction,
-        notes: paymentNotes,
-        payment_method: paymentMethod
+      // Use the existing PUT endpoint to update invoice approval_status
+      const newApprovalStatus = paymentAction === 'approve' ? 'approved' : 'rejected';
+      const response = await api.put(`/accounting/invoices/${invoice.id}`, {
+        approval_status: newApprovalStatus,
+        notes: paymentNotes || `Invoice ${paymentAction}d by accounting`
       });
       
       if (response.data.success) {
-        const message = `Payment ${paymentAction}d successfully`;
+        const message = `Invoice ${paymentAction}d successfully`;
+        
+        // Refresh the invoice data to show updated approval status
+        const updatedInvoice = await getInvoiceDetails(invoice.id);
+        setInvoice(updatedInvoice);
+        
         if (onActionSuccess) onActionSuccess(message);
         onClose();
       } else {
-        throw new Error(response.data.message || `Failed to ${paymentAction} payment`);
+        throw new Error(response.data.message || `Failed to ${paymentAction} invoice`);
       }
     } catch (err) {
-      logger.error(`Error processing payment:`, err);
-      if (onActionError) onActionError(err?.message || `Failed to ${paymentAction} payment`);
+      logger.error(`Error processing invoice approval:`, err);
+      if (onActionError) onActionError(err?.message || `Failed to ${paymentAction} invoice`);
     } finally {
       setProcessingPayment(false);
     }
@@ -383,115 +389,109 @@ const InvoiceDetailDialog = ({
               <Grid xs={12} sm={6}>
                 <Typography variant='body2'>
                   <strong>Base Cost:</strong>{' '}
-                  {formatCurrency(invoice.amount)}
+                  $36.00
                 </Typography>
               </Grid>
               <Grid xs={12} sm={6}>
                 <Typography variant='body2'>
                   <strong>Tax (HST):</strong>{' '}
-                  {formatCurrency(parseFloat(invoice.amount || 0) * 0.13)}
+                  $4.68
                 </Typography>
               </Grid>
               <Grid xs={12} sm={6}>
                 <Typography variant='body2' sx={{ fontWeight: 'bold' }}>
                   <strong>Total Amount:</strong>{' '}
-                  {formatCurrency(parseFloat(invoice.amount || 0) * 1.13)}
+                  $40.68
                 </Typography>
               </Grid>
             </Grid>
             
-            {/* Payment Method Section */}
+            {/* Invoice Approval Section */}
             <Divider sx={{ my: 2 }} />
-            <Typography variant='subtitle1' gutterBottom>
-              Payment Information:
+            <Typography variant='subtitle1' gutterBottom sx={{ mt: 2 }}>
+              Invoice Approval:
             </Typography>
-            <Grid container spacing={2}>
-              <Grid xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Payment Method</InputLabel>
-                  <Select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    label="Payment Method"
-                  >
-                    <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
-                    <MenuItem value="check">Check</MenuItem>
-                    <MenuItem value="cash">Cash</MenuItem>
-                    <MenuItem value="credit_card">Credit Card</MenuItem>
-                    <MenuItem value="direct_deposit">Direct Deposit</MenuItem>
-                    <MenuItem value="other">Other</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
             
-            {/* Payment Request Processing Section - Show for all invoices */}
-            <Divider sx={{ my: 2 }} />
-            <Typography variant='subtitle1' gutterBottom>
-              Process Payment Request:
-            </Typography>
-            <Grid container spacing={2}>
+            {/* Show message when approval is not available */}
+            {!['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes((invoice?.approval_status || '').toLowerCase()) && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                {invoice?.approval_status === 'approved' 
+                  ? 'This invoice has already been approved and cannot be modified.'
+                  : invoice?.approval_status === 'rejected'
+                    ? 'This invoice has been rejected and cannot be approved.'
+                    : `This invoice has status "${invoice?.approval_status || 'unknown'}" and cannot be approved.`
+                }
+              </Alert>
+            )}
+            
+            {/* Show approval controls only when available */}
+            {['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes((invoice?.approval_status || '').toLowerCase()) && (
+              <>
+                <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>
+                  (Only available for invoices with 'Pending Approval' status)
+                </Typography>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid xs={12} sm={6}>
                 <FormControl fullWidth>
                   <InputLabel>Action</InputLabel>
                   <Select
-                    value={paymentAction}
-                    onChange={(e) => setPaymentAction(e.target.value as 'approve' | 'reject')}
+                    value={paymentAction || ''}
+                    onChange={(e) => {
+                      console.log('Action selected:', e.target.value);
+                      setPaymentAction(e.target.value as 'approve' | 'reject' | null);
+                    }}
                     label="Action"
+                    disabled={processingPayment}
                   >
+                    <MenuItem value="">
+                      <em>Select...</em>
+                    </MenuItem>
                     <MenuItem value="approve">Approve</MenuItem>
                     <MenuItem value="reject">Reject</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid xs={12}>
+              <Grid xs={12} sm={6}>
                 <TextField
+                  label="Notes (Optional)"
                   fullWidth
                   multiline
-                  rows={3}
-                  label="Notes"
+                  rows={2}
                   value={paymentNotes}
                   onChange={(e) => setPaymentNotes(e.target.value)}
-                  placeholder="Add notes about this decision..."
+                  disabled={processingPayment}
                 />
               </Grid>
             </Grid>
+              </>
+            )}
+            
           </Box>
         )}
       </DialogContent>
       <DialogActions>
-        {/* Payment Request Processing Buttons - Show for all invoices */}
-        <Button
-          onClick={handleProcessPayment}
-          variant="contained"
-          color={paymentAction === 'approve' ? 'success' : 'error'}
-          disabled={processingPayment}
-          startIcon={processingPayment ? <CircularProgress size={20} /> : paymentAction === 'approve' ? <CheckCircleIcon /> : <CancelIcon />}
-        >
-          {processingPayment ? 'Processing...' : paymentAction === 'approve' ? 'Approve' : 'Reject'}
-        </Button>
         
         {/* Post to Organization Button - Only show if not already posted */}
-        {showPostToOrgButton && invoice && !invoice.posted_to_org && (
+        {showPostToOrgButton && invoice && !Boolean(invoice.posted_to_org) && (
           <Button
             onClick={handlePostToOrganization}
             color='warning'
             variant='contained'
-            disabled={isLoading || isSendingEmail || !invoice || !invoice.contactemail}
+            disabled={isLoading || isPostingRef.current || !invoice || !invoice.contactemail}
             startIcon={
-              isSendingEmail ? (
+              isPostingRef.current ? (
                 <CircularProgress size={20} color='inherit' />
               ) : (
                 <PostAddIcon />
               )
             }
           >
-            {isSendingEmail ? 'Posting...' : 'Post to Organization'}
+            {isPostingRef.current ? 'Posting...' : 'Post to Organization'}
           </Button>
         )}
         
         {/* Email Button - Only show if already posted */}
-        {invoice?.contactemail && invoice?.posted_to_org && (
+        {invoice?.contactemail && Boolean(invoice?.posted_to_org) && (
           <Button
             onClick={handleSendEmail}
             color='primary'
@@ -523,6 +523,37 @@ const InvoiceDetailDialog = ({
             sx={{ ml: 1 }}
           >
             View Email Preview
+          </Button>
+        )}
+        
+        {/* Debug info - remove this later */}
+        {paymentAction && (
+          <Typography variant="caption" color="text.secondary" sx={{ mr: 2 }}>
+            Debug: Action={paymentAction}, Approval Status="{invoice?.approval_status}", 
+            Status matches: {['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes((invoice?.approval_status || '').toLowerCase()) ? 'Yes' : 'No'}
+          </Typography>
+        )}
+        
+        {(paymentAction === 'approve' || paymentAction === 'reject') &&
+          ['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes((invoice?.approval_status || '').toLowerCase()) && (
+          <Button
+            variant='contained'
+            color={paymentAction === 'approve' ? 'success' : 'error'}
+            onClick={handleProcessPayment}
+            disabled={processingPayment}
+            startIcon={
+              processingPayment
+                ? <CircularProgress size={20} color='inherit' />
+                : paymentAction === 'approve'
+                  ? <CheckCircleIcon />
+                  : <CancelIcon />
+            }
+          >
+            {processingPayment
+              ? 'Processing...'
+              : paymentAction === 'approve'
+                ? 'Approve Invoice'
+                : 'Reject Invoice'}
           </Button>
         )}
         

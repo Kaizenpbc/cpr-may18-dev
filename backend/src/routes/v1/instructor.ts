@@ -257,8 +257,8 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor']),
       ct.name as coursetypename,
       COALESCE(o.name, 'Unassigned') as organizationname,
       COALESCE(cr.location, '') as notes,
-      0 as studentcount,
-      0 as studentsattendance
+      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as studentcount,
+      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as studentsattendance
      FROM course_requests cr
      JOIN class_types ct ON cr.course_type_id = ct.id
      LEFT JOIN organizations o ON cr.organization_id = o.id

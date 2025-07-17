@@ -7,6 +7,7 @@
     "dev:clean": "npm run cleanup && npm run kill-ports && timeout /t 3 /nobreak && npm run check-ports",
     "cleanup": "taskkill /f /im node.exe 2>nul || echo 'No node processes to kill'",
     "kill-ports": "for /f \"tokens=5\" %a in ('netstat -aon ^| findstr :3001') do taskkill /f /pid %a 2>nul || echo 'Port 3001 is free'",
+    "kill-frontend": "for /f \"tokens=5\" %a in ('netstat -aon ^| findstr :5173') do taskkill /f /pid %a 2>nul || echo 'Port 5173 is free' && for /f \"tokens=5\" %a in ('netstat -aon ^| findstr :5174') do taskkill /f /pid %a 2>nul || echo 'Port 5174 is free'",
     "check-ports": "netstat -an | findstr :3001 || echo 'Port 3001 is available'",
     "start": "cd backend && npm run build && node dist/index.js",
     "build": "tsc",

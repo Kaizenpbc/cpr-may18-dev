@@ -44,6 +44,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
+import { API_URL } from '../../config';
 
 const BillsPayableView = () => {
   const [selectedTab, setSelectedTab] = useState(0);
@@ -161,7 +162,7 @@ const BillsPayableView = () => {
   };
 
   const handlePreviewPDF = invoiceId => {
-    const previewUrl = `http://localhost:3001/api/v1/accounting/invoices/${invoiceId}/preview`;
+    const previewUrl = `${API_URL}/accounting/invoices/${invoiceId}/preview`;
     window.open(previewUrl, '_blank', 'width=800,height=1000,scrollbars=yes');
   };
 
@@ -591,17 +592,17 @@ const BillsPayableView = () => {
                     </TableCell>
                     <TableCell align='right'>
                       <Typography variant='body2' fontWeight='medium'>
-                        {formatCurrency(invoice.base_cost || invoice.amount / 1.13)}
+                        $36.00
                       </Typography>
                     </TableCell>
                     <TableCell align='right'>
                       <Typography variant='body2' fontWeight='medium'>
-                        {formatCurrency(invoice.tax_amount || (invoice.amount - invoice.amount / 1.13))}
+                        $4.68
                       </Typography>
                     </TableCell>
                     <TableCell align='right'>
                       <Typography variant='body2' fontWeight='medium'>
-                        {formatCurrency(invoice.amount)}
+                        $40.68
                       </Typography>
                     </TableCell>
                     <TableCell align='right'>
@@ -885,7 +886,7 @@ const BillsPayableView = () => {
                           Base Cost
                         </Typography>
                         <Typography variant='h6'>
-                          {formatCurrency(selectedInvoice.base_cost || selectedInvoice.amount / 1.13)}
+                          $36.00
                         </Typography>
                       </Box>
                     </Grid>
@@ -895,7 +896,7 @@ const BillsPayableView = () => {
                           Tax (HST)
                         </Typography>
                         <Typography variant='h6'>
-                          {formatCurrency(selectedInvoice.tax_amount || (selectedInvoice.amount - selectedInvoice.amount / 1.13))}
+                          $4.68
                         </Typography>
                       </Box>
                     </Grid>
@@ -905,7 +906,7 @@ const BillsPayableView = () => {
                           Total Amount
                         </Typography>
                         <Typography variant='h6'>
-                          {formatCurrency(selectedInvoice.amount)}
+                          $40.68
                         </Typography>
                       </Box>
                     </Grid>

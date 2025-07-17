@@ -143,6 +143,27 @@ const AccountsReceivableView: React.FC = () => {
 
   const handleInvoiceActionSuccess = (message: string) => {
     showSuccess(message);
+    // Refresh invoices after approval action
+    const fetchInvoices = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await getInvoices();
+        // Filter to show only invoices with outstanding balances for AR
+        const arInvoices = (data || []).filter((invoice: any) => {
+          const balanceDue = parseFloat(invoice.balancedue || 0);
+          const paymentStatus = invoice.paymentstatus?.toLowerCase();
+          return balanceDue > 0 && paymentStatus !== 'paid';
+        });
+        setInvoices(arInvoices);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load invoices.');
+        setInvoices([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchInvoices();
   };
 
   const handleInvoiceActionError = (message: string) => {
@@ -201,7 +222,7 @@ const AccountsReceivableView: React.FC = () => {
         invoiceId={selectedInvoiceId}
         onActionSuccess={handleInvoiceActionSuccess}
         onActionError={handleInvoiceActionError}
-        showPostToOrgButton={false} // Hide Post to Org button in AR section
+        showPostToOrgButton={true} // Show Post to Org button in AR section
       />
 
       {/* Record Payment Dialog */}

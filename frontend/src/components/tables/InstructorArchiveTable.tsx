@@ -96,13 +96,13 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
                   sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}
                   align='center'
                 >
-                  Time
+                  Students Registered
                 </TableCell>
                 <TableCell
                   sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}
                   align='center'
                 >
-                  Students
+                  Students Attended
                 </TableCell>
                 <TableCell
                   sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}
@@ -159,8 +159,7 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
                       sx={{ backgroundColor: rowColor }}
                     >
                       <Typography variant='body2'>
-                        {formatTime(course.start_time)} -{' '}
-                        {formatTime(course.end_time)}
+                        {course.max_students || course.registered_students || 0}
                       </Typography>
                     </TableCell>
 
@@ -178,10 +177,7 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
                       >
                         <PersonIcon fontSize='small' color='action' />
                         <Typography variant='body2'>
-                          {course.studentsattendance || 0}
-                        </Typography>
-                        <Typography variant='body2' color='text.secondary'>
-                          /{course.max_students || 0}
+                          {course.studentsattendance || course.students_attended || 0}
                         </Typography>
                       </Box>
                     </TableCell>

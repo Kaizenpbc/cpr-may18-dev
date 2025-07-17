@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { tokenService } from '../services/tokenService';
+import { API_URL } from '../config';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3001/api/v1',
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },

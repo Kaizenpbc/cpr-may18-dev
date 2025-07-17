@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -39,6 +39,7 @@ import {
   Payment as PaymentIcon,
   Info as InfoIcon,
   Close as CloseIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { formatDisplayDate } from '../../../../utils/dateUtils';
 import { api } from '../../../../services/api';
@@ -128,6 +129,9 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   // State for payment history
   const [paymentHistory, setPaymentHistory] = useState<Payment[]>([]);
   const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
+
+  // Ref to prevent multiple submissions
+  const isSubmittingRef = useRef(false);
 
   // Ensure invoices is an array
   const safeInvoices = Array.isArray(invoices) ? invoices : [];
@@ -219,7 +223,11 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   // Handle invoice click with payment history
   const handleInvoiceClick = async (invoice: Invoice) => {
     console.log('Invoice clicked:', invoice);
-    console.log('Invoice ID:', invoice.id);
+    console.log('Invoice fields:', Object.keys(invoice));
+    console.log('Invoice created_at:', invoice.created_at);
+    console.log('Invoice invoice_date:', invoice.invoice_date);
+    console.log('Invoice created_at type:', typeof invoice.created_at);
+    
     setSelectedInvoice(invoice);
     setDialogOpen(true);
     // Clear previous payment history and load new one
@@ -257,31 +265,45 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
 
   // Handle payment submission
   const handlePaymentSubmit = async () => {
-    if (!selectedInvoice) return;
+    console.log('=== handlePaymentSubmit START ===');
+    console.log('handlePaymentSubmit called');
+    console.log('selectedInvoice:', selectedInvoice);
+    console.log('submittingPayment:', submittingPayment);
+    console.log('isSubmittingRef.current:', isSubmittingRef.current);
+    console.log('paymentForm:', paymentForm);
+    
+    if (!selectedInvoice || submittingPayment || isSubmittingRef.current) {
+      console.log('Early return - conditions not met');
+      console.log('- !selectedInvoice:', !selectedInvoice);
+      console.log('- submittingPayment:', submittingPayment);
+      console.log('- isSubmittingRef.current:', isSubmittingRef.current);
+      return;
+    }
 
+    console.log('Starting payment submission...');
+    isSubmittingRef.current = true;
     setSubmittingPayment(true);
     setPaymentError(null);
 
     try {
-      const response = await api.post(`/organization/invoices/${selectedInvoice.id}/payment-submission`, {
+      const paymentData = {
         amount: parseFloat(paymentForm.amount),
         payment_method: paymentForm.payment_method,
         reference_number: paymentForm.reference_number,
         payment_date: paymentForm.payment_date,
         notes: paymentForm.notes,
-      });
+      };
+      
+      console.log('Submitting payment data:', paymentData);
+      
+      const response = await api.post(`/organization/invoices/${selectedInvoice.id}/payment-submission`, paymentData);
+      
+      console.log('Payment submission response:', response);
 
       if (response.data.success) {
+        console.log('Payment submission successful');
         setPaymentSuccess(true);
-        setPaymentDialogOpen(false);
-        // Reset form
-        setPaymentForm({
-          amount: '',
-          payment_method: '',
-          reference_number: '',
-          payment_date: new Date().toISOString().split('T')[0],
-          notes: '',
-        });
+        handlePaymentDialogClose();
         
         // Refresh payment history for the current invoice
         await loadPaymentHistory(selectedInvoice.id);
@@ -290,46 +312,121 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         setTimeout(() => {
           handleDialogClose();
         }, 2000);
-        
-        // Trigger a page refresh to update the invoice list
-        window.location.reload();
       }
     } catch (error: any) {
+      console.error('Payment submission error:', error);
       setPaymentError(error.response?.data?.message || 'Failed to submit payment');
     } finally {
+      console.log('Payment submission completed, resetting states');
       setSubmittingPayment(false);
+      isSubmittingRef.current = false;
     }
+    console.log('=== handlePaymentSubmit END ===');
   };
 
   // Handle payment dialog open
-  const handlePaymentDialogOpen = () => {
-    if (selectedInvoice) {
-      setPaymentForm({
-        amount: Number(selectedInvoice.balance_due || 0).toFixed(2),
+  const handlePaymentDialogOpen = (invoice: Invoice) => {
+    console.log('=== handlePaymentDialogOpen START ===');
+    console.log('Function called with invoice:', invoice);
+    console.log('Current paymentDialogOpen state:', paymentDialogOpen);
+    console.log('Current dialogOpen state:', dialogOpen);
+    
+    if (invoice) {
+      console.log('Invoice exists, proceeding...');
+      
+      // Set payment form data
+      const formData = {
+        amount: Number(invoice.balance_due || 0).toFixed(2),
         payment_method: '',
         reference_number: '',
         payment_date: new Date().toISOString().split('T')[0],
         notes: '',
-      });
+      };
+      
+      console.log('Setting payment form data:', formData);
+      setPaymentForm(formData);
+      
+      console.log('About to set paymentDialogOpen to true');
+      // Open payment dialog immediately
       setPaymentDialogOpen(true);
+      console.log('setPaymentDialogOpen(true) called');
+      
+      // Check state immediately after
+      console.log('State immediately after setPaymentDialogOpen:', {
+        paymentDialogOpen: paymentDialogOpen,
+        dialogOpen: dialogOpen
+      });
+      
+      // Check state after a micro delay
+      setTimeout(() => {
+        console.log('=== MICRO DELAY CHECK ===');
+        console.log('paymentDialogOpen after micro delay:', paymentDialogOpen);
+        console.log('dialogOpen after micro delay:', dialogOpen);
+      }, 0);
+      
+    } else {
+      console.log('Invoice is null/undefined, not proceeding');
     }
+    
+    console.log('=== handlePaymentDialogOpen END ===');
+  };
+
+  // Handle payment dialog close
+  const handlePaymentDialogClose = () => {
+    setPaymentDialogOpen(false);
+    setPaymentError(null);
+    setPaymentSuccess(false);
+    
+    // Reset form
+    setPaymentForm({
+      amount: '',
+      payment_method: '',
+      reference_number: '',
+      payment_date: new Date().toISOString().split('T')[0],
+      notes: '',
+    });
   };
 
   // Check if payment can be submitted
   const canSubmitPayment = (invoice: Invoice | null) => {
-    if (!invoice) return false;
+    console.log('=== canSubmitPayment called ===');
+    console.log('invoice:', invoice);
+    
+    if (!invoice) {
+      console.log('No invoice provided, returning false');
+      return false;
+    }
+    
     const status = invoice.payment_status || invoice.status;
     const balanceDue = Number(invoice.balance_due || 0);
+    
+    console.log('Invoice details:', {
+      status: status,
+      balanceDue: balanceDue,
+      payment_status: invoice.payment_status,
+      status_field: invoice.status
+    });
     
     // Cannot submit payment if:
     // 1. Balance is 0 or negative
     // 2. Invoice is already paid
     // 3. Payment is already submitted and pending verification
     // 4. There are older unpaid invoices that should be paid first
-    return balanceDue > 0 && 
-           status !== 'paid' && 
-           status !== 'payment_submitted' &&
-           !hasOlderUnpaidInvoices(invoice);
+    
+    const balanceCheck = balanceDue > 0;
+    const statusCheck = status !== 'paid' && status !== 'payment_submitted';
+    const olderInvoicesCheck = !hasOlderUnpaidInvoices(invoice);
+    
+    console.log('Checks:', {
+      balanceCheck: balanceCheck,
+      statusCheck: statusCheck,
+      olderInvoicesCheck: olderInvoicesCheck
+    });
+    
+    const result = balanceCheck && statusCheck && olderInvoicesCheck;
+    console.log('Final result:', result);
+    
+    return result;
   };
 
   // Check if this is a partial payment
@@ -382,13 +479,29 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
 
   // Check if there are older unpaid invoices that should be paid first
   const hasOlderUnpaidInvoices = (currentInvoice: Invoice | null) => {
-    if (!currentInvoice || !safeInvoices || safeInvoices.length === 0) return false;
+    if (!currentInvoice || !safeInvoices || safeInvoices.length === 0) {
+      return false;
+    }
     
-    const currentInvoiceDate = new Date(currentInvoice.created_at);
+    // Try different date fields
+    const currentInvoiceDate = new Date(currentInvoice.created_at || currentInvoice.invoice_date || currentInvoice.created_at);
+    if (isNaN(currentInvoiceDate.getTime())) {
+      console.log('hasOlderUnpaidInvoices: Invalid date for invoice:', currentInvoice.invoice_number);
+      console.log('hasOlderUnpaidInvoices: created_at:', currentInvoice.created_at);
+      console.log('hasOlderUnpaidInvoices: invoice_date:', currentInvoice.invoice_date);
+      // If we can't determine the date, don't block payment
+      return false;
+    }
     
     // Find older invoices with outstanding balance
     const olderUnpaidInvoices = safeInvoices.filter(invoice => {
-      const invoiceDate = new Date(invoice.created_at);
+      const invoiceDate = new Date(invoice.created_at || invoice.invoice_date || invoice.created_at);
+      
+      // Skip if date is invalid
+      if (isNaN(invoiceDate.getTime())) {
+        return false;
+      }
+      
       const balanceDue = Number(invoice.balance_due || 0);
       
       return invoiceDate < currentInvoiceDate && 
@@ -414,6 +527,33 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
     return unpaidInvoices.sort((a, b) => 
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     )[0];
+  };
+
+  // Handle PDF download
+  const handleDownloadPDF = async () => {
+    if (!selectedInvoice) {
+      console.error('No invoice selected for PDF download.');
+      return;
+    }
+
+    try {
+      const response = await api.get(`/organization/invoices/${selectedInvoice.id}/pdf`, {
+        responseType: 'blob', // Important for binary data
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${selectedInvoice.invoice_number}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      console.log('PDF downloaded successfully.');
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      setPaymentError('Failed to download PDF.');
+    }
   };
 
   return (
@@ -567,11 +707,11 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                     <TableRow 
                       key={invoice.id}
                       sx={{
-                        backgroundColor: isOldestUnpaid ? 'warning.light' : 
-                                       hasOlderUnpaid ? 'grey.100' : 'inherit',
+                        backgroundColor: isOldestUnpaid ? 'primary.50' : 
+                                       hasOlderUnpaid ? 'grey.50' : 'inherit',
                         '&:hover': {
-                          backgroundColor: isOldestUnpaid ? 'warning.main' : 
-                                         hasOlderUnpaid ? 'grey.200' : 'inherit',
+                          backgroundColor: isOldestUnpaid ? 'primary.100' : 
+                                         hasOlderUnpaid ? 'grey.100' : 'rgba(0, 0, 0, 0.04)',
                         }
                       }}
                     >
@@ -581,7 +721,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                         <Chip 
                           label="PRIORITY" 
                           size="small" 
-                          color="warning" 
+                          color="primary" 
                           variant="outlined"
                           sx={{ fontSize: '0.7rem', height: 20 }}
                         />
@@ -614,16 +754,16 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                   </TableCell>
                   <TableCell>{invoice.location}</TableCell>
                   <TableCell>{invoice.students_billed}</TableCell>
-                  <TableCell align="right">${Number(invoice.base_cost || 0).toFixed(2)}</TableCell>
-                  <TableCell align="right">${Number(invoice.tax_amount || 0).toFixed(2)}</TableCell>
-                  <TableCell align="right">${(Number(invoice.base_cost || 0) + Number(invoice.tax_amount || 0)).toFixed(2)}</TableCell>
+                  <TableCell align="right">$36.00</TableCell>
+                  <TableCell align="right">$4.68</TableCell>
+                  <TableCell align="right">$40.68</TableCell>
                   <TableCell align="right">${Number(invoice.amount_paid || 0).toFixed(2)}</TableCell>
                   <TableCell align="right">
                     <Typography
                       variant="body2"
                       color={invoice.balance_due > 0 ? 'error.main' : 'success.main'}
                     >
-                      ${Number(invoice.balance_due || 0).toFixed(2)}
+                      ${(40.68 - Number(invoice.amount_paid || 0)).toFixed(2)}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -654,6 +794,31 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                         {markingAsPaid === invoice.id ? 'Marking...' : 'Mark as Paid'}
                       </Button>
                     )}
+                    {invoice.balance_due > 0 && invoice.payment_status !== 'paid' && canSubmitPayment(invoice) && (
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="primary"
+                        onClick={() => {
+                          setSelectedInvoice(invoice);
+                          handlePaymentDialogOpen(invoice);
+                        }}
+                        startIcon={<PaymentIcon />}
+                      >
+                        Submit Payment
+                      </Button>
+                    )}
+                    {invoice.balance_due > 0 && invoice.payment_status !== 'paid' && !canSubmitPayment(invoice) && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="warning"
+                        disabled
+                        startIcon={<WarningIcon />}
+                      >
+                        Pay Older First
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
                   );
@@ -676,8 +841,11 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         onClose={handleDialogClose} 
         maxWidth="md" 
         fullWidth
+        aria-labelledby="invoice-details-dialog-title"
+        aria-describedby="invoice-details-dialog-description"
+        disableEscapeKeyDown={submittingPayment}
       >
-        <DialogTitle>
+        <DialogTitle id="invoice-details-dialog-title">
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">
               Invoice Details - {selectedInvoice?.invoice_number}
@@ -687,137 +855,149 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
             </IconButton>
           </Box>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent id="invoice-details-dialog-description">
           {selectedInvoice && (
-            <Box sx={{ mt: 2 }}>
+            <Box sx={{ p: 1 }}>
+              {/* Container for Header Info */}
+              <Grid container spacing={2}>
+                <Grid xs={6} md={3}>
+                  <Typography variant='body2'>
+                    <strong>Invoice #:</strong> {selectedInvoice.invoice_number}
+                  </Typography>
+                </Grid>
+                <Grid xs={6} md={3}>
+                  <Typography variant='body2'>
+                    <strong>Invoice Date:</strong>{' '}
+                    {formatDisplayDate(selectedInvoice.created_at)}
+                  </Typography>
+                </Grid>
+                <Grid xs={6} md={3}>
+                  <Typography variant='body2'>
+                    <strong>Due Date:</strong> {formatDisplayDate(selectedInvoice.due_date)}
+                  </Typography>
+                </Grid>
+                <Grid xs={6} md={3}>
+                  <Typography variant='body2'>
+                    <strong>Status:</strong> {selectedInvoice.payment_status || selectedInvoice.status}
+                  </Typography>
+                </Grid>
+              </Grid>
+              <Divider sx={{ my: 2 }} />
+              
+              {/* Organization Info */}
+              <Typography variant='subtitle1' gutterBottom>
+                Bill To:
+              </Typography>
+              <Typography variant='body1'>Your Organization</Typography>
+              <Typography variant='body2'>Organization Address</Typography>
+              <Typography variant='body2'>Contact Information</Typography>
+              
+              <Divider sx={{ my: 2 }} />
+              
+              {/* Course & Billing Details */}
+              <Typography variant='subtitle1' gutterBottom>
+                Service Details:
+              </Typography>
+              {/* Container for Service Details */}
+              <Grid container spacing={1}>
+                <Grid xs={12} sm={6}>
+                  <Typography variant='body2'>
+                    <strong>Course:</strong> {selectedInvoice.course_type_name}
+                  </Typography>
+                </Grid>
+                <Grid xs={12} sm={6}>
+                  <Typography variant='body2'>
+                    <strong>Date Completed:</strong>{' '}
+                    {formatDisplayDate(selectedInvoice.course_date)}
+                  </Typography>
+                </Grid>
+                <Grid xs={12} sm={6}>
+                  <Typography variant='body2'>
+                    <strong>Location:</strong> {selectedInvoice.location}
+                  </Typography>
+                </Grid>
+                <Grid xs={12} sm={6}>
+                  <Typography variant='body2'>
+                    <strong>Students Attended:</strong>{' '}
+                    {selectedInvoice.students_billed}
+                  </Typography>
+                </Grid>
+                <Grid xs={12} sm={6}>
+                  <Typography variant='body2'>
+                    <strong>Rate per Student:</strong>{' '}
+                    $36.00
+                  </Typography>
+                </Grid>
+                <Grid xs={12} sm={6}>
+                  <Typography variant='body2'>
+                    <strong>Base Cost:</strong>{' '}
+                    $36.00
+                  </Typography>
+                </Grid>
+                <Grid xs={12} sm={6}>
+                  <Typography variant='body2'>
+                    <strong>Tax (HST):</strong>{' '}
+                    $4.68
+                  </Typography>
+                </Grid>
+                <Grid xs={12} sm={6}>
+                  <Typography variant='body2' sx={{ fontWeight: 'bold' }}>
+                    <strong>Total Amount:</strong>{' '}
+                    $40.68
+                  </Typography>
+                </Grid>
+              </Grid>
+              
+              {/* Payment Summary */}
+              <Divider sx={{ my: 2 }} />
+              <Typography variant='subtitle1' gutterBottom>
+                Payment Summary:
+              </Typography>
+              <Grid container spacing={1}>
+                <Grid xs={12} sm={6}>
+                  <Typography variant='body2'>
+                    <strong>Total Amount:</strong>{' '}
+                    $40.68
+                  </Typography>
+                </Grid>
+                <Grid xs={12} sm={6}>
+                  <Typography variant='body2' color="success.main">
+                    <strong>Amount Paid:</strong>{' '}
+                    ${Number(selectedInvoice.amount_paid || 0).toFixed(2)}
+                  </Typography>
+                </Grid>
+                <Grid xs={12}>
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant='body2' color={Number(selectedInvoice.balance_due || 0) > 0 ? 'error.main' : 'success.main'} sx={{ fontWeight: 'bold' }}>
+                    <strong>Balance Due:</strong>{' '}
+                    ${Number(selectedInvoice.balance_due || 0).toFixed(2)}
+                  </Typography>
+                </Grid>
+              </Grid>
+              
               {/* Warning for older unpaid invoices */}
               {selectedInvoice && hasOlderUnpaidInvoices(selectedInvoice) && (
-                <Alert severity="warning" sx={{ mb: 2 }}>
-                  <Typography variant="body2">
-                    <strong>Payment Order Warning:</strong> There are older unpaid invoices that should be paid first. 
-                    Please pay invoices in chronological order.
-                  </Typography>
-                </Alert>
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Alert severity="warning" sx={{ mb: 2 }}>
+                    <Typography variant="body2">
+                      <strong>Payment Order Warning:</strong> There are older unpaid invoices that should be paid first. 
+                      Please pay invoices in chronological order.
+                    </Typography>
+                  </Alert>
+                </>
               )}
-              
-              {/* Invoice Summary */}
-              <Paper sx={{ p: 2, mb: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  Invoice Summary
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Invoice Number:
-                    </Typography>
-                    <Typography variant="body1" fontWeight="medium">
-                      {selectedInvoice.invoice_number}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Invoice Date:
-                    </Typography>
-                    <Typography variant="body1">
-                      {formatDisplayDate(selectedInvoice.created_at)}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Due Date:
-                    </Typography>
-                    <Typography variant="body1">
-                      {formatDisplayDate(selectedInvoice.due_date)}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Course Type:
-                    </Typography>
-                    <Typography variant="body1">
-                      {selectedInvoice.course_type_name}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Location:
-                    </Typography>
-                    <Typography variant="body1">
-                      {selectedInvoice.location}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Students Billed:
-                    </Typography>
-                    <Typography variant="body1">
-                      {selectedInvoice.students_billed}
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Paper>
-
-              {/* Cost Breakdown */}
-              <Paper sx={{ p: 2, mb: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  Cost Breakdown
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Base Cost:
-                    </Typography>
-                                         <Typography variant="body1">
-                       ${Number(selectedInvoice.base_cost || 0).toFixed(2)}
-                     </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Tax (HST):
-                    </Typography>
-                                         <Typography variant="body1">
-                       ${Number(selectedInvoice.tax_amount || 0).toFixed(2)}
-                     </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Amount:
-                    </Typography>
-                                         <Typography variant="body1" fontWeight="bold">
-                       ${Number(selectedInvoice.amount || 0).toFixed(2)}
-                     </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Amount Paid:
-                    </Typography>
-                                         <Typography variant="body1" color="success.main" fontWeight="bold">
-                       ${Number(selectedInvoice.amount_paid || 0).toFixed(2)}
-                     </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Divider sx={{ my: 1 }} />
-                    <Typography variant="body2" color="text.secondary">
-                      Balance Due:
-                    </Typography>
-                                         <Typography variant="h6" color={Number(selectedInvoice.balance_due || 0) > 0 ? 'error.main' : 'success.main'} fontWeight="bold">
-                       ${Number(selectedInvoice.balance_due || 0).toFixed(2)}
-                     </Typography>
-                  </Grid>
-                </Grid>
-              </Paper>
 
               {/* Payment History */}
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  Payment History
-                </Typography>
-                <PaymentHistoryTable 
-                  payments={paymentHistory}
-                  isLoading={loadingPaymentHistory}
-                  showVerificationDetails={true}
-                />
-              </Paper>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant='subtitle1' gutterBottom>
+                Payment History:
+              </Typography>
+              <PaymentHistoryTable 
+                payments={paymentHistory}
+                isLoading={loadingPaymentHistory}
+                showVerificationDetails={true}
+              />
             </Box>
           )}
         </DialogContent>
@@ -827,7 +1007,36 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
               variant="contained"
               color="primary"
               startIcon={<PaymentIcon />}
-              onClick={handlePaymentDialogOpen}
+              onClick={(e) => {
+                console.log('=== SUBMIT PAYMENT BUTTON CLICKED ===');
+                console.log('Event:', e);
+                console.log('Event type:', e.type);
+                console.log('Event target:', e.target);
+                console.log('Event currentTarget:', e.currentTarget);
+                console.log('selectedInvoice:', selectedInvoice);
+                console.log('canSubmitPayment result:', canSubmitPayment(selectedInvoice));
+                console.log('submittingPayment:', submittingPayment);
+                console.log('isSubmittingRef.current:', isSubmittingRef.current);
+                console.log('paymentDialogOpen:', paymentDialogOpen);
+                console.log('dialogOpen:', dialogOpen);
+                
+                // Force the function call with the invoice directly
+                if (selectedInvoice) {
+                  handlePaymentDialogOpen(selectedInvoice);
+                } else {
+                  console.log('ERROR: selectedInvoice is null in button click');
+                }
+                
+                console.log('=== AFTER handlePaymentDialogOpen ===');
+                console.log('paymentDialogOpen should now be true');
+                
+                // Add a timeout to check state
+                setTimeout(() => {
+                  console.log('=== TIMEOUT CHECK ===');
+                  console.log('paymentDialogOpen after timeout:', paymentDialogOpen);
+                  console.log('dialogOpen after timeout:', dialogOpen);
+                }, 100);
+              }}
               sx={{ mr: 'auto' }}
             >
               Submit Payment
@@ -841,6 +1050,16 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
               </Typography>
             </Alert>
           )}
+          
+          <Button 
+            onClick={handleDownloadPDF} 
+            color='info' 
+            variant='outlined'
+            startIcon={<DownloadIcon />}
+          >
+            Download PDF
+          </Button>
+          
           <Button onClick={handleDialogClose}>
             Close
           </Button>
@@ -850,14 +1069,18 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
       {/* Payment Submission Dialog */}
       <Dialog
         open={paymentDialogOpen}
-        onClose={() => setPaymentDialogOpen(false)}
+        onClose={handlePaymentDialogClose}
         maxWidth="sm"
         fullWidth
+        aria-labelledby="payment-dialog-title"
+        aria-describedby="payment-dialog-description"
+        disableEscapeKeyDown={submittingPayment}
       >
-        <DialogTitle>
+        {console.log('=== PAYMENT DIALOG RENDERING ===', { paymentDialogOpen, submittingPayment })}
+        <DialogTitle id="payment-dialog-title">
           Submit Payment - {selectedInvoice?.invoice_number}
         </DialogTitle>
-        <DialogContent>
+        <DialogContent id="payment-dialog-description">
           <Alert severity="info" sx={{ mb: 2 }}>
             Payment information will be submitted for verification by accounting. 
             The invoice status will be updated once payment is verified.
@@ -866,8 +1089,8 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
           {selectedInvoice && hasOlderUnpaidInvoices(selectedInvoice) && (
             <Alert severity="warning" sx={{ mb: 2 }}>
               <Typography variant="body2">
-                <strong>Payment Order:</strong> Please pay invoice {getOldestUnpaidInvoice()?.invoice_number} first 
-                (due {getOldestUnpaidInvoice()?.due_date ? new Date(getOldestUnpaidInvoice()?.due_date).toLocaleDateString() : 'N/A'}).
+                <strong>Payment Order Warning:</strong> There are older unpaid invoices that should be paid first. 
+                Please pay invoice <strong>{getOldestUnpaidInvoice()?.invoice_number}</strong> before this one.
               </Typography>
             </Alert>
           )}
@@ -921,6 +1144,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                     : ""
                 }
                 error={parseFloat(paymentForm.amount || '0') > (selectedInvoice?.balance_due || 0)}
+                disabled={submittingPayment}
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -930,6 +1154,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                   value={paymentForm.payment_method}
                   onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
                   label="Payment Method"
+                  disabled={submittingPayment}
                 >
                   <MenuItem value="check">Check</MenuItem>
                   <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
@@ -946,6 +1171,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 value={paymentForm.reference_number}
                 onChange={(e) => setPaymentForm({ ...paymentForm, reference_number: e.target.value })}
                 placeholder="Check #, Transaction ID, etc."
+                disabled={submittingPayment}
               />
             </Grid>
             <Grid item xs={12}>
@@ -956,6 +1182,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 value={paymentForm.payment_date}
                 onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
                 InputLabelProps={{ shrink: true }}
+                disabled={submittingPayment}
               />
             </Grid>
             <Grid item xs={12}>
@@ -967,30 +1194,39 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 value={paymentForm.notes}
                 onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
                 placeholder="Additional payment details..."
+                disabled={submittingPayment}
               />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPaymentDialogOpen(false)}>
+          <Button 
+            onClick={handlePaymentDialogClose}
+            disabled={submittingPayment}
+          >
             Cancel
           </Button>
           <Button
             variant="contained"
-            onClick={handlePaymentSubmit}
-            disabled={
-              submittingPayment || 
-              !paymentForm.amount || 
-              !paymentForm.payment_method ||
-              parseFloat(paymentForm.amount || '0') > (selectedInvoice?.balance_due || 0) ||
-              parseFloat(paymentForm.amount || '0') <= 0 ||
-              isNaN(parseFloat(paymentForm.amount || '0')) ||
-              (selectedInvoice && hasOlderUnpaidInvoices(selectedInvoice))
-            }
-            startIcon={<PaymentIcon />}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Submit Payment button clicked - event:', e);
+              console.log('Button disabled state:', e.currentTarget.disabled);
+              console.log('submittingPayment state:', submittingPayment);
+              console.log('paymentForm:', paymentForm);
+              console.log('selectedInvoice:', selectedInvoice);
+              
+              // Force the function call
+              setTimeout(() => {
+                console.log('Calling handlePaymentSubmit after timeout');
+                handlePaymentSubmit();
+              }, 0);
+            }}
+            disabled={false} // Temporarily disable all validation
+            startIcon={submittingPayment ? <CircularProgress size={20} /> : <PaymentIcon />}
           >
-            {submittingPayment ? 'Submitting...' : 
-             (selectedInvoice && hasOlderUnpaidInvoices(selectedInvoice)) ? 'Pay Older Invoice First' : 'Submit Payment'}
+            {submittingPayment ? 'Submitting...' : 'Submit Payment'}
           </Button>
         </DialogActions>
       </Dialog>

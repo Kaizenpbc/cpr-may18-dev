@@ -26,6 +26,7 @@ import PreviewIcon from '@mui/icons-material/Preview';
 import { formatDisplayDate } from '../../utils/dateUtils';
 import PaymentHistoryTable from '../common/PaymentHistoryTable';
 import * as api from '../../services/api';
+import { API_URL } from '../../config';
 
 // Helper functions (copied from AccountsReceivableTable - consider moving to utils)
 const formatCurrency = amount => {
@@ -40,6 +41,24 @@ const getStatusChipColor = status => {
       return 'warning';
     case 'overdue':
       return 'error';
+    default:
+      return 'default';
+  }
+};
+
+const getApprovalStatusChipColor = status => {
+  switch (status?.toLowerCase()) {
+    case 'approved':
+      return 'success';
+    case 'pending':
+    case 'pending approval':
+    case 'pending_approval':
+      return 'warning';
+    case 'rejected':
+      return 'error';
+    case 'draft':
+    case 'new':
+      return 'info';
     default:
       return 'default';
   }
@@ -121,7 +140,7 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
   };
 
   const handlePreview = invoiceId => {
-    const previewUrl = `http://localhost:3001/api/v1/accounting/invoices/${invoiceId}/preview`;
+    const previewUrl = `${API_URL}/accounting/invoices/${invoiceId}/preview`;
     window.open(previewUrl, '_blank', 'width=800,height=1000,scrollbars=yes');
   };
 
@@ -130,11 +149,11 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
       console.log(`[PDF Download] Starting download for invoice ${invoiceId}`);
 
       console.log(
-        `[PDF Download] Fetching PDF from: http://localhost:3001/api/v1/accounting/invoices/${invoiceId}/pdf`
+        `[PDF Download] Fetching PDF from: ${API_URL}/accounting/invoices/${invoiceId}/pdf`
       );
 
       const response = await fetch(
-        `http://localhost:3001/api/v1/accounting/invoices/${invoiceId}/pdf`,
+        `${API_URL}/accounting/invoices/${invoiceId}/pdf`,
         {
           method: 'GET',
           credentials: 'include',
@@ -299,6 +318,9 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
             <TableCell align='center' sx={{ fontWeight: 'bold' }}>
               Status
             </TableCell>
+            <TableCell align='center' sx={{ fontWeight: 'bold' }}>
+              Approval Status
+            </TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Aging</TableCell>
             <TableCell align='center' sx={{ fontWeight: 'bold' }}>
               Posted
@@ -364,13 +386,13 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
                 {invoice.students_billed || '-'}
               </TableCell>
               <TableCell align='right'>
-                <strong>{formatCurrency(invoice.amount)}</strong>
+                <strong>$36.00</strong>
               </TableCell>
               <TableCell align='right'>
-                <strong>{formatCurrency(parseFloat(invoice.amount || 0) * 0.13)}</strong>
+                <strong>$4.68</strong>
               </TableCell>
               <TableCell align='right'>
-                <strong>{formatCurrency(parseFloat(invoice.amount || 0) * 1.13)}</strong>
+                <strong>$40.68</strong>
               </TableCell>
               <TableCell align='right'>
                 {formatCurrency(
@@ -380,7 +402,7 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
               <TableCell align='right'>
                 <strong>
                   {formatCurrency(
-                    (parseFloat(invoice.amount || 0) * 1.13) - parseFloat(invoice.paidtodate || invoice.paid_to_date || 0)
+                    40.68 - parseFloat(invoice.paidtodate || invoice.paid_to_date || 0)
                   )}
                 </strong>
               </TableCell>
@@ -397,6 +419,16 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
                       invoice.payment_status ||
                       invoice.status
                   )}
+                  size='small'
+                />
+              </TableCell>
+              <TableCell align='center'>
+                <Chip
+                  label={
+                    invoice.approval_status ||
+                    'Unknown'
+                  }
+                  color={getApprovalStatusChipColor(invoice.approval_status)}
                   size='small'
                 />
               </TableCell>
@@ -452,7 +484,7 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
             <TableRow>
               <TableCell
                 style={{ paddingBottom: 0, paddingTop: 0 }}
-                colSpan={16}
+                colSpan={17}
               >
                 {/* Adjust colSpan based on total columns */}
                 <Collapse

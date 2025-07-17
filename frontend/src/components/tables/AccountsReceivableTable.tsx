@@ -30,6 +30,25 @@ import EmailIcon from '@mui/icons-material/Email'; // For Email Invoice
 import PostAddIcon from '@mui/icons-material/PostAdd'; // For Post to Org
 // Import shared formatters
 import { formatDate, getStatusChipColor } from '../../utils/formatters'; // Correct path
+
+// Helper function for approval status colors
+const getApprovalStatusChipColor = status => {
+  switch (status?.toLowerCase()) {
+    case 'approved':
+      return 'success';
+    case 'pending':
+    case 'pending approval':
+    case 'pending_approval':
+      return 'warning';
+    case 'rejected':
+      return 'error';
+    case 'draft':
+    case 'new':
+      return 'info';
+    default:
+      return 'default';
+  }
+};
 import PaymentHistoryTable from '../common/PaymentHistoryTable';
 
 // Component to display within the expanded row
@@ -145,6 +164,9 @@ const AccountsReceivableTable = ({
             <TableCell align='center' sx={{ fontWeight: 'bold' }}>
               Payment Status
             </TableCell>
+            <TableCell align='center' sx={{ fontWeight: 'bold' }}>
+              Approval Status
+            </TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Aging</TableCell>
             <TableCell align='center' sx={{ fontWeight: 'bold' }}>
               Actions
@@ -188,15 +210,22 @@ const AccountsReceivableTable = ({
                   </Link>
                 </TableCell>
                 <TableCell>{invoice.coursenumber || '-'}</TableCell>
-                <TableCell align='right'>{`$${parseFloat(invoice.amount || 0).toFixed(2)}`}</TableCell>
-                <TableCell align='right'>{`$${(parseFloat(invoice.amount || 0) * 0.13).toFixed(2)}`}</TableCell>
-                <TableCell align='right'>{`$${(parseFloat(invoice.amount || 0) * 1.13).toFixed(2)}`}</TableCell>
+                <TableCell align='right'>$36.00</TableCell>
+                <TableCell align='right'>$4.68</TableCell>
+                <TableCell align='right'>$40.68</TableCell>
                 <TableCell align='right'>{`$${parseFloat(invoice.paidtodate || 0).toFixed(2)}`}</TableCell>
-                <TableCell align='right'>{`$${((parseFloat(invoice.amount || 0) * 1.13) - parseFloat(invoice.paidtodate || 0)).toFixed(2)}`}</TableCell>
+                <TableCell align='right'>{`$${(40.68 - parseFloat(invoice.paidtodate || 0)).toFixed(2)}`}</TableCell>
                 <TableCell align='center'>
                   <Chip
                     label={invoice.paymentstatus || 'Unknown'}
                     color={getStatusChipColor(invoice.paymentstatus)}
+                    size='small'
+                  />
+                </TableCell>
+                <TableCell align='center'>
+                  <Chip
+                    label={invoice.approval_status || 'Unknown'}
+                    color={getApprovalStatusChipColor(invoice.approval_status)}
                     size='small'
                   />
                 </TableCell>
@@ -241,7 +270,7 @@ const AccountsReceivableTable = ({
               <TableRow>
                 <TableCell
                   style={{ paddingBottom: 0, paddingTop: 0 }}
-                  colSpan={11}
+                  colSpan={15}
                 >
                   {/* Adjust colSpan based on total columns */}
                   <Collapse

@@ -2885,6 +2885,7 @@ router.get(
         i.due_date as duedate,
         i.amount,
         i.status,
+        i.approval_status,
         i.students_billed,
         i.paid_date,
         i.posted_to_org,
@@ -2958,6 +2959,8 @@ router.get(
         i.tax_amount,
         i.due_date as duedate,
         i.status as paymentstatus,
+        i.approval_status,
+        i.posted_to_org,
         i.notes,
         i.created_at as invoicedate,
         i.updated_at,
@@ -2972,18 +2975,19 @@ router.get(
         cr.id as coursenumber,
         i.course_request_id,
         cr.course_type_id,
-        COALESCE(ct.price, 0) as rateperstudent
+        COALESCE(cp.price_per_student, 50.00) as rateperstudent
       FROM invoice_with_breakdown i
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN users u ON cr.instructor_id = u.id
-      LEFT JOIN course_types ct ON cr.course_type_id = ct.id
-      LEFT JOIN (
-        SELECT invoice_id, SUM(amount) as total_paid
-        FROM payments 
-        GROUP BY invoice_id
-      ) payments ON payments.invoice_id = i.id
-      WHERE i.id = $1
+                      LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+        LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+        LEFT JOIN (
+          SELECT invoice_id, SUM(amount) as total_paid
+          FROM payments 
+          GROUP BY invoice_id
+        ) payments ON payments.invoice_id = i.id
+        WHERE i.id = $1
     `,
         [id]
       );
@@ -3014,7 +3018,7 @@ router.put(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const { amount, due_date, status, notes } = req.body;
+      const { amount, due_date, status, approval_status, notes } = req.body;
 
       const result = await pool.query(
         `
@@ -3022,12 +3026,13 @@ router.put(
       SET amount = COALESCE($1, amount),
           due_date = COALESCE($2, due_date),
           status = COALESCE($3, status),
-          notes = COALESCE($4, notes),
+          approval_status = COALESCE($4, approval_status),
+          notes = COALESCE($5, notes),
           updated_at = CURRENT_TIMESTAMP
-      WHERE id = $5
+      WHERE id = $6
       RETURNING *
     `,
-        [amount, due_date, status, notes, id]
+        [amount, due_date, status, approval_status, notes, id]
       );
 
       if (result.rows.length === 0) {
@@ -4902,16 +4907,53 @@ router.get(
         `
       SELECT 
         COUNT(*) as total_invoices,
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_invoices,
-        COUNT(CASE WHEN status = 'overdue' THEN 1 END) as overdue_invoices,
-        COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_invoices,
-        COUNT(CASE WHEN status = 'payment_submitted' THEN 1 END) as payment_submitted,
-        COALESCE(SUM(amount), 0) as total_amount,
-        COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount,
-        COALESCE(SUM(CASE WHEN status = 'overdue' THEN amount ELSE 0 END), 0) as overdue_amount,
-        COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as paid_amount
-      FROM invoices
-      WHERE organization_id = $1 AND posted_to_org = TRUE
+        COUNT(CASE WHEN 
+          CASE 
+            WHEN COALESCE(payments.total_paid, 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
+            WHEN CURRENT_DATE > i.due_date THEN 'overdue'
+            ELSE 'pending'
+          END = 'pending' THEN 1 END) as pending_invoices,
+        COUNT(CASE WHEN 
+          CASE 
+            WHEN COALESCE(payments.total_paid, 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
+            WHEN CURRENT_DATE > i.due_date THEN 'overdue'
+            ELSE 'pending'
+          END = 'overdue' THEN 1 END) as overdue_invoices,
+        COUNT(CASE WHEN 
+          CASE 
+            WHEN COALESCE(payments.total_paid, 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
+            WHEN CURRENT_DATE > i.due_date THEN 'overdue'
+            ELSE 'pending'
+          END = 'paid' THEN 1 END) as paid_invoices,
+        COUNT(CASE WHEN i.status = 'payment_submitted' THEN 1 END) as payment_submitted,
+        COALESCE(SUM(i.base_cost + i.tax_amount), 0) as total_amount,
+        COALESCE(SUM(CASE WHEN 
+          CASE 
+            WHEN COALESCE(payments.total_paid, 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
+            WHEN CURRENT_DATE > i.due_date THEN 'overdue'
+            ELSE 'pending'
+          END = 'pending' THEN (i.base_cost + i.tax_amount) ELSE 0 END), 0) as pending_amount,
+        COALESCE(SUM(CASE WHEN 
+          CASE 
+            WHEN COALESCE(payments.total_paid, 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
+            WHEN CURRENT_DATE > i.due_date THEN 'overdue'
+            ELSE 'pending'
+          END = 'overdue' THEN (i.base_cost + i.tax_amount) ELSE 0 END), 0) as overdue_amount,
+        COALESCE(SUM(CASE WHEN 
+          CASE 
+            WHEN COALESCE(payments.total_paid, 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
+            WHEN CURRENT_DATE > i.due_date THEN 'overdue'
+            ELSE 'pending'
+          END = 'paid' THEN (i.base_cost + i.tax_amount) ELSE 0 END), 0) as paid_amount
+      FROM invoice_with_breakdown i
+      LEFT JOIN (
+        SELECT invoice_id, SUM(amount) as total_paid
+        FROM payments 
+        WHERE status = 'verified'
+        GROUP BY invoice_id
+      ) payments ON payments.invoice_id = i.id
+      WHERE i.organization_id = $1 
+        AND i.posted_to_org = TRUE
     `,
         [user.organizationId]
       );
@@ -4924,11 +4966,11 @@ router.get(
         i.invoice_number,
         i.created_at as invoice_date,
         i.due_date,
-        i.amount,
+        i.base_cost + i.tax_amount as amount,
         i.status,
         ct.name as course_type_name,
         cr.location
-      FROM invoices i
+      FROM invoice_with_breakdown i
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
       WHERE i.organization_id = $1 AND i.posted_to_org = TRUE
@@ -5196,6 +5238,21 @@ router.post(
         }
 
         await client.query('COMMIT');
+
+        // Emit real-time update event for payment verification
+        const io = req.app.get('io');
+        if (io) {
+          io.emit('paymentStatusChanged', {
+            type: action === 'approve' ? 'payment_verified' : 'payment_rejected',
+            paymentId: id,
+            invoiceId: payment.invoice_id,
+            organizationId: payment.organization_id,
+            action: action,
+            amount: payment.amount,
+            timestamp: new Date().toISOString()
+          });
+          console.log(`📡 [WEBSOCKET] Emitted payment ${action} event for payment: ${id}, invoice: ${payment.invoice_id}`);
+        }
 
         // Send success response
         res.json({
