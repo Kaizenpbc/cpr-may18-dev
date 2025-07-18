@@ -202,15 +202,24 @@ const InstructorDashboard: React.FC = () => {
       {/* Quick Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3)',
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 40px rgba(102, 126, 234, 0.4)',
+            }
+          }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <ClassIcon sx={{ mr: 1, color: 'primary.main' }} />
+                <ClassIcon sx={{ mr: 1, color: 'white', fontSize: 28 }} />
                 <Box>
-                  <Typography color="textSecondary" gutterBottom>
+                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem' }}>
                     Total Classes
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
                     {totalClasses}
                   </Typography>
                 </Box>
@@ -220,15 +229,24 @@ const InstructorDashboard: React.FC = () => {
         </Grid>
         
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(240, 147, 251, 0.3)',
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 40px rgba(240, 147, 251, 0.4)',
+            }
+          }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <ScheduleIcon sx={{ mr: 1, color: 'success.main' }} />
+                <ScheduleIcon sx={{ mr: 1, color: 'white', fontSize: 28 }} />
                 <Box>
-                  <Typography color="textSecondary" gutterBottom>
+                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem' }}>
                     Today's Classes
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
                     {todayClassesCount}
                   </Typography>
                 </Box>
@@ -238,15 +256,24 @@ const InstructorDashboard: React.FC = () => {
         </Grid>
         
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(79, 172, 254, 0.3)',
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 40px rgba(79, 172, 254, 0.4)',
+            }
+          }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <PeopleIcon sx={{ mr: 1, color: 'info.main' }} />
+                <PeopleIcon sx={{ mr: 1, color: 'white', fontSize: 28 }} />
                 <Box>
-                  <Typography color="textSecondary" gutterBottom>
+                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem' }}>
                     Total Students
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
                     {totalStudents}
                   </Typography>
                 </Box>
@@ -256,15 +283,24 @@ const InstructorDashboard: React.FC = () => {
         </Grid>
         
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(67, 233, 123, 0.3)',
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 40px rgba(67, 233, 123, 0.4)',
+            }
+          }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <EventAvailableIcon sx={{ mr: 1, color: 'warning.main' }} />
+                <EventAvailableIcon sx={{ mr: 1, color: 'white', fontSize: 28 }} />
                 <Box>
-                  <Typography color="textSecondary" gutterBottom>
+                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem' }}>
                     Available Dates
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
                     {(availableDates as any[]).length}
                   </Typography>
                 </Box>

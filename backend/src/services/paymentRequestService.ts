@@ -231,6 +231,7 @@ export class PaymentRequestService {
           t.total_hours,
           t.courses_taught,
           t.hr_comment,
+          t.course_details,
           -- Calculate payment breakdown
           CASE 
             WHEN ipr.hourly_rate IS NOT NULL THEN ipr.hourly_rate 
@@ -256,6 +257,25 @@ export class PaymentRequestService {
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
       `, [...params, limit, offset]);
       
+      // Parse course details for each request
+      const requestsWithCourseDetails = requestsResult.rows.map(request => {
+        let courseDetails = [];
+        if (request.course_details) {
+          try {
+            courseDetails = typeof request.course_details === 'string' 
+              ? JSON.parse(request.course_details) 
+              : request.course_details;
+          } catch (error) {
+            console.error('Error parsing course details:', error);
+            courseDetails = [];
+          }
+        }
+        return {
+          ...request,
+          course_details: courseDetails
+        };
+      });
+      
       // Get total count for pagination
       const countResult = await client.query(`
         SELECT COUNT(*) as total
@@ -264,7 +284,7 @@ export class PaymentRequestService {
       `, params);
       
       return {
-        requests: requestsResult.rows,
+        requests: requestsWithCourseDetails,
         pagination: {
           page,
           limit,
@@ -284,7 +304,7 @@ export class PaymentRequestService {
     const client = await pool.connect();
     
     try {
-      // Get payment request with all details
+      // Get payment request with all details including course details
       const requestResult = await client.query(`
         SELECT 
           pr.*,
@@ -294,6 +314,7 @@ export class PaymentRequestService {
           t.total_hours,
           t.courses_taught,
           t.hr_comment,
+          t.course_details,
           -- Calculate payment breakdown
           CASE 
             WHEN ipr.hourly_rate IS NOT NULL THEN ipr.hourly_rate 
@@ -323,17 +344,22 @@ export class PaymentRequestService {
       
       const request = requestResult.rows[0];
       
-      // Create default class details since class_details column doesn't exist
-      const classDetails: ClassDetail[] = [{
-        course_name: 'CPR Training',
-        hours: request.total_hours,
-        date: request.week_start_date,
-        location: 'Training Center'
-      }];
+      // Parse course details if they exist
+      let courseDetails = [];
+      if (request.course_details) {
+        try {
+          courseDetails = typeof request.course_details === 'string' 
+            ? JSON.parse(request.course_details) 
+            : request.course_details;
+        } catch (error) {
+          console.error('Error parsing course details:', error);
+          courseDetails = [];
+        }
+      }
       
       return {
         ...request,
-        class_details: classDetails
+        course_details: courseDetails
       };
     } finally {
       client.release();

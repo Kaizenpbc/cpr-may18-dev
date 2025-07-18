@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Button,
@@ -26,6 +26,10 @@ import {
   Switch,
   Card,
   CardContent,
+  FormControl,
+  InputLabel,
+  Select,
+  Grid,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -38,6 +42,8 @@ import {
   AttachMoney as BillingIcon,
   Warning as WarningIcon,
   PersonAdd as PersonAddIcon,
+  Filter as FilterIcon,
+  Clear as ClearIcon,
 } from '@mui/icons-material';
 import { api } from '../../../services/api';
 import InstructorDashboard from './InstructorDashboard';
@@ -150,6 +156,11 @@ const InstructorManagement: React.FC = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [newScheduledDate, setNewScheduledDate] = useState('');
 
+  // Filter states for confirmed courses
+  const [instructorFilter, setInstructorFilter] = useState('');
+  const [organizationFilter, setOrganizationFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState<Date | null>(null);
+
   // Fetch instructors with React Query
   const { data: instructorsData = [] } = useQuery({
     queryKey: ['instructors'],
@@ -196,6 +207,57 @@ const InstructorManagement: React.FC = () => {
     setConfirmedCourses(confirmedCoursesData);
     setCompletedCourses(completedCoursesData);
   }, [instructorsData, pendingCoursesData, confirmedCoursesData, completedCoursesData]);
+
+  // Get unique instructors and organizations for filter options
+  const uniqueInstructors = useMemo(() => {
+    const instructors = confirmedCourses
+      .map((course: any) => course.instructor_name)
+      .filter((name: string) => name && name !== 'Not Assigned');
+    return [...new Set(instructors)].sort();
+  }, [confirmedCourses]);
+
+  const uniqueOrganizations = useMemo(() => {
+    const organizations = confirmedCourses
+      .map((course: any) => course.organization_name)
+      .filter((name: string) => name);
+    return [...new Set(organizations)].sort();
+  }, [confirmedCourses]);
+
+  // Filter confirmed courses based on selected filters
+  const filteredConfirmedCourses = useMemo(() => {
+    return confirmedCourses.filter((course: any) => {
+      // Instructor filter
+      if (instructorFilter && course.instructor_name !== instructorFilter) {
+        return false;
+      }
+      
+      // Organization filter
+      if (organizationFilter && course.organization_name !== organizationFilter) {
+        return false;
+      }
+      
+      // Date filter
+      if (dateFilter) {
+        const courseDate = new Date(course.confirmed_date);
+        const filterDate = new Date(dateFilter);
+        if (courseDate.toDateString() !== filterDate.toDateString()) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }, [confirmedCourses, instructorFilter, organizationFilter, dateFilter]);
+
+  // Clear all filters
+  const clearFilters = () => {
+    setInstructorFilter('');
+    setOrganizationFilter('');
+    setDateFilter(null);
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = instructorFilter || organizationFilter || dateFilter;
 
   const handleOpen = (instructor?: Instructor) => {
     if (instructor) {
@@ -1082,6 +1144,89 @@ const InstructorManagement: React.FC = () => {
         <Typography variant='h6' gutterBottom>
           Confirmed Courses
         </Typography>
+
+        {/* Filters Section */}
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <FilterIcon sx={{ mr: 1 }} />
+            <Typography variant='h6'>Filters</Typography>
+            {hasActiveFilters && (
+              <Chip
+                label={`${filteredConfirmedCourses.length} of ${confirmedCourses.length} courses`}
+                color="primary"
+                size="small"
+                sx={{ ml: 2 }}
+              />
+            )}
+          </Box>
+          
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Instructor</InputLabel>
+                <Select
+                  value={instructorFilter}
+                  onChange={(e) => setInstructorFilter(e.target.value)}
+                  label="Instructor"
+                >
+                  <MenuItem value="">All Instructors</MenuItem>
+                  {uniqueInstructors.map((instructor) => (
+                    <MenuItem key={instructor} value={instructor}>
+                      {instructor}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Organization</InputLabel>
+                <Select
+                  value={organizationFilter}
+                  onChange={(e) => setOrganizationFilter(e.target.value)}
+                  label="Organization"
+                >
+                  <MenuItem value="">All Organizations</MenuItem>
+                  {uniqueOrganizations.map((organization) => (
+                    <MenuItem key={organization} value={organization}>
+                      {organization}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                label="Date"
+                type="date"
+                value={dateFilter ? dateFilter.toISOString().slice(0, 10) : ''}
+                onChange={(e) => setDateFilter(e.target.value ? new Date(e.target.value) : null)}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={clearFilters}
+                  disabled={!hasActiveFilters}
+                  startIcon={<ClearIcon />}
+                >
+                  Clear Filters
+                </Button>
+              </Stack>
+            </Grid>
+          </Grid>
+        </Paper>
+
         <TableContainer component={Paper} sx={{ mb: 2 }}>
           <Table>
             <TableHead>
@@ -1101,7 +1246,7 @@ const InstructorManagement: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {confirmedCourses.map(course => (
+              {filteredConfirmedCourses.map(course => (
                 <TableRow key={course.id}>
                   <TableCell>
                     {formatDisplayDate(course.request_submitted_date)}
@@ -1185,7 +1330,7 @@ const InstructorManagement: React.FC = () => {
                   </TableCell>
                 </TableRow>
               ))}
-              {confirmedCourses.length === 0 && (
+              {filteredConfirmedCourses.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={12} align='center'>
                     <Typography

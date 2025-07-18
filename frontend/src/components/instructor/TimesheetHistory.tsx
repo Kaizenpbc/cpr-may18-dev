@@ -27,6 +27,7 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { timesheetService, Timesheet } from '../../services/timesheetService';
+import TimesheetNotes from '../shared/TimesheetNotes';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface TimesheetHistoryProps {
@@ -163,7 +164,7 @@ const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Week</TableCell>
+                  <TableCell>Week Period</TableCell>
                   <TableCell>Hours</TableCell>
                   <TableCell>Courses</TableCell>
                   <TableCell>Status</TableCell>
@@ -259,6 +260,52 @@ const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
                     {selectedTimesheet.courses_taught} courses
                   </Typography>
                 </Grid>
+                {selectedTimesheet.course_details && selectedTimesheet.course_details.length > 0 && (
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" color="textSecondary" sx={{ mb: 2 }}>
+                      Course Details
+                    </Typography>
+                    <TableContainer component={Paper} variant="outlined">
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Date</TableCell>
+                            <TableCell>Time</TableCell>
+                            <TableCell>Organization</TableCell>
+                            <TableCell>Location</TableCell>
+                            <TableCell>Course Type</TableCell>
+                            <TableCell>Students</TableCell>
+                            <TableCell>Status</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {selectedTimesheet.course_details.map((course: any, index: number) => (
+                            <TableRow key={index}>
+                              <TableCell>{formatDate(course.date)}</TableCell>
+                              <TableCell>
+                                {course.start_time && course.end_time 
+                                  ? `${course.start_time} - ${course.end_time}`
+                                  : 'TBD'
+                                }
+                              </TableCell>
+                              <TableCell>{course.organization_name || 'TBD'}</TableCell>
+                              <TableCell>{course.location || 'TBD'}</TableCell>
+                              <TableCell>{course.course_type}</TableCell>
+                              <TableCell>{course.student_count}</TableCell>
+                              <TableCell>
+                                <Chip 
+                                  label={course.status} 
+                                  color={course.status === 'completed' ? 'success' : 'primary'} 
+                                  size="small"
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Grid>
+                )}
                 <Grid item xs={12}>
                   <Typography variant="subtitle2" color="textSecondary">
                     Notes

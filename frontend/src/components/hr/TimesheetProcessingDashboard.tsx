@@ -42,6 +42,7 @@ import {
   Assignment as AssignmentIcon
 } from '@mui/icons-material';
 import { timesheetService, Timesheet, TimesheetStats, TimesheetFilters } from '../../services/timesheetService';
+import TimesheetNotes from '../shared/TimesheetNotes';
 import { format } from 'date-fns';
 
 interface TimesheetProcessingDashboardProps {
@@ -375,7 +376,7 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
                   <TableHead>
                     <TableRow>
                       <TableCell>Instructor</TableCell>
-                      <TableCell>Week Start</TableCell>
+                      <TableCell>Week Period</TableCell>
                       <TableCell>Hours</TableCell>
                       <TableCell>Courses</TableCell>
                       <TableCell>Status</TableCell>
@@ -397,7 +398,9 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
                           </Box>
                         </TableCell>
                         <TableCell>
-                          {format(new Date(timesheet.week_start_date), 'MMM dd, yyyy')}
+                          <Typography variant="body2">
+                            {format(new Date(timesheet.week_start_date), 'MMM dd, yyyy')} - {format(new Date(new Date(timesheet.week_start_date).getTime() + 6 * 24 * 60 * 60 * 1000), 'MMM dd, yyyy')}
+                          </Typography>
                         </TableCell>
                         <TableCell>{timesheet.total_hours}</TableCell>
                         <TableCell>{timesheet.courses_taught}</TableCell>
@@ -422,28 +425,6 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
                                 <VisibilityIcon />
                               </IconButton>
                             </Tooltip>
-                            {timesheet.status === 'pending' && (
-                              <>
-                                <Tooltip title="Approve">
-                                  <IconButton
-                                    size="small"
-                                    color="success"
-                                    onClick={() => openApprovalDialog(timesheet, 'approve')}
-                                  >
-                                    <ApproveIcon />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Reject">
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() => openApprovalDialog(timesheet, 'reject')}
-                                  >
-                                    <RejectIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              </>
-                            )}
                           </Box>
                         </TableCell>
                       </TableRow>
@@ -500,10 +481,10 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="textSecondary">
-                    Week Start Date
+                    Week Period
                   </Typography>
                   <Typography variant="body1">
-                    {format(new Date(selectedTimesheet.week_start_date), 'EEEE, MMMM dd, yyyy')}
+                    {format(new Date(selectedTimesheet.week_start_date), 'EEEE, MMMM dd, yyyy')} - {format(new Date(new Date(selectedTimesheet.week_start_date).getTime() + 6 * 24 * 60 * 60 * 1000), 'EEEE, MMMM dd, yyyy')}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -518,22 +499,60 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
                   </Typography>
                   <Typography variant="body1">{selectedTimesheet.courses_taught}</Typography>
                 </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="subtitle2" color="textSecondary">
-                    Notes
-                  </Typography>
-                  <Typography variant="body1">
-                    {selectedTimesheet.notes || 'No notes provided'}
-                  </Typography>
-                </Grid>
-                {selectedTimesheet.hr_comment && (
+                {selectedTimesheet.course_details && selectedTimesheet.course_details.length > 0 && (
                   <Grid item xs={12}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      HR Comment
+                    <Typography variant="subtitle2" color="textSecondary" sx={{ mb: 2 }}>
+                      Course Details
                     </Typography>
-                    <Typography variant="body1">{selectedTimesheet.hr_comment}</Typography>
+                    <TableContainer component={Paper} variant="outlined">
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Date</TableCell>
+                            <TableCell>Time</TableCell>
+                            <TableCell>Organization</TableCell>
+                            <TableCell>Location</TableCell>
+                            <TableCell>Course Type</TableCell>
+                            <TableCell>Students</TableCell>
+                            <TableCell>Status</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {selectedTimesheet.course_details.map((course: any, index: number) => (
+                            <TableRow key={index}>
+                              <TableCell>{format(new Date(course.date), 'MMM dd, yyyy')}</TableCell>
+                              <TableCell>
+                                {course.start_time && course.end_time 
+                                  ? `${course.start_time} - ${course.end_time}`
+                                  : 'TBD'
+                                }
+                              </TableCell>
+                              <TableCell>{course.organization_name || 'TBD'}</TableCell>
+                              <TableCell>{course.location || 'TBD'}</TableCell>
+                              <TableCell>{course.course_type}</TableCell>
+                              <TableCell>{course.student_count}</TableCell>
+                              <TableCell>
+                                <Chip 
+                                  label={course.status} 
+                                  color={course.status === 'completed' ? 'success' : 'primary'} 
+                                  size="small"
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
                   </Grid>
                 )}
+                <Grid item xs={12}>
+                  <TimesheetNotes 
+                    timesheetId={selectedTimesheet.id}
+                    onNotesChange={() => {
+                      // Optionally refresh timesheet data if needed
+                    }}
+                  />
+                </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="textSecondary">
                     Submitted

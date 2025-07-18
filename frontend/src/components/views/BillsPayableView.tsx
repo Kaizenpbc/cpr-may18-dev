@@ -243,10 +243,16 @@ const BillsPayableView = () => {
         <Grid item xs={12} sm={6} lg={3}>
           <Card
             sx={{
-              bgcolor: 'warning.light',
-              color: 'warning.contrastText',
+              background: 'linear-gradient(135deg, #ff9800 0%, #ff5722 100%)',
+              color: 'white',
+              boxShadow: '0 8px 32px rgba(255, 152, 0, 0.3)',
+              transition: 'transform 0.2s ease-in-out',
               height: '100%',
               minHeight: { xs: 120, sm: 140 },
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 12px 40px rgba(255, 152, 0, 0.4)',
+              }
             }}
           >
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -263,25 +269,24 @@ const BillsPayableView = () => {
                     variant="h6"
                     component='div'
                     fontWeight='bold'
-                    sx={{ fontSize: { xs: '1.5rem', sm: '1.25rem' } }}
+                    sx={{ fontSize: { xs: '1.5rem', sm: '1.25rem' }, color: 'white' }}
                   >
                     {summary?.pending_invoices || 0}
                   </Typography>
                   <Typography
                     variant='body2'
-                    sx={{ fontSize: { xs: '0.875rem', sm: '0.75rem' } }}
+                    sx={{ fontSize: { xs: '0.875rem', sm: '0.75rem' }, color: 'rgba(255,255,255,0.8)' }}
                   >
                     Pending Invoices
                   </Typography>
                 </Box>
                 <PendingIcon
-                  sx={{ fontSize: { xs: 32, sm: 40 }, opacity: 0.8 }}
+                  sx={{ fontSize: { xs: 32, sm: 40 }, opacity: 0.8, color: 'white' }}
                 />
               </Box>
               <Typography
                 variant="h6"
-                sx={{ mt: 1 }}
-                fontWeight='medium'
+                sx={{ mt: 1, fontWeight: 'medium', color: 'white' }}
               >
                 {formatCurrency(summary?.pending_amount)}
               </Typography>
@@ -292,10 +297,16 @@ const BillsPayableView = () => {
         <Grid item xs={12} sm={6} lg={3}>
           <Card
             sx={{
-              bgcolor: 'error.light',
-              color: 'error.contrastText',
+              background: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)',
+              color: 'white',
+              boxShadow: '0 8px 32px rgba(244, 67, 54, 0.3)',
+              transition: 'transform 0.2s ease-in-out',
               height: '100%',
               minHeight: { xs: 120, sm: 140 },
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 12px 40px rgba(244, 67, 54, 0.4)',
+              }
             }}
           >
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -312,25 +323,24 @@ const BillsPayableView = () => {
                     variant="h6"
                     component='div'
                     fontWeight='bold'
-                    sx={{ fontSize: { xs: '1.5rem', sm: '1.25rem' } }}
+                    sx={{ fontSize: { xs: '1.5rem', sm: '1.25rem' }, color: 'white' }}
                   >
                     {summary?.overdue_invoices || 0}
                   </Typography>
                   <Typography
                     variant='body2'
-                    sx={{ fontSize: { xs: '0.875rem', sm: '0.75rem' } }}
+                    sx={{ fontSize: { xs: '0.875rem', sm: '0.75rem' }, color: 'rgba(255,255,255,0.8)' }}
                   >
                     Overdue Invoices
                   </Typography>
                 </Box>
                 <WarningIcon
-                  sx={{ fontSize: { xs: 32, sm: 40 }, opacity: 0.8 }}
+                  sx={{ fontSize: { xs: 32, sm: 40 }, opacity: 0.8, color: 'white' }}
                 />
               </Box>
               <Typography
                 variant="h6"
-                sx={{ mt: 1 }}
-                fontWeight='medium'
+                sx={{ mt: 1, fontWeight: 'medium', color: 'white' }}
               >
                 {formatCurrency(summary?.overdue_amount)}
               </Typography>
@@ -341,10 +351,16 @@ const BillsPayableView = () => {
         <Grid item xs={12} sm={6} lg={3}>
           <Card
             sx={{
-              bgcolor: 'info.light',
-              color: 'info.contrastText',
+              background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
+              color: 'white',
+              boxShadow: '0 8px 32px rgba(33, 150, 243, 0.3)',
+              transition: 'transform 0.2s ease-in-out',
               height: '100%',
               minHeight: { xs: 120, sm: 140 },
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 12px 40px rgba(33, 150, 243, 0.4)',
+              }
             }}
           >
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -361,19 +377,19 @@ const BillsPayableView = () => {
                     variant="h6"
                     component='div'
                     fontWeight='bold'
-                    sx={{ fontSize: { xs: '1.5rem', sm: '1.25rem' } }}
+                    sx={{ fontSize: { xs: '1.5rem', sm: '1.25rem' }, color: 'white' }}
                   >
                     {summary?.payment_submitted || 0}
                   </Typography>
                   <Typography
                     variant='body2'
-                    sx={{ fontSize: { xs: '0.875rem', sm: '0.75rem' } }}
+                    sx={{ fontSize: { xs: '0.875rem', sm: '0.75rem' }, color: 'rgba(255,255,255,0.8)' }}
                   >
                     Payment Submitted
                   </Typography>
                 </Box>
                 <SubmittedIcon
-                  sx={{ fontSize: { xs: 32, sm: 40 }, opacity: 0.8 }}
+                  sx={{ fontSize: { xs: 32, sm: 40 }, opacity: 0.8, color: 'white' }}
                 />
               </Box>
             </CardContent>
@@ -383,10 +399,16 @@ const BillsPayableView = () => {
         <Grid item xs={12} sm={6} lg={3}>
           <Card
             sx={{
-              bgcolor: 'success.light',
-              color: 'success.contrastText',
+              background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
+              color: 'white',
+              boxShadow: '0 8px 32px rgba(76, 175, 80, 0.3)',
+              transition: 'transform 0.2s ease-in-out',
               height: '100%',
               minHeight: { xs: 120, sm: 140 },
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 12px 40px rgba(76, 175, 80, 0.4)',
+              }
             }}
           >
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -403,23 +425,24 @@ const BillsPayableView = () => {
                     variant="h6"
                     component='div'
                     fontWeight='bold'
-                    sx={{ fontSize: { xs: '1.5rem', sm: '1.25rem' } }}
+                    sx={{ fontSize: { xs: '1.5rem', sm: '1.25rem' }, color: 'white' }}
                   >
                     {summary?.paid_invoices || 0}
                   </Typography>
                   <Typography
                     variant='body2'
-                    sx={{ fontSize: { xs: '0.875rem', sm: '0.75rem' } }}
+                    sx={{ fontSize: { xs: '0.875rem', sm: '0.75rem' }, color: 'rgba(255,255,255,0.8)' }}
                   >
                     Paid Invoices
                   </Typography>
                 </Box>
-                <PaidIcon sx={{ fontSize: { xs: 32, sm: 40 }, opacity: 0.8 }} />
+                <PaidIcon
+                  sx={{ fontSize: { xs: 32, sm: 40 }, opacity: 0.8, color: 'white' }}
+                />
               </Box>
               <Typography
                 variant="h6"
-                sx={{ mt: 1 }}
-                fontWeight='medium'
+                sx={{ mt: 1, fontWeight: 'medium', color: 'white' }}
               >
                 {formatCurrency(summary?.paid_amount)}
               </Typography>

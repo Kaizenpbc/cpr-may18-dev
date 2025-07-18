@@ -57,7 +57,9 @@ export const useInstructorClasses = () => {
       return extractedData;
     },
     enabled: !!user?.id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 0, // Force refetch every time
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -253,5 +255,9 @@ export const useRefreshInstructorData = () => {
   
   return () => {
     queryClient.invalidateQueries({ queryKey: ['instructor'] });
+    queryClient.invalidateQueries({ queryKey: INSTRUCTOR_QUERY_KEYS.classes });
+    queryClient.invalidateQueries({ queryKey: INSTRUCTOR_QUERY_KEYS.classesActive });
+    queryClient.invalidateQueries({ queryKey: INSTRUCTOR_QUERY_KEYS.classesCompleted });
+    queryClient.invalidateQueries({ queryKey: INSTRUCTOR_QUERY_KEYS.classesToday });
   };
 }; 

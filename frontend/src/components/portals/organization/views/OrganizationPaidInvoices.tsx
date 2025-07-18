@@ -146,15 +146,24 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
       {/* Paid Invoices Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(76, 175, 80, 0.3)',
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 40px rgba(76, 175, 80, 0.4)',
+            }
+          }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <CheckCircleIcon color="success" sx={{ mr: 2, fontSize: 40 }} />
+                <CheckCircleIcon sx={{ mr: 2, fontSize: 40, color: 'white' }} />
                 <Box>
-                  <Typography variant="h4" component="div">
+                  <Typography variant="h4" component="div" sx={{ color: 'white', fontWeight: 600 }}>
                     {paidInvoicesSummary?.total_paid_invoices || 0}
                   </Typography>
-                  <Typography color="text.secondary">
+                  <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Total Paid Invoices
                   </Typography>
                 </Box>
@@ -164,15 +173,24 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(67, 233, 123, 0.3)',
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 40px rgba(67, 233, 123, 0.4)',
+            }
+          }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <PaymentIcon color="success" sx={{ mr: 2, fontSize: 40 }} />
+                <PaymentIcon sx={{ mr: 2, fontSize: 40, color: 'white' }} />
                 <Box>
-                  <Typography variant="h4" component="div">
+                  <Typography variant="h4" component="div" sx={{ color: 'white', fontWeight: 600 }}>
                     ${Number(paidInvoicesSummary?.total_paid_amount || 0).toLocaleString()}
                   </Typography>
-                  <Typography color="text.secondary">
+                  <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Total Amount Paid
                   </Typography>
                 </Box>
@@ -182,15 +200,24 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3)',
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 40px rgba(102, 126, 234, 0.4)',
+            }
+          }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <InfoIcon color="info" sx={{ mr: 2, fontSize: 40 }} />
+                <InfoIcon sx={{ mr: 2, fontSize: 40, color: 'white' }} />
                 <Box>
-                  <Typography variant="h4" component="div">
+                  <Typography variant="h4" component="div" sx={{ color: 'white', fontWeight: 600 }}>
                     ${Number(paidInvoicesSummary?.average_paid_amount || 0).toFixed(2)}
                   </Typography>
-                  <Typography color="text.secondary">
+                  <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Average Invoice Amount
                   </Typography>
                 </Box>
@@ -200,15 +227,24 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(240, 147, 251, 0.3)',
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 40px rgba(240, 147, 251, 0.4)',
+            }
+          }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <ReceiptIcon color="primary" sx={{ mr: 2, fontSize: 40 }} />
+                <ReceiptIcon sx={{ mr: 2, fontSize: 40, color: 'white' }} />
                 <Box>
-                  <Typography variant="h4" component="div">
+                  <Typography variant="h4" component="div" sx={{ color: 'white', fontWeight: 600 }}>
                     {paidInvoicesSummary?.paid_last_30_days || 0}
                   </Typography>
-                  <Typography color="text.secondary">
+                  <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Paid Last 30 Days
                   </Typography>
                 </Box>

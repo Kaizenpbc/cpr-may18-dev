@@ -147,17 +147,26 @@ const InstructorDashboard: React.FC = () => {
       {dashboardSummary && (
         <Grid container spacing={3} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={6} md={3}>
-            <Card>
+            <Card sx={{ 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3)',
+              transition: 'transform 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 12px 40px rgba(102, 126, 234, 0.4)',
+              }
+            }}>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ bgcolor: 'primary.main' }}>
+                  <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}>
                     <TrendingUpIcon />
                   </Avatar>
                   <Box>
-                    <Typography variant='h6'>
+                    <Typography variant='h6' sx={{ color: 'white', fontWeight: 600 }}>
                       {dashboardSummary.total_instructors}
                     </Typography>
-                    <Typography variant='body2' color='textSecondary'>
+                    <Typography variant='body2' sx={{ color: 'rgba(255,255,255,0.8)' }}>
                       Active Instructors
                     </Typography>
                   </Box>
@@ -166,17 +175,26 @@ const InstructorDashboard: React.FC = () => {
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card>
+            <Card sx={{ 
+              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              color: 'white',
+              boxShadow: '0 8px 32px rgba(79, 172, 254, 0.3)',
+              transition: 'transform 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 12px 40px rgba(79, 172, 254, 0.4)',
+              }
+            }}>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ bgcolor: 'info.main' }}>
+                  <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}>
                     <ScheduleIcon />
                   </Avatar>
                   <Box>
-                    <Typography variant='h6'>
+                    <Typography variant='h6' sx={{ color: 'white', fontWeight: 600 }}>
                       {dashboardSummary.total_courses_this_month}
                     </Typography>
-                    <Typography variant='body2' color='textSecondary'>
+                    <Typography variant='body2' sx={{ color: 'rgba(255,255,255,0.8)' }}>
                       Total Courses
                     </Typography>
                   </Box>
@@ -185,17 +203,26 @@ const InstructorDashboard: React.FC = () => {
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card>
+            <Card sx={{ 
+              background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
+              color: 'white',
+              boxShadow: '0 8px 32px rgba(76, 175, 80, 0.3)',
+              transition: 'transform 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 12px 40px rgba(76, 175, 80, 0.4)',
+              }
+            }}>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ bgcolor: 'success.main' }}>
+                  <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}>
                     <CompletedIcon />
                   </Avatar>
                   <Box>
-                    <Typography variant='h6'>
+                    <Typography variant='h6' sx={{ color: 'white', fontWeight: 600 }}>
                       {dashboardSummary.total_completed_this_month}
                     </Typography>
-                    <Typography variant='body2' color='textSecondary'>
+                    <Typography variant='body2' sx={{ color: 'rgba(255,255,255,0.8)' }}>
                       Completed Courses
                     </Typography>
                   </Box>
@@ -204,19 +231,28 @@ const InstructorDashboard: React.FC = () => {
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card>
+            <Card sx={{ 
+              background: 'linear-gradient(135deg, #ff9800 0%, #ff5722 100%)',
+              color: 'white',
+              boxShadow: '0 8px 32px rgba(255, 152, 0, 0.3)',
+              transition: 'transform 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 12px 40px rgba(255, 152, 0, 0.4)',
+              }
+            }}>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ bgcolor: 'warning.main' }}>
+                  <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}>
                     <CalendarIcon />
                   </Avatar>
                   <Box>
-                    <Typography variant='h6'>
+                    <Typography variant='h6' sx={{ color: 'white', fontWeight: 600 }}>
                       {Number(
                         dashboardSummary.avg_courses_per_instructor
                       ).toFixed(1)}
                     </Typography>
-                    <Typography variant='body2' color='textSecondary'>
+                    <Typography variant='body2' sx={{ color: 'rgba(255,255,255,0.8)' }}>
                       Avg per Instructor
                     </Typography>
                   </Box>

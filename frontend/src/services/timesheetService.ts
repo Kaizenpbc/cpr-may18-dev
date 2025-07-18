@@ -13,6 +13,7 @@ export interface Timesheet {
   hr_comment?: string;
   created_at: string;
   updated_at: string;
+  course_details?: any[];
 }
 
 export interface TimesheetStats {
@@ -73,6 +74,24 @@ export interface TimesheetUpdate {
 export interface TimesheetApproval {
   action: 'approve' | 'reject';
   comment?: string;
+}
+
+export interface TimesheetNote {
+  id: number;
+  timesheet_id: number;
+  user_id: number;
+  user_role: string;
+  note_text: string;
+  note_type: 'instructor' | 'hr' | 'accounting' | 'general';
+  created_at: string;
+  updated_at: string;
+  added_by: string;
+  added_by_email: string;
+}
+
+export interface TimesheetNoteSubmission {
+  note_text: string;
+  note_type?: 'instructor' | 'hr' | 'accounting' | 'general';
 }
 
 class TimesheetService {
@@ -140,6 +159,23 @@ class TimesheetService {
   async getWeekCourses(weekStartDate: string): Promise<WeekCourses> {
     const response = await api.get(`/timesheet/week/${weekStartDate}/courses`);
     return response.data.data;
+  }
+
+  // Get timesheet notes
+  async getTimesheetNotes(timesheetId: number): Promise<TimesheetNote[]> {
+    const response = await api.get(`/timesheet/${timesheetId}/notes`);
+    return response.data.data;
+  }
+
+  // Add note to timesheet
+  async addTimesheetNote(timesheetId: number, data: TimesheetNoteSubmission): Promise<TimesheetNote> {
+    const response = await api.post(`/timesheet/${timesheetId}/notes`, data);
+    return response.data.data;
+  }
+
+  // Delete timesheet note
+  async deleteTimesheetNote(timesheetId: number, noteId: number): Promise<void> {
+    await api.delete(`/timesheet/${timesheetId}/notes/${noteId}`);
   }
 }
 

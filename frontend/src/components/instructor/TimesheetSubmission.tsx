@@ -16,6 +16,12 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import {
   Assignment as AssignmentIcon,
@@ -196,12 +202,13 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // Parse the date string as local time to avoid timezone issues
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
     return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
     });
   };
 
@@ -404,46 +411,38 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
                 </Typography>
                 
                 {weekCourses.courses.length > 0 ? (
-                  <List>
-                    {weekCourses.courses.map((course, index) => (
-                      <ListItem key={course.id} divider={index < weekCourses.courses.length - 1}>
-                        <ListItemIcon>
-                          <CheckCircleIcon color="primary" />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={
-                            <Box>
-                              <Typography variant="subtitle1" component="span">
-                                {course.course_type}
-                              </Typography>
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>Organization</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>Course Type</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>Students</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {weekCourses.courses.map((course) => (
+                          <TableRow key={course.id} hover>
+                            <TableCell>{formatDate(course.date)}</TableCell>
+                            <TableCell>{course.organization_name}</TableCell>
+                            <TableCell>{course.location || 'TBD'}</TableCell>
+                            <TableCell>{course.course_type}</TableCell>
+                            <TableCell>{course.student_count}</TableCell>
+                            <TableCell>
                               <Chip 
                                 label={course.status} 
                                 color={course.status === 'completed' ? 'success' : 'primary'} 
-                                size="small" 
-                                sx={{ ml: 1 }}
+                                size="small"
                               />
-                            </Box>
-                          }
-                          secondary={
-                            <Box>
-                              <Typography variant="body2" component="div">
-                                <EventIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
-                                {formatDate(course.date)} at {formatTime(course.start_time)} - {formatTime(course.end_time)}
-                              </Typography>
-                              <Typography variant="body2" component="div">
-                                <LocationIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
-                                {course.location || 'TBD'}
-                              </Typography>
-                              <Typography variant="body2" component="div">
-                                <GroupIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
-                                {course.organization_name} ({course.student_count} students)
-                              </Typography>
-                            </Box>
-                          }
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
                 ) : (
                   <Alert severity="info">
                     No courses scheduled for this week.

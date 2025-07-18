@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -23,12 +23,18 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Chip,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { 
+  Cancel as CancelIcon,
+  FilterList as FilterIcon,
+  Clear as ClearIcon,
+} from '@mui/icons-material';
 import { api } from '../../../services/api';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import { useQueryClient } from '@tanstack/react-query';
-import { Cancel as CancelIcon } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { formatDateWithoutTimezone } from '../../../utils/dateUtils';
 
@@ -51,6 +57,11 @@ const CourseScheduling = () => {
   const { showSuccess, showError } = useSnackbar();
   const queryClient = useQueryClient();
 
+  // Filter states
+  const [instructorFilter, setInstructorFilter] = useState('');
+  const [organizationFilter, setOrganizationFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState<Date | null>(null);
+
   // State for cancel dialog
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [courseToCancel, setCourseToCancel] = useState<Course | null>(null);
@@ -60,11 +71,62 @@ const CourseScheduling = () => {
   const { data: courses = [] } = useQuery({
     queryKey: ['courses'],
     queryFn: async () => {
-      const response = await api.get('/courses/pending');
+      const response = await api.get('/courses/confirmed');
       return response.data.data;
     },
     refetchInterval: 60000, // Poll every 60 seconds (reduced due to real-time updates)
   });
+
+  // Get unique instructors and organizations for filter options
+  const uniqueInstructors = useMemo(() => {
+    const instructors = courses
+      .map((course: any) => course.instructor_name)
+      .filter((name: string) => name && name !== 'Not Assigned');
+    return [...new Set(instructors)].sort();
+  }, [courses]);
+
+  const uniqueOrganizations = useMemo(() => {
+    const organizations = courses
+      .map((course: any) => course.organization_name)
+      .filter((name: string) => name);
+    return [...new Set(organizations)].sort();
+  }, [courses]);
+
+  // Filter courses based on selected filters
+  const filteredCourses = useMemo(() => {
+    return courses.filter((course: any) => {
+      // Instructor filter
+      if (instructorFilter && course.instructor_name !== instructorFilter) {
+        return false;
+      }
+      
+      // Organization filter
+      if (organizationFilter && course.organization_name !== organizationFilter) {
+        return false;
+      }
+      
+      // Date filter
+      if (dateFilter) {
+        const courseDate = new Date(course.scheduled_date);
+        const filterDate = new Date(dateFilter);
+        if (courseDate.toDateString() !== filterDate.toDateString()) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }, [courses, instructorFilter, organizationFilter, dateFilter]);
+
+  // Clear all filters
+  const clearFilters = () => {
+    setInstructorFilter('');
+    setOrganizationFilter('');
+    setDateFilter(null);
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = instructorFilter || organizationFilter || dateFilter;
 
   const handleCancelClick = (course: Course) => {
     setCourseToCancel(course);
@@ -113,6 +175,88 @@ const CourseScheduling = () => {
         </Alert>
       )}
 
+      {/* Filters Section */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <FilterIcon sx={{ mr: 1 }} />
+          <Typography variant='h6'>Filters</Typography>
+          {hasActiveFilters && (
+            <Chip
+              label={`${filteredCourses.length} of ${courses.length} courses`}
+              color="primary"
+              size="small"
+              sx={{ ml: 2 }}
+            />
+          )}
+        </Box>
+        
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Instructor</InputLabel>
+              <Select
+                value={instructorFilter}
+                onChange={(e) => setInstructorFilter(e.target.value)}
+                label="Instructor"
+              >
+                <MenuItem value="">All Instructors</MenuItem>
+                {uniqueInstructors.map((instructor) => (
+                  <MenuItem key={instructor} value={instructor}>
+                    {instructor}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Organization</InputLabel>
+              <Select
+                value={organizationFilter}
+                onChange={(e) => setOrganizationFilter(e.target.value)}
+                label="Organization"
+              >
+                <MenuItem value="">All Organizations</MenuItem>
+                {uniqueOrganizations.map((organization) => (
+                  <MenuItem key={organization} value={organization}>
+                    {organization}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              label="Date"
+              type="date"
+              value={dateFilter ? dateFilter.toISOString().slice(0, 10) : ''}
+              onChange={(e) => setDateFilter(e.target.value ? new Date(e.target.value) : null)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+              fullWidth
+              size="small"
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={clearFilters}
+                disabled={!hasActiveFilters}
+                startIcon={<ClearIcon />}
+              >
+                Clear Filters
+              </Button>
+            </Stack>
+          </Grid>
+        </Grid>
+      </Paper>
+
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -127,31 +271,39 @@ const CourseScheduling = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {courses.map((course: any) => (
-              <TableRow key={course.id}>
-                <TableCell>
-                  {formatDateWithoutTimezone(course.scheduled_date)}
-                </TableCell>
-                <TableCell>{course.course_type_name || course.course_type || '-'}</TableCell>
-                <TableCell>{course.organization_name}</TableCell>
-                <TableCell>{course.location}</TableCell>
-                <TableCell>{course.instructor_name || 'Not Assigned'}</TableCell>
-                <TableCell>{course.status}</TableCell>
-                <TableCell>
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      size="small"
-                      startIcon={<CancelIcon />}
-                      onClick={() => handleCancelClick(course)}
-                    >
-                      Cancel Course
-                    </Button>
-                  </Stack>
+            {filteredCourses.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} align="center">
+                  {hasActiveFilters ? 'No courses match the selected filters' : 'No courses found'}
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredCourses.map((course: any) => (
+                <TableRow key={course.id}>
+                  <TableCell>
+                    {formatDateWithoutTimezone(course.scheduled_date)}
+                  </TableCell>
+                  <TableCell>{course.course_type_name || course.course_type || '-'}</TableCell>
+                  <TableCell>{course.organization_name}</TableCell>
+                  <TableCell>{course.location}</TableCell>
+                  <TableCell>{course.instructor_name || 'Not Assigned'}</TableCell>
+                  <TableCell>{course.status}</TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        startIcon={<CancelIcon />}
+                        onClick={() => handleCancelClick(course)}
+                      >
+                        Cancel Course
+                      </Button>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </TableContainer>

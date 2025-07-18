@@ -209,20 +209,50 @@ router.post('/', authenticateToken, asyncHandler(async (req, res) => {
     if (existingResult.rows.length > 0) {
       throw new AppError(400, errorCodes.RESOURCE_ALREADY_EXISTS, 'Timesheet already exists for this week.');
     }
+
+    // Get courses for the week to include in timesheet
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6); // Add 6 days to get to Sunday
+
+    const coursesResult = await client.query(`
+      SELECT 
+        cr.id,
+        cr.confirmed_date::text as date,
+        cr.confirmed_start_time::text as start_time,
+        cr.confirmed_end_time::text as end_time,
+        cr.status,
+        cr.location,
+        ct.name as course_type,
+        o.name as organization_name,
+        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as student_count
+      FROM course_requests cr
+      JOIN class_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN organizations o ON cr.organization_id = o.id
+      WHERE cr.instructor_id = $1
+      AND cr.confirmed_date >= $2::date
+      AND cr.confirmed_date <= $3::date
+      AND cr.status IN ('confirmed', 'completed')
+      ORDER BY cr.confirmed_date, cr.confirmed_start_time
+    `, [req.user.id, week_start_date, endDate.toISOString().split('T')[0]]);
+
+    const courseDetails = coursesResult.rows;
     
-    // Insert new timesheet
+    // Insert new timesheet with course details
     const insertResult = await client.query(`
       INSERT INTO timesheets (
         instructor_id, week_start_date, total_hours, 
-        courses_taught, notes, status, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, 'pending', NOW(), NOW())
+        courses_taught, notes, status, course_details, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, NOW(), NOW())
       RETURNING *
-    `, [req.user.id, week_start_date, total_hours || 0, courses_taught || 0, notes || '']);
+    `, [req.user.id, week_start_date, total_hours || 0, courses_taught || 0, notes || '', JSON.stringify(courseDetails)]);
     
     res.json({
       success: true,
       message: 'Timesheet submitted successfully.',
-      data: insertResult.rows[0]
+      data: {
+        ...insertResult.rows[0],
+        course_details: courseDetails
+      }
     });
   } finally {
     client.release();
@@ -291,15 +321,19 @@ router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req,
   try {
     await client.query('BEGIN');
     
-    // Get the timesheet
+    // Get the timesheet with course details
     const timesheetResult = await client.query(`
-      SELECT * FROM timesheets WHERE id = $1 AND status = 'pending'
+      SELECT t.*, u.username as instructor_name, u.email as instructor_email
+      FROM timesheets t
+      JOIN users u ON t.instructor_id = u.id
+      WHERE t.id = $1 AND t.status = 'pending'
     `, [timesheetId]);
     
     if (timesheetResult.rows.length === 0) {
       throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Timesheet not found or already processed.');
     }
     
+    const timesheet = timesheetResult.rows[0];
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
     
     // Update the timesheet status
@@ -327,14 +361,19 @@ router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req,
     
     const response: any = {
       success: true,
-      message: `Timesheet ${action}d successfully.`
+      message: `Timesheet ${action}d successfully.`,
+      data: {
+        timesheet: {
+          ...timesheet,
+          status: newStatus,
+          course_details: timesheet.course_details || []
+        }
+      }
     };
     
     if (paymentRequest) {
-      response.data = {
-        paymentRequest,
-        message: `Timesheet approved and payment request created for $${paymentRequest.amount}.`
-      };
+      response.data.paymentRequest = paymentRequest;
+      response.message = `Timesheet approved and payment request created for $${paymentRequest.amount}.`;
     }
     
     res.json(response);
@@ -439,6 +478,145 @@ router.get('/week/:weekStartDate/courses', authenticateToken, asyncHandler(async
         courses: coursesResult.rows,
         total_courses: coursesResult.rows.length
       }
+    });
+  } finally {
+    client.release();
+  }
+}));
+
+// Add Note to Timesheet
+router.post('/:timesheetId/notes', authenticateToken, asyncHandler(async (req, res) => {
+  const { timesheetId } = req.params;
+  const { note_text, note_type = 'general' } = req.body;
+  
+  if (!note_text || note_text.trim() === '') {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Note text is required.');
+  }
+
+  // Validate note type
+  if (!['instructor', 'hr', 'accounting', 'general'].includes(note_type)) {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid note type.');
+  }
+
+  // Determine user role for note
+  let userRole = req.user.role;
+  if (note_type === 'instructor' && req.user.role !== 'instructor') {
+    throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only instructors can add instructor notes.');
+  }
+  if (note_type === 'hr' && req.user.role !== 'hr') {
+    throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only HR can add HR notes.');
+  }
+  if (note_type === 'accounting' && req.user.role !== 'accountant') {
+    throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only accountants can add accounting notes.');
+  }
+
+  const client = await pool.connect();
+  
+  try {
+    // Check if timesheet exists and user has access
+    let whereClause = "WHERE t.id = $1";
+    let params = [timesheetId];
+    
+    // Instructors can only add notes to their own timesheets
+    if (req.user.role === 'instructor') {
+      whereClause += " AND t.instructor_id = $2";
+      params.push(req.user.id);
+    }
+    
+    const timesheetResult = await client.query(`
+      SELECT t.id FROM timesheets t ${whereClause}
+    `, params);
+    
+    if (timesheetResult.rows.length === 0) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Timesheet not found or access denied.');
+    }
+
+    // Insert the note
+    const noteResult = await client.query(`
+      INSERT INTO timesheet_notes (timesheet_id, user_id, user_role, note_text, note_type)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [timesheetId, req.user.id, userRole, note_text.trim(), note_type]);
+
+    // Get the note with user info
+    const noteWithUserResult = await client.query(`
+      SELECT 
+        tn.*,
+        u.username as added_by,
+        u.email as added_by_email
+      FROM timesheet_notes tn
+      JOIN users u ON tn.user_id = u.id
+      WHERE tn.id = $1
+    `, [noteResult.rows[0].id]);
+
+    res.json({
+      success: true,
+      message: 'Note added successfully.',
+      data: noteWithUserResult.rows[0]
+    });
+  } finally {
+    client.release();
+  }
+}));
+
+// Get Timesheet Notes
+router.get('/:timesheetId/notes', authenticateToken, requireTimesheetAccess, asyncHandler(async (req, res) => {
+  const { timesheetId } = req.params;
+  const client = await pool.connect();
+  
+  try {
+    const notesResult = await client.query(`
+      SELECT 
+        tn.*,
+        u.username as added_by,
+        u.email as added_by_email
+      FROM timesheet_notes tn
+      JOIN users u ON tn.user_id = u.id
+      WHERE tn.timesheet_id = $1
+      ORDER BY tn.created_at ASC
+    `, [timesheetId]);
+    
+    res.json({
+      success: true,
+      data: notesResult.rows
+    });
+  } finally {
+    client.release();
+  }
+}));
+
+// Delete Note (only by the user who created it or HR/Admin)
+router.delete('/:timesheetId/notes/:noteId', authenticateToken, asyncHandler(async (req, res) => {
+  const { timesheetId, noteId } = req.params;
+  const client = await pool.connect();
+  
+  try {
+    // Get the note to check permissions
+    const noteResult = await client.query(`
+      SELECT tn.*, u.username as added_by
+      FROM timesheet_notes tn
+      JOIN users u ON tn.user_id = u.id
+      WHERE tn.id = $1 AND tn.timesheet_id = $2
+    `, [noteId, timesheetId]);
+    
+    if (noteResult.rows.length === 0) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Note not found.');
+    }
+    
+    const note = noteResult.rows[0];
+    
+    // Check permissions: user can delete their own notes, HR can delete any note
+    if (note.user_id !== req.user.id && req.user.role !== 'hr') {
+      throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Cannot delete this note.');
+    }
+    
+    await client.query(`
+      DELETE FROM timesheet_notes WHERE id = $1
+    `, [noteId]);
+    
+    res.json({
+      success: true,
+      message: 'Note deleted successfully.'
     });
   } finally {
     client.release();

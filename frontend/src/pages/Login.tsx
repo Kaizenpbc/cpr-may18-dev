@@ -201,7 +201,7 @@ const Login = () => {
             </Alert>
           )}
           
-          <Box component='form' onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
+          <Box component='form' onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }} noValidate>
             <TextField
               margin='normal'
               required
@@ -217,6 +217,8 @@ const Login = () => {
                 // DO NOT clear error when typing - keep it visible
               }}
               disabled={isLoading}
+              error={!username.trim() && error !== null}
+              helperText={!username.trim() && error !== null ? 'Username is required' : ''}
               sx={{
                 '& .MuiInputLabel-root': {
                   fontFamily: 'inherit',
@@ -229,6 +231,11 @@ const Login = () => {
                   fontSize: '1rem',
                   lineHeight: 1.5,
                   letterSpacing: 'normal'
+                },
+                '& .MuiFormHelperText-root': {
+                  color: 'error.main',
+                  fontSize: '0.75rem',
+                  marginTop: '4px'
                 }
               }}
             />
@@ -247,6 +254,8 @@ const Login = () => {
                 // DO NOT clear error when typing - keep it visible
               }}
               disabled={isLoading}
+              error={!password && error !== null}
+              helperText={!password && error !== null ? 'Password is required' : ''}
               sx={{
                 '& .MuiInputLabel-root': {
                   fontFamily: 'inherit',
@@ -258,7 +267,19 @@ const Login = () => {
                   fontFamily: 'inherit',
                   fontSize: '1rem',
                   lineHeight: 1.5,
-                  letterSpacing: 'normal'
+                  letterSpacing: 'normal',
+                  '&[type="password"]': {
+                    fontFamily: 'monospace',
+                    letterSpacing: '0.125em'
+                  }
+                },
+                '& .MuiFormHelperText-root': {
+                  color: 'error.main',
+                  fontSize: '0.75rem',
+                  marginTop: '4px'
+                },
+                '& .MuiInputBase-root': {
+                  backgroundColor: 'background.paper'
                 }
               }}
             />

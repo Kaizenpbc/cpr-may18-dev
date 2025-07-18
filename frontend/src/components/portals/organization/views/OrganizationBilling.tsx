@@ -565,15 +565,24 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
       {/* Billing Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3)',
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 40px rgba(102, 126, 234, 0.4)',
+            }
+          }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <ReceiptIcon color="primary" sx={{ mr: 2, fontSize: 40 }} />
+                <ReceiptIcon sx={{ mr: 2, fontSize: 40, color: 'white' }} />
                 <Box>
-                  <Typography variant="h4" component="div">
+                  <Typography variant="h4" component="div" sx={{ color: 'white', fontWeight: 600 }}>
                     {billingSummary?.total_invoices || 0}
                   </Typography>
-                  <Typography color="text.secondary">
+                  <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Total Invoices
                   </Typography>
                 </Box>
@@ -583,15 +592,24 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #ff9800 0%, #ff5722 100%)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(255, 152, 0, 0.3)',
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 40px rgba(255, 152, 0, 0.4)',
+            }
+          }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <ScheduleIcon color="warning" sx={{ mr: 2, fontSize: 40 }} />
+                <ScheduleIcon sx={{ mr: 2, fontSize: 40, color: 'white' }} />
                 <Box>
-                  <Typography variant="h4" component="div">
+                  <Typography variant="h4" component="div" sx={{ color: 'white', fontWeight: 600 }}>
                     {billingSummary?.pending_invoices || 0}
                   </Typography>
-                  <Typography color="text.secondary">
+                  <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Pending
                   </Typography>
                 </Box>
@@ -601,15 +619,24 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(244, 67, 54, 0.3)',
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 40px rgba(244, 67, 54, 0.4)',
+            }
+          }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <WarningIcon color="error" sx={{ mr: 2, fontSize: 40 }} />
+                <WarningIcon sx={{ mr: 2, fontSize: 40, color: 'white' }} />
                 <Box>
-                  <Typography variant="h4" component="div">
+                  <Typography variant="h4" component="div" sx={{ color: 'white', fontWeight: 600 }}>
                     {billingSummary?.overdue_invoices || 0}
                   </Typography>
-                  <Typography color="text.secondary">
+                  <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Overdue
                   </Typography>
                 </Box>
@@ -619,15 +646,24 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(76, 175, 80, 0.3)',
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 40px rgba(76, 175, 80, 0.4)',
+            }
+          }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <CheckCircleIcon color="success" sx={{ mr: 2, fontSize: 40 }} />
+                <CheckCircleIcon sx={{ mr: 2, fontSize: 40, color: 'white' }} />
                 <Box>
-                  <Typography variant="h4" component="div">
+                  <Typography variant="h4" component="div" sx={{ color: 'white', fontWeight: 600 }}>
                     {billingSummary?.paid_invoices || 0}
                   </Typography>
-                  <Typography color="text.secondary">
+                  <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Paid
                   </Typography>
                 </Box>
