@@ -482,7 +482,10 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
                         Base Cost
                       </Typography>
                       <Typography variant="h6">
-                        $36.00
+                        {selectedInvoice.rate_per_student ? 
+                          `$${(selectedInvoice.rate_per_student * selectedInvoice.students_billed).toFixed(2)}` : 
+                          'N/A'
+                        }
                       </Typography>
                     </Box>
                   </Grid>
@@ -492,7 +495,10 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
                         Tax (HST)
                       </Typography>
                       <Typography variant="h6">
-                        $4.68
+                        {selectedInvoice.rate_per_student ? 
+                          `$${(selectedInvoice.rate_per_student * selectedInvoice.students_billed * 0.13).toFixed(2)}` : 
+                          'N/A'
+                        }
                       </Typography>
                     </Box>
                   </Grid>
@@ -502,7 +508,10 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
                         Total Amount
                       </Typography>
                       <Typography variant="h6" color="success.main">
-                        $40.68
+                        {selectedInvoice.rate_per_student ? 
+                          `$${(selectedInvoice.rate_per_student * selectedInvoice.students_billed * 1.13).toFixed(2)}` : 
+                          'N/A'
+                        }
                       </Typography>
                     </Box>
                   </Grid>

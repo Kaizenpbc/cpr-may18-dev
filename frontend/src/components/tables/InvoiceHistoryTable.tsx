@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -20,19 +20,25 @@ import { Link as RouterLink } from 'react-router-dom';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import EmailIcon from '@mui/icons-material/Email';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import PreviewIcon from '@mui/icons-material/Preview';
 import { formatDisplayDate } from '../../utils/dateUtils';
 import PaymentHistoryTable from '../common/PaymentHistoryTable';
 import * as api from '../../services/api';
 import { API_URL } from '../../config';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import PendingIcon from '@mui/icons-material/Pending';
+import WarningIcon from '@mui/icons-material/Warning';
+import ErrorIcon from '@mui/icons-material/Error';
+import InfoIcon from '@mui/icons-material/Info';
+import PostAddIcon from '@mui/icons-material/PostAdd';
 
 // Helper functions (copied from AccountsReceivableTable - consider moving to utils)
 const formatCurrency = amount => {
   if (amount == null || isNaN(amount)) return '$0.00';
   return `$${parseFloat(amount).toFixed(2)}`;
 };
+
 const getStatusChipColor = status => {
   switch (status?.toLowerCase()) {
     case 'paid':
@@ -43,6 +49,19 @@ const getStatusChipColor = status => {
       return 'error';
     default:
       return 'default';
+  }
+};
+
+const getStatusIcon = status => {
+  switch (status?.toLowerCase()) {
+    case 'paid':
+      return <CheckCircleIcon fontSize="small" />;
+    case 'pending':
+      return <PendingIcon fontSize="small" />;
+    case 'overdue':
+      return <WarningIcon fontSize="small" />;
+    default:
+      return <InfoIcon fontSize="small" />;
   }
 };
 
@@ -61,6 +80,24 @@ const getApprovalStatusChipColor = status => {
       return 'info';
     default:
       return 'default';
+  }
+};
+
+const getApprovalStatusIcon = status => {
+  switch (status?.toLowerCase()) {
+    case 'approved':
+      return <CheckCircleIcon fontSize="small" />;
+    case 'pending':
+    case 'pending approval':
+    case 'pending_approval':
+      return <PendingIcon fontSize="small" />;
+    case 'rejected':
+      return <ErrorIcon fontSize="small" />;
+    case 'draft':
+    case 'new':
+      return <InfoIcon fontSize="small" />;
+    default:
+      return <InfoIcon fontSize="small" />;
   }
 };
 
@@ -132,8 +169,20 @@ const PaymentDetails = ({ invoiceId }) => {
   );
 };
 
-const InvoiceHistoryTable = ({ invoices = [] }) => {
+const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
   const [expandedRowId, setExpandedRowId] = useState(null); // State to track expanded row
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (!onRefresh) return;
+    
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refreshing invoice list...');
+      onRefresh();
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [onRefresh]);
 
   const handleExpandClick = invoiceId => {
     setExpandedRowId(expandedRowId === invoiceId ? null : invoiceId); // Toggle expansion
@@ -386,13 +435,28 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
                 {invoice.students_billed || '-'}
               </TableCell>
               <TableCell align='right'>
-                <strong>$36.00</strong>
+                {invoice.rate_per_student ? 
+                  <strong>${invoice.rate_per_student.toFixed(2)}</strong> : 
+                  <Typography variant="body2" color="error.main" fontSize="small">
+                    Pricing not configured
+                  </Typography>
+                }
               </TableCell>
               <TableCell align='right'>
-                <strong>$4.68</strong>
+                {invoice.rate_per_student ? 
+                  <strong>${(invoice.rate_per_student * 0.13).toFixed(2)}</strong> : 
+                  <Typography variant="body2" color="error.main" fontSize="small">
+                    N/A
+                  </Typography>
+                }
               </TableCell>
               <TableCell align='right'>
-                <strong>$40.68</strong>
+                {invoice.rate_per_student ? 
+                  <strong>${(invoice.rate_per_student * 1.13).toFixed(2)}</strong> : 
+                  <Typography variant="body2" color="error.main" fontSize="small">
+                    N/A
+                  </Typography>
+                }
               </TableCell>
               <TableCell align='right'>
                 {formatCurrency(
@@ -408,6 +472,11 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
               </TableCell>
               <TableCell align='center'>
                 <Chip
+                  icon={getStatusIcon(
+                    invoice.paymentstatus ||
+                      invoice.payment_status ||
+                      invoice.status
+                  )}
                   label={
                     invoice.paymentstatus ||
                     invoice.payment_status ||
@@ -424,6 +493,7 @@ const InvoiceHistoryTable = ({ invoices = [] }) => {
               </TableCell>
               <TableCell align='center'>
                 <Chip
+                  icon={getApprovalStatusIcon(invoice.approval_status)}
                   label={
                     invoice.approval_status ||
                     'Unknown'

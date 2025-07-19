@@ -2591,14 +2591,14 @@ router.get(
         cr.completed_at::date as date_completed,
         cr.registered_students,
         (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as students_attended,
-        COALESCE(cp.price_per_student, 50.00) as rate_per_student,
-        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) * COALESCE(cp.price_per_student, 50.00) as total_amount,
+        cp.price_per_student as rate_per_student,
+        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) * cp.price_per_student as total_amount,
         u.username as instructor_name,
         cr.ready_for_billing_at
       FROM course_requests cr
       JOIN organizations o ON cr.organization_id = o.id
       JOIN class_types ct ON cr.course_type_id = ct.id
-      LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND COALESCE(cp.is_active, true) = true
+      JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
       LEFT JOIN users u ON cr.instructor_id = u.id
       WHERE cr.status = 'completed'
       AND cr.ready_for_billing_at IS NOT NULL
@@ -2650,11 +2650,11 @@ router.post(
           o.contact_email,
           ct.name as course_type_name,
           (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as students_attended,
-          COALESCE(cp.price_per_student, 50.00) as rate_per_student
+          cp.price_per_student
         FROM course_requests cr
         JOIN organizations o ON cr.organization_id = o.id
         JOIN class_types ct ON cr.course_type_id = ct.id
-        LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+        JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
         WHERE cr.id = $1 AND cr.status = 'completed'
       `,
           [courseId]
@@ -2664,17 +2664,27 @@ router.post(
           throw new AppError(
             404,
             errorCodes.RESOURCE_NOT_FOUND,
-            'Course not found or not completed'
+            'Course not found, not completed, or pricing not configured. Please ensure pricing is set up for this organization and course type.'
           );
         }
 
         const course = courseResult.rows[0];
-        const totalAmount = course.students_attended * course.rate_per_student;
+        const baseCost = course.students_attended * course.price_per_student;
+        const taxAmount = baseCost * 0.13; // 13% HST
+        const totalAmount = baseCost + taxAmount;
+
+        console.log(`[DEBUG] Invoice creation calculations:`, {
+          students_attended: course.students_attended,
+          price_per_student: course.price_per_student,
+          base_cost: baseCost,
+          tax_amount: taxAmount,
+          total_amount: totalAmount
+        });
 
         // Generate invoice number
         const invoiceNumber = `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
-        // Create invoice
+        // Create invoice with proper breakdown
         const invoiceResult = await client.query(
           `
         INSERT INTO invoices (
@@ -2683,12 +2693,14 @@ router.post(
           course_request_id,
           invoice_date,
           amount,
+          base_cost,
+          tax_amount,
           students_billed,
           status,
           due_date,
           posted_to_org
         )
-        VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, 'pending', CURRENT_DATE + INTERVAL '30 days', FALSE)
+        VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7, 'pending', CURRENT_DATE + INTERVAL '30 days', FALSE)
         RETURNING *
       `,
           [
@@ -2696,6 +2708,8 @@ router.post(
             course.organization_id,
             courseId,
             totalAmount,
+            baseCost,
+            taxAmount,
             course.students_attended,
           ]
         );
@@ -2725,6 +2739,108 @@ router.post(
       }
     } catch (error) {
       console.error('Error creating invoice:', error);
+      throw error;
+    }
+  })
+);
+
+// Fix existing invoice calculations
+router.put(
+  '/accounting/invoices/:id/fix-calculations',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      console.log(`[DEBUG] Fixing calculations for invoice ID: ${id}`);
+
+      const client = await pool.connect();
+
+      try {
+        await client.query('BEGIN');
+
+        // Get invoice details with pricing
+        const invoiceResult = await client.query(
+          `
+        SELECT 
+          i.id,
+          i.students_billed,
+          i.amount,
+          cp.price_per_student
+        FROM invoices i
+        LEFT JOIN course_requests cr ON i.course_request_id = cr.id
+        LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+        WHERE i.id = $1
+      `,
+          [id]
+        );
+
+        if (invoiceResult.rows.length === 0) {
+          throw new AppError(
+            404,
+            errorCodes.RESOURCE_NOT_FOUND,
+            'Invoice not found'
+          );
+        }
+
+        const invoice = invoiceResult.rows[0];
+        
+        if (!invoice.price_per_student) {
+          throw new AppError(
+            400,
+            errorCodes.VALIDATION_ERROR,
+            'Pricing not found for this invoice'
+          );
+        }
+
+        // Calculate correct values
+        const baseCost = invoice.students_billed * invoice.price_per_student;
+        const taxAmount = baseCost * 0.13; // 13% HST
+        const totalAmount = baseCost + taxAmount;
+
+        console.log(`[DEBUG] Fixing invoice calculations:`, {
+          invoice_id: invoice.id,
+          students_billed: invoice.students_billed,
+          price_per_student: invoice.price_per_student,
+          old_amount: invoice.amount,
+          new_base_cost: baseCost,
+          new_tax_amount: taxAmount,
+          new_total_amount: totalAmount
+        });
+
+        // Update invoice with correct calculations
+        const updateResult = await client.query(
+          `
+        UPDATE invoices 
+        SET amount = $1,
+            rate_per_student = $2,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $3
+        RETURNING *
+      `,
+          [totalAmount, invoice.price_per_student, id]
+        );
+
+        await client.query('COMMIT');
+
+        res.json({
+          success: true,
+          message: 'Invoice calculations fixed successfully',
+          data: {
+            invoice_id: id,
+            old_amount: invoice.amount,
+            new_base_cost: baseCost,
+            new_tax_amount: taxAmount,
+            new_total_amount: totalAmount
+          },
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Error fixing invoice calculations:', error);
       throw error;
     }
   })
@@ -2804,11 +2920,57 @@ router.put(
           console.log(`📁 [POST TO ORG] Course ${invoice.course_request_id} archived after invoice posting`);
         }
 
-        // Send email notification to organization asynchronously
+        // Send invoice PDF with attendance to organization asynchronously
         if (invoice.contact_email) {
           // Fire and forget - don't await the email
           (async () => {
             try {
+              // Get attendance data for the invoice
+              const attendanceResult = await pool.query(
+                `
+              SELECT 
+                cs.first_name,
+                cs.last_name,
+                cs.email,
+                cs.attended
+              FROM course_students cs
+              WHERE cs.course_request_id = $1
+              ORDER BY cs.last_name, cs.first_name
+            `,
+                [invoice.course_request_id]
+              );
+
+              const attendanceList = attendanceResult.rows.map(row => ({
+                first_name: row.first_name,
+                last_name: row.last_name,
+                email: row.email,
+                attended: row.attended
+              }));
+
+              // Prepare invoice data for PDF generation
+              const invoiceData = {
+                invoice_id: invoice.id,
+                invoice_number: invoice.invoice_number,
+                invoice_date: invoice.invoice_date,
+                due_date: invoice.due_date,
+                amount: invoice.amount,
+                status: invoice.status,
+                students_billed: invoice.students_billed,
+                organization_name: invoice.organization_name,
+                contact_email: invoice.contact_email,
+                location: invoice.location,
+                course_type_name: invoice.course_type_name,
+                date_completed: invoice.course_date,
+                organization_id: invoice.organization_id,
+                attendance_list: attendanceList,
+                rate_per_student: parseFloat(invoice.rate_per_student || '0')
+              };
+
+              // Generate PDF
+              const { PDFService } = await import('../../services/pdfService.js');
+              const pdfBuffer = await PDFService.generateInvoicePDF(invoiceData);
+
+              // Prepare email data
               const emailData = {
                 organizationName: invoice.organization_name,
                 invoiceNumber: invoice.invoice_number,
@@ -2822,10 +2984,13 @@ router.put(
                 portalUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/organization/bills-payable`
               };
 
+              // Send email with PDF attachment
               const { emailService } = await import('../../services/emailService.js');
-              await emailService.sendInvoicePostedNotification(
+              await emailService.sendInvoiceWithPDF(
                 invoice.contact_email,
-                emailData
+                emailData,
+                pdfBuffer,
+                `${invoice.invoice_number}.pdf`
               );
 
               // Log email sent
@@ -2838,9 +3003,9 @@ router.put(
                 [id]
               );
 
-              console.log(`📧 [POST TO ORG] Invoice notification sent to ${invoice.contact_email}`);
+              console.log(`📧 [POST TO ORG] Invoice PDF with attendance sent to ${invoice.contact_email}`);
             } catch (emailError) {
-              console.error('❌ [POST TO ORG] Email notification failed:', emailError);
+              console.error('❌ [POST TO ORG] Email with PDF failed:', emailError);
               // Don't fail the entire operation if email fails
             }
           })();
@@ -2875,6 +3040,8 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
+      console.log(`[DEBUG] Fetching all invoices list`);
+      
       const result = await pool.query(`
       SELECT 
         i.id as invoiceid,
@@ -2900,6 +3067,7 @@ router.get(
         (i.amount - COALESCE(payments.total_paid, 0)) as balancedue,
         i.base_cost,
         i.tax_amount,
+        cp.price_per_student as rate_per_student,
         CASE 
           WHEN COALESCE(payments.total_paid, 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
           WHEN CURRENT_DATE > i.due_date THEN 'overdue'
@@ -2916,6 +3084,7 @@ router.get(
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
       LEFT JOIN (
         SELECT invoice_id, SUM(amount) as total_paid
         FROM payments 
@@ -2924,6 +3093,18 @@ router.get(
       ) payments ON payments.invoice_id = i.id
       ORDER BY i.created_at DESC
     `);
+
+      console.log(`[DEBUG] All invoices result rows:`, result.rows.length);
+      if (result.rows.length > 0) {
+        console.log(`[DEBUG] First invoice from list:`, {
+          invoiceid: result.rows[0].invoiceid,
+          invoicenumber: result.rows[0].invoicenumber,
+          coursenumber: result.rows[0].coursenumber,
+          course_type_name: result.rows[0].course_type_name,
+          rate_per_student: result.rows[0].rate_per_student,
+          amount: result.rows[0].amount
+        });
+      }
 
       res.json({
         success: true,
@@ -2944,6 +3125,8 @@ router.get(
     try {
       const { id } = req.params;
 
+      console.log(`[DEBUG] Fetching invoice details for ID: ${id}`);
+      
       const result = await pool.query(
         `
       SELECT 
@@ -2955,8 +3138,8 @@ router.get(
         i.amount,
         COALESCE(payments.total_paid, 0) as amount_paid,
         COALESCE(i.amount - COALESCE(payments.total_paid, 0), i.amount) as balance_due,
-        i.base_cost,
-        i.tax_amount,
+        (i.students_billed * COALESCE(cp.price_per_student, i.rate_per_student, 0)) as base_cost,
+        ((i.students_billed * COALESCE(cp.price_per_student, i.rate_per_student, 0)) * 0.13) as tax_amount,
         i.due_date as duedate,
         i.status as paymentstatus,
         i.approval_status,
@@ -2975,22 +3158,41 @@ router.get(
         cr.id as coursenumber,
         i.course_request_id,
         cr.course_type_id,
-        COALESCE(cp.price_per_student, 50.00) as rateperstudent
-      FROM invoice_with_breakdown i
+        cp.price_per_student as rate_per_student,
+        i.approved_by,
+        i.approved_at,
+        approver.username as approved_by_username
+      FROM invoices i
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN users u ON cr.instructor_id = u.id
-                      LEFT JOIN class_types ct ON cr.course_type_id = ct.id
-        LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
-        LEFT JOIN (
-          SELECT invoice_id, SUM(amount) as total_paid
-          FROM payments 
-          GROUP BY invoice_id
-        ) payments ON payments.invoice_id = i.id
-        WHERE i.id = $1
+      LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+      LEFT JOIN users approver ON i.approved_by = approver.id
+      LEFT JOIN (
+        SELECT invoice_id, SUM(amount) as total_paid
+        FROM payments 
+        GROUP BY invoice_id
+      ) payments ON payments.invoice_id = i.id
+      WHERE i.id = $1
     `,
         [id]
       );
+
+      console.log(`[DEBUG] Query result rows:`, result.rows.length);
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        console.log(`[DEBUG] Invoice data:`, {
+          id: row.id,
+          invoice_number: row.invoicenumber,
+          organization_id: row.organization_id,
+          course_request_id: row.course_request_id,
+          course_type_id: row.course_type_id,
+          rate_per_student: row.rate_per_student,
+          amount: row.amount,
+          students_billed: row.studentsattendance
+        });
+      }
 
       if (result.rows.length === 0) {
         throw new AppError(
@@ -3019,6 +3221,21 @@ router.put(
     try {
       const { id } = req.params;
       const { amount, due_date, status, approval_status, notes } = req.body;
+      const user = (req as any).user;
+
+      // If this is an approval action, track the user and timestamp
+      let approvedBy = null;
+      let approvedAt = null;
+      let enhancedNotes = notes;
+
+      if (approval_status === 'approved') {
+        approvedBy = user.id;
+        approvedAt = new Date();
+        
+        // Enhance notes with user attribution
+        const userAttribution = `\n\nApproved by: ${user.username} at ${approvedAt.toLocaleString()}`;
+        enhancedNotes = notes ? `${notes}${userAttribution}` : `Invoice approved by accounting${userAttribution}`;
+      }
 
       const result = await pool.query(
         `
@@ -3028,11 +3245,13 @@ router.put(
           status = COALESCE($3, status),
           approval_status = COALESCE($4, approval_status),
           notes = COALESCE($5, notes),
+          approved_by = COALESCE($6, approved_by),
+          approved_at = COALESCE($7, approved_at),
           updated_at = CURRENT_TIMESTAMP
-      WHERE id = $6
+      WHERE id = $8
       RETURNING *
     `,
-        [amount, due_date, status, approval_status, notes, id]
+        [amount, due_date, status, approval_status, enhancedNotes, approvedBy, approvedAt, id]
       );
 
       if (result.rows.length === 0) {
@@ -3318,12 +3537,25 @@ router.get(
         o.contact_email,
         cr.location,
         ct.name as course_type_name,
-        cr.completed_at as date_completed
+        cr.completed_at as date_completed,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'first_name', cs.first_name,
+              'last_name', cs.last_name,
+              'email', cs.email,
+              'attended', cs.attended
+            ) ORDER BY cs.last_name, cs.first_name
+          ) FILTER (WHERE cs.id IS NOT NULL),
+          '[]'::json
+        ) as attendance_list
       FROM invoices i
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN course_students cs ON cr.id = cs.course_request_id
       WHERE i.id = $1
+      GROUP BY i.id, i.invoice_number, i.organization_id, i.course_request_id, i.created_at, i.due_date, i.amount, i.status, i.students_billed, i.paid_date, o.name, o.contact_email, cr.location, ct.name, cr.completed_at
     `,
         [id]
       );
@@ -4149,7 +4381,7 @@ router.get(
     try {
       // Get total counts
       const userCount = await pool.query(
-        "SELECT COUNT(*) as count FROM users WHERE status = 'active'"
+        "SELECT COUNT(*) as count FROM users"
       );
       const organizationCount = await pool.query(
         'SELECT COUNT(*) as count FROM organizations'
@@ -4158,7 +4390,7 @@ router.get(
         'SELECT COUNT(*) as count FROM class_types WHERE is_active = true'
       );
       const vendorCount = await pool.query(
-        "SELECT COUNT(*) as count FROM vendors WHERE status = 'active'"
+        "SELECT COUNT(*) as count FROM vendors WHERE is_active = true"
       );
 
       // Get recent activity
@@ -4531,6 +4763,9 @@ router.get(
 
       const orderClause = `ORDER BY i.${sort_by} ${sort_order.toString().toUpperCase()}`;
 
+      console.log(`[DEBUG] Organization invoices query params:`, queryParams);
+      console.log(`[DEBUG] Organization invoices whereClause:`, whereClause);
+      
       const result = await pool.query(
         `
       SELECT 
@@ -4548,7 +4783,7 @@ router.get(
         cr.id as course_request_id,
         COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as amount_paid,
         GREATEST(0, (i.base_cost + i.tax_amount) - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due,
-        COALESCE(cp.price_per_student, 50.00) as rate_per_student,
+        cp.price_per_student as rate_per_student,
         i.base_cost,
         i.tax_amount,
         CASE 
@@ -4559,7 +4794,7 @@ router.get(
       FROM invoice_with_breakdown i
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
-      LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+      LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
       LEFT JOIN payments p ON i.id = p.invoice_id
       ${whereClause}
       GROUP BY i.id, i.invoice_number, i.created_at, i.due_date, i.amount, i.status, i.students_billed, i.paid_date, i.base_cost, i.tax_amount, cr.id, ct.id, cp.price_per_student
@@ -4568,6 +4803,24 @@ router.get(
     `,
         [...queryParams, Number(limit), offset]
       );
+
+      console.log(`[DEBUG] Organization invoices result rows:`, result.rows.length);
+      if (result.rows.length > 0) {
+        console.log(`[DEBUG] First invoice data:`, {
+          invoice_id: result.rows[0].invoice_id,
+          invoice_number: result.rows[0].invoice_number,
+          course_request_id: result.rows[0].course_request_id,
+          course_type_name: result.rows[0].course_type_name,
+          rate_per_student: result.rows[0].rate_per_student,
+          amount: result.rows[0].amount
+        });
+      }
+
+      // Transform rate_per_student to ensure it's a number
+      const transformedRows = result.rows.map(row => ({
+        ...row,
+        rate_per_student: row.rate_per_student ? parseFloat(row.rate_per_student) : null
+      }));
 
       // Get total count for pagination
       const countResult = await pool.query(
@@ -4586,7 +4839,7 @@ router.get(
       res.json({
         success: true,
         data: {
-          invoices: result.rows,
+          invoices: transformedRows,
           pagination: {
             current_page: Number(page),
             total_pages: totalPages,
@@ -4640,7 +4893,7 @@ router.get(
         cr.id as course_request_id,
         COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as amount_paid,
         GREATEST(0, (i.base_cost + i.tax_amount) - COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0)) as balance_due,
-        COALESCE(cp.price_per_student, 50.00) as rate_per_student,
+        cp.price_per_student as rate_per_student,
         i.base_cost,
         i.tax_amount,
         CASE 
@@ -4652,7 +4905,7 @@ router.get(
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
-      LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+      LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
       LEFT JOIN payments p ON i.id = p.invoice_id
       WHERE i.id = $1 AND i.organization_id = $2
       GROUP BY i.id, i.invoice_number, i.due_date, i.amount, i.status, i.students_billed, i.paid_date, i.base_cost, i.tax_amount, o.id, cr.id, ct.id, cp.price_per_student
@@ -4694,6 +4947,9 @@ router.get(
 
       const invoice = result.rows[0];
       invoice.payments = paymentsResult.rows;
+      
+      // Transform rate_per_student to ensure it's a number
+      invoice.rate_per_student = invoice.rate_per_student ? parseFloat(invoice.rate_per_student) : null;
 
       res.json({
         success: true,
@@ -5332,7 +5588,7 @@ router.get(
         cr.id as course_request_id,
         COALESCE(payments.total_paid, 0) as amount_paid,
         GREATEST(0, (i.base_cost + i.tax_amount) - COALESCE(payments.total_paid, 0)) as balance_due,
-        COALESCE(cp.price_per_student, 50.00) as rate_per_student,
+        cp.price_per_student as rate_per_student,
         i.base_cost,
         i.tax_amount,
         CASE 
@@ -5343,7 +5599,7 @@ router.get(
       FROM invoice_with_breakdown i
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
-      LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+      LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
       LEFT JOIN (
         SELECT invoice_id, SUM(amount) as total_paid
         FROM payments 
@@ -5365,7 +5621,7 @@ router.get(
       SELECT COUNT(*) as total
       FROM invoice_with_breakdown i
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
-      LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+      LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
       LEFT JOIN (
         SELECT invoice_id, SUM(amount) as total_paid
         FROM payments 
@@ -5382,10 +5638,16 @@ router.get(
       const total = countResult.rows.length;
       const totalPages = Math.ceil(total / Number(limit));
 
+      // Transform rate_per_student to ensure it's a number
+      const transformedRows = result.rows.map(row => ({
+        ...row,
+        rate_per_student: row.rate_per_student ? parseFloat(row.rate_per_student) : null
+      }));
+
       res.json({
         success: true,
         data: {
-          invoices: result.rows,
+          invoices: transformedRows,
           pagination: {
             current_page: Number(page),
             total_pages: totalPages,
@@ -5524,7 +5786,7 @@ router.get(
         COALESCE(SUM(CASE WHEN i.paid_date >= CURRENT_DATE - INTERVAL '30 days' THEN i.amount ELSE 0 END), 0) as amount_paid_last_30_days
       FROM invoice_with_breakdown i
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
-      LEFT JOIN course_pricing cp ON i.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+      LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
       LEFT JOIN (
         SELECT invoice_id, SUM(amount) as total_paid
         FROM payments 
@@ -5853,8 +6115,8 @@ router.post(
 const VALID_ROLES = ['instructor', 'organization', 'courseadmin', 'accountant', 'sysadmin', 'hr'];
 
 // HR Portal endpoints
-router.get('/hr/dashboard', authenticateToken, asyncHandler(async (req, res) => {
-  const { role } = req.user;
+router.get('/hr/dashboard', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const { role } = (req as any).user;
   
   if (role !== 'hr' && role !== 'sysadmin') {
     return res.status(403).json({ success: false, message: 'Access denied. HR role required.' });
@@ -5868,12 +6130,12 @@ router.get('/hr/dashboard', authenticateToken, asyncHandler(async (req, res) => 
     
     // Get active instructors count
     const activeInstructorsResult = await pool.query(`
-      SELECT COUNT(*) as count FROM users WHERE role = 'instructor' AND status = 'active'
+      SELECT COUNT(*) as count FROM users WHERE role = 'instructor'
     `);
     
     // Get organizations count
     const organizationsResult = await pool.query(`
-      SELECT COUNT(*) as count FROM organizations WHERE status = 'active'
+      SELECT COUNT(*) as count FROM organizations
     `);
     
     // Get expiring certifications count (within 30 days)
@@ -5898,8 +6160,8 @@ router.get('/hr/dashboard', authenticateToken, asyncHandler(async (req, res) => 
 }));
 
 // Get pending profile changes
-router.get('/hr/profile-changes', authenticateToken, asyncHandler(async (req, res) => {
-  const { role } = req.user;
+router.get('/hr/profile-changes', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const { role } = (req as any).user;
   
   if (role !== 'hr' && role !== 'sysadmin') {
     return res.status(403).json({ success: false, message: 'Access denied. HR role required.' });
@@ -5940,8 +6202,8 @@ router.get('/hr/profile-changes', authenticateToken, asyncHandler(async (req, re
 }));
 
 // Approve/reject profile change
-router.post('/hr/profile-changes/:id/approve', authenticateToken, asyncHandler(async (req, res) => {
-  const { role } = req.user;
+router.post('/hr/profile-changes/:id/approve', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const { role } = (req as any).user;
   const { id } = req.params;
   const { action, comment } = req.body; // action: 'approve' or 'reject'
   
@@ -5999,7 +6261,73 @@ router.post('/hr/profile-changes/:id/approve', authenticateToken, asyncHandler(a
 }));
 
 // Payment Requests Routes
-import paymentRequestsRouter from './paymentRequests';
+import paymentRequestsRouter from './paymentRequests.js';
 router.use('/payment-requests', paymentRequestsRouter);
+
+// Accounting endpoint to get students for a specific course (for billing preview)
+router.get(
+  '/accounting/courses/:courseId/students',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { courseId } = req.params;
+      const userRole = req.user?.role;
+
+      // Only accounting users can access this endpoint
+      if (userRole !== 'accounting' && userRole !== 'accountant') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Accounting role required.'
+        );
+      }
+
+      // Verify the course exists and is ready for billing
+      const courseCheck = await pool.query(
+        `SELECT id, status, ready_for_billing_at 
+         FROM course_requests 
+         WHERE id = $1 AND status = 'completed' AND ready_for_billing_at IS NOT NULL`,
+        [courseId]
+      );
+
+      if (courseCheck.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Course not found or not ready for billing'
+        );
+      }
+
+      // Get students for this course with attendance information
+      const result = await pool.query(
+        `SELECT 
+        s.id,
+        s.course_request_id,
+        s.first_name,
+        s.last_name,
+        s.email,
+        s.attended,
+        s.attendance_marked,
+        s.created_at
+       FROM course_students s
+       WHERE s.course_request_id = $1
+       ORDER BY s.last_name, s.first_name`,
+        [courseId]
+      );
+
+      return res.json(ApiResponseBuilder.success(result.rows));
+    } catch (error: any) {
+      console.error('Error fetching course students for accounting:', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        500,
+        errorCodes.DB_QUERY_ERROR,
+        'Failed to fetch course students'
+      );
+    }
+  })
+);
 
 export default router;

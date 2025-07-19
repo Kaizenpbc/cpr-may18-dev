@@ -12,16 +12,12 @@ import {
   Grid,
   Divider,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+  Tooltip,
 } from '@mui/material';
 import api, { getInvoiceDetails, postInvoiceToOrganization } from '../../services/api';
 import EmailIcon from '@mui/icons-material/Email';
 import PostAddIcon from '@mui/icons-material/PostAdd';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
 import logger from '../../utils/logger';
 import { formatDisplayDate } from '../../utils/dateUtils';
 import { API_URL } from '../../config';
@@ -54,7 +50,7 @@ const InvoiceDetailDialog = ({
   });
   
   // Payment request processing state
-  const [paymentAction, setPaymentAction] = useState<'approve' |'reject' | null>(null);
+
   const [paymentNotes, setPaymentNotes] = useState('');
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
@@ -65,6 +61,16 @@ const InvoiceDetailDialog = ({
   useEffect(() => {
     if (open && invoiceId) {
       const fetchInvoiceDetails = async () => {
+        // Check if user is authenticated before making API call
+        const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+        if (!token) {
+          setError('Please log in to view invoice details. Redirecting to login...');
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+          return;
+        }
+
         setIsLoading(true);
         setError('');
         setInvoice(null);
@@ -81,7 +87,17 @@ const InvoiceDetailDialog = ({
           });
         } catch (err) {
           logger.error('Failed to fetch invoice details:', err);
-          setError(err.message || 'Failed to load invoice details');
+          
+          // Handle authentication errors specifically
+          if (err.message?.includes('No token provided') || err.message?.includes('Unauthorized')) {
+            setError('Please log in to view invoice details. Redirecting to login...');
+            // Redirect to login after a short delay
+            setTimeout(() => {
+              window.location.href = '/login';
+            }, 2000);
+          } else {
+            setError(err.message || 'Failed to load invoice details');
+          }
         } finally {
           setIsLoading(false);
         }
@@ -99,7 +115,7 @@ const InvoiceDetailDialog = ({
     try {
       const response = await postInvoiceToOrganization(invoiceId);
       if (response && response.success) {
-        let message = response.message || 'Invoice posted to organization successfully. Email notification sent.';
+        let message = response.message || 'Invoice posted to organization and complete invoice PDF with attendance sent via email.';
         if (onActionSuccess) onActionSuccess(message);
         // Refresh invoice data to show updated status
         const updatedInvoice = await getInvoiceDetails(invoiceId);
@@ -254,35 +270,72 @@ const InvoiceDetailDialog = ({
     }
   };
 
+  // Keyboard shortcuts handler
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!open) return;
+      
+      // Ctrl+Enter = Approve invoice
+      if (event.ctrlKey && event.key === 'Enter') {
+        event.preventDefault();
+        if (['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes((invoice?.approval_status || '').toLowerCase())) {
+          handleProcessPayment();
+        }
+      }
+      
+      // Ctrl+D = Download PDF
+      if (event.ctrlKey && event.key === 'd') {
+        event.preventDefault();
+        handleDownload();
+      }
+      
+      // Escape = Close dialog
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, invoice?.approval_status]);
+
   const handleProcessPayment = async () => {
     if (!invoice?.id) return;
     
     setProcessingPayment(true);
     try {
-      logger.info(`Processing invoice approval for invoice ${invoice.id}: ${paymentAction}`);
+      logger.info(`Processing invoice approval, posting, and email for invoice ${invoice.id}`);
       
-      // Use the existing PUT endpoint to update invoice approval_status
-      const newApprovalStatus = paymentAction === 'approve' ? 'approved' : 'rejected';
-      const response = await api.put(`/accounting/invoices/${invoice.id}`, {
-        approval_status: newApprovalStatus,
-        notes: paymentNotes || `Invoice ${paymentAction}d by accounting`
+      // Step 1: Approve the invoice
+      const approveResponse = await api.put(`/accounting/invoices/${invoice.id}`, {
+        approval_status: 'approved',
+        notes: paymentNotes || `Invoice approved by accounting`
       });
       
-      if (response.data.success) {
-        const message = `Invoice ${paymentAction}d successfully`;
-        
-        // Refresh the invoice data to show updated approval status
-        const updatedInvoice = await getInvoiceDetails(invoice.id);
-        setInvoice(updatedInvoice);
-        
-        if (onActionSuccess) onActionSuccess(message);
-        onClose();
-      } else {
-        throw new Error(response.data.message || `Failed to ${paymentAction} invoice`);
+      if (!approveResponse.data.success) {
+        throw new Error(approveResponse.data.message || `Failed to approve invoice`);
       }
+      
+      // Step 2: Post to organization and send email
+      logger.info(`Posting invoice ${invoice.id} to organization and sending email`);
+      const postResponse = await postInvoiceToOrganization(invoice.id);
+      
+      if (!postResponse.success) {
+        throw new Error(postResponse.message || `Failed to post invoice to organization`);
+      }
+      
+      const message = `Invoice approved, posted to organization, and email sent successfully`;
+      
+      // Refresh the invoice data to show updated status
+      const updatedInvoice = await getInvoiceDetails(invoice.id);
+      setInvoice(updatedInvoice);
+      
+      if (onActionSuccess) onActionSuccess(message);
+      onClose();
     } catch (err) {
-      logger.error(`Error processing invoice approval:`, err);
-      if (onActionError) onActionError(err?.message || `Failed to ${paymentAction} invoice`);
+      logger.error(`Error processing invoice approval, posting, and email:`, err);
+      if (onActionError) onActionError(err?.message || `Failed to approve, post, and email invoice`);
     } finally {
       setProcessingPayment(false);
     }
@@ -291,7 +344,16 @@ const InvoiceDetailDialog = ({
   return (
     <Dialog open={open} onClose={onClose} maxWidth='md' fullWidth>
       <DialogTitle>
-        Invoice Details {invoice ? `(#${invoice.invoicenumber})` : ''}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">
+            Invoice Details {invoice ? `(#${invoice.invoicenumber})` : ''}
+          </Typography>
+          <Tooltip title="Keyboard shortcuts: Ctrl+Enter (Approve), Ctrl+D (Download), Esc (Close)">
+            <Typography variant="caption" color="text.secondary" sx={{ cursor: 'help' }}>
+              ⌨️ Shortcuts
+            </Typography>
+          </Tooltip>
+        </Box>
       </DialogTitle>
       <DialogContent dividers>
         {isLoading && (
@@ -383,25 +445,40 @@ const InvoiceDetailDialog = ({
               <Grid xs={12} sm={6}>
                 <Typography variant='body2'>
                   <strong>Rate per Student:</strong>{' '}
-                  {formatCurrency(invoice.rateperstudent)}
+                  {formatCurrency(invoice.rate_per_student)}
                 </Typography>
               </Grid>
               <Grid xs={12} sm={6}>
                 <Typography variant='body2'>
                   <strong>Base Cost:</strong>{' '}
-                  $36.00
+                  {invoice.rate_per_student ? 
+                    `$${(invoice.rate_per_student * invoice.studentsattendance).toFixed(2)}` : 
+                    <Typography component="span" color="error.main" fontSize="small">
+                      N/A
+                    </Typography>
+                  }
                 </Typography>
               </Grid>
               <Grid xs={12} sm={6}>
                 <Typography variant='body2'>
                   <strong>Tax (HST):</strong>{' '}
-                  $4.68
+                  {invoice.rate_per_student ? 
+                    `$${(invoice.rate_per_student * invoice.studentsattendance * 0.13).toFixed(2)}` : 
+                    <Typography component="span" color="error.main" fontSize="small">
+                      N/A
+                    </Typography>
+                  }
                 </Typography>
               </Grid>
               <Grid xs={12} sm={6}>
                 <Typography variant='body2' sx={{ fontWeight: 'bold' }}>
                   <strong>Total Amount:</strong>{' '}
-                  $40.68
+                  {invoice.rate_per_student ? 
+                    `$${(invoice.rate_per_student * invoice.studentsattendance * 1.13).toFixed(2)}` : 
+                    <Typography component="span" color="error.main" fontSize="small">
+                      N/A
+                    </Typography>
+                  }
                 </Typography>
               </Grid>
             </Grid>
@@ -412,15 +489,30 @@ const InvoiceDetailDialog = ({
               Invoice Approval:
             </Typography>
             
+            {/* Show approval information if already approved */}
+            {invoice?.approval_status === 'approved' && (
+              <Box sx={{ mb: 2 }}>
+                <Alert severity="success" sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    <strong>Approved by:</strong> {invoice.approved_by_username || 'Unknown'} 
+                    {invoice.approved_at && (
+                      <span> on {formatDisplayDate(invoice.approved_at)}</span>
+                    )}
+                  </Typography>
+                </Alert>
+                {invoice.notes && (
+                  <Typography variant="body2" sx={{ mt: 1, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                    <strong>Approval Notes:</strong><br />
+                    {invoice.notes}
+                  </Typography>
+                )}
+              </Box>
+            )}
+            
             {/* Show message when approval is not available */}
-            {!['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes((invoice?.approval_status || '').toLowerCase()) && (
+            {!['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes((invoice?.approval_status || '').toLowerCase()) && invoice?.approval_status !== 'approved' && (
               <Alert severity="info" sx={{ mb: 2 }}>
-                {invoice?.approval_status === 'approved' 
-                  ? 'This invoice has already been approved and cannot be modified.'
-                  : invoice?.approval_status === 'rejected'
-                    ? 'This invoice has been rejected and cannot be approved.'
-                    : `This invoice has status "${invoice?.approval_status || 'unknown'}" and cannot be approved.`
-                }
+                {`This invoice has status "${invoice?.approval_status || 'unknown'}" and cannot be approved.`}
               </Alert>
             )}
             
@@ -428,67 +520,51 @@ const InvoiceDetailDialog = ({
             {['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes((invoice?.approval_status || '').toLowerCase()) && (
               <>
                 <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>
-                  (Only available for invoices with 'Pending Approval' status)
+                  (Approval will post the invoice to the organization portal and send notification email)
                 </Typography>
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Action</InputLabel>
-                  <Select
-                    value={paymentAction || ''}
-                    onChange={(e) => {
-                      console.log('Action selected:', e.target.value);
-                      setPaymentAction(e.target.value as 'approve' | 'reject' | null);
-                    }}
-                    label="Action"
-                    disabled={processingPayment}
-                  >
-                    <MenuItem value="">
-                      <em>Select...</em>
-                    </MenuItem>
-                    <MenuItem value="approve">Approve</MenuItem>
-                    <MenuItem value="reject">Reject</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid xs={12} sm={6}>
-                <TextField
-                  label="Notes (Optional)"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  value={paymentNotes}
-                  onChange={(e) => setPaymentNotes(e.target.value)}
-                  disabled={processingPayment}
-                />
-              </Grid>
-            </Grid>
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                  <Grid xs={12} sm={6}>
+                    <TextField
+                      label="Notes (Optional)"
+                      fullWidth
+                      multiline
+                      rows={2}
+                      value={paymentNotes}
+                      onChange={(e) => setPaymentNotes(e.target.value)}
+                      disabled={processingPayment}
+                    />
+                  </Grid>
+                </Grid>
+                
+
               </>
             )}
             
           </Box>
         )}
       </DialogContent>
-      <DialogActions>
+            <DialogActions>
         
-        {/* Post to Organization Button - Only show if not already posted */}
-        {showPostToOrgButton && invoice && !Boolean(invoice.posted_to_org) && (
+        {/* Approve & Post Invoice Button - Only show when approval is available */}
+        {['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes((invoice?.approval_status || '').toLowerCase()) && (
           <Button
-            onClick={handlePostToOrganization}
-            color='warning'
             variant='contained'
-            disabled={isLoading || isPostingRef.current || !invoice || !invoice.contactemail}
+            color='success'
+            onClick={handleProcessPayment}
+            disabled={processingPayment}
             startIcon={
-              isPostingRef.current ? (
-                <CircularProgress size={20} color='inherit' />
-              ) : (
-                <PostAddIcon />
-              )
+              processingPayment
+                ? <CircularProgress size={20} color='inherit' />
+                : <CheckCircleIcon />
             }
           >
-            {isPostingRef.current ? 'Posting...' : 'Post to Organization'}
+            {processingPayment
+              ? 'Processing...'
+              : 'Approve Invoice & Send Email'}
           </Button>
         )}
+        
+
         
         {/* Email Button - Only show if already posted */}
         {invoice?.contactemail && Boolean(invoice?.posted_to_org) && (
@@ -523,37 +599,6 @@ const InvoiceDetailDialog = ({
             sx={{ ml: 1 }}
           >
             View Email Preview
-          </Button>
-        )}
-        
-        {/* Debug info - remove this later */}
-        {paymentAction && (
-          <Typography variant="caption" color="text.secondary" sx={{ mr: 2 }}>
-            Debug: Action={paymentAction}, Approval Status="{invoice?.approval_status}", 
-            Status matches: {['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes((invoice?.approval_status || '').toLowerCase()) ? 'Yes' : 'No'}
-          </Typography>
-        )}
-        
-        {(paymentAction === 'approve' || paymentAction === 'reject') &&
-          ['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes((invoice?.approval_status || '').toLowerCase()) && (
-          <Button
-            variant='contained'
-            color={paymentAction === 'approve' ? 'success' : 'error'}
-            onClick={handleProcessPayment}
-            disabled={processingPayment}
-            startIcon={
-              processingPayment
-                ? <CircularProgress size={20} color='inherit' />
-                : paymentAction === 'approve'
-                  ? <CheckCircleIcon />
-                  : <CancelIcon />
-            }
-          >
-            {processingPayment
-              ? 'Processing...'
-              : paymentAction === 'approve'
-                ? 'Approve Invoice'
-                : 'Reject Invoice'}
           </Button>
         )}
         

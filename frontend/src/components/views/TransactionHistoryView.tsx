@@ -18,6 +18,7 @@ import {
 import * as api from '../../services/api'; // Adjust path
 // Import the dedicated history table component
 import InvoiceHistoryTable from '../tables/InvoiceHistoryTable';
+import InvoiceStatsDashboard from '../dashboard/InvoiceStatsDashboard';
 
 const TransactionHistoryView = () => {
   const [allInvoices, setAllInvoices] = useState([]);
@@ -236,8 +237,17 @@ const TransactionHistoryView = () => {
         <Alert severity='error'>{error}</Alert>
       ) : (
         <>
+          {/* Quick Stats Dashboard */}
+          <InvoiceStatsDashboard 
+            invoices={filteredInvoices}
+            loading={isLoading}
+          />
+
           {/* Render the actual history table component here */}
-          <InvoiceHistoryTable invoices={filteredInvoices} />
+          <InvoiceHistoryTable 
+            invoices={filteredInvoices} 
+            onRefresh={fetchAllInvoices}
+          />
 
           {/* Summary Section */}
           {filteredInvoices.length > 0 && (

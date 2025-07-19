@@ -125,6 +125,7 @@ const PaymentVerificationView = () => {
 
   // Check if payment can be verified (not already processed)
   const canVerifyPayment = (payment) => {
+    if (!payment) return false;
     return !payment.verified_by_accounting_at && 
            (payment.status === 'pending_verification' || 
             payment.status === 'pending' ||
@@ -133,6 +134,13 @@ const PaymentVerificationView = () => {
 
   // Get payment status for display
   const getPaymentStatus = (payment) => {
+    if (!payment) {
+      return {
+        label: 'UNKNOWN',
+        color: 'default',
+        icon: <PendingIcon />
+      };
+    }
     if (payment.verified_by_accounting_at) {
       return {
         label: 'VERIFIED',
@@ -208,86 +216,89 @@ const PaymentVerificationView = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                paymentsData.payments.map(payment => (
-                  <TableRow key={payment.payment_id} hover>
-                    <TableCell>
-                      <Typography variant='body2' fontWeight='medium'>
-                        {payment.organization_name}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant='body2'>
-                        {payment.invoice_number}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant='body2' fontWeight='medium'>
-                        {formatCurrency(payment.amount)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant='body2'>
-                        {payment.payment_method
-                          ?.replace('_', ' ')
-                          .toUpperCase()}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant='body2'>
-                        {payment.reference_number || '-'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant='body2'>
-                        {formatDate(payment.submitted_by_org_at)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        icon={getPaymentStatus(payment).icon}
-                        label={getPaymentStatus(payment).label}
-                        color={getPaymentStatus(payment).color}
-                        size='small'
-                      />
-                    </TableCell>
-                    <TableCell align='center'>
-                      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                        <Tooltip title='View Details'>
-                          <IconButton
-                            size='small'
-                            onClick={() => handleViewDetails(payment)}
-                          >
-                            <ViewIcon fontSize='small' />
-                          </IconButton>
-                        </Tooltip>
-                        {canVerifyPayment(payment) && (
-                          <>
-                            <Tooltip title='Approve Payment'>
-                              <IconButton
-                                size='small'
-                                color='success'
-                                onClick={() => handleVerificationClick(payment, 'approve')}
-                                disabled={verifyPaymentMutation.isLoading}
-                              >
-                                <ApproveIcon fontSize='small' />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title='Reject Payment'>
-                              <IconButton
-                                size='small'
-                                color='error'
-                                onClick={() => handleVerificationClick(payment, 'reject')}
-                                disabled={verifyPaymentMutation.isLoading}
-                              >
-                                <RejectIcon fontSize='small' />
-                              </IconButton>
-                            </Tooltip>
-                          </>
-                        )}
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))
+                paymentsData.payments.map(payment => {
+                  if (!payment) return null;
+                  return (
+                    <TableRow key={payment.payment_id} hover>
+                      <TableCell>
+                        <Typography variant='body2' fontWeight='medium'>
+                          {payment.organization_name}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant='body2'>
+                          {payment.invoice_number}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant='body2' fontWeight='medium'>
+                          {formatCurrency(payment.amount)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant='body2'>
+                          {payment.payment_method
+                            ?.replace('_', ' ')
+                            .toUpperCase()}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant='body2'>
+                          {payment.reference_number || '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant='body2'>
+                          {formatDate(payment.submitted_by_org_at)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          icon={getPaymentStatus(payment).icon}
+                          label={getPaymentStatus(payment).label}
+                          color={getPaymentStatus(payment).color}
+                          size='small'
+                        />
+                      </TableCell>
+                      <TableCell align='center'>
+                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                          <Tooltip title='View Details'>
+                            <IconButton
+                              size='small'
+                              onClick={() => handleViewDetails(payment)}
+                            >
+                              <ViewIcon fontSize='small' />
+                            </IconButton>
+                          </Tooltip>
+                          {canVerifyPayment(payment) && (
+                            <>
+                              <Tooltip title='Approve Payment'>
+                                <IconButton
+                                  size='small'
+                                  color='success'
+                                  onClick={() => handleVerificationClick(payment, 'approve')}
+                                  disabled={verifyPaymentMutation.isLoading}
+                                >
+                                  <ApproveIcon fontSize='small' />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title='Reject Payment'>
+                                <IconButton
+                                  size='small'
+                                  color='error'
+                                  onClick={() => handleVerificationClick(payment, 'reject')}
+                                  disabled={verifyPaymentMutation.isLoading}
+                                >
+                                  <RejectIcon fontSize='small' />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  );
+                }).filter(Boolean)
               )}
             </TableBody>
           </Table>

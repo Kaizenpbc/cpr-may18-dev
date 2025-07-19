@@ -14,6 +14,13 @@ interface InvoiceData {
   course_type_name: string;
   date_completed: string;
   organization_id: number;
+  attendance_list?: Array<{
+    first_name: string;
+    last_name: string;
+    email?: string;
+    attended?: boolean;
+  }>;
+  rate_per_student?: number; // Added for pricing
 }
 
 interface PaymentData {
@@ -44,10 +51,19 @@ export class PDFService {
     const invoiceDate = new Date(invoice.invoice_date).toLocaleDateString();
     const dueDate = new Date(invoice.due_date).toLocaleDateString();
     const courseDate = new Date(invoice.date_completed).toLocaleDateString();
-    const subtotal = parseFloat(invoice.amount);
+    const studentsBilled = invoice.students_billed || 0;
+    const ratePerStudent = invoice.rate_per_student;
+    
+    if (!ratePerStudent) {
+      throw new Error('Pricing not configured for this invoice. Please contact system administrator.');
+    }
+    
+    const subtotal = studentsBilled * ratePerStudent;
     const hst = subtotal * 0.13;
     const total = subtotal + hst;
-
+    const attendanceList = Array.isArray(invoice.attendance_list) ? invoice.attendance_list : [];
+    const present = attendanceList.filter(s => s.attended).length;
+    const absent = attendanceList.filter(s => s.attended === false).length;
     return `
     <!DOCTYPE html>
     <html>
@@ -197,6 +213,29 @@ export class PDFService {
                 color: #721c24;
                 border: 1px solid #f5c6cb;
             }
+            .attendance-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 30px 0;
+            }
+            .attendance-table th {
+                background-color: #2196F3;
+                color: white;
+                padding: 8px;
+                text-align: left;
+                font-weight: bold;
+            }
+            .attendance-table td {
+                padding: 8px;
+                border-bottom: 1px solid #eee;
+            }
+            .attendance-table tr:nth-child(even) {
+                background-color: #f9f9f9;
+            }
+            .attendance-summary {
+                margin-top: 10px;
+                font-weight: bold;
+            }
         </style>
     </head>
     <body>
@@ -284,6 +323,29 @@ export class PDFService {
                 <div class="total-final">
                     <strong>TOTAL DUE: $${total.toFixed(2)}</strong>
                 </div>
+            </div>
+
+            <h3 style="margin-top:40px; color:#2196F3;">Attendance List</h3>
+            <table class="attendance-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${attendanceList.map(s => `
+                        <tr>
+                            <td>${s.first_name} ${s.last_name}</td>
+                            <td>${s.email || ''}</td>
+                            <td>${s.attended ? 'Present' : 'Absent'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            <div class="attendance-summary">
+                Present: ${present} &nbsp; | &nbsp; Absent: ${absent} &nbsp; | &nbsp; Total: ${attendanceList.length}
             </div>
 
             <div class="payment-info">

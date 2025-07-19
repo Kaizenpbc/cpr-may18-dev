@@ -124,16 +124,16 @@ const EMAIL_TEMPLATES = {
   }),
 
   INVOICE_POSTED: (invoiceData: any) => ({
-    subject: `New Invoice Available: ${invoiceData.invoiceNumber}`,
+    subject: `Invoice ${invoiceData.invoiceNumber} - Complete with Attendance`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #007bff;">New Invoice Available</h2>
+        <h2 style="color: #007bff;">Invoice Delivered</h2>
         <p>Dear ${invoiceData.organizationName},</p>
         
-        <p>A new invoice has been posted to your account for the following services:</p>
+        <p>Your invoice has been generated and is attached to this email. This invoice includes the complete attendance list for your records.</p>
         
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
-          <h3 style="color: #007bff; margin-top: 0;">Invoice Details</h3>
+          <h3 style="color: #007bff; margin-top: 0;">Invoice Summary</h3>
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
               <td style="padding: 8px 0; font-weight: bold;">Invoice Number:</td>
@@ -162,9 +162,19 @@ const EMAIL_TEMPLATES = {
           <p><strong>Students Billed:</strong> ${invoiceData.studentsBilled}</p>
         </div>
 
+        <div style="background-color: #d4edda; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #28a745;">
+          <h4 style="margin-top: 0; color: #155724;">📎 What's Included</h4>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li><strong>Complete Invoice:</strong> Detailed breakdown of charges</li>
+            <li><strong>Attendance List:</strong> All students with attendance status</li>
+            <li><strong>Payment Instructions:</strong> Multiple payment options</li>
+            <li><strong>Course Details:</strong> Date, location, and instructor information</li>
+          </ul>
+        </div>
+
         <div style="margin: 25px 0; text-align: center;">
           <a href="${invoiceData.portalUrl}" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
-            View Invoice & Pay
+            View in Portal & Pay
           </a>
         </div>
 
@@ -174,13 +184,14 @@ const EMAIL_TEMPLATES = {
             <li>Payment is due within 30 days of invoice date</li>
             <li>You can submit payment through your organization portal</li>
             <li>A 1.5% monthly service charge may be applied to overdue accounts</li>
+            <li>Please reference the invoice number when making payment</li>
           </ul>
         </div>
 
-        <p>If you have any questions about this invoice, please contact our accounting department.</p>
+        <p>If you have any questions about this invoice or need to verify attendance records, please contact our accounting department.</p>
         
         <p style="color: #6c757d; font-size: 0.9em; margin-top: 30px;">
-          This is an automated notification. Please do not reply to this email.<br>
+          This invoice has been automatically generated and delivered. Please do not reply to this email.<br>
           For questions, contact: billing@gtacpr.com or (416) 555-0123
         </p>
       </div>
@@ -304,6 +315,48 @@ class EmailService {
   ) {
     const template = EMAIL_TEMPLATES.INVOICE_POSTED(invoiceData);
     return this.sendEmail(organizationEmail, template.subject, template.html);
+  }
+
+  async sendInvoiceWithPDF(
+    organizationEmail: string,
+    invoiceData: any,
+    pdfBuffer: Buffer,
+    filename: string
+  ) {
+    const template = EMAIL_TEMPLATES.INVOICE_POSTED(invoiceData);
+    
+    console.log('📧 [EMAIL SERVICE] Sending invoice PDF to:', organizationEmail);
+    console.log('📧 [EMAIL SERVICE] Subject:', template.subject);
+    console.log('📧 [EMAIL SERVICE] PDF filename:', filename);
+    console.log('📧 [EMAIL SERVICE] PDF size:', pdfBuffer.length, 'bytes');
+    
+    try {
+      const mailOptions = {
+        from:
+          process.env.SMTP_FROM ||
+          '"CPR Training System" <noreply@cprtraining.com>',
+        to: organizationEmail,
+        subject: `Invoice ${invoiceData.invoiceNumber} - Complete with Attendance`,
+        html: template.html,
+        attachments: [
+          {
+            filename: filename,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }
+        ]
+      };
+
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('✅ [EMAIL SERVICE] Invoice PDF sent successfully to:', organizationEmail);
+      console.log('✅ [EMAIL SERVICE] Message ID:', info.messageId);
+      return true;
+    } catch (error) {
+      console.error('❌ [EMAIL SERVICE] Failed to send invoice PDF to:', organizationEmail);
+      console.error('❌ [EMAIL SERVICE] Error:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('❌ [EMAIL SERVICE] Full error:', error);
+      return false;
+    }
   }
 
   async verifyConnection() {

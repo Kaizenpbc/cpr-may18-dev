@@ -29,6 +29,7 @@ import {
   Divider,
   CircularProgress,
   IconButton,
+  Tooltip,
 } from '@mui/material';
 import {
   Receipt as ReceiptIcon,
@@ -37,6 +38,7 @@ import {
   Schedule as ScheduleIcon,
   Visibility as VisibilityIcon,
   Payment as PaymentIcon,
+  MonetizationOn as MonetizationOnIcon,
   Info as InfoIcon,
   Close as CloseIcon,
   Download as DownloadIcon,
@@ -129,6 +131,15 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   // State for payment history
   const [paymentHistory, setPaymentHistory] = useState<Payment[]>([]);
   const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
+  
+  // State for attendance data
+  const [attendanceData, setAttendanceData] = useState<Array<{
+    first_name: string;
+    last_name: string;
+    email: string;
+    attended: boolean;
+  }>>([]);
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
 
   // Ref to prevent multiple submissions
   const isSubmittingRef = useRef(false);
@@ -157,6 +168,28 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
     const today = new Date();
     const due = new Date(dueDate);
     return today > due;
+  };
+
+  // Load attendance data for an invoice
+  const loadAttendanceData = async (courseRequestId: number) => {
+    setLoadingAttendance(true);
+    try {
+      console.log('Loading attendance data for course request:', courseRequestId);
+      const response = await api.get(`/organization/courses/${courseRequestId}/students`);
+      console.log('Attendance data response:', response);
+      
+      if (response.data && response.data.data) {
+        const students = Array.isArray(response.data.data) ? response.data.data : [];
+        setAttendanceData(students);
+      } else {
+        setAttendanceData([]);
+      }
+    } catch (error) {
+      console.error('Error loading attendance data:', error);
+      setAttendanceData([]);
+    } finally {
+      setLoadingAttendance(false);
+    }
   };
 
   // Load payment history for an invoice
@@ -233,6 +266,11 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
     // Clear previous payment history and load new one
     setPaymentHistory([]);
     await loadPaymentHistory(invoice.id);
+    
+    // Load attendance data for this invoice's course
+    if (invoice.course_request_id) {
+      await loadAttendanceData(invoice.course_request_id);
+    }
   };
 
   // Handle dialog close
@@ -722,17 +760,17 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 <TableCell>Course Name</TableCell>
                 <TableCell>Course Date</TableCell>
                 <TableCell>Location</TableCell>
-                <TableCell>Students</TableCell>
+                <TableCell align="center">Students</TableCell>
                 <TableCell align="right">Base Cost</TableCell>
                 <TableCell align="right">Tax (HST)</TableCell>
                 <TableCell align="right">Total</TableCell>
                 <TableCell align="right">Amount Paid</TableCell>
                 <TableCell align="right">Balance Due</TableCell>
                 <TableCell>Due Date</TableCell>
-                                  <TableCell>Status</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
+                <TableCell align="center">Status</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
               <TableBody>
                 {safeInvoices.map((invoice, index) => {
                   const oldestUnpaid = getOldestUnpaidInvoice();
@@ -751,55 +789,53 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                         }
                       }}
                     >
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {isOldestUnpaid && (
-                        <Chip 
-                          label="PRIORITY" 
-                          size="small" 
-                          color="primary" 
-                          variant="outlined"
-                          sx={{ fontSize: '0.7rem', height: 20 }}
-                        />
-                      )}
-                      <Link
-                        component="button"
-                        variant="body2"
-                        onClick={() => handleInvoiceClick(invoice)}
-                        sx={{
-                          color: 'primary.main',
-                          textDecoration: 'none',
-                          cursor: 'pointer',
-                          '&:hover': {
-                            textDecoration: 'underline',
-                            color: 'primary.dark',
-                          },
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 0.5,
-                        }}
-                      >
-                        <VisibilityIcon fontSize="small" />
-                        {invoice.invoice_number}
-                      </Link>
-                    </Box>
+                                    <TableCell>
+                    {invoice.invoice_number}
                   </TableCell>
                   <TableCell>{invoice.course_type_name}</TableCell>
                   <TableCell>
                     {formatDisplayDate(invoice.course_date)}
                   </TableCell>
                   <TableCell>{invoice.location}</TableCell>
-                  <TableCell>{invoice.students_billed}</TableCell>
-                  <TableCell align="right">$36.00</TableCell>
-                  <TableCell align="right">$4.68</TableCell>
-                  <TableCell align="right">$40.68</TableCell>
-                  <TableCell align="right">${Number(invoice.amount_paid || 0).toFixed(2)}</TableCell>
+                  <TableCell align="center">{invoice.students_billed}</TableCell>
+                  <TableCell align="right">
+                    {invoice.base_cost ? 
+                      `$${Number(invoice.base_cost).toFixed(2)}` : 
+                      <Typography variant="body2" color="error.main" fontSize="small">
+                        Pricing not configured
+                      </Typography>
+                    }
+                  </TableCell>
+                  <TableCell align="right">
+                    {invoice.tax_amount ? 
+                      `$${Number(invoice.tax_amount).toFixed(2)}` : 
+                      <Typography variant="body2" color="error.main" fontSize="small">
+                        N/A
+                      </Typography>
+                    }
+                  </TableCell>
+                  <TableCell align="right">
+                    {invoice.amount ? 
+                      `$${Number(invoice.amount).toFixed(2)}` : 
+                      <Typography variant="body2" color="error.main" fontSize="small">
+                        N/A
+                      </Typography>
+                    }
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography
+                      variant="body2"
+                      color={invoice.amount_paid > 0 ? 'success.main' : 'text.secondary'}
+                    >
+                      {`$${Number(invoice.amount_paid || 0).toFixed(2)}`}
+                    </Typography>
+                  </TableCell>
                   <TableCell align="right">
                     <Typography
                       variant="body2"
                       color={invoice.balance_due > 0 ? 'error.main' : 'success.main'}
                     >
-                      ${(40.68 - Number(invoice.amount_paid || 0)).toFixed(2)}
+                      {`$${Number(invoice.balance_due || 0).toFixed(2)}`}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -810,58 +846,69 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                       {formatDisplayDate(invoice.due_date)}
                     </Typography>
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="center">
                     <Chip
                       label={invoice.payment_status || invoice.status}
                       color={getStatusColor(invoice.payment_status || invoice.status)}
                       size="small"
                     />
                   </TableCell>
-                  <TableCell>
-                    {invoice.balance_due <= 0 && invoice.payment_status !== 'paid' && (
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        color="success"
-                        onClick={() => handleMarkAsPaid(invoice.id)}
-                        disabled={markingAsPaid === invoice.id}
-                        startIcon={<CheckCircleIcon />}
-                      >
-                        {markingAsPaid === invoice.id ? 'Marking...' : 'Mark as Paid'}
-                      </Button>
-                    )}
-                    {invoice.balance_due > 0 && invoice.payment_status !== 'paid' && canSubmitPayment(invoice) && (
-                      <Button
-                        size="small"
-                        variant="contained"
-                        color="primary"
-                        onClick={() => {
-                          setSelectedInvoice(invoice);
-                          handlePaymentDialogOpen(invoice);
-                        }}
-                        startIcon={<PaymentIcon />}
-                      >
-                        Submit Payment
-                      </Button>
-                    )}
-                    {invoice.balance_due > 0 && invoice.payment_status !== 'paid' && !canSubmitPayment(invoice) && (
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        color="warning"
-                        disabled
-                        startIcon={<WarningIcon />}
-                      >
-                        Pay Older First
-                      </Button>
-                    )}
+                  <TableCell align="right">
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <Tooltip title="View Details">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => handleInvoiceClick(invoice)}
+                        >
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      {invoice.balance_due <= 0 && invoice.payment_status !== 'paid' && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="success"
+                          onClick={() => handleMarkAsPaid(invoice.id)}
+                          disabled={markingAsPaid === invoice.id}
+                          startIcon={<CheckCircleIcon />}
+                        >
+                          {markingAsPaid === invoice.id ? 'Marking...' : 'Mark as Paid'}
+                        </Button>
+                      )}
+                      {invoice.balance_due > 0 && invoice.payment_status !== 'paid' && canSubmitPayment(invoice) && (
+                        <Tooltip title="Submit Payment">
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => {
+                              setSelectedInvoice(invoice);
+                              handlePaymentDialogOpen(invoice);
+                            }}
+                          >
+                            <MonetizationOnIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {invoice.balance_due > 0 && invoice.payment_status !== 'paid' && !canSubmitPayment(invoice) && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="warning"
+                          disabled
+                          startIcon={<WarningIcon />}
+                        >
+                          Pay Older First
+                        </Button>
+                      )}
+                    </Box>
                   </TableCell>
                 </TableRow>
                   );
                 })}
               {safeInvoices.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={10} align="center">
+                  <TableCell colSpan={13} align="center">
                     No invoices found
                   </TableCell>
                 </TableRow>
@@ -961,28 +1008,101 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 <Grid xs={12} sm={6}>
                   <Typography variant='body2'>
                     <strong>Rate per Student:</strong>{' '}
-                    $36.00
+                    {selectedInvoice.rate_per_student && typeof selectedInvoice.rate_per_student === 'number' ? 
+                      `$${selectedInvoice.rate_per_student.toFixed(2)}` : 
+                      <Typography component="span" color="error.main" fontSize="small">
+                        Pricing not configured
+                      </Typography>
+                    }
                   </Typography>
                 </Grid>
                 <Grid xs={12} sm={6}>
                   <Typography variant='body2'>
                     <strong>Base Cost:</strong>{' '}
-                    $36.00
+                    {selectedInvoice.base_cost ? 
+                      `$${Number(selectedInvoice.base_cost).toFixed(2)}` : 
+                      <Typography component="span" color="error.main" fontSize="small">
+                        N/A
+                      </Typography>
+                    }
                   </Typography>
                 </Grid>
                 <Grid xs={12} sm={6}>
                   <Typography variant='body2'>
                     <strong>Tax (HST):</strong>{' '}
-                    $4.68
+                    {selectedInvoice.tax_amount ? 
+                      `$${Number(selectedInvoice.tax_amount).toFixed(2)}` : 
+                      <Typography component="span" color="error.main" fontSize="small">
+                        N/A
+                      </Typography>
+                    }
                   </Typography>
                 </Grid>
                 <Grid xs={12} sm={6}>
                   <Typography variant='body2' sx={{ fontWeight: 'bold' }}>
                     <strong>Total Amount:</strong>{' '}
-                    $40.68
+                    {selectedInvoice.amount ? 
+                      `$${Number(selectedInvoice.amount).toFixed(2)}` : 
+                      <Typography component="span" color="error.main" fontSize="small">
+                        N/A
+                      </Typography>
+                    }
                   </Typography>
                 </Grid>
               </Grid>
+              
+              {/* Class Attendance */}
+              <Divider sx={{ my: 2 }} />
+              <Typography variant='subtitle1' gutterBottom>
+                Class Attendance:
+              </Typography>
+              {loadingAttendance ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : attendanceData.length > 0 ? (
+                <Box sx={{ mb: 2 }}>
+                  <Grid container spacing={1}>
+                    <Grid xs={12}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Total Students: {attendanceData.length} | 
+                        Present: {attendanceData.filter(s => s.attended).length} | 
+                        Absent: {attendanceData.filter(s => !s.attended).length}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                  <TableContainer component={Paper} variant="outlined" sx={{ mt: 1 }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Name</TableCell>
+                          <TableCell>Email</TableCell>
+                          <TableCell align="center">Status</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {attendanceData.map((student, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{student.first_name} {student.last_name}</TableCell>
+                            <TableCell>{student.email || 'N/A'}</TableCell>
+                            <TableCell align="center">
+                              <Chip
+                                label={student.attended ? 'Present' : 'Absent'}
+                                color={student.attended ? 'success' : 'error'}
+                                size="small"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No attendance data available
+                </Typography>
+              )}
               
               {/* Payment Summary */}
               <Divider sx={{ my: 2 }} />
@@ -993,7 +1113,12 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 <Grid xs={12} sm={6}>
                   <Typography variant='body2'>
                     <strong>Total Amount:</strong>{' '}
-                    $40.68
+                    {selectedInvoice.amount ? 
+                      `$${Number(selectedInvoice.amount).toFixed(2)}` : 
+                      <Typography variant="body2" color="error.main" fontSize="small">
+                        N/A
+                      </Typography>
+                    }
                   </Typography>
                 </Grid>
                 <Grid xs={12} sm={6}>
@@ -1137,10 +1262,15 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 Invoice Details
               </Typography>
               <Typography variant="body2">
-                Total Amount: ${Number(selectedInvoice.amount).toFixed(2)}
+                Total Amount: {selectedInvoice.amount ? 
+                  `$${Number(selectedInvoice.amount).toFixed(2)}` : 
+                  <Typography component="span" color="error.main" fontSize="small">
+                    N/A
+                  </Typography>
+                }
               </Typography>
               <Typography variant="body2">
-                Amount Paid: ${Number(selectedInvoice.amount_paid).toFixed(2)}
+                Amount Paid: ${Number(selectedInvoice.amount_paid || 0).toFixed(2)}
               </Typography>
               <Typography variant="body2" color="error.main" fontWeight="bold">
                 Balance Due: ${Number(selectedInvoice.balance_due || 0).toFixed(2)}
