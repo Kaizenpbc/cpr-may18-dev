@@ -213,6 +213,16 @@ const PaymentDetails = ({ invoiceId }) => {
   );
 };
 
+/**
+ * Accounts Receivable Table Component
+ * 
+ * Displays invoices with outstanding balances for accounting users.
+ * 
+ * Field Mapping Note:
+ * - invoice.coursenumber contains the course_request_id value
+ * - This is due to backend API mapping: i.course_request_id as coursenumber
+ * - Used for fetching student attendance data via /accounting/courses/:courseId/students
+ */
 const AccountsReceivableTable = ({
   invoices,
   onRecordPaymentClick,
@@ -228,6 +238,10 @@ const AccountsReceivableTable = ({
     setExpandedRowId(expandedRowId === invoiceId ? null : invoiceId); // Toggle expansion
   };
 
+  /**
+   * Fetch student attendance data for a specific course
+   * @param {string|number} courseId - The course request ID (from invoice.coursenumber)
+   */
   const fetchStudents = async (courseId) => {
     setLoadingStudents(true);
     try {
@@ -241,6 +255,10 @@ const AccountsReceivableTable = ({
     }
   };
 
+  /**
+   * Handle opening the student attendance dialog
+   * @param {string|number} courseId - The course request ID (from invoice.coursenumber)
+   */
   const handleViewStudents = (courseId) => {
     setSelectedCourseId(courseId);
     setStudentDialogOpen(true);
