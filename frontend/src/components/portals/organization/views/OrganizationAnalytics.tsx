@@ -92,9 +92,14 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
   organizationData,
 }) => {
   // Calculate analytics with safety checks using billing summary data
+  console.log('🔍 [DEBUG] Billing Summary:', billingSummary);
+  console.log('🔍 [DEBUG] Invoices:', invoices);
+  
   const totalBilled = Number(billingSummary?.total_amount || 0);
   const totalPaid = Number(billingSummary?.paid_amount || 0);
   const totalOutstanding = totalBilled - totalPaid;
+  
+  console.log('🔍 [DEBUG] Calculated values:', { totalBilled, totalPaid, totalOutstanding });
   
   // Calculate correct totals from courses data (including archived)
   const allCourses = [...(courses || []), ...(archivedCourses || [])];

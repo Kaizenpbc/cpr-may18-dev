@@ -97,6 +97,8 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
   courses,
   billingSummary,
 }) => {
+  console.log('🔍 [DEBUG] Dashboard Billing Summary:', billingSummary);
+  console.log('🔍 [DEBUG] Dashboard Courses:', courses);
   const navigate = useNavigate();
 
   // Get status color for courses
