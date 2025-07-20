@@ -81,6 +81,10 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
   const totalPaid = (invoices || []).reduce((sum, invoice) => sum + Number(invoice?.amount_paid || 0), 0);
   const totalOutstanding = totalBilled - totalPaid;
   
+  // Calculate correct totals from courses data
+  const totalCourses = (courses || []).length;
+  const totalStudents = (courses || []).reduce((sum, course) => sum + Number(course?.registered_students || 0), 0);
+  
   // Course type distribution
   const courseTypeStats = (courses || []).reduce((acc, course) => {
     if (course?.course_type_name) {
@@ -136,7 +140,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
                 <SchoolIcon sx={{ mr: 2, fontSize: 32, color: 'white' }} />
                 <Box>
                   <Typography variant="h5" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
-                    {organizationData?.total_courses || 0}
+                    {totalCourses}
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Total Courses
@@ -164,7 +168,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
                 <PeopleIcon sx={{ mr: 2, fontSize: 32, color: 'white' }} />
                 <Box>
                   <Typography variant="h5" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
-                    {organizationData?.total_students || 0}
+                    {totalStudents}
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Total Students
@@ -234,34 +238,6 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
         <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card 
             sx={{
-              background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
-              color: 'white',
-              transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
-              },
-            }}
-          >
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <AttachMoneyIcon sx={{ mr: 2, fontSize: 32, color: 'white' }} />
-                <Box>
-                  <Typography variant="h5" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
-                    {invoices.filter(inv => inv.status !== 'paid').length}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                    Pending Invoices
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={4} lg={2}>
-          <Card 
-            sx={{
               background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
               color: 'white',
               transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
@@ -280,6 +256,34 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Outstanding Amount
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={4} lg={2}>
+          <Card 
+            sx={{
+              background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+              color: 'white',
+              transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+              },
+            }}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <AttachMoneyIcon sx={{ mr: 2, fontSize: 32, color: 'white' }} />
+                <Box>
+                  <Typography variant="h5" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
+                    {invoices.filter(inv => inv.status !== 'paid').length}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                    Pending Invoices
                   </Typography>
                 </Box>
               </Box>
