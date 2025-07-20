@@ -40,7 +40,8 @@ import { fetchAccountingDashboardData } from '../../../services/api';
 import { useNavigate } from 'react-router-dom';
 
 interface DashboardData {
-  monthlyRevenue: number;
+  totalBilled: number;
+  totalPaid: number;
   outstandingInvoices: {
     count: number;
     amount: number;
@@ -77,43 +78,119 @@ const MetricCard: React.FC<MetricCardProps> = ({
   subtitle,
   icon,
   color,
-}) => (
-  <Card elevation={3} sx={{ height: '100%' }}>
-    <CardContent>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-        <Box
-          sx={{
-            backgroundColor: `${color}.light`,
-            borderRadius: '50%',
-            p: 1,
-            mr: 2,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+}) => {
+  // Define color schemes for different metrics
+  const colorSchemes = {
+    success: {
+      bg: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
+      iconBg: 'rgba(76, 175, 80, 0.1)',
+      iconColor: '#2e7d32',
+      textColor: '#fff',
+      subtitleColor: 'rgba(255, 255, 255, 0.8)'
+    },
+    warning: {
+      bg: 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)',
+      iconBg: 'rgba(255, 152, 0, 0.1)',
+      iconColor: '#e65100',
+      textColor: '#fff',
+      subtitleColor: 'rgba(255, 255, 255, 0.8)'
+    },
+    error: {
+      bg: 'linear-gradient(135deg, #f44336 0%, #ef5350 100%)',
+      iconBg: 'rgba(244, 67, 54, 0.1)',
+      iconColor: '#c62828',
+      textColor: '#fff',
+      subtitleColor: 'rgba(255, 255, 255, 0.8)'
+    },
+    primary: {
+      bg: 'linear-gradient(135deg, #2196f3 0%, #42a5f5 100%)',
+      iconBg: 'rgba(33, 150, 243, 0.1)',
+      iconColor: '#1565c0',
+      textColor: '#fff',
+      subtitleColor: 'rgba(255, 255, 255, 0.8)'
+    },
+    info: {
+      bg: 'linear-gradient(135deg, #00bcd4 0%, #26c6da 100%)',
+      iconBg: 'rgba(0, 188, 212, 0.1)',
+      iconColor: '#00695c',
+      textColor: '#fff',
+      subtitleColor: 'rgba(255, 255, 255, 0.8)'
+    },
+    secondary: {
+      bg: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
+      iconBg: 'rgba(156, 39, 176, 0.1)',
+      iconColor: '#6a1b9a',
+      textColor: '#fff',
+      subtitleColor: 'rgba(255, 255, 255, 0.8)'
+    }
+  };
+
+  const scheme = colorSchemes[color] || colorSchemes.primary;
+
+  return (
+    <Card
+      elevation={3}
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'all 0.3s ease-in-out',
+        background: scheme.bg,
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: 6,
+        },
+      }}
+    >
+      <CardContent sx={{ flexGrow: 1, p: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 2,
+              backgroundColor: scheme.iconBg,
+              color: scheme.iconColor,
+              mr: 2,
+            }}
+          >
+            {icon}
+          </Box>
+          <Typography 
+            variant='h6' 
+            sx={{ 
+              fontWeight: 600,
+              color: scheme.textColor
+            }}
+          >
+            {title}
+          </Typography>
+        </Box>
+        <Typography 
+          variant='h4' 
+          component='div' 
+          sx={{ 
+            fontWeight: 'bold', 
+            mb: 1,
+            color: scheme.textColor
           }}
         >
-          {icon}
-        </Box>
-        <Typography variant='h6' component='h2' color='textSecondary'>
-          {title}
+          {value}
         </Typography>
-      </Box>
-      <Typography
-        variant='h4'
-        component='div'
-        fontWeight='bold'
-        color={`${color}.main`}
-      >
-        {value}
-      </Typography>
-      {subtitle && (
-        <Typography variant='body2' color='textSecondary' sx={{ mt: 1 }}>
-          {subtitle}
-        </Typography>
-      )}
-    </CardContent>
-  </Card>
-);
+        {subtitle && (
+          <Typography 
+            variant='body2' 
+            sx={{ 
+              color: scheme.subtitleColor,
+              fontWeight: 500
+            }}
+          >
+            {subtitle}
+          </Typography>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
 const PendingActionsSidebar: React.FC = () => {
   const navigate = useNavigate();
@@ -473,46 +550,40 @@ const AccountingDashboard: React.FC = () => {
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={3}>
             <MetricCard
-              title={selectedPeriod.includes('month') ? 'Monthly Revenue' : 
-                    selectedPeriod.includes('quarter') ? 'Quarterly Revenue' :
-                    selectedPeriod.includes('year') ? 'Annual Revenue' : 'Revenue'}
-              value={formatCurrency(dashboardData.monthlyRevenue)}
-              subtitle={`Total revenue for ${getCurrentPeriodLabel()}`}
-              icon={<RevenueIcon color='success' />}
+              title='Total Billed'
+              value={formatCurrency(dashboardData.totalBilled)}
+              subtitle='Total amount invoiced to organizations'
+              icon={<RevenueIcon sx={{ color: 'inherit' }} />}
               color='success'
             />
           </Grid>
 
           <Grid item xs={12} sm={6} md={3}>
             <MetricCard
-              title='Outstanding Invoices'
-              value={dashboardData.outstandingInvoices.count}
-              subtitle={`Total amount: ${formatCurrency(dashboardData.outstandingInvoices.amount)}`}
-              icon={<InvoiceIcon color='warning' />}
-              color='warning'
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <MetricCard
-              title={selectedPeriod.includes('month') ? 'Payments This Month' :
-                    selectedPeriod.includes('quarter') ? 'Payments This Quarter' :
-                    selectedPeriod.includes('year') ? 'Payments This Year' : 'Payments'}
-              value={dashboardData.paymentsThisMonth.count}
-              subtitle={`Total received: ${formatCurrency(dashboardData.paymentsThisMonth.amount)}`}
-              icon={<PaymentIcon color='primary' />}
+              title='Total Paid'
+              value={formatCurrency(dashboardData.totalPaid)}
+              subtitle='Total payments received and verified'
+              icon={<PaymentIcon sx={{ color: 'inherit' }} />}
               color='primary'
             />
           </Grid>
 
           <Grid item xs={12} sm={6} md={3}>
             <MetricCard
-              title={selectedPeriod.includes('month') ? 'Completed Courses' :
-                    selectedPeriod.includes('quarter') ? 'Courses This Quarter' :
-                    selectedPeriod.includes('year') ? 'Courses This Year' : 'Completed Courses'}
+              title='Outstanding Amount'
+              value={formatCurrency(dashboardData.outstandingInvoices.amount)}
+              subtitle={`${dashboardData.outstandingInvoices.count} invoices pending`}
+              icon={<InvoiceIcon sx={{ color: 'inherit' }} />}
+              color='error'
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title='Completed Courses'
               value={dashboardData.completedCoursesThisMonth}
-              subtitle={`Courses completed in ${getCurrentPeriodLabel()}`}
-              icon={<CourseIcon color='info' />}
+              subtitle={`Courses completed this month`}
+              icon={<CourseIcon sx={{ color: 'inherit' }} />}
               color='info'
             />
           </Grid>
@@ -527,28 +598,28 @@ const AccountingDashboard: React.FC = () => {
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <Typography variant='body1' sx={{ mb: 1 }}>
-                  <strong>Revenue Status:</strong>{' '}
-                  {dashboardData.monthlyRevenue > 0
-                    ? 'Revenue generated this month'
-                    : 'No revenue recorded this month'}
+                  <strong>Billing Status:</strong>{' '}
+                  {dashboardData.totalBilled > 0
+                    ? `$${dashboardData.totalBilled.toLocaleString()} total invoiced`
+                    : 'No invoices generated'}
                 </Typography>
                 <Typography variant='body1' sx={{ mb: 1 }}>
                   <strong>Payment Status:</strong>{' '}
                   {dashboardData.outstandingInvoices.count === 0
                     ? 'All invoices paid'
-                    : `${dashboardData.outstandingInvoices.count} invoices pending`}
+                    : `${dashboardData.outstandingInvoices.count} invoices pending payment`}
                 </Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant='body1' sx={{ mb: 1 }}>
-                  <strong>Course Activity:</strong>{' '}
-                  {dashboardData.completedCoursesThisMonth} courses completed
+                  <strong>Collection Rate:</strong>{' '}
+                  {dashboardData.totalBilled > 0
+                    ? `${((dashboardData.totalPaid / dashboardData.totalBilled) * 100).toFixed(1)}% collected`
+                    : 'No billing data'}
                 </Typography>
                 <Typography variant='body1' sx={{ mb: 1 }}>
-                  <strong>Collection Rate:</strong>{' '}
-                  {dashboardData.paymentsThisMonth.count > 0
-                    ? 'Active payments received'
-                    : 'No payments this month'}
+                  <strong>Course Activity:</strong>{' '}
+                  {dashboardData.completedCoursesThisMonth} courses completed this month
                 </Typography>
               </Grid>
             </Grid>

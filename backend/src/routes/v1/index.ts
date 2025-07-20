@@ -2250,43 +2250,60 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      // Monthly Revenue
-      const monthlyRevenue = await pool.query(`
-      SELECT COALESCE(SUM(p.amount), 0) as total_revenue
-      FROM payments p
-      WHERE EXTRACT(MONTH FROM p.payment_date) = EXTRACT(MONTH FROM CURRENT_DATE)
-      AND EXTRACT(YEAR FROM p.payment_date) = EXTRACT(YEAR FROM CURRENT_DATE)
-    `);
+      // Total Billed (Total Invoiced Amount)
+      const totalBilled = await pool.query(`
+        SELECT COALESCE(SUM(i.base_cost + i.tax_amount), 0) as total_billed
+        FROM invoice_with_breakdown i
+        WHERE i.posted_to_org = TRUE
+      `);
 
-      // Outstanding Invoices
-      const outstandingInvoices = await pool.query(`
-      SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total_amount
-      FROM invoices
-      WHERE status = 'pending'
-    `);
+      // Total Paid (Verified Payments)
+      const totalPaid = await pool.query(`
+        SELECT COALESCE(SUM(p.amount), 0) as total_paid
+        FROM payments p
+        WHERE p.status = 'verified'
+      `);
+
+      // Outstanding Amount (Total Billed - Total Paid)
+      const outstandingAmount = await pool.query(`
+        SELECT 
+          COUNT(*) as count,
+          COALESCE(SUM(i.base_cost + i.tax_amount - COALESCE(payments.total_paid, 0)), 0) as total_outstanding
+        FROM invoice_with_breakdown i
+        LEFT JOIN (
+          SELECT invoice_id, SUM(amount) as total_paid
+          FROM payments 
+          WHERE status = 'verified'
+          GROUP BY invoice_id
+        ) payments ON payments.invoice_id = i.id
+        WHERE i.posted_to_org = TRUE
+        AND (i.base_cost + i.tax_amount - COALESCE(payments.total_paid, 0)) > 0
+      `);
 
       // Payments This Month
       const paymentsThisMonth = await pool.query(`
-      SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total_amount
-      FROM payments
-      WHERE EXTRACT(MONTH FROM payment_date) = EXTRACT(MONTH FROM CURRENT_DATE)
-      AND EXTRACT(YEAR FROM payment_date) = EXTRACT(YEAR FROM CURRENT_DATE)
-    `);
+        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total_amount
+        FROM payments
+        WHERE status = 'verified'
+        AND EXTRACT(MONTH FROM payment_date) = EXTRACT(MONTH FROM CURRENT_DATE)
+        AND EXTRACT(YEAR FROM payment_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+      `);
 
       // Completed Courses This Month (for instructor payments)
       const completedCoursesThisMonth = await pool.query(`
-      SELECT COUNT(*) as completed_courses
-      FROM course_requests
-      WHERE status = 'completed'
-      AND EXTRACT(MONTH FROM completed_at) = EXTRACT(MONTH FROM CURRENT_DATE)
-      AND EXTRACT(YEAR FROM completed_at) = EXTRACT(YEAR FROM CURRENT_DATE)
-    `);
+        SELECT COUNT(*) as completed_courses
+        FROM course_requests
+        WHERE status = 'completed'
+        AND EXTRACT(MONTH FROM completed_at) = EXTRACT(MONTH FROM CURRENT_DATE)
+        AND EXTRACT(YEAR FROM completed_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+      `);
 
       const dashboardData = {
-        monthlyRevenue: Number(monthlyRevenue.rows[0]?.total_revenue || 0),
+        totalBilled: Number(totalBilled.rows[0]?.total_billed || 0),
+        totalPaid: Number(totalPaid.rows[0]?.total_paid || 0),
         outstandingInvoices: {
-          count: parseInt(outstandingInvoices.rows[0]?.count || 0),
-          amount: Number(outstandingInvoices.rows[0]?.total_amount || 0),
+          count: parseInt(outstandingAmount.rows[0]?.count || 0),
+          amount: Number(outstandingAmount.rows[0]?.total_outstanding || 0),
         },
         paymentsThisMonth: {
           count: parseInt(paymentsThisMonth.rows[0]?.count || 0),
@@ -5514,6 +5531,7 @@ router.get(
             p.submitted_by_org_at,
             i.id as invoice_id,
             i.invoice_number,
+            i.course_request_id,
             o.name as organization_name,
             o.contact_email
           FROM payments p
