@@ -19,6 +19,8 @@ import {
   People as PeopleIcon,
   Receipt as ReceiptIcon,
   CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
+  AttachMoney as AttachMoneyIcon,
 } from '@mui/icons-material';
 import { formatDisplayDate } from '../../../../utils/dateUtils';
 
@@ -117,7 +119,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
 
       {/* Key Metrics */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card 
             sx={{
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -131,12 +133,12 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
           >
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <SchoolIcon sx={{ mr: 2, fontSize: 40, color: 'white' }} />
+                <SchoolIcon sx={{ mr: 2, fontSize: 32, color: 'white' }} />
                 <Box>
-                  <Typography variant="h4" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
+                  <Typography variant="h5" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
                     {organizationData?.total_courses || 0}
                   </Typography>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Total Courses
                   </Typography>
                 </Box>
@@ -145,7 +147,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card 
             sx={{
               background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -159,12 +161,12 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
           >
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <PeopleIcon sx={{ mr: 2, fontSize: 40, color: 'white' }} />
+                <PeopleIcon sx={{ mr: 2, fontSize: 32, color: 'white' }} />
                 <Box>
-                  <Typography variant="h4" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
+                  <Typography variant="h5" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
                     {organizationData?.total_students || 0}
                   </Typography>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Total Students
                   </Typography>
                 </Box>
@@ -173,7 +175,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card 
             sx={{
               background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
@@ -187,12 +189,12 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
           >
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <ReceiptIcon sx={{ mr: 2, fontSize: 40, color: 'white' }} />
+                <ReceiptIcon sx={{ mr: 2, fontSize: 32, color: 'white' }} />
                 <Box>
-                  <Typography variant="h4" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
+                  <Typography variant="h5" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
                     ${totalBilled.toFixed(2)}
                   </Typography>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Total Billed
                   </Typography>
                 </Box>
@@ -201,7 +203,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card 
             sx={{
               background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
@@ -215,13 +217,69 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
           >
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <CheckCircleIcon sx={{ mr: 2, fontSize: 40, color: 'white' }} />
+                <CheckCircleIcon sx={{ mr: 2, fontSize: 32, color: 'white' }} />
                 <Box>
-                  <Typography variant="h4" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
+                  <Typography variant="h5" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
                     ${totalPaid.toFixed(2)}
                   </Typography>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Total Paid
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={4} lg={2}>
+          <Card 
+            sx={{
+              background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+              color: 'white',
+              transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+              },
+            }}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <AttachMoneyIcon sx={{ mr: 2, fontSize: 32, color: 'white' }} />
+                <Box>
+                  <Typography variant="h5" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
+                    {invoices.filter(inv => inv.status !== 'paid').length}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                    Pending Invoices
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={4} lg={2}>
+          <Card 
+            sx={{
+              background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+              color: 'white',
+              transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+              },
+            }}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <WarningIcon sx={{ mr: 2, fontSize: 32, color: 'white' }} />
+                <Box>
+                  <Typography variant="h5" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
+                    ${totalOutstanding.toFixed(2)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                    Outstanding Amount
                   </Typography>
                 </Box>
               </Box>
@@ -230,44 +288,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
         </Grid>
       </Grid>
 
-      {/* Summary Section */}
-      <Box sx={{ mb: 4, p: 3, bgcolor: 'background.paper', borderRadius: 2, boxShadow: 1 }}>
-        <Typography variant="h6" gutterBottom>
-          Financial Summary
-        </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={4}>
-            <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
-              <Typography variant="h5" color="warning.dark" fontWeight="bold">
-                ${totalOutstanding.toFixed(2)}
-              </Typography>
-              <Typography variant="body2" color="warning.dark">
-                Outstanding Amount
-              </Typography>
-            </Box>
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
-              <Typography variant="h5" color="info.dark" fontWeight="bold">
-                {totalBilled > 0 ? ((totalPaid / totalBilled) * 100).toFixed(1) : '0'}%
-              </Typography>
-              <Typography variant="body2" color="info.dark">
-                Collection Rate
-              </Typography>
-            </Box>
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
-              <Typography variant="h5" color="success.dark" fontWeight="bold">
-                {invoices.length}
-              </Typography>
-              <Typography variant="body2" color="success.dark">
-                Total Invoices
-              </Typography>
-            </Box>
-          </Grid>
-        </Grid>
-      </Box>
+
 
       {/* Analytics Content */}
       <Grid container spacing={3}>
