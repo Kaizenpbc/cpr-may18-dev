@@ -89,16 +89,21 @@ interface BillingSummary {
 interface OrganizationDashboardProps {
   organizationData: OrganizationData | undefined;
   courses: Course[];
+  archivedCourses?: Course[];
   billingSummary: BillingSummary | undefined;
 }
 
 const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
   organizationData,
   courses,
+  archivedCourses = [],
   billingSummary,
 }) => {
   console.log('🔍 [DEBUG] Dashboard Billing Summary:', billingSummary);
-  console.log('🔍 [DEBUG] Dashboard Courses:', courses);
+  console.log('🔍 [DEBUG] Dashboard Courses:', JSON.stringify(courses, null, 2));
+  console.log('🔍 [DEBUG] Dashboard Archived Courses:', JSON.stringify(archivedCourses, null, 2));
+  console.log('🔍 [DEBUG] Courses length:', courses?.length);
+  console.log('🔍 [DEBUG] Archived Courses length:', archivedCourses?.length);
   const navigate = useNavigate();
 
   // Get status color for courses
@@ -190,7 +195,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
                     Total Courses
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
-                    {organizationData?.total_courses || 0}
+                    {(courses?.length || 0) + (archivedCourses?.length || 0)}
                   </Typography>
                 </Box>
               </Box>
@@ -218,7 +223,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
                     Total Students
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
-                    {organizationData?.total_students || 0}
+                    {[...(courses || []), ...(archivedCourses || [])].reduce((sum, course) => sum + Number(course?.registered_students || 0), 0)}
                   </Typography>
                 </Box>
               </Box>

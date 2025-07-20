@@ -319,7 +319,7 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
             <Route path="dashboard" element={
               loading ? <CircularProgress /> :
               error ? <Alert severity="error">{error}</Alert> :
-              <OrganizationDashboard organizationData={organizationData} courses={courses} billingSummary={billingSummary} />
+              <OrganizationDashboard organizationData={organizationData} courses={courses} archivedCourses={archivedCourses} billingSummary={billingSummary} />
             } />
             <Route path="courses" element={
               loading ? <CircularProgress /> :
