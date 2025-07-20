@@ -107,7 +107,7 @@ const BillsPayableView = () => {
 
   // Submit payment mutation
   const submitPaymentMutation = useMutation({
-    mutationFn: async ({ invoiceId, paymentData }) => {
+    mutationFn: async ({ invoiceId, paymentData }: { invoiceId: string; paymentData: any }) => {
       const response = await api.post(
         `/organization/invoices/${invoiceId}/payment-submission`,
         paymentData
@@ -115,8 +115,8 @@ const BillsPayableView = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['organization-invoices']);
-      queryClient.invalidateQueries(['organization-billing-summary']);
+      queryClient.invalidateQueries({ queryKey: ['organization-invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['organization-billing-summary'] });
       setPaymentDialogOpen(false);
       setPaymentData({
         amount: '',
@@ -133,8 +133,13 @@ const BillsPayableView = () => {
   };
 
   const handlePaymentSubmit = () => {
-    if (!paymentData.amount || paymentData.amount <= 0) {
+    if (!paymentData.amount || parseFloat(paymentData.amount) <= 0) {
       alert('Please enter a valid payment amount');
+      return;
+    }
+
+    if (!paymentData.payment_method || paymentData.payment_method.trim() === '') {
+      alert('Please select a payment method');
       return;
     }
 
@@ -736,11 +741,11 @@ const BillsPayableView = () => {
                 />
               </Grid>
               <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <InputLabel>Payment Method</InputLabel>
+                <FormControl fullWidth required>
+                  <InputLabel>Payment Method *</InputLabel>
                   <Select
                     value={paymentData.payment_method}
-                    label='Payment Method'
+                    label='Payment Method *'
                     onChange={e =>
                       setPaymentData(prev => ({
                         ...prev,
@@ -748,6 +753,7 @@ const BillsPayableView = () => {
                       }))
                     }
                   >
+                    <MenuItem value="">Select Payment Method</MenuItem>
                     <MenuItem value='bank_transfer'>Bank Transfer</MenuItem>
                     <MenuItem value='cheque'>Cheque</MenuItem>
                     <MenuItem value='credit_card'>Credit Card</MenuItem>

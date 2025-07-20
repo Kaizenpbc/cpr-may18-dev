@@ -21,6 +21,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import logger from '../../utils/logger';
 import { formatDisplayDate } from '../../utils/dateUtils';
 import { API_URL } from '../../config';
+import ServiceDetailsTable from '../common/ServiceDetailsTable';
 
 // Helper function to format currency
 const formatCurrency = amount => {
@@ -57,6 +58,22 @@ const InvoiceDetailDialog = ({
   
   // Ref to prevent multiple clicks
   const isPostingRef = useRef(false);
+
+  // Transform invoice data into service details format
+  const getServiceDetails = (invoice) => {
+    if (!invoice) return [];
+    
+    return [{
+      date: invoice.datecompleted,
+      location: invoice.location,
+      course: `${invoice.name} (${invoice.coursenumber})`,
+      students: invoice.studentsattendance || 0,
+      ratePerStudent: invoice.rate_per_student || 0,
+      baseCost: invoice.rate_per_student ? (invoice.rate_per_student * invoice.studentsattendance) : 0,
+      tax: invoice.rate_per_student ? (invoice.rate_per_student * invoice.studentsattendance * 0.13) : 0,
+      total: invoice.rate_per_student ? (invoice.rate_per_student * invoice.studentsattendance * 1.13) : 0,
+    }];
+  };
 
   useEffect(() => {
     if (open && invoiceId) {
@@ -412,76 +429,11 @@ const InvoiceDetailDialog = ({
               </Typography>
             )}
             <Divider sx={{ my: 2 }} />
-            {/* Course & Billing Details */}
-            <Typography variant='subtitle1' gutterBottom>
-              Service Details:
-            </Typography>
-            {/* Container for Service Details */}
-            <Grid container spacing={1}>
-              {/* Service Details - Remove 'item' prop */}
-              <Grid xs={12} sm={6}>
-                <Typography variant='body2'>
-                  <strong>Course:</strong> {invoice.name} (
-                  {invoice.coursenumber})
-                </Typography>
-              </Grid>
-              <Grid xs={12} sm={6}>
-                <Typography variant='body2'>
-                  <strong>Date Completed:</strong>{' '}
-                  {formatDisplayDate(invoice.datecompleted)}
-                </Typography>
-              </Grid>
-              <Grid xs={12} sm={6}>
-                <Typography variant='body2'>
-                  <strong>Location:</strong> {invoice.location}
-                </Typography>
-              </Grid>
-              <Grid xs={12} sm={6}>
-                <Typography variant='body2'>
-                  <strong>Students Attended:</strong>{' '}
-                  {invoice.studentsattendance}
-                </Typography>
-              </Grid>
-              <Grid xs={12} sm={6}>
-                <Typography variant='body2'>
-                  <strong>Rate per Student:</strong>{' '}
-                  {formatCurrency(invoice.rate_per_student)}
-                </Typography>
-              </Grid>
-              <Grid xs={12} sm={6}>
-                <Typography variant='body2'>
-                  <strong>Base Cost:</strong>{' '}
-                  {invoice.rate_per_student ? 
-                    `$${(invoice.rate_per_student * invoice.studentsattendance).toFixed(2)}` : 
-                    <Typography component="span" color="error.main" fontSize="small">
-                      N/A
-                    </Typography>
-                  }
-                </Typography>
-              </Grid>
-              <Grid xs={12} sm={6}>
-                <Typography variant='body2'>
-                  <strong>Tax (HST):</strong>{' '}
-                  {invoice.rate_per_student ? 
-                    `$${(invoice.rate_per_student * invoice.studentsattendance * 0.13).toFixed(2)}` : 
-                    <Typography component="span" color="error.main" fontSize="small">
-                      N/A
-                    </Typography>
-                  }
-                </Typography>
-              </Grid>
-              <Grid xs={12} sm={6}>
-                <Typography variant='body2' sx={{ fontWeight: 'bold' }}>
-                  <strong>Total Amount:</strong>{' '}
-                  {invoice.rate_per_student ? 
-                    `$${(invoice.rate_per_student * invoice.studentsattendance * 1.13).toFixed(2)}` : 
-                    <Typography component="span" color="error.main" fontSize="small">
-                      N/A
-                    </Typography>
-                  }
-                </Typography>
-              </Grid>
-            </Grid>
+            {/* Service Details Table */}
+            <ServiceDetailsTable 
+              services={getServiceDetails(invoice)}
+              showTotals={false}
+            />
             
             {/* Invoice Approval Section */}
             <Divider sx={{ my: 2 }} />

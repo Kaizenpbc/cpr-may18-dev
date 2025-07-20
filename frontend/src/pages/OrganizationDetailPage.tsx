@@ -151,6 +151,25 @@ const OrganizationDetailPage = () => {
   const handleSubmitPayment = async () => {
     if (!selectedInvoice) return;
 
+    // Validate required fields
+    if (!paymentData.amount || parseFloat(paymentData.amount) <= 0) {
+      setSnackbar({
+        open: true,
+        message: 'Please enter a valid payment amount.',
+        severity: 'error',
+      });
+      return;
+    }
+
+    if (!paymentData.payment_method || paymentData.payment_method.trim() === '') {
+      setSnackbar({
+        open: true,
+        message: 'Please select a payment method.',
+        severity: 'error',
+      });
+      return;
+    }
+
     try {
       logger.info(`[OrganizationDetailPage] Submitting payment for invoice ID: ${selectedInvoice.invoiceid}`);
       
@@ -337,13 +356,14 @@ const OrganizationDetailPage = () => {
                 />
               </Grid>
               <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <InputLabel>Payment Method</InputLabel>
+                <FormControl fullWidth required>
+                  <InputLabel>Payment Method *</InputLabel>
                   <Select
                     value={paymentData.payment_method}
-                    label="Payment Method"
+                    label="Payment Method *"
                     onChange={(e) => setPaymentData({ ...paymentData, payment_method: e.target.value })}
                   >
+                    <MenuItem value="">Select Payment Method</MenuItem>
                     <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
                     <MenuItem value="check">Check</MenuItem>
                     <MenuItem value="cash">Cash</MenuItem>

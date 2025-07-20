@@ -5292,6 +5292,14 @@ router.post(
         );
       }
 
+      if (!payment_method || payment_method.trim() === '') {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Payment method is required'
+        );
+      }
+
       // Verify invoice belongs to organization
       const invoiceResult = await pool.query(
         `

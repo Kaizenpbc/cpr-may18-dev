@@ -31,11 +31,12 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
+import ServiceDetailsTable from '../common/ServiceDetailsTable';
 
 const PaymentVerificationView = () => {
   const [selectedPayment, setSelectedPayment] = useState(null);
-  const [verificationDialogOpen, setVerificationDialogOpen] = useState(false);
-  const [viewDetailsDialogOpen, setViewDetailsDialogOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState('view'); // 'view' or 'action'
   const [verificationAction, setVerificationAction] = useState('approve'); // 'approve' or 'reject'
   const [verificationNotes, setVerificationNotes] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -77,7 +78,7 @@ const PaymentVerificationView = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries(['pending-payment-verifications']);
       queryClient.invalidateQueries(['accounting-invoices']);
-      setVerificationDialogOpen(false);
+      setPaymentDialogOpen(false);
       setVerificationNotes('');
       setSuccessMessage(`Payment ${verificationAction === 'approve' ? 'approved' : 'rejected'} successfully!`);
       setErrorMessage('');
@@ -89,15 +90,17 @@ const PaymentVerificationView = () => {
     },
   });
 
-  const handleVerificationClick = (payment, action) => {
+  const handleViewPayment = (payment) => {
     setSelectedPayment(payment);
-    setVerificationAction(action);
-    setVerificationDialogOpen(true);
+    setDialogMode('view');
+    setPaymentDialogOpen(true);
   };
 
-  const handleViewDetails = (payment) => {
+  const handleActionPayment = (payment, action) => {
     setSelectedPayment(payment);
-    setViewDetailsDialogOpen(true);
+    setVerificationAction(action);
+    setDialogMode('action');
+    setPaymentDialogOpen(true);
   };
 
   const handleVerificationSubmit = () => {
@@ -108,6 +111,31 @@ const PaymentVerificationView = () => {
       action: verificationAction,
       notes: verificationNotes,
     });
+  };
+
+  const handleCloseDialog = () => {
+    setPaymentDialogOpen(false);
+    setSelectedPayment(null);
+    setVerificationNotes('');
+    setDialogMode('view');
+  };
+
+  // Transform payment data into service details format
+  const getServiceDetails = (payment: any) => {
+    if (!payment) return [];
+    
+    // For now, create a single service detail from the payment
+    // In the future, this could be expanded to show multiple courses
+    return [{
+      date: payment.payment_date || payment.submitted_by_org_at,
+      location: payment.location || 'N/A',
+      course: payment.course_type_name || payment.course_type || 'N/A',
+      students: payment.students_attended || payment.registered_students || 0,
+      ratePerStudent: payment.rate_per_student || 9.00, // Default rate
+      baseCost: payment.base_cost || (payment.amount * 0.885), // Estimate if not available
+      tax: payment.tax_amount || (payment.amount * 0.115), // Estimate if not available
+      total: payment.amount || 0,
+    }];
   };
 
   const formatCurrency = amount => {
@@ -196,7 +224,7 @@ const PaymentVerificationView = () => {
                 <TableCell>Reference #</TableCell>
                 <TableCell>Submitted Date</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell align='center'>Action</TableCell>
+                <TableCell align='center'>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -260,14 +288,39 @@ const PaymentVerificationView = () => {
                         />
                       </TableCell>
                       <TableCell align='center'>
-                        <Tooltip title='View Details'>
-                          <IconButton
-                            size='small'
-                            onClick={() => handleViewDetails(payment)}
-                          >
-                            <ViewIcon fontSize='small' />
-                          </IconButton>
-                        </Tooltip>
+                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                          <Tooltip title='View Details'>
+                            <IconButton
+                              size='small'
+                              onClick={() => handleViewPayment(payment)}
+                              color='info'
+                            >
+                              <ViewIcon fontSize='small' />
+                            </IconButton>
+                          </Tooltip>
+                          {canVerifyPayment(payment) && (
+                            <>
+                              <Tooltip title='Approve Payment'>
+                                <IconButton
+                                  size='small'
+                                  onClick={() => handleActionPayment(payment, 'approve')}
+                                  color='success'
+                                >
+                                  <CheckCircleIcon fontSize='small' />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title='Reject Payment'>
+                                <IconButton
+                                  size='small'
+                                  onClick={() => handleActionPayment(payment, 'reject')}
+                                  color='error'
+                                >
+                                  <RejectIcon fontSize='small' />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
+                        </Box>
                       </TableCell>
                     </TableRow>
                   );
@@ -278,134 +331,18 @@ const PaymentVerificationView = () => {
         </TableContainer>
       </Paper>
 
-      {/* Verification Dialog */}
+      {/* Unified Payment Dialog */}
       <Dialog
-        open={verificationDialogOpen}
-        onClose={() => setVerificationDialogOpen(false)}
-        maxWidth='sm'
-        fullWidth
-      >
-        <DialogTitle>
-          {verificationAction === 'approve'
-            ? 'Approve Payment'
-            : 'Reject Payment'}
-          {selectedPayment && (
-            <Typography variant='subtitle2' color='text.secondary'>
-              {selectedPayment.organization_name} -{' '}
-              {selectedPayment.invoice_number}
-            </Typography>
-          )}
-        </DialogTitle>
-        <DialogContent>
-          {selectedPayment && (
-            <Box sx={{ pt: 2 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant='body2' color='text.secondary'>
-                    Payment Amount
-                  </Typography>
-                  <Typography variant='body1' fontWeight='medium'>
-                    {formatCurrency(selectedPayment.amount)}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant='body2' color='text.secondary'>
-                    Payment Method
-                  </Typography>
-                  <Typography variant='body1'>
-                    {selectedPayment.payment_method
-                      ?.replace('_', ' ')
-                      .toUpperCase()}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant='body2' color='text.secondary'>
-                    Reference Number
-                  </Typography>
-                  <Typography variant='body1'>
-                    {selectedPayment.reference_number || '-'}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant='body2' color='text.secondary'>
-                    Payment Date
-                  </Typography>
-                  <Typography variant='body1'>
-                    {formatDate(selectedPayment.payment_date)}
-                  </Typography>
-                </Grid>
-                {selectedPayment.notes && (
-                  <Grid item xs={12}>
-                    <Typography variant='body2' color='text.secondary'>
-                      Organization Notes
-                    </Typography>
-                    <Typography variant='body1'>
-                      {selectedPayment.notes}
-                    </Typography>
-                  </Grid>
-                )}
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label='Verification Notes'
-                    multiline
-                    rows={3}
-                    value={verificationNotes}
-                    onChange={e => setVerificationNotes(e.target.value)}
-                    placeholder={
-                      verificationAction === 'approve'
-                        ? 'Optional notes about the approval...'
-                        : 'Required: Reason for rejection...'
-                    }
-                    required={verificationAction === 'reject'}
-                  />
-                </Grid>
-              </Grid>
-
-              <Alert
-                severity={
-                  verificationAction === 'approve' ? 'success' : 'warning'
-                }
-                sx={{ mt: 2 }}
-              >
-                {verificationAction === 'approve'
-                  ? 'This payment will be marked as verified and the invoice status will be updated accordingly.'
-                  : 'This payment will be rejected and the organization will be notified to resubmit.'}
-              </Alert>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setVerificationDialogOpen(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleVerificationSubmit}
-            variant='contained'
-            color={verificationAction === 'approve' ? 'success' : 'error'}
-            disabled={
-              verifyPaymentMutation.isLoading ||
-              (verificationAction === 'reject' && !verificationNotes.trim())
-            }
-          >
-            {verifyPaymentMutation.isLoading
-              ? 'Processing...'
-              : verificationAction === 'approve'
-                ? 'Approve Payment'
-                : 'Reject Payment'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* View Details Dialog */}
-      <Dialog
-        open={viewDetailsDialogOpen}
-        onClose={() => setViewDetailsDialogOpen(false)}
+        open={paymentDialogOpen}
+        onClose={handleCloseDialog}
         maxWidth='md'
         fullWidth
       >
         <DialogTitle>
-          Payment Details
+          {dialogMode === 'action' 
+            ? `${verificationAction === 'approve' ? 'Approve' : 'Reject'} Payment`
+            : 'Payment Details'
+          }
           {selectedPayment && (
             <Typography variant='subtitle2' color='text.secondary'>
               {selectedPayment.organization_name} - {selectedPayment.invoice_number}
@@ -415,123 +352,143 @@ const PaymentVerificationView = () => {
         <DialogContent>
           {selectedPayment && (
             <Box sx={{ pt: 2 }}>
-              <Grid container spacing={3}>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant='body2' color='text.secondary'>
-                    Organization
-                  </Typography>
-                  <Typography variant='body1' fontWeight='medium'>
-                    {selectedPayment.organization_name}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant='body2' color='text.secondary'>
-                    Invoice Number
-                  </Typography>
-                  <Typography variant='body1' fontWeight='medium'>
-                    {selectedPayment.invoice_number}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant='body2' color='text.secondary'>
-                    Payment Amount
-                  </Typography>
-                  <Typography variant='body1' fontWeight='medium' color='success.main'>
-                    {formatCurrency(selectedPayment.amount)}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant='body2' color='text.secondary'>
-                    Payment Method
-                  </Typography>
-                  <Typography variant='body1'>
-                    {selectedPayment.payment_method?.replace('_', ' ').toUpperCase()}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant='body2' color='text.secondary'>
-                    Reference Number
-                  </Typography>
-                  <Typography variant='body1'>
-                    {selectedPayment.reference_number || '-'}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant='body2' color='text.secondary'>
-                    Payment Date
-                  </Typography>
-                  <Typography variant='body1'>
-                    {formatDate(selectedPayment.payment_date)}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant='body2' color='text.secondary'>
-                    Submitted Date
-                  </Typography>
-                  <Typography variant='body1'>
-                    {formatDate(selectedPayment.submitted_by_org_at)}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant='body2' color='text.secondary'>
-                    Status
-                  </Typography>
-                  <Chip
-                    icon={getPaymentStatus(selectedPayment).icon}
-                    label={getPaymentStatus(selectedPayment).label}
-                    color={getPaymentStatus(selectedPayment).color}
-                    size='small'
-                  />
-                </Grid>
-                {selectedPayment.verified_by_accounting_at && (
+              {/* Service Details Table */}
+              <ServiceDetailsTable 
+                services={getServiceDetails(selectedPayment)}
+                showTotals={false}
+              />
+              
+              {/* Payment Information */}
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>
+                  Payment Information
+                </Typography>
+                <Grid container spacing={3}>
                   <Grid item xs={12} sm={6}>
                     <Typography variant='body2' color='text.secondary'>
-                      Verified By Accounting
+                      Invoice Number
+                    </Typography>
+                    <Typography variant='body1' fontWeight='medium'>
+                      {selectedPayment.invoice_number}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant='body2' color='text.secondary'>
+                      Payment Method
                     </Typography>
                     <Typography variant='body1'>
-                      {formatDate(selectedPayment.verified_by_accounting_at)}
+                      {selectedPayment.payment_method?.replace('_', ' ').toUpperCase()}
                     </Typography>
                   </Grid>
-                )}
-                {selectedPayment.notes && (
-                  <Grid item xs={12}>
+                  <Grid item xs={12} sm={6}>
                     <Typography variant='body2' color='text.secondary'>
-                      Organization Notes
+                      Reference Number
                     </Typography>
-                    <Typography variant='body1' sx={{ fontStyle: 'italic' }}>
-                      {selectedPayment.notes}
+                    <Typography variant='body1'>
+                      {selectedPayment.reference_number || '-'}
                     </Typography>
                   </Grid>
-                )}
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label='Verification Notes'
-                    multiline
-                    rows={3}
-                    value={verificationNotes}
-                    onChange={e => setVerificationNotes(e.target.value)}
-                    placeholder='Optional notes about the verification...'
-                  />
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant='body2' color='text.secondary'>
+                      Payment Date
+                    </Typography>
+                    <Typography variant='body1'>
+                      {formatDate(selectedPayment.payment_date)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant='body2' color='text.secondary'>
+                      Submitted Date
+                    </Typography>
+                    <Typography variant='body1'>
+                      {formatDate(selectedPayment.submitted_by_org_at)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant='body2' color='text.secondary'>
+                      Status
+                    </Typography>
+                    <Chip
+                      icon={getPaymentStatus(selectedPayment).icon}
+                      label={getPaymentStatus(selectedPayment).label}
+                      color={getPaymentStatus(selectedPayment).color}
+                      size='small'
+                    />
+                  </Grid>
+                  {selectedPayment.verified_by_accounting_at && (
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant='body2' color='text.secondary'>
+                        Verified By Accounting
+                      </Typography>
+                      <Typography variant='body1'>
+                        {formatDate(selectedPayment.verified_by_accounting_at)}
+                      </Typography>
+                    </Grid>
+                  )}
+                  {selectedPayment.notes && (
+                    <Grid item xs={12}>
+                      <Typography variant='body2' color='text.secondary'>
+                        Organization Notes
+                      </Typography>
+                      <Typography variant='body1' sx={{ fontStyle: 'italic' }}>
+                        {selectedPayment.notes}
+                      </Typography>
+                    </Grid>
+                  )}
+                  
+                  {/* Action-specific content */}
+                  {dialogMode === 'action' && (
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label='Verification Notes'
+                        multiline
+                        rows={3}
+                        value={verificationNotes}
+                        onChange={e => setVerificationNotes(e.target.value)}
+                        placeholder={
+                          verificationAction === 'approve'
+                            ? 'Optional notes about the approval...'
+                            : 'Required: Reason for rejection...'
+                        }
+                        required={verificationAction === 'reject'}
+                      />
+                    </Grid>
+                  )}
                 </Grid>
-              </Grid>
 
-              <Alert severity='info' sx={{ mt: 2 }}>
-                Review the payment details above before approving or rejecting this payment.
-              </Alert>
+                {dialogMode === 'action' && (
+                  <Alert
+                    severity={verificationAction === 'approve' ? 'success' : 'warning'}
+                    sx={{ mt: 2 }}
+                  >
+                    {verificationAction === 'approve'
+                      ? 'This payment will be marked as verified and the invoice status will be updated accordingly.'
+                      : 'This payment will be rejected and the organization will be notified to resubmit.'}
+                  </Alert>
+                )}
+
+                {dialogMode === 'view' && (
+                  <Alert severity='info' sx={{ mt: 2 }}>
+                    Review the payment details above. Use the action buttons below to approve or reject this payment.
+                  </Alert>
+                )}
+              </Box>
             </Box>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setViewDetailsDialogOpen(false)}>
-            Close
+          <Button onClick={handleCloseDialog}>
+            {dialogMode === 'view' ? 'Close' : 'Cancel'}
           </Button>
-          {canVerifyPayment(selectedPayment) && (
+          
+          {/* Action buttons for view mode */}
+          {dialogMode === 'view' && canVerifyPayment(selectedPayment) && (
             <>
               <Button
                 onClick={() => {
                   setVerificationAction('reject');
-                  setVerificationDialogOpen(true);
+                  setDialogMode('action');
                 }}
                 variant='outlined'
                 color='error'
@@ -542,7 +499,7 @@ const PaymentVerificationView = () => {
               <Button
                 onClick={() => {
                   setVerificationAction('approve');
-                  setVerificationDialogOpen(true);
+                  setDialogMode('action');
                 }}
                 variant='contained'
                 color='success'
@@ -551,6 +508,25 @@ const PaymentVerificationView = () => {
                 Approve Payment
               </Button>
             </>
+          )}
+          
+          {/* Submit button for action mode */}
+          {dialogMode === 'action' && (
+            <Button
+              onClick={handleVerificationSubmit}
+              variant='contained'
+              color={verificationAction === 'approve' ? 'success' : 'error'}
+              disabled={
+                verifyPaymentMutation.isLoading ||
+                (verificationAction === 'reject' && !verificationNotes.trim())
+              }
+            >
+              {verifyPaymentMutation.isLoading
+                ? 'Processing...'
+                : verificationAction === 'approve'
+                  ? 'Approve Payment'
+                  : 'Reject Payment'}
+            </Button>
           )}
         </DialogActions>
       </Dialog>

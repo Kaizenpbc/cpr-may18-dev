@@ -46,6 +46,7 @@ import {
 import { formatDisplayDate } from '../../../../utils/dateUtils';
 import { api } from '../../../../services/api';
 import PaymentHistoryTable from '../../../common/PaymentHistoryTable';
+import ServiceDetailsTable from '../../../common/ServiceDetailsTable';
 
 // TypeScript interfaces
 interface Invoice {
@@ -315,6 +316,17 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
       console.log('- !selectedInvoice:', !selectedInvoice);
       console.log('- submittingPayment:', submittingPayment);
       console.log('- isSubmittingRef.current:', isSubmittingRef.current);
+      return;
+    }
+
+    // Validate required fields
+    if (!paymentForm.payment_method || paymentForm.payment_method.trim() === '') {
+      setPaymentError('Payment Method is required. Please select a payment method.');
+      return;
+    }
+
+    if (!paymentForm.amount || parseFloat(paymentForm.amount) <= 0) {
+      setPaymentError('Valid payment amount is required.');
       return;
     }
 
@@ -592,6 +604,22 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
       console.error('Error downloading PDF:', error);
       setPaymentError('Failed to download PDF.');
     }
+  };
+
+  // Transform invoice data into service details format
+  const getServiceDetails = (invoice: Invoice) => {
+    if (!invoice) return [];
+    
+    return [{
+      date: invoice.course_date,
+      location: invoice.location,
+      course: invoice.course_type_name,
+      students: invoice.students_billed,
+      ratePerStudent: invoice.rate_per_student || 9.00,
+      baseCost: invoice.base_cost || (invoice.amount * 0.885),
+      tax: invoice.tax_amount || (invoice.amount * 0.115),
+      total: invoice.amount,
+    }];
   };
 
   return (
@@ -977,79 +1005,11 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
               
               <Divider sx={{ my: 2 }} />
               
-              {/* Course & Billing Details */}
-              <Typography variant='subtitle1' gutterBottom>
-                Service Details:
-              </Typography>
-              {/* Container for Service Details */}
-              <Grid container spacing={1}>
-                <Grid xs={12} sm={6}>
-                  <Typography variant='body2'>
-                    <strong>Course:</strong> {selectedInvoice.course_type_name}
-                  </Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography variant='body2'>
-                    <strong>Date Completed:</strong>{' '}
-                    {formatDisplayDate(selectedInvoice.course_date)}
-                  </Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography variant='body2'>
-                    <strong>Location:</strong> {selectedInvoice.location}
-                  </Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography variant='body2'>
-                    <strong>Students Attended:</strong>{' '}
-                    {selectedInvoice.students_billed}
-                  </Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography variant='body2'>
-                    <strong>Rate per Student:</strong>{' '}
-                    {selectedInvoice.rate_per_student && typeof selectedInvoice.rate_per_student === 'number' ? 
-                      `$${selectedInvoice.rate_per_student.toFixed(2)}` : 
-                      <Typography component="span" color="error.main" fontSize="small">
-                        Pricing not configured
-                      </Typography>
-                    }
-                  </Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography variant='body2'>
-                    <strong>Base Cost:</strong>{' '}
-                    {selectedInvoice.base_cost ? 
-                      `$${Number(selectedInvoice.base_cost).toFixed(2)}` : 
-                      <Typography component="span" color="error.main" fontSize="small">
-                        N/A
-                      </Typography>
-                    }
-                  </Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography variant='body2'>
-                    <strong>Tax (HST):</strong>{' '}
-                    {selectedInvoice.tax_amount ? 
-                      `$${Number(selectedInvoice.tax_amount).toFixed(2)}` : 
-                      <Typography component="span" color="error.main" fontSize="small">
-                        N/A
-                      </Typography>
-                    }
-                  </Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography variant='body2' sx={{ fontWeight: 'bold' }}>
-                    <strong>Total Amount:</strong>{' '}
-                    {selectedInvoice.amount ? 
-                      `$${Number(selectedInvoice.amount).toFixed(2)}` : 
-                      <Typography component="span" color="error.main" fontSize="small">
-                        N/A
-                      </Typography>
-                    }
-                  </Typography>
-                </Grid>
-              </Grid>
+              {/* Service Details Table */}
+              <ServiceDetailsTable 
+                services={getServiceDetails(selectedInvoice)}
+                showTotals={false}
+              />
               
               {/* Class Attendance */}
               <Divider sx={{ my: 2 }} />
@@ -1314,20 +1274,25 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
               />
             </Grid>
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>Payment Method</InputLabel>
+              <FormControl fullWidth required>
+                <InputLabel>Payment Method *</InputLabel>
                 <Select
                   value={paymentForm.payment_method}
                   onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
-                  label="Payment Method"
+                  label="Payment Method *"
                   disabled={submittingPayment}
+                  error={!paymentForm.payment_method && paymentError?.includes('Payment Method')}
                 >
+                  <MenuItem value="">Select Payment Method</MenuItem>
                   <MenuItem value="check">Check</MenuItem>
                   <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
                   <MenuItem value="credit_card">Credit Card</MenuItem>
                   <MenuItem value="cash">Cash</MenuItem>
                   <MenuItem value="other">Other</MenuItem>
                 </Select>
+                {!paymentForm.payment_method && paymentError?.includes('Payment Method') && (
+                  <FormHelperText error>Payment Method is required</FormHelperText>
+                )}
               </FormControl>
             </Grid>
             <Grid item xs={12} md={6}>
@@ -1389,7 +1354,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 handlePaymentSubmit();
               }, 0);
             }}
-            disabled={false} // Temporarily disable all validation
+            disabled={submittingPayment || !paymentForm.payment_method || !paymentForm.amount || parseFloat(paymentForm.amount || '0') <= 0}
             startIcon={submittingPayment ? <CircularProgress size={20} /> : <PaymentIcon />}
           >
             {submittingPayment ? 'Submitting...' : 'Submit Payment'}
