@@ -344,7 +344,7 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
             } />
             <Route path="profile" element={<OrganizationProfile organizationData={organizationData} />} />
             <Route path="pricing" element={<OrganizationPricing organizationId={user?.organizationId || 0} />} />
-            <Route path="analytics" element={<OrganizationAnalytics courses={courses} archivedCourses={archivedCourses} invoices={invoices} organizationData={organizationData} />} />
+            <Route path="analytics" element={<OrganizationAnalytics courses={courses} archivedCourses={archivedCourses} invoices={invoices} billingSummary={billingSummary} organizationData={organizationData} />} />
             <Route path="" element={<Navigate to="dashboard" replace />} />
             <Route path="*" element={<Box sx={{ p: 3 }}><Typography variant="h6">View not found</Typography></Box>} />
           </Routes>

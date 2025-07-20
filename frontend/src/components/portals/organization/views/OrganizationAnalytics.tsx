@@ -69,6 +69,18 @@ interface OrganizationAnalyticsProps {
   courses: Course[];
   archivedCourses?: Course[];
   invoices: Invoice[];
+  billingSummary?: {
+    total_invoices: number;
+    pending_invoices: number;
+    overdue_invoices: number;
+    paid_invoices: number;
+    payment_submitted: number;
+    total_amount: number;
+    pending_amount: number;
+    overdue_amount: number;
+    paid_amount: number;
+    recent_invoices: any[];
+  };
   organizationData: OrganizationData | undefined;
 }
 
@@ -76,11 +88,12 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
   courses = [],
   archivedCourses = [],
   invoices = [],
+  billingSummary,
   organizationData,
 }) => {
-  // Calculate analytics with safety checks
-  const totalBilled = (invoices || []).reduce((sum, invoice) => sum + Number(invoice?.amount || 0), 0);
-  const totalPaid = (invoices || []).reduce((sum, invoice) => sum + Number(invoice?.amount_paid || 0), 0);
+  // Calculate analytics with safety checks using billing summary data
+  const totalBilled = Number(billingSummary?.total_amount || 0);
+  const totalPaid = Number(billingSummary?.paid_amount || 0);
   const totalOutstanding = totalBilled - totalPaid;
   
   // Calculate correct totals from courses data (including archived)
@@ -283,7 +296,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
                 <AttachMoneyIcon sx={{ mr: 2, fontSize: 32, color: 'white' }} />
                 <Box>
                   <Typography variant="h5" component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
-                    {invoices.filter(inv => inv.status !== 'paid').length}
+                    {billingSummary?.pending_invoices || 0}
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
                     Pending Invoices
