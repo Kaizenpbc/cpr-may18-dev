@@ -70,29 +70,44 @@ interface OrganizationAnalyticsProps {
 }
 
 const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
-  courses,
-  invoices,
+  courses = [],
+  invoices = [],
   organizationData,
 }) => {
-  // Calculate analytics
-  const totalBilled = invoices.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
-  const totalPaid = invoices.reduce((sum, invoice) => sum + Number(invoice.amount_paid || 0), 0);
+  // Calculate analytics with safety checks
+  const totalBilled = (invoices || []).reduce((sum, invoice) => sum + Number(invoice?.amount || 0), 0);
+  const totalPaid = (invoices || []).reduce((sum, invoice) => sum + Number(invoice?.amount_paid || 0), 0);
   const totalOutstanding = totalBilled - totalPaid;
   
   // Course type distribution
-  const courseTypeStats = courses.reduce((acc, course) => {
-    acc[course.course_type_name] = (acc[course.course_type_name] || 0) + 1;
+  const courseTypeStats = (courses || []).reduce((acc, course) => {
+    if (course?.course_type_name) {
+      acc[course.course_type_name] = (acc[course.course_type_name] || 0) + 1;
+    }
     return acc;
   }, {} as Record<string, number>);
 
   // Status distribution
-  const statusStats = courses.reduce((acc, course) => {
-    acc[course.status] = (acc[course.status] || 0) + 1;
+  const statusStats = (courses || []).reduce((acc, course) => {
+    if (course?.status) {
+      acc[course.status] = (acc[course.status] || 0) + 1;
+    }
     return acc;
   }, {} as Record<string, number>);
 
   // Recent activity (last 10 courses)
-  const recentCourses = courses.slice(0, 10);
+  const recentCourses = (courses || []).slice(0, 10);
+
+  // Show loading state if data is not ready
+  if (!courses || !invoices) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+        <Typography variant="h6" color="text.secondary">
+          Loading analytics...
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
