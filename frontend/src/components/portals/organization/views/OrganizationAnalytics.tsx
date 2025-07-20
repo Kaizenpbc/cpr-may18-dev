@@ -67,12 +67,14 @@ interface Invoice {
 
 interface OrganizationAnalyticsProps {
   courses: Course[];
+  archivedCourses?: Course[];
   invoices: Invoice[];
   organizationData: OrganizationData | undefined;
 }
 
 const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
   courses = [],
+  archivedCourses = [],
   invoices = [],
   organizationData,
 }) => {
@@ -81,12 +83,13 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
   const totalPaid = (invoices || []).reduce((sum, invoice) => sum + Number(invoice?.amount_paid || 0), 0);
   const totalOutstanding = totalBilled - totalPaid;
   
-  // Calculate correct totals from courses data
-  const totalCourses = (courses || []).length;
-  const totalStudents = (courses || []).reduce((sum, course) => sum + Number(course?.registered_students || 0), 0);
+  // Calculate correct totals from courses data (including archived)
+  const allCourses = [...(courses || []), ...(archivedCourses || [])];
+  const totalCourses = allCourses.length;
+  const totalStudents = allCourses.reduce((sum, course) => sum + Number(course?.registered_students || 0), 0);
   
   // Course type distribution
-  const courseTypeStats = (courses || []).reduce((acc, course) => {
+  const courseTypeStats = allCourses.reduce((acc, course) => {
     if (course?.course_type_name) {
       acc[course.course_type_name] = (acc[course.course_type_name] || 0) + 1;
     }
@@ -94,7 +97,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
   }, {} as Record<string, number>);
 
   // Status distribution
-  const statusStats = (courses || []).reduce((acc, course) => {
+  const statusStats = allCourses.reduce((acc, course) => {
     if (course?.status) {
       acc[course.status] = (acc[course.status] || 0) + 1;
     }
@@ -102,7 +105,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
   }, {} as Record<string, number>);
 
   // Recent activity (last 10 courses)
-  const recentCourses = (courses || []).slice(0, 10);
+  const recentCourses = allCourses.slice(0, 10);
 
   // Show loading state if data is not ready
   if (!courses || !invoices) {
