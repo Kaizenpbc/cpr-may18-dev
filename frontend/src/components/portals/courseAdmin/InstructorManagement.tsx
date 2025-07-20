@@ -142,6 +142,16 @@ const InstructorManagement: React.FC = () => {
     instructorId: '',
   });
   const [error, setError] = useState<string | null>(null);
+
+  // Debug error state changes and scroll to top when error appears
+  useEffect(() => {
+    console.log('🔍 [ERROR STATE] Error changed:', error);
+    
+    // Scroll to top when error appears
+    if (error) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
   const [success, setSuccess] = useState<string | null>(null);
 
   // State for viewing students
@@ -767,13 +777,59 @@ const InstructorManagement: React.FC = () => {
     setSelectedCourseForStudents(null);
   };
 
+  // Function to check billing readiness and get button state
+  const getBillingButtonState = async (courseId: number) => {
+    try {
+      const validationResponse = await api.get(`/courses/${courseId}/validate-billing-readiness`);
+      return validationResponse.data.data;
+    } catch (err) {
+      console.error('Error checking billing readiness:', err);
+      return { isValid: false, validation_errors: ['Unable to validate billing readiness'] };
+    }
+  };
+
   const handleReadyForBilling = async (courseId: number) => {
     try {
-      await api.put(`/courses/${courseId}/ready-for-billing`);
-      setSuccess('Course marked as ready for billing');
+      console.log('🔍 [BILLING] Starting validation for course:', courseId);
+      
+      // First validate billing readiness
+      const validationResponse = await api.get(`/courses/${courseId}/validate-billing-readiness`);
+      console.log('🔍 [BILLING] Validation response:', validationResponse.data);
+      
+      const validationData = validationResponse.data.data;
+      console.log('🔍 [BILLING] Validation data:', validationData);
+      
+      if (!validationData.isValid) {
+        console.log('❌ [BILLING] Validation failed, showing error');
+        // Show validation errors in a more detailed way
+        const errorMessage = validationData.validation_errors.join('\n• ');
+        const fullErrorMessage = `Cannot send to billing:\n• ${errorMessage}`;
+        console.log('🔍 [BILLING] Setting error message:', fullErrorMessage);
+        setError(fullErrorMessage);
+        return;
+      }
+      
+      console.log('✅ [BILLING] Validation passed, proceeding with billing');
+      // If validation passes, proceed with marking as ready for billing
+      const response = await api.put(`/courses/${courseId}/ready-for-billing`);
+      console.log('✅ [BILLING] Billing successful:', response.data);
+      setSuccess('Course sent to billing successfully');
       queryClient.invalidateQueries({ queryKey: ['completedCourses'] });
-    } catch (err) {
-      setError('Failed to mark course as ready for billing');
+    } catch (err: any) {
+      console.error('❌ [BILLING] Error:', err);
+      console.error('❌ [BILLING] Error response:', err.response?.data);
+      
+      // Handle specific validation errors
+      if (err.response?.data?.error?.message) {
+        const errorMessage = err.response.data.error.message;
+        if (errorMessage.includes('Cannot send course to billing:')) {
+          setError(errorMessage);
+        } else {
+          setError(`Failed to send course to billing: ${errorMessage}`);
+        }
+      } else {
+        setError('Failed to send course to billing. Please try again.');
+      }
     }
   };
 
@@ -823,8 +879,38 @@ const InstructorManagement: React.FC = () => {
   return (
     <Box>
       {error && (
-        <Alert severity='error' sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
+        <Alert 
+          severity='error' 
+          sx={{ 
+            mb: 3, 
+            mt: 2,
+            fontSize: '14px',
+            backgroundColor: '#ffebee',
+            '& .MuiAlert-message': {
+              width: '100%'
+            }
+          }} 
+          onClose={() => setError(null)}
+          action={
+            <Button 
+              color="inherit" 
+              size="small" 
+              onClick={() => setError(null)}
+            >
+              Dismiss
+            </Button>
+          }
+        >
+          <div style={{ whiteSpace: 'pre-line', fontWeight: '500' }}>
+            {error.split('Cannot send to billing:').map((part, index) => 
+              index === 0 ? part : (
+                <span key={index}>
+                  <strong>Cannot send to billing:</strong>
+                  {part}
+                </span>
+              )
+            )}
+          </div>
         </Alert>
       )}
       {success && (
@@ -1438,18 +1524,29 @@ const InstructorManagement: React.FC = () => {
                       >
                         View Students
                       </Button>
-                      <Button
-                        variant='contained'
-                        color='success'
-                        size='small'
-                        startIcon={<BillingIcon />}
-                        onClick={() => handleReadyForBilling(course.id)}
-                        disabled={course.ready_for_billing}
+                      <Tooltip 
+                        title={
+                          course.ready_for_billing 
+                            ? 'Course has been sent to billing'
+                            : 'Click to send course to billing'
+                        }
+                        placement="top"
                       >
-                        {course.ready_for_billing
-                          ? 'Sent to Billing'
-                          : 'Ready for Billing'}
-                      </Button>
+                        <span>
+                          <Button
+                            variant='contained'
+                            color='success'
+                            size='small'
+                            startIcon={<BillingIcon />}
+                            onClick={() => handleReadyForBilling(course.id)}
+                            disabled={course.ready_for_billing}
+                          >
+                            {course.ready_for_billing
+                              ? 'Sent to Billing'
+                              : 'Send to Billing'}
+                          </Button>
+                        </span>
+                      </Tooltip>
                     </Stack>
                   </TableCell>
                 </TableRow>

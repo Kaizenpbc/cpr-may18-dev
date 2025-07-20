@@ -14,6 +14,11 @@ interface LoginResponse {
   sessionId?: string;
 }
 
+interface RefreshResponse {
+  accessToken: string;
+  expiresIn?: number;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -25,6 +30,7 @@ interface ApiResponse<T> {
 
 // Add request deduplication for auth checks
 let authCheckPromise: Promise<any> | null = null;
+let refreshPromise: Promise<RefreshResponse> | null = null;
 
 /**
  * Authentication service that handles user authentication operations.
@@ -70,7 +76,7 @@ export const authService = {
 
       // Store access token and set in API headers
       tokenService.setAccessToken(accessToken);
-      api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+      api.defaults.headers.common['Authorization'] = accessToken;
 
       return response.data.data;
     } catch (error) {
@@ -83,6 +89,67 @@ export const authService = {
         } : undefined,
         timestamp: new Date().toISOString()
       });
+      throw error;
+    }
+  },
+
+  /**
+   * Refreshes the access token using the refresh token.
+   * @returns Promise with the refresh response
+   * @throws Error if refresh fails
+   */
+  async refreshToken(): Promise<RefreshResponse> {
+    // Return existing promise if one is already in progress
+    if (refreshPromise) {
+      console.log('[TRACE] Auth service - Returning existing refresh promise');
+      return refreshPromise;
+    }
+
+    console.log('[TRACE] Auth service - Starting token refresh');
+
+    try {
+      refreshPromise = api
+        .post<ApiResponse<RefreshResponse>>('/auth/refresh')
+        .then(response => {
+          if (!response.data.success || !response.data.data) {
+            throw new Error(response.data.error?.message || 'Token refresh failed');
+          }
+
+          const { accessToken, expiresIn } = response.data.data;
+
+          if (!accessToken) {
+            throw new Error('No access token received from refresh');
+          }
+
+          console.log('[TRACE] Auth service - Token refresh successful');
+          
+          // Update the token in memory and API headers
+          tokenService.setAccessToken(accessToken, expiresIn);
+          api.defaults.headers.common['Authorization'] = accessToken;
+
+          refreshPromise = null; // Clear the promise cache
+          return response.data.data;
+        })
+        .catch(error => {
+          console.error('[TRACE] Auth service - Token refresh failed:', {
+            status: error.response?.status,
+            message: error.message
+          });
+
+          // Clear tokens on refresh failure
+          if (error.response?.status === 401 || error.response?.status === 403) {
+            console.log('[TRACE] Auth service - Clearing tokens due to refresh failure');
+            tokenService.clearTokens();
+            delete api.defaults.headers.common['Authorization'];
+          }
+
+          refreshPromise = null; // Clear the promise cache
+          throw error;
+        });
+
+      return refreshPromise;
+    } catch (error) {
+      console.error('[TRACE] Auth service - Unexpected refresh error:', error);
       throw error;
     }
   },
@@ -112,7 +179,7 @@ export const authService = {
       // Store the tokens
       if (accessToken) {
         tokenService.setAccessToken(accessToken);
-        api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+        api.defaults.headers.common['Authorization'] = accessToken;
       }
 
       return response.data.data;
@@ -155,7 +222,7 @@ export const authService = {
       }
 
       // Ensure token is set in headers
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      api.defaults.headers.common['Authorization'] = token;
       console.log('[TRACE] Auth service - Token set in headers');
 
       console.log('[TRACE] Auth service - Checking authentication with backend');
@@ -209,6 +276,14 @@ export const authService = {
    */
   isAuthenticated() {
     return !!this.getAccessToken();
+  },
+
+  /**
+   * Gets session status information.
+   * @returns Session status object
+   */
+  getSessionStatus() {
+    return tokenService.getSessionStatus();
   },
 
   async recoverPassword(email: string): Promise<void> {

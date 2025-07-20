@@ -272,7 +272,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
                     Total Amount
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
-                    ${((billingSummary?.total_amount || 0) * 1.13).toFixed(2)}
+                    ${Number(billingSummary?.total_amount || 0).toFixed(2)}
                   </Typography>
                 </Box>
               </Box>

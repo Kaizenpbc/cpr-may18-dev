@@ -2592,8 +2592,21 @@ router.get(
         cr.registered_students,
         (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as students_attended,
         cp.price_per_student as rate_per_student,
-        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) * cp.price_per_student as total_amount,
-        u.username as instructor_name,
+        ((SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) * cp.price_per_student * 1.13) as total_amount,
+        COALESCE(
+          -- First try to get full name from course_students table (most reliable)
+          (SELECT DISTINCT cs.first_name || ' ' || cs.last_name 
+           FROM course_students cs 
+           WHERE LOWER(cs.email) = LOWER(u.email) 
+           AND cs.first_name IS NOT NULL 
+           AND cs.last_name IS NOT NULL 
+           LIMIT 1),
+          -- Fallback to instructor table if it exists
+          (SELECT i.name FROM instructors i WHERE i.user_id = u.id LIMIT 1),
+          -- Final fallback to username if no full name found
+          u.username
+        ) as instructor_name,
+        u.email as instructor_email,
         cr.ready_for_billing_at
       FROM course_requests cr
       JOIN organizations o ON cr.organization_id = o.id
@@ -2650,11 +2663,25 @@ router.post(
           o.contact_email,
           ct.name as course_type_name,
           (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as students_attended,
-          cp.price_per_student
+          cp.price_per_student,
+          COALESCE(
+            -- First try to get full name from course_students table (most reliable)
+            (SELECT DISTINCT cs.first_name || ' ' || cs.last_name 
+             FROM course_students cs 
+             WHERE LOWER(cs.email) = LOWER(u.email) 
+             AND cs.first_name IS NOT NULL 
+             AND cs.last_name IS NOT NULL 
+             LIMIT 1),
+            -- Fallback to instructor table if it exists
+            (SELECT i.name FROM instructors i WHERE i.user_id = u.id LIMIT 1),
+            -- Final fallback to username if no full name found
+            u.username
+          ) as instructor_name
         FROM course_requests cr
         JOIN organizations o ON cr.organization_id = o.id
         JOIN class_types ct ON cr.course_type_id = ct.id
         JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+        LEFT JOIN users u ON cr.instructor_id = u.id
         WHERE cr.id = $1 AND cr.status = 'completed'
       `,
           [courseId]
@@ -2698,9 +2725,13 @@ router.post(
           students_billed,
           status,
           due_date,
-          posted_to_org
+          posted_to_org,
+          course_type_name,
+          location,
+          date_completed,
+          rate_per_student
         )
-        VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7, 'pending', CURRENT_DATE + INTERVAL '30 days', FALSE)
+        VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7, 'pending', CURRENT_DATE + INTERVAL '30 days', FALSE, $8, $9, $10, $11)
         RETURNING *
       `,
           [
@@ -2711,6 +2742,10 @@ router.post(
             baseCost,
             taxAmount,
             course.students_attended,
+            course.course_type_name,
+            course.location,
+            course.completed_at,
+            course.price_per_student,
           ]
         );
 
@@ -2728,7 +2763,7 @@ router.post(
 
         res.json({
           success: true,
-          message: 'Invoice created successfully',
+          message: 'Invoice created successfully! The course has been removed from the billing queue and moved to the Organizational Receivables Queue.',
           data: invoiceResult.rows[0],
         });
       } catch (error) {
@@ -3148,7 +3183,19 @@ router.get(
         i.created_at as invoicedate,
         i.updated_at,
         cr.completed_at as datecompleted,
-        u.username as instructor_name,
+        COALESCE(
+          -- First try to get full name from course_students table (most reliable)
+          (SELECT DISTINCT cs.first_name || ' ' || cs.last_name 
+           FROM course_students cs 
+           WHERE LOWER(cs.email) = LOWER(u.email) 
+           AND cs.first_name IS NOT NULL 
+           AND cs.last_name IS NOT NULL 
+           LIMIT 1),
+          -- Fallback to instructor table if it exists
+          (SELECT i.name FROM instructors i WHERE i.user_id = u.id LIMIT 1),
+          -- Final fallback to username if no full name found
+          u.username
+        ) as instructor_name,
         cr.location,
         i.organization_id,
         o.name as organizationname,
@@ -4667,21 +4714,42 @@ router.get(
 );
 
 // Mark course as ready for billing
-router.put(
-  '/courses/:courseId/ready-for-billing',
+// Validate course readiness for billing (pre-flight check)
+router.get(
+  '/courses/:courseId/validate-billing-readiness',
+  authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { courseId } = req.params;
 
-      // First check if the course exists and is completed
-      const courseCheck = await pool.query(
+      console.log(`[VALIDATION] Checking billing readiness for course ${courseId}`);
+
+      // Get course details with all required information
+      const courseResult = await pool.query(
         `
-      SELECT id, status FROM course_requests WHERE id = $1
-    `,
+        SELECT 
+          cr.id,
+          cr.status,
+          cr.organization_id,
+          cr.course_type_id,
+          cr.ready_for_billing,
+          cr.invoiced,
+          o.name as organization_name,
+          o.contact_email,
+          ct.name as course_type_name,
+          (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as students_attended,
+          cp.price_per_student,
+          cp.is_active as pricing_active
+        FROM course_requests cr
+        JOIN organizations o ON cr.organization_id = o.id
+        JOIN class_types ct ON cr.course_type_id = ct.id
+        LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+        WHERE cr.id = $1
+      `,
         [courseId]
       );
 
-      if (courseCheck.rows.length === 0) {
+      if (courseResult.rows.length === 0) {
         throw new AppError(
           404,
           errorCodes.RESOURCE_NOT_FOUND,
@@ -4689,31 +4757,192 @@ router.put(
         );
       }
 
-      if (courseCheck.rows[0].status !== 'completed') {
-        throw new AppError(
-          400,
-          errorCodes.VALIDATION_ERROR,
-          'Only completed courses can be marked as ready for billing'
-        );
+      const course = courseResult.rows[0];
+      const validationErrors = [];
+      const warnings = [];
+
+      console.log(`[VALIDATION] Course ${courseId} details:`, {
+        status: course.status,
+        organization: course.organization_name,
+        course_type: course.course_type_name,
+        students_attended: course.students_attended,
+        price_per_student: course.price_per_student,
+        pricing_active: course.pricing_active,
+        contact_email: course.contact_email
+      });
+
+      // 1. Check if course is completed
+      if (course.status !== 'completed') {
+        validationErrors.push(`Course must be completed before sending to billing. Current status: ${course.status}`);
       }
 
-      // Update the course to mark it as ready for billing
-      const result = await pool.query(
-        `
-      UPDATE course_requests 
-      SET ready_for_billing = true,
-          ready_for_billing_at = CURRENT_TIMESTAMP,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
-      RETURNING *
-    `,
-        [courseId]
-      );
+      // 2. Check if course is already invoiced
+      if (course.invoiced) {
+        validationErrors.push('Course has already been invoiced and cannot be sent to billing again');
+      }
+
+      // 3. Check if course is already ready for billing
+      if (course.ready_for_billing) {
+        validationErrors.push('Course is already marked as ready for billing');
+      }
+
+      // 4. Check pricing configuration
+      if (!course.price_per_student || !course.pricing_active) {
+        validationErrors.push(`Pricing not configured for ${course.organization_name} - ${course.course_type_name}. Please contact support to set up pricing, then resubmit.`);
+      }
+
+      // 5. Check student attendance
+      if (course.students_attended === 0) {
+        validationErrors.push('No students marked as attended for this course. Please mark student attendance before sending to billing.');
+      }
+
+      // 6. Check organization contact information
+      if (!course.contact_email) {
+        validationErrors.push(`Organization ${course.organization_name} does not have a contact email address. Please update organization profile before sending to billing.`);
+      }
+
+      // 7. Warnings (non-blocking)
+      if (course.students_attended < 1) {
+        warnings.push('Low student attendance may affect billing amount');
+      }
+
+      const isValid = validationErrors.length === 0;
+
+      console.log(`[VALIDATION] Course ${courseId} validation result:`, {
+        isValid,
+        errors: validationErrors.length,
+        warnings: warnings.length
+      });
 
       res.json({
         success: true,
-        message: 'Course marked as ready for billing',
-        data: result.rows[0],
+        data: {
+          isValid,
+          course_id: course.id,
+          organization_name: course.organization_name,
+          course_type_name: course.course_type_name,
+          students_attended: course.students_attended,
+          price_per_student: course.price_per_student,
+          estimated_amount: course.students_attended * (course.price_per_student || 0),
+          validation_errors: validationErrors,
+          warnings: warnings,
+          can_proceed: isValid
+        }
+      });
+    } catch (error) {
+      console.error('Error validating billing readiness:', error);
+      throw error;
+    }
+  })
+);
+
+// Mark course as ready for billing (with validation)
+router.put(
+  '/courses/:courseId/ready-for-billing',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { courseId } = req.params;
+
+      console.log(`[BILLING] Attempting to mark course ${courseId} as ready for billing`);
+
+      // Step 1: Run validation check first
+      const validationResult = await pool.query(
+        `
+        SELECT 
+          cr.id,
+          cr.status,
+          cr.organization_id,
+          cr.course_type_id,
+          cr.ready_for_billing,
+          cr.invoiced,
+          o.name as organization_name,
+          o.contact_email,
+          ct.name as course_type_name,
+          (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as students_attended,
+          cp.price_per_student,
+          cp.is_active as pricing_active
+        FROM course_requests cr
+        JOIN organizations o ON cr.organization_id = o.id
+        JOIN class_types ct ON cr.course_type_id = ct.id
+        LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+        WHERE cr.id = $1
+      `,
+        [courseId]
+      );
+
+      if (validationResult.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Course not found'
+        );
+      }
+
+      const course = validationResult.rows[0];
+      const validationErrors = [];
+
+      // Run all validations
+      if (course.status !== 'completed') {
+        validationErrors.push(`Course must be completed before sending to billing. Current status: ${course.status}`);
+      }
+
+      if (course.invoiced) {
+        validationErrors.push('Course has already been invoiced and cannot be sent to billing again');
+      }
+
+      if (course.ready_for_billing) {
+        validationErrors.push('Course is already marked as ready for billing');
+      }
+
+      if (!course.price_per_student || !course.pricing_active) {
+        validationErrors.push(`Pricing not configured for ${course.organization_name} - ${course.course_type_name}. Please contact support to set up pricing, then resubmit.`);
+      }
+
+      if (course.students_attended === 0) {
+        validationErrors.push('No students marked as attended for this course. Please mark student attendance before sending to billing.');
+      }
+
+      if (!course.contact_email) {
+        validationErrors.push(`Organization ${course.organization_name} does not have a contact email address. Please update organization profile before sending to billing.`);
+      }
+
+      // If validation fails, return error without modifying the course
+      if (validationErrors.length > 0) {
+        console.log(`[BILLING] Validation failed for course ${courseId}:`, validationErrors);
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          `Cannot send course to billing: ${validationErrors.join('; ')}`
+        );
+      }
+
+      // Step 2: If validation passes, proceed with marking as ready for billing
+      console.log(`[BILLING] Validation passed for course ${courseId}, marking as ready for billing`);
+      
+      const result = await pool.query(
+        `
+        UPDATE course_requests 
+        SET ready_for_billing = true,
+            ready_for_billing_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING *
+      `,
+        [courseId]
+      );
+
+      console.log(`[BILLING] Successfully marked course ${courseId} as ready for billing`);
+
+      res.json({
+        success: true,
+        message: 'Course sent to billing successfully',
+        data: {
+          ...result.rows[0],
+          estimated_amount: course.students_attended * course.price_per_student,
+          students_attended: course.students_attended,
+          price_per_student: course.price_per_student
+        },
       });
     } catch (error) {
       console.error('Error marking course as ready for billing:', error);
@@ -6326,6 +6555,128 @@ router.get(
         errorCodes.DB_QUERY_ERROR,
         'Failed to fetch course students'
       );
+    }
+  })
+);
+
+// Validate course readiness for billing (pre-flight check)
+router.get(
+  '/courses/:courseId/validate-billing-readiness',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { courseId } = req.params;
+
+      console.log(`[VALIDATION] Checking billing readiness for course ${courseId}`);
+
+      // Get course details with all required information
+      const courseResult = await pool.query(
+        `
+        SELECT 
+          cr.id,
+          cr.status,
+          cr.organization_id,
+          cr.course_type_id,
+          cr.ready_for_billing,
+          cr.invoiced,
+          o.name as organization_name,
+          o.contact_email,
+          ct.name as course_type_name,
+          (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as students_attended,
+          cp.price_per_student,
+          cp.is_active as pricing_active
+        FROM course_requests cr
+        JOIN organizations o ON cr.organization_id = o.id
+        JOIN class_types ct ON cr.course_type_id = ct.id
+        LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+        WHERE cr.id = $1
+      `,
+        [courseId]
+      );
+
+      if (courseResult.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Course not found'
+        );
+      }
+
+      const course = courseResult.rows[0];
+      const validationErrors = [];
+      const warnings = [];
+
+      console.log(`[VALIDATION] Course ${courseId} details:`, {
+        status: course.status,
+        organization: course.organization_name,
+        course_type: course.course_type_name,
+        students_attended: course.students_attended,
+        price_per_student: course.price_per_student,
+        pricing_active: course.pricing_active,
+        contact_email: course.contact_email
+      });
+
+      // 1. Check if course is completed
+      if (course.status !== 'completed') {
+        validationErrors.push(`Course must be completed before sending to billing. Current status: ${course.status}`);
+      }
+
+      // 2. Check if course is already invoiced
+      if (course.invoiced) {
+        validationErrors.push('Course has already been invoiced and cannot be sent to billing again');
+      }
+
+      // 3. Check if course is already ready for billing
+      if (course.ready_for_billing) {
+        validationErrors.push('Course is already marked as ready for billing');
+      }
+
+      // 4. Check pricing configuration
+      if (!course.price_per_student || !course.pricing_active) {
+        validationErrors.push(`Pricing not configured for ${course.organization_name} - ${course.course_type_name}. Please contact support to set up pricing, then resubmit.`);
+      }
+
+      // 5. Check student attendance
+      if (course.students_attended === 0) {
+        validationErrors.push('No students marked as attended for this course. Please mark student attendance before sending to billing.');
+      }
+
+      // 6. Check organization contact information
+      if (!course.contact_email) {
+        validationErrors.push(`Organization ${course.organization_name} does not have a contact email address. Please update organization profile before sending to billing.`);
+      }
+
+      // 7. Warnings (non-blocking)
+      if (course.students_attended < 1) {
+        warnings.push('Low student attendance may affect billing amount');
+      }
+
+      const isValid = validationErrors.length === 0;
+
+      console.log(`[VALIDATION] Course ${courseId} validation result:`, {
+        isValid,
+        errors: validationErrors.length,
+        warnings: warnings.length
+      });
+
+      res.json({
+        success: true,
+        data: {
+          isValid,
+          course_id: course.id,
+          organization_name: course.organization_name,
+          course_type_name: course.course_type_name,
+          students_attended: course.students_attended,
+          price_per_student: course.price_per_student,
+          estimated_amount: course.students_attended * (course.price_per_student || 0),
+          validation_errors: validationErrors,
+          warnings: warnings,
+          can_proceed: isValid
+        }
+      });
+    } catch (error) {
+      console.error('Error validating billing readiness:', error);
+      throw error;
     }
   })
 );

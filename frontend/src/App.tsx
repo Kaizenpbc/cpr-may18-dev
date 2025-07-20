@@ -20,6 +20,8 @@ import { RealtimeProvider } from './contexts/RealtimeContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
 import HRPortal from './components/portals/HRPortal';
 import VendorPortal from './components/portals/VendorPortal';
+import SessionWarning from './components/common/SessionWarning';
+import LocationTracker from './components/LocationTracker';
 
 console.log('[DEEP TRACE] App.tsx - Starting to load dependencies');
 
@@ -49,6 +51,12 @@ function App() {
         <SnackbarProvider>
           <RealtimeProvider>
             <ErrorBoundary>
+              {/* Session Warning Component */}
+              <SessionWarning showAtMinutes={5} />
+              
+              {/* Location Tracker for preserving user location */}
+              <LocationTracker />
+              
               <Routes>
                 {/* Public routes */}
                 <Route path='/login' element={<Login />} />

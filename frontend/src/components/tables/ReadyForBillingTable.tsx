@@ -36,8 +36,15 @@ const ReadyForBillingTable = ({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [students, setStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [invoiceSuccess, setInvoiceSuccess] = useState(false);
 
   const fetchStudents = async (courseId) => {
+    if (!courseId) {
+      console.error('No course ID provided for fetching students');
+      setStudents([]);
+      return;
+    }
+    
     setLoadingStudents(true);
     try {
       const response = await api.get(`/accounting/courses/${courseId}/students`);
@@ -51,6 +58,10 @@ const ReadyForBillingTable = ({
   };
 
   const handleViewInvoice = (course) => {
+    if (!course || !course.course_id) {
+      console.error('Invalid course data for invoice preview:', course);
+      return;
+    }
     setSelectedCourse(course);
     setPreviewOpen(true);
     fetchStudents(course.course_id);
@@ -59,12 +70,26 @@ const ReadyForBillingTable = ({
   const handleCreateInvoice = async () => {
     if (!selectedCourse) return;
     
+    console.log('🔍 [INVOICE] Starting invoice creation for course:', selectedCourse.course_id);
     setCreatingInvoice(prev => ({ ...prev, [selectedCourse.course_id]: true }));
+    setInvoiceSuccess(false);
+    
     try {
       await onCreateInvoice(selectedCourse.course_id);
-      setPreviewOpen(false);
-      setSelectedCourse(null);
-      setStudents([]);
+      console.log('✅ [INVOICE] Invoice creation completed successfully');
+      
+      // Show success state briefly before closing
+      setInvoiceSuccess(true);
+      setTimeout(() => {
+        setPreviewOpen(false);
+        setSelectedCourse(null);
+        setStudents([]);
+        setInvoiceSuccess(false);
+      }, 1500); // Show success for 1.5 seconds
+    } catch (error) {
+      console.error('❌ [INVOICE] Invoice creation failed in table component:', error);
+      // Error handling is done in the parent component, but we keep the dialog open
+      // so the user can see the error message and try again if needed
     } finally {
       setCreatingInvoice(prev => ({ ...prev, [selectedCourse.course_id]: false }));
     }
@@ -74,6 +99,7 @@ const ReadyForBillingTable = ({
     setPreviewOpen(false);
     setSelectedCourse(null);
     setStudents([]);
+    setInvoiceSuccess(false);
   };
 
   const presentCount = students.filter(s => s.attended).length;
@@ -95,7 +121,7 @@ const ReadyForBillingTable = ({
     );
   }
 
-  if (!courses || courses.length === 0) {
+  if (!courses || !Array.isArray(courses) || courses.length === 0) {
     return (
       <Box sx={{ textAlign: 'center', py: 4 }}>
         <Typography variant='body1' color='textSecondary'>
@@ -122,54 +148,96 @@ const ReadyForBillingTable = ({
               <TableCell>Instructor</TableCell>
               <TableCell align='center'>Students Attended</TableCell>
               <TableCell align='right'>Rate/Student</TableCell>
-              <TableCell align='right'>Total Amount</TableCell>
+              <TableCell align='right'>Base Cost</TableCell>
+              <TableCell align='right'>Tax (HST)</TableCell>
+              <TableCell align='right'>Total</TableCell>
               <TableCell align='center'>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {courses.map(course => (
-              <TableRow key={course.course_id}>
-                <TableCell>{formatDisplayDate(course.date_completed)}</TableCell>
-                <TableCell>
-                  <Typography variant='body2' fontWeight='medium'>
-                    {course.organization_name}
-                  </Typography>
-                  <Typography variant='caption' color='textSecondary'>
-                    {course.contact_email}
-                  </Typography>
-                </TableCell>
-                <TableCell>{course.course_type_name}</TableCell>
-                <TableCell>{course.location}</TableCell>
-                <TableCell>{course.instructor_name}</TableCell>
-                <TableCell align='center'>
-                  <Chip
-                    label={course.students_attended}
-                    size='small'
-                    color='primary'
-                    variant='outlined'
-                  />
-                </TableCell>
-                <TableCell align='right'>
-                  {formatCurrency(course.rate_per_student)}
-                </TableCell>
-                <TableCell align='right'>
-                  <Typography variant='body2' fontWeight='bold' color='primary'>
-                    {formatCurrency(course.total_amount)}
-                  </Typography>
-                </TableCell>
-                <TableCell align='center'>
-                  <Button
-                    variant='outlined'
-                    color='primary'
-                    size='small'
-                    startIcon={<ViewIcon />}
-                    onClick={() => handleViewInvoice(course)}
-                  >
-                    View
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {courses.map(course => {
+              if (!course) {
+                return (
+                  <TableRow key="invalid-course">
+                    <TableCell colSpan={11} align="center">
+                      <Typography variant="body2" color="error.main">
+                        Invalid course data
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                );
+              }
+              
+              return (
+                <TableRow key={course.course_id}>
+                  <TableCell>{formatDisplayDate(course.date_completed)}</TableCell>
+                  <TableCell>
+                    <Typography variant='body2' fontWeight='medium'>
+                      {course.organization_name}
+                    </Typography>
+                    <Typography variant='caption' color='textSecondary'>
+                      {course.contact_email}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>{course.course_type_name}</TableCell>
+                  <TableCell>{course.location}</TableCell>
+                  <TableCell>{course.instructor_name}</TableCell>
+                  <TableCell align='center'>
+                    <Chip
+                      label={course.students_attended}
+                      size='small'
+                      color='primary'
+                      variant='outlined'
+                    />
+                  </TableCell>
+                  <TableCell align='right'>
+                    {course.rate_per_student ? 
+                      formatCurrency(course.rate_per_student) : 
+                      <Typography variant="body2" color="error.main">
+                        Not Set
+                      </Typography>
+                    }
+                  </TableCell>
+                  <TableCell align='right'>
+                    {course.rate_per_student && course.students_attended ? 
+                      formatCurrency(course.rate_per_student * course.students_attended) : 
+                      <Typography component="span" color="error.main">
+                        N/A
+                      </Typography>
+                    }
+                  </TableCell>
+                  <TableCell align='right'>
+                    {course.rate_per_student && course.students_attended ? 
+                      formatCurrency((course.rate_per_student * course.students_attended) * 0.13) : 
+                      <Typography component="span" color="error.main">
+                        N/A
+                      </Typography>
+                    }
+                  </TableCell>
+                  <TableCell align='right'>
+                    <Typography variant='body2' fontWeight='bold' color='primary'>
+                      {course.rate_per_student && course.students_attended ? 
+                        formatCurrency((course.rate_per_student * course.students_attended) * 1.13) : 
+                        <Typography component="span" color="error.main">
+                          N/A
+                        </Typography>
+                      }
+                    </Typography>
+                  </TableCell>
+                  <TableCell align='center'>
+                    <Button
+                      variant='outlined'
+                      color='primary'
+                      size='small'
+                      startIcon={<ViewIcon />}
+                      onClick={() => handleViewInvoice(course)}
+                    >
+                      View
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>
@@ -188,7 +256,7 @@ const ReadyForBillingTable = ({
           </Box>
         </DialogTitle>
         <DialogContent>
-          {selectedCourse && (
+          {selectedCourse && selectedCourse.organization_name && (
             <Box sx={{ mt: 2 }}>
               {/* Course Details */}
               <Grid container spacing={3}>
@@ -200,19 +268,19 @@ const ReadyForBillingTable = ({
                   </Box>
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" color="textSecondary">Course Type</Typography>
-                    <Typography variant="body1">{selectedCourse.course_type_name}</Typography>
+                    <Typography variant="body1">{selectedCourse.course_type_name || 'N/A'}</Typography>
                   </Box>
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" color="textSecondary">Location</Typography>
-                    <Typography variant="body1">{selectedCourse.location}</Typography>
+                    <Typography variant="body1">{selectedCourse.location || 'N/A'}</Typography>
                   </Box>
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" color="textSecondary">Instructor</Typography>
-                    <Typography variant="body1">{selectedCourse.instructor_name}</Typography>
+                    <Typography variant="body1">{selectedCourse.instructor_name || 'N/A'}</Typography>
                   </Box>
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" color="textSecondary">Date Completed</Typography>
-                    <Typography variant="body1">{formatDisplayDate(selectedCourse.date_completed)}</Typography>
+                    <Typography variant="body1">{selectedCourse.date_completed ? formatDisplayDate(selectedCourse.date_completed) : 'N/A'}</Typography>
                   </Box>
                 </Grid>
                 
@@ -220,16 +288,16 @@ const ReadyForBillingTable = ({
                   <Typography variant="h6" gutterBottom>Billing Summary</Typography>
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" color="textSecondary">Students Registered</Typography>
-                    <Typography variant="body1" fontWeight="medium">{selectedCourse.registered_students}</Typography>
+                    <Typography variant="body1" fontWeight="medium">{selectedCourse.registered_students || 0}</Typography>
                   </Box>
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" color="textSecondary">Students Attended</Typography>
-                    <Typography variant="body1" fontWeight="medium" color="success.main">{selectedCourse.students_attended}</Typography>
+                    <Typography variant="body1" fontWeight="medium" color="success.main">{selectedCourse.students_attended || 0}</Typography>
                   </Box>
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" color="textSecondary">Students Absent</Typography>
                     <Typography variant="body1" fontWeight="medium" color="error.main">
-                      {selectedCourse.registered_students - selectedCourse.students_attended}
+                      {(selectedCourse.registered_students || 0) - (selectedCourse.students_attended || 0)}
                     </Typography>
                   </Box>
                   <Divider sx={{ my: 2 }} />
@@ -248,7 +316,7 @@ const ReadyForBillingTable = ({
                     <Typography variant="body2" color="textSecondary">Subtotal</Typography>
                     <Typography variant="body1" fontWeight="medium">
                       {selectedCourse.rate_per_student ? 
-                        formatCurrency(selectedCourse.students_attended * selectedCourse.rate_per_student) : 
+                        formatCurrency((selectedCourse.students_attended || 0) * selectedCourse.rate_per_student) : 
                         <Typography component="span" color="error.main">
                           N/A
                         </Typography>
@@ -259,7 +327,7 @@ const ReadyForBillingTable = ({
                     <Typography variant="body2" color="textSecondary">HST (13%)</Typography>
                     <Typography variant="body1" fontWeight="medium">
                       {selectedCourse.rate_per_student ? 
-                        formatCurrency((selectedCourse.students_attended * selectedCourse.rate_per_student) * 0.13) : 
+                        formatCurrency(((selectedCourse.students_attended || 0) * selectedCourse.rate_per_student) * 0.13) : 
                         <Typography component="span" color="error.main">
                           N/A
                         </Typography>
@@ -269,8 +337,8 @@ const ReadyForBillingTable = ({
                   <Divider sx={{ my: 2 }} />
                   <Box>
                     <Typography variant="h6" color="primary" fontWeight="bold">
-                      {selectedCourse.rate_per_student ? 
-                        `Total: ${formatCurrency(selectedCourse.total_amount * 1.13)}` : 
+                      {selectedCourse.rate_per_student && selectedCourse.total_amount ? 
+                        `Total: ${formatCurrency(selectedCourse.total_amount)}` : 
                         <Typography component="span" color="error.main">
                           Pricing not configured
                         </Typography>
@@ -372,16 +440,24 @@ const ReadyForBillingTable = ({
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClosePreview}>Cancel</Button>
+          {invoiceSuccess && (
+            <Alert severity="success" sx={{ flex: 1, mr: 2 }}>
+              ✅ Invoice created successfully! The course has been moved to the Organizational Receivables Queue. This dialog will close automatically.
+            </Alert>
+          )}
+          <Button onClick={handleClosePreview} disabled={creatingInvoice[selectedCourse?.course_id]}>
+            {invoiceSuccess ? 'Close Now' : 'Cancel'}
+          </Button>
           <Button 
             variant="contained" 
             color="primary"
             onClick={handleCreateInvoice}
-            disabled={creatingInvoice[selectedCourse?.course_id] || !selectedCourse.rate_per_student}
-            startIcon={<InvoiceIcon />}
+            disabled={creatingInvoice[selectedCourse?.course_id] || !selectedCourse?.rate_per_student || invoiceSuccess}
+            startIcon={creatingInvoice[selectedCourse?.course_id] ? <CircularProgress size={20} /> : <InvoiceIcon />}
           >
-            {creatingInvoice[selectedCourse?.course_id] ? 'Creating...' : 
-             !selectedCourse.rate_per_student ? 'Pricing Not Configured' : 'Create Invoice'}
+            {creatingInvoice[selectedCourse?.course_id] ? 'Creating Invoice...' : 
+             !selectedCourse?.rate_per_student ? 'Pricing Not Configured' : 
+             invoiceSuccess ? 'Invoice Created!' : 'Create Invoice'}
           </Button>
         </DialogActions>
       </Dialog>

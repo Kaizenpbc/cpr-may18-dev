@@ -28,6 +28,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
   fetchDashboardData,
+  fetchRoleSpecificDashboardData,
   fetchInstructorAvailability,
   fetchSchedule,
 } from '../services/api';
@@ -139,8 +140,15 @@ const Dashboard: React.FC = () => {
     isLoading: dashboardLoading,
     error: dashboardError,
   } = useQuery<DashboardMetrics>({
-    queryKey: ['dashboardData'],
-    queryFn: () => fetchDashboardData(),
+    queryKey: ['dashboardData', user?.role],
+    queryFn: () => {
+      if (user?.role) {
+        return fetchRoleSpecificDashboardData(user.role);
+      } else {
+        return fetchDashboardData();
+      }
+    },
+    enabled: !!user?.role,
   });
 
   console.log('[Debug] Dashboard - Data fetched:', {
@@ -168,13 +176,23 @@ const Dashboard: React.FC = () => {
   }
 
   if (availabilityError || classesError || dashboardError) {
+    const errorMessage = availabilityError?.message ||
+      classesError?.message ||
+      dashboardError?.message ||
+      'An error occurred while loading the dashboard';
+    
+    // Check if it's a 403 error (permission denied)
+    const is403Error = availabilityError?.response?.status === 403 ||
+      classesError?.response?.status === 403 ||
+      dashboardError?.response?.status === 403;
+    
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity='error'>
-          {availabilityError?.message ||
-            classesError?.message ||
-            dashboardError?.message ||
-            'An error occurred while loading the dashboard'}
+          {is403Error 
+            ? 'Access denied. You do not have permission to view this dashboard. Please contact your administrator.'
+            : errorMessage
+          }
         </Alert>
       </Box>
     );

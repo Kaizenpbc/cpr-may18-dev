@@ -37,6 +37,7 @@ const ReadyForBillingView: React.FC = () => {
   const [billingQueue, setBillingQueue] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const { showSuccess, showError } = useSnackbar();
 
   React.useEffect(() => {
     const fetchBillingQueue = async () => {
@@ -58,13 +59,25 @@ const ReadyForBillingView: React.FC = () => {
 
   const handleCreateInvoice = async (courseId: string | number) => {
     try {
+      console.log('🔍 [INVOICE] Creating invoice for course:', courseId);
       const response = await createInvoice(courseId as number);
-      console.log('Invoice created successfully:', response);
+      console.log('✅ [INVOICE] Invoice created successfully:', response);
+      
+      // Show success message
+      showSuccess(response.data.message || 'Invoice created successfully! The course has been removed from the billing queue and moved to the Organizational Receivables Queue.');
+      
       // Refresh the billing queue after creating invoice
       const updatedQueue = await getBillingQueue();
       setBillingQueue(updatedQueue.data || []);
-    } catch (error) {
-      console.error('Error creating invoice:', error);
+    } catch (error: any) {
+      console.error('❌ [INVOICE] Error creating invoice:', error);
+      
+      // Show error message to user
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to create invoice. Please try again.';
+      showError(`Invoice creation failed: ${errorMessage}`);
     }
   };
 

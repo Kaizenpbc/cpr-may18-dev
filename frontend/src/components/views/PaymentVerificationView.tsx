@@ -24,7 +24,6 @@ import {
   Snackbar,
 } from '@mui/material';
 import {
-  CheckCircle as ApproveIcon,
   Cancel as RejectIcon,
   Visibility as ViewIcon,
   HourglassEmpty as PendingIcon,
@@ -261,40 +260,14 @@ const PaymentVerificationView = () => {
                         />
                       </TableCell>
                       <TableCell align='center'>
-                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                          <Tooltip title='View Details'>
-                            <IconButton
-                              size='small'
-                              onClick={() => handleViewDetails(payment)}
-                            >
-                              <ViewIcon fontSize='small' />
-                            </IconButton>
-                          </Tooltip>
-                          {canVerifyPayment(payment) && (
-                            <>
-                              <Tooltip title='Approve Payment'>
-                                <IconButton
-                                  size='small'
-                                  color='success'
-                                  onClick={() => handleVerificationClick(payment, 'approve')}
-                                  disabled={verifyPaymentMutation.isLoading}
-                                >
-                                  <ApproveIcon fontSize='small' />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title='Reject Payment'>
-                                <IconButton
-                                  size='small'
-                                  color='error'
-                                  onClick={() => handleVerificationClick(payment, 'reject')}
-                                  disabled={verifyPaymentMutation.isLoading}
-                                >
-                                  <RejectIcon fontSize='small' />
-                                </IconButton>
-                              </Tooltip>
-                            </>
-                          )}
-                        </Box>
+                        <Tooltip title='View Details'>
+                          <IconButton
+                            size='small'
+                            onClick={() => handleViewDetails(payment)}
+                          >
+                            <ViewIcon fontSize='small' />
+                          </IconButton>
+                        </Tooltip>
                       </TableCell>
                     </TableRow>
                   );

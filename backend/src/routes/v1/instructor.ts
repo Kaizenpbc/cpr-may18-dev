@@ -41,6 +41,98 @@ router.get('/test-classes', async (req, res) => {
   }
 });
 
+// Get instructor dashboard statistics
+router.get('/dashboard/stats', authenticateToken, requireRole(['instructor']), async (req, res) => {
+  if (!req.user) {
+    throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
+  }
+  
+  const userId = req.user.id;
+  
+  try {
+    // Get current month stats
+    const currentDate = new Date();
+    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    
+    // Get total courses
+    const totalCoursesResult = await pool.query(
+      `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1`,
+      [userId]
+    );
+    
+    // Get scheduled courses (confirmed but not completed)
+    const scheduledCoursesResult = await pool.query(
+      `SELECT COUNT(*) as count FROM course_requests 
+       WHERE instructor_id = $1 AND status = 'confirmed'`,
+      [userId]
+    );
+    
+    // Get completed courses
+    const completedCoursesResult = await pool.query(
+      `SELECT COUNT(*) as count FROM course_requests 
+       WHERE instructor_id = $1 AND status = 'completed'`,
+      [userId]
+    );
+    
+    // Get cancelled courses
+    const cancelledCoursesResult = await pool.query(
+      `SELECT COUNT(*) as count FROM course_requests 
+       WHERE instructor_id = $1 AND status = 'cancelled'`,
+      [userId]
+    );
+    
+    // Get total students across all courses
+    const totalStudentsResult = await pool.query(
+      `SELECT COALESCE(SUM(cs.student_count), 0) as total_students
+       FROM (
+         SELECT course_request_id, COUNT(*) as student_count
+         FROM course_students
+         GROUP BY course_request_id
+       ) cs
+       JOIN course_requests cr ON cs.course_request_id = cr.id
+       WHERE cr.instructor_id = $1`,
+      [userId]
+    );
+    
+    // Get recent classes (last 5 completed or confirmed)
+    const recentClassesResult = await pool.query(
+      `SELECT 
+        cr.id,
+        cr.confirmed_date as date,
+        ct.name as type,
+        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as students
+       FROM course_requests cr
+       JOIN class_types ct ON cr.course_type_id = ct.id
+       WHERE cr.instructor_id = $1 
+       AND cr.status IN ('confirmed', 'completed')
+       ORDER BY cr.confirmed_date DESC
+       LIMIT 5`,
+      [userId]
+    );
+    
+    const stats = {
+      totalCourses: parseInt(totalCoursesResult.rows[0]?.count || 0),
+      scheduledClasses: parseInt(scheduledCoursesResult.rows[0]?.count || 0),
+      completedClasses: parseInt(completedCoursesResult.rows[0]?.count || 0),
+      cancelledClasses: parseInt(cancelledCoursesResult.rows[0]?.count || 0),
+      totalStudents: parseInt(totalStudentsResult.rows[0]?.total_students || 0),
+      recentClasses: recentClassesResult.rows.map(row => ({
+        id: row.id,
+        date: row.date ? new Date(row.date).toISOString().split('T')[0] : null,
+        type: row.type,
+        students: parseInt(row.students || 0)
+      }))
+    };
+    
+    console.log('[DEBUG] Instructor dashboard stats for user', userId, ':', stats);
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    console.error('Error fetching instructor dashboard stats:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get instructor's availability
 router.get('/availability', authenticateToken, requireRole(['instructor']), async (req, res) => {
   if (!req.user) {

@@ -18,10 +18,18 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
 
   useEffect(() => {
     const token = tokenService.getAccessToken();
+    console.log('[TRACE] PrivateRoute - Token check:', { 
+      hasToken: !!token, 
+      hasUser: !!user, 
+      loading,
+      pathname: location.pathname 
+    });
+    
     if (token && !user && !loading) {
+      console.log('[TRACE] PrivateRoute - Attempting auth check');
       checkAuth();
     }
-  }, [user, loading, checkAuth]);
+  }, [user, loading, checkAuth, location.pathname]);
 
   // Show loading while authentication is being checked
   if (loading) {
@@ -39,8 +47,8 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
 
   // If not authenticated and no token exists, redirect to login
   if (!user && !tokenService.getAccessToken()) {
-    // Save the current location so we can redirect back after login
-    tokenService.saveCurrentLocation(location.pathname);
+    // Save the current full location so we can redirect back after login
+    tokenService.saveCurrentFullLocation();
     return <Navigate to='/login' state={{ from: location }} replace />;
   }
 
@@ -61,6 +69,8 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
 
   // If we don't have a user at this point, something went wrong
   if (!user) {
+    // Save the current full location so we can redirect back after login
+    tokenService.saveCurrentFullLocation();
     return <Navigate to='/login' state={{ from: location }} replace />;
   }
 
