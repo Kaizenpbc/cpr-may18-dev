@@ -22,12 +22,14 @@ import {
   Tooltip,
   CircularProgress,
   Snackbar,
+  Divider,
 } from '@mui/material';
 import {
   Cancel as RejectIcon,
   Visibility as ViewIcon,
   HourglassEmpty as PendingIcon,
   CheckCircle as CheckCircleIcon,
+  People as PeopleIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
@@ -41,6 +43,15 @@ const PaymentVerificationView = () => {
   const [verificationNotes, setVerificationNotes] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  
+  // State for attendance data
+  const [attendanceData, setAttendanceData] = useState<Array<{
+    first_name: string;
+    last_name: string;
+    email: string;
+    attended: boolean;
+  }>>([]);
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -63,9 +74,33 @@ const PaymentVerificationView = () => {
     },
   });
 
+  // Load attendance data for a payment
+  const loadAttendanceData = async (courseRequestId: number) => {
+    if (!courseRequestId) return;
+    
+    setLoadingAttendance(true);
+    try {
+      console.log('Loading attendance data for course request:', courseRequestId);
+      const response = await api.get(`/accounting/courses/${courseRequestId}/students`);
+      console.log('Attendance data response:', response);
+      
+      if (response.data && response.data.data) {
+        const students = Array.isArray(response.data.data) ? response.data.data : [];
+        setAttendanceData(students);
+      } else {
+        setAttendanceData([]);
+      }
+    } catch (error) {
+      console.error('Error loading attendance data:', error);
+      setAttendanceData([]);
+    } finally {
+      setLoadingAttendance(false);
+    }
+  };
+
   // Verify payment mutation
   const verifyPaymentMutation = useMutation({
-    mutationFn: async ({ paymentId, action, notes }) => {
+    mutationFn: async ({ paymentId, action, notes }: { paymentId: string; action: string; notes: string }) => {
       const response = await api.post(
         `/accounting/payments/${paymentId}/verify`,
         {
@@ -76,14 +111,14 @@ const PaymentVerificationView = () => {
       return response.data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries(['pending-payment-verifications']);
-      queryClient.invalidateQueries(['accounting-invoices']);
+      queryClient.invalidateQueries({ queryKey: ['pending-payment-verifications'] });
+      queryClient.invalidateQueries({ queryKey: ['accounting-invoices'] });
       setPaymentDialogOpen(false);
       setVerificationNotes('');
       setSuccessMessage(`Payment ${verificationAction === 'approve' ? 'approved' : 'rejected'} successfully!`);
       setErrorMessage('');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Payment verification error:', error);
       setErrorMessage(error.response?.data?.message || 'Failed to verify payment. Please try again.');
       setSuccessMessage('');
@@ -94,6 +129,11 @@ const PaymentVerificationView = () => {
     setSelectedPayment(payment);
     setDialogMode('view');
     setPaymentDialogOpen(true);
+    
+    // Load attendance data for this payment's course
+    if (payment.course_request_id) {
+      loadAttendanceData(payment.course_request_id);
+    }
   };
 
   const handleActionPayment = (payment, action) => {
@@ -101,6 +141,11 @@ const PaymentVerificationView = () => {
     setVerificationAction(action);
     setDialogMode('action');
     setPaymentDialogOpen(true);
+    
+    // Load attendance data for this payment's course
+    if (payment.course_request_id) {
+      loadAttendanceData(payment.course_request_id);
+    }
   };
 
   const handleVerificationSubmit = () => {
@@ -118,6 +163,7 @@ const PaymentVerificationView = () => {
     setSelectedPayment(null);
     setVerificationNotes('');
     setDialogMode('view');
+    setAttendanceData([]); // Clear attendance data when dialog closes
   };
 
   // Transform payment data into service details format
@@ -160,31 +206,31 @@ const PaymentVerificationView = () => {
   };
 
   // Get payment status for display
-  const getPaymentStatus = (payment) => {
+  const getPaymentStatus = (payment: any) => {
     if (!payment) {
       return {
         label: 'UNKNOWN',
-        color: 'default',
+        color: 'default' as const,
         icon: <PendingIcon />
       };
     }
     if (payment.verified_by_accounting_at) {
       return {
         label: 'VERIFIED',
-        color: 'success',
+        color: 'success' as const,
         icon: <CheckCircleIcon />
       };
     }
     if (payment.status === 'rejected') {
       return {
         label: 'REJECTED',
-        color: 'error',
+        color: 'error' as const,
         icon: <RejectIcon />
       };
     }
     return {
       label: 'PENDING VERIFICATION',
-      color: 'warning',
+      color: 'warning' as const,
       icon: <PendingIcon />
     };
   };
@@ -289,33 +335,33 @@ const PaymentVerificationView = () => {
                       </TableCell>
                       <TableCell align='center'>
                         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                          <Tooltip title='View Details'>
+                          <Tooltip title='View Payment Details'>
                             <IconButton
                               size='small'
                               onClick={() => handleViewPayment(payment)}
-                              color='info'
+                              color='primary'
                             >
-                              <ViewIcon fontSize='small' />
+                              <ViewIcon />
                             </IconButton>
                           </Tooltip>
                           {canVerifyPayment(payment) && (
                             <>
-                              <Tooltip title='Approve Payment'>
-                                <IconButton
-                                  size='small'
-                                  onClick={() => handleActionPayment(payment, 'approve')}
-                                  color='success'
-                                >
-                                  <CheckCircleIcon fontSize='small' />
-                                </IconButton>
-                              </Tooltip>
                               <Tooltip title='Reject Payment'>
                                 <IconButton
                                   size='small'
                                   onClick={() => handleActionPayment(payment, 'reject')}
                                   color='error'
                                 >
-                                  <RejectIcon fontSize='small' />
+                                  <RejectIcon />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title='Approve Payment'>
+                                <IconButton
+                                  size='small'
+                                  onClick={() => handleActionPayment(payment, 'approve')}
+                                  color='success'
+                                >
+                                  <CheckCircleIcon />
                                 </IconButton>
                               </Tooltip>
                             </>
@@ -331,7 +377,6 @@ const PaymentVerificationView = () => {
         </TableContainer>
       </Paper>
 
-      {/* Unified Payment Dialog */}
       <Dialog
         open={paymentDialogOpen}
         onClose={handleCloseDialog}
@@ -358,122 +403,175 @@ const PaymentVerificationView = () => {
                 showTotals={false}
               />
               
-              {/* Payment Information */}
-              <Box sx={{ mt: 3 }}>
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>
-                  Payment Information
+              {/* Student Attendance Section */}
+              <Divider sx={{ my: 2 }} />
+              <Typography variant='subtitle1' gutterBottom>
+                <PeopleIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                Class Attendance:
+              </Typography>
+              {loadingAttendance ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : attendanceData.length > 0 ? (
+                <Box sx={{ mb: 2 }}>
+                  <Grid container spacing={1}>
+                    <Grid xs={12}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Total Students: {attendanceData.length} | 
+                        Present: {attendanceData.filter(s => s.attended).length} | 
+                        Absent: {attendanceData.filter(s => !s.attended).length}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                  <TableContainer component={Paper} variant="outlined" sx={{ mt: 1 }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Name</TableCell>
+                          <TableCell>Email</TableCell>
+                          <TableCell align="center">Status</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {attendanceData.map((student, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{student.first_name} {student.last_name}</TableCell>
+                            <TableCell>{student.email || 'N/A'}</TableCell>
+                            <TableCell align="center">
+                              <Chip
+                                label={student.attended ? 'Present' : 'Absent'}
+                                color={student.attended ? 'success' : 'error'}
+                                size="small"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No student attendance data available
                 </Typography>
-                <Grid container spacing={3}>
+              )}
+              
+              {/* Payment Information */}
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>
+                Payment Information
+              </Typography>
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant='body2' color='text.secondary'>
+                    Invoice Number
+                  </Typography>
+                  <Typography variant='body1' fontWeight='medium'>
+                    {selectedPayment.invoice_number}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant='body2' color='text.secondary'>
+                    Payment Method
+                  </Typography>
+                  <Typography variant='body1'>
+                    {selectedPayment.payment_method?.replace('_', ' ').toUpperCase()}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant='body2' color='text.secondary'>
+                    Reference Number
+                  </Typography>
+                  <Typography variant='body1'>
+                    {selectedPayment.reference_number || '-'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant='body2' color='text.secondary'>
+                    Payment Date
+                  </Typography>
+                  <Typography variant='body1'>
+                    {formatDate(selectedPayment.payment_date)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant='body2' color='text.secondary'>
+                    Submitted Date
+                  </Typography>
+                  <Typography variant='body1'>
+                    {formatDate(selectedPayment.submitted_by_org_at)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant='body2' color='text.secondary'>
+                    Status
+                  </Typography>
+                  <Chip
+                    icon={getPaymentStatus(selectedPayment).icon}
+                    label={getPaymentStatus(selectedPayment).label}
+                    color={getPaymentStatus(selectedPayment).color}
+                    size='small'
+                  />
+                </Grid>
+                {selectedPayment.verified_by_accounting_at && (
                   <Grid item xs={12} sm={6}>
                     <Typography variant='body2' color='text.secondary'>
-                      Invoice Number
-                    </Typography>
-                    <Typography variant='body1' fontWeight='medium'>
-                      {selectedPayment.invoice_number}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant='body2' color='text.secondary'>
-                      Payment Method
+                      Verified By Accounting
                     </Typography>
                     <Typography variant='body1'>
-                      {selectedPayment.payment_method?.replace('_', ' ').toUpperCase()}
+                      {formatDate(selectedPayment.verified_by_accounting_at)}
                     </Typography>
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                )}
+                {selectedPayment.notes && (
+                  <Grid item xs={12}>
                     <Typography variant='body2' color='text.secondary'>
-                      Reference Number
+                      Organization Notes
                     </Typography>
-                    <Typography variant='body1'>
-                      {selectedPayment.reference_number || '-'}
+                    <Typography variant='body1' sx={{ fontStyle: 'italic' }}>
+                      {selectedPayment.notes}
                     </Typography>
                   </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant='body2' color='text.secondary'>
-                      Payment Date
-                    </Typography>
-                    <Typography variant='body1'>
-                      {formatDate(selectedPayment.payment_date)}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant='body2' color='text.secondary'>
-                      Submitted Date
-                    </Typography>
-                    <Typography variant='body1'>
-                      {formatDate(selectedPayment.submitted_by_org_at)}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant='body2' color='text.secondary'>
-                      Status
-                    </Typography>
-                    <Chip
-                      icon={getPaymentStatus(selectedPayment).icon}
-                      label={getPaymentStatus(selectedPayment).label}
-                      color={getPaymentStatus(selectedPayment).color}
-                      size='small'
+                )}
+                
+                {/* Action-specific content */}
+                {dialogMode === 'action' && (
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label='Verification Notes'
+                      multiline
+                      rows={3}
+                      value={verificationNotes}
+                      onChange={e => setVerificationNotes(e.target.value)}
+                      placeholder={
+                        verificationAction === 'approve'
+                          ? 'Optional notes about the approval...'
+                          : 'Required: Reason for rejection...'
+                      }
+                      required={verificationAction === 'reject'}
                     />
                   </Grid>
-                  {selectedPayment.verified_by_accounting_at && (
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant='body2' color='text.secondary'>
-                        Verified By Accounting
-                      </Typography>
-                      <Typography variant='body1'>
-                        {formatDate(selectedPayment.verified_by_accounting_at)}
-                      </Typography>
-                    </Grid>
-                  )}
-                  {selectedPayment.notes && (
-                    <Grid item xs={12}>
-                      <Typography variant='body2' color='text.secondary'>
-                        Organization Notes
-                      </Typography>
-                      <Typography variant='body1' sx={{ fontStyle: 'italic' }}>
-                        {selectedPayment.notes}
-                      </Typography>
-                    </Grid>
-                  )}
-                  
-                  {/* Action-specific content */}
-                  {dialogMode === 'action' && (
-                    <Grid item xs={12}>
-                      <TextField
-                        fullWidth
-                        label='Verification Notes'
-                        multiline
-                        rows={3}
-                        value={verificationNotes}
-                        onChange={e => setVerificationNotes(e.target.value)}
-                        placeholder={
-                          verificationAction === 'approve'
-                            ? 'Optional notes about the approval...'
-                            : 'Required: Reason for rejection...'
-                        }
-                        required={verificationAction === 'reject'}
-                      />
-                    </Grid>
-                  )}
-                </Grid>
-
-                {dialogMode === 'action' && (
-                  <Alert
-                    severity={verificationAction === 'approve' ? 'success' : 'warning'}
-                    sx={{ mt: 2 }}
-                  >
-                    {verificationAction === 'approve'
-                      ? 'This payment will be marked as verified and the invoice status will be updated accordingly.'
-                      : 'This payment will be rejected and the organization will be notified to resubmit.'}
-                  </Alert>
                 )}
+              </Grid>
 
-                {dialogMode === 'view' && (
-                  <Alert severity='info' sx={{ mt: 2 }}>
-                    Review the payment details above. Use the action buttons below to approve or reject this payment.
-                  </Alert>
-                )}
-              </Box>
+              {dialogMode === 'action' && (
+                <Alert
+                  severity={verificationAction === 'approve' ? 'success' : 'warning'}
+                  sx={{ mt: 2 }}
+                >
+                  {verificationAction === 'approve'
+                    ? 'This payment will be marked as verified and the invoice status will be updated accordingly.'
+                    : 'This payment will be rejected and the organization will be notified to resubmit.'}
+                </Alert>
+              )}
+
+              {dialogMode === 'view' && (
+                <Alert severity='info' sx={{ mt: 2 }}>
+                  Review the payment details above. Use the action buttons below to approve or reject this payment.
+                </Alert>
+              )}
             </Box>
           )}
         </DialogContent>
@@ -492,7 +590,7 @@ const PaymentVerificationView = () => {
                 }}
                 variant='outlined'
                 color='error'
-                disabled={verifyPaymentMutation.isLoading}
+                disabled={verifyPaymentMutation.isPending}
               >
                 Reject Payment
               </Button>
@@ -503,7 +601,7 @@ const PaymentVerificationView = () => {
                 }}
                 variant='contained'
                 color='success'
-                disabled={verifyPaymentMutation.isLoading}
+                disabled={verifyPaymentMutation.isPending}
               >
                 Approve Payment
               </Button>
@@ -517,11 +615,11 @@ const PaymentVerificationView = () => {
               variant='contained'
               color={verificationAction === 'approve' ? 'success' : 'error'}
               disabled={
-                verifyPaymentMutation.isLoading ||
+                verifyPaymentMutation.isPending ||
                 (verificationAction === 'reject' && !verificationNotes.trim())
               }
             >
-              {verifyPaymentMutation.isLoading
+              {verifyPaymentMutation.isPending
                 ? 'Processing...'
                 : verificationAction === 'approve'
                   ? 'Approve Payment'
@@ -537,7 +635,7 @@ const PaymentVerificationView = () => {
         autoHideDuration={6000}
         onClose={() => setSuccessMessage('')}
       >
-        <Alert severity="success" onClose={() => setSuccessMessage('')}>
+        <Alert severity='success' onClose={() => setSuccessMessage('')}>
           {successMessage}
         </Alert>
       </Snackbar>
@@ -548,7 +646,7 @@ const PaymentVerificationView = () => {
         autoHideDuration={6000}
         onClose={() => setErrorMessage('')}
       >
-        <Alert severity="error" onClose={() => setErrorMessage('')}>
+        <Alert severity='error' onClose={() => setErrorMessage('')}>
           {errorMessage}
         </Alert>
       </Snackbar>
