@@ -74,7 +74,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
   organizationData,
 }) => {
   // Calculate analytics
-  const totalRevenue = invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
+  const totalBilled = invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
   const totalPaid = invoices.reduce((sum, invoice) => sum + invoice.amount_paid, 0);
   const totalOutstanding = invoices.reduce((sum, invoice) => sum + invoice.balance_due, 0);
   
@@ -144,10 +144,10 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
                 <ReceiptIcon color="primary" sx={{ mr: 2, fontSize: 40 }} />
                 <Box>
                   <Typography variant="h4" component="div">
-                    ${totalRevenue.toLocaleString()}
+                    ${totalBilled.toLocaleString()}
                   </Typography>
                   <Typography color="text.secondary">
-                    Total Revenue
+                    Total Billed
                   </Typography>
                 </Box>
               </Box>
@@ -159,9 +159,27 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <TrendingUpIcon color="primary" sx={{ mr: 2, fontSize: 40 }} />
+                <CheckCircleIcon color="success" sx={{ mr: 2, fontSize: 40 }} />
                 <Box>
-                  <Typography variant="h4" component="div">
+                  <Typography variant="h4" component="div" color="success.main">
+                    ${totalPaid.toLocaleString()}
+                  </Typography>
+                  <Typography color="text.secondary">
+                    Total Paid
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <TrendingUpIcon color="warning" sx={{ mr: 2, fontSize: 40 }} />
+                <Box>
+                  <Typography variant="h4" component="div" color="warning.main">
                     ${totalOutstanding.toLocaleString()}
                   </Typography>
                   <Typography color="text.secondary">

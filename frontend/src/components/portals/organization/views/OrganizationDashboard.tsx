@@ -169,7 +169,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
       {/* Modern Stats Cards with Charts */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* Total Courses Card */}
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             color: 'white',
@@ -197,7 +197,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
         </Grid>
 
         {/* Total Students Card */}
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
             color: 'white',
@@ -225,7 +225,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
         </Grid>
 
         {/* Pending Invoices Card */}
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
             color: 'white',
@@ -252,16 +252,16 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
           </Card>
         </Grid>
 
-        {/* Total Amount Card */}
-        <Grid item xs={12} sm={6} md={3}>
+        {/* Total Billed Card */}
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card sx={{ 
-            background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+            background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
             color: 'white',
-            boxShadow: '0 8px 32px rgba(67, 233, 123, 0.3)',
+            boxShadow: '0 8px 32px rgba(76, 175, 80, 0.3)',
             transition: 'transform 0.2s ease-in-out',
             '&:hover': {
               transform: 'translateY(-4px)',
-              boxShadow: '0 12px 40px rgba(67, 233, 123, 0.4)',
+              boxShadow: '0 12px 40px rgba(76, 175, 80, 0.4)',
             }
           }}>
             <CardContent>
@@ -269,10 +269,66 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
                 <TrendingUpIcon sx={{ mr: 1, color: 'white', fontSize: 28 }} />
                 <Box>
                   <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem' }}>
-                    Total Amount
+                    Total Billed
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
                     ${Number(billingSummary?.total_amount || 0).toFixed(2)}
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Total Paid Card */}
+        <Grid item xs={12} sm={6} md={2.4}>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #2196f3 0%, #42a5f5 100%)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(33, 150, 243, 0.3)',
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 40px rgba(33, 150, 243, 0.4)',
+            }
+          }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <CheckCircleIcon sx={{ mr: 1, color: 'white', fontSize: 28 }} />
+                <Box>
+                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem' }}>
+                    Total Paid
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
+                    ${Number(billingSummary?.paid_amount || 0).toFixed(2)}
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Outstanding Amount Card */}
+        <Grid item xs={12} sm={6} md={2.4}>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #f44336 0%, #ef5350 100%)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(244, 67, 54, 0.3)',
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 40px rgba(244, 67, 54, 0.4)',
+            }
+          }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <WarningIcon sx={{ mr: 1, color: 'white', fontSize: 28 }} />
+                <Box>
+                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem' }}>
+                    Outstanding Amount
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
+                    ${Number((billingSummary?.total_amount || 0) - (billingSummary?.paid_amount || 0)).toFixed(2)}
                   </Typography>
                 </Box>
               </Box>
