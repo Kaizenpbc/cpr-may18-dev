@@ -18,6 +18,7 @@ import {
   School as SchoolIcon,
   People as PeopleIcon,
   Receipt as ReceiptIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { formatDisplayDate } from '../../../../utils/dateUtils';
 
