@@ -46,6 +46,14 @@ const TokenValidationProvider: React.FC<TokenValidationProviderProps> = ({
         return;
       }
 
+      // Don't validate if there's no token (user might be logging out)
+      const token = tokenService.getAccessToken();
+      if (!token) {
+        console.log('[TOKEN VALIDATION PROVIDER] No token found, skipping validation');
+        setValidationState(prev => ({ ...prev, isValidating: false, error: null }));
+        return;
+      }
+
       console.log('[TOKEN VALIDATION PROVIDER] Starting validation');
       setValidationState(prev => ({ ...prev, isValidating: true, error: null }));
 
@@ -86,6 +94,13 @@ const TokenValidationProvider: React.FC<TokenValidationProviderProps> = ({
     if (!user) return;
 
     const interval = setInterval(async () => {
+      // Don't validate if there's no token (user might be logging out)
+      const token = tokenService.getAccessToken();
+      if (!token) {
+        console.log('[TOKEN VALIDATION PROVIDER] No token found, skipping periodic validation');
+        return;
+      }
+
       console.log('[TOKEN VALIDATION PROVIDER] Periodic validation check');
       const result = await validateTokenOnPageLoad();
       
@@ -102,13 +117,22 @@ const TokenValidationProvider: React.FC<TokenValidationProviderProps> = ({
         tokenService.clearSavedLocation();
         sessionStorage.removeItem('location_restoration_attempted');
       }
-    }, 10 * 60 * 1000); // 10 minutes instead of 5
+    }, 30 * 60 * 1000); // 30 minutes instead of 10
 
     return () => clearInterval(interval);
   }, [user, validateTokenOnPageLoad]);
 
   // Show validation error UI
   if (showValidationUI && validationState.error && !validationState.isValidating) {
+    // Don't show error if we're on login page or if there's no token (normal logout)
+    const currentPath = window.location.pathname;
+    const token = tokenService.getAccessToken();
+    
+    if (currentPath === '/login' || currentPath === '/logout' || !token) {
+      console.log('[TOKEN VALIDATION PROVIDER] Not showing error UI - on login page or no token');
+      return null;
+    }
+
     return (
       <Box
         display="flex"

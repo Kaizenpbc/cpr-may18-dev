@@ -13,11 +13,19 @@ import {
   Divider,
   TextField,
   Tooltip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
 } from '@mui/material';
 import api, { getInvoiceDetails, postInvoiceToOrganization } from '../../services/api';
 import EmailIcon from '@mui/icons-material/Email';
 import PostAddIcon from '@mui/icons-material/PostAdd';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { CheckCircle as PresentIcon, Cancel as AbsentIcon, People as PeopleIcon } from '@mui/icons-material';
 import logger from '../../utils/logger';
 import { formatDisplayDate } from '../../utils/dateUtils';
 import { API_URL } from '../../config';
@@ -56,6 +64,10 @@ const InvoiceDetailDialog = ({
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
   
+  // Student list state
+  const [students, setStudents] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  
   // Ref to prevent multiple clicks
   const isPostingRef = useRef(false);
 
@@ -73,6 +85,27 @@ const InvoiceDetailDialog = ({
       tax: invoice.rate_per_student ? (invoice.rate_per_student * invoice.studentsattendance * 0.13) : 0,
       total: invoice.rate_per_student ? (invoice.rate_per_student * invoice.studentsattendance * 1.13) : 0,
     }];
+  };
+
+  // Fetch student attendance data for a specific course
+  const fetchStudents = async (courseId) => {
+    if (!courseId) {
+      console.error('No course ID provided for fetching students');
+      setStudents([]);
+      return;
+    }
+    
+    setLoadingStudents(true);
+    try {
+      const response = await api.get(`/accounting/courses/${courseId}/students`);
+      setStudents(response.data.data || []);
+      console.log('[InvoiceDetailDialog] Students loaded successfully:', response.data.data?.length || 0);
+    } catch (error) {
+      console.error('[InvoiceDetailDialog] Error fetching students:', error);
+      setStudents([]);
+    } finally {
+      setLoadingStudents(false);
+    }
   };
 
   useEffect(() => {
@@ -102,6 +135,11 @@ const InvoiceDetailDialog = ({
             status: data.paymentstatus || '',
             notes: data.notes || '',
           });
+          
+          // Fetch students for this course
+          if (data.coursenumber) {
+            fetchStudents(data.coursenumber);
+          }
         } catch (err) {
           logger.error('Failed to fetch invoice details:', err);
           
@@ -120,6 +158,10 @@ const InvoiceDetailDialog = ({
         }
       };
       fetchInvoiceDetails();
+    } else {
+      // Clear student data when dialog closes
+      setStudents([]);
+      setLoadingStudents(false);
     }
   }, [open, invoiceId]);
 
@@ -434,6 +476,79 @@ const InvoiceDetailDialog = ({
               services={getServiceDetails(invoice)}
               showTotals={false}
             />
+            
+            {/* Student Attendance Section */}
+            <Divider sx={{ my: 2 }} />
+            <Typography variant='subtitle1' gutterBottom sx={{ mt: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <PeopleIcon color="primary" />
+                Student Attendance List
+              </Box>
+            </Typography>
+            
+            {loadingStudents ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : students.length > 0 ? (
+              <>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="textSecondary">
+                    Present: {students.filter(s => s.attended).length} | 
+                    Absent: {students.filter(s => s.attended === false).length} | 
+                    Total: {students.length}
+                  </Typography>
+                </Box>
+                <TableContainer component={Paper} sx={{ mb: 2 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Student Name</TableCell>
+                        <TableCell>Email</TableCell>
+                        <TableCell align="center">Attendance Status</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {students.map((student) => (
+                        <TableRow key={student.id}>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="medium">
+                              {student.first_name} {student.last_name}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="textSecondary">
+                              {student.email || 'No email'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            {student.attended ? (
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                                <PresentIcon color="success" fontSize="small" />
+                                <Typography variant="body2" color="success.main">
+                                  Present
+                                </Typography>
+                              </Box>
+                            ) : (
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                                <AbsentIcon color="error" fontSize="small" />
+                                <Typography variant="body2" color="error.main">
+                                  Absent
+                                </Typography>
+                              </Box>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
+            ) : (
+              <Alert severity="info">
+                No student attendance data available for this course.
+              </Alert>
+            )}
             
             {/* Invoice Approval Section */}
             <Divider sx={{ my: 2 }} />

@@ -139,8 +139,14 @@ export const authService = {
           // Clear tokens on refresh failure
           if (error.response?.status === 401 || error.response?.status === 403) {
             console.log('[TRACE] Auth service - Clearing tokens due to refresh failure');
-            tokenService.clearTokens();
-            delete api.defaults.headers.common['Authorization'];
+            // Use forceLogout for blacklisted tokens to ensure complete cleanup
+            if (error.response?.data?.error?.code === 'AUTH_1003') {
+              console.log('[TRACE] Auth service - Token blacklisted during refresh, forcing logout');
+              tokenService.forceLogout();
+            } else {
+              tokenService.clearTokens();
+              delete api.defaults.headers.common['Authorization'];
+            }
           }
 
           refreshPromise = null; // Clear the promise cache
@@ -196,8 +202,8 @@ export const authService = {
     try {
       await api.post('/auth/logout');
     } finally {
-      tokenService.clearTokens();
-      delete api.defaults.headers.common['Authorization'];
+      // Use forceLogout for comprehensive cleanup across all tabs
+      tokenService.forceLogout();
     }
   },
 
@@ -247,8 +253,14 @@ export const authService = {
           // Only clear tokens if we get a 401 (unauthorized) or 403 (forbidden)
           if (error.response?.status === 401 || error.response?.status === 403) {
             console.log('[TRACE] Auth service - Clearing tokens due to authentication failure');
-            tokenService.clearTokens();
-            delete api.defaults.headers.common['Authorization'];
+            // Use forceLogout for blacklisted tokens to ensure complete cleanup
+            if (error.response?.data?.error?.code === 'AUTH_1003') {
+              console.log('[TRACE] Auth service - Token blacklisted, forcing logout');
+              tokenService.forceLogout();
+            } else {
+              tokenService.clearTokens();
+              delete api.defaults.headers.common['Authorization'];
+            }
           }
 
           authCheckPromise = null; // Clear the promise cache

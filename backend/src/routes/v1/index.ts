@@ -1358,7 +1358,15 @@ router.get(
       const { courseId } = req.params;
       const organizationId = req.user?.organizationId;
 
+      console.log('[ORG STUDENTS] Request details:', {
+        courseId,
+        organizationId,
+        userId: req.user?.id,
+        username: req.user?.username
+      });
+
       if (!organizationId) {
+        console.log('[ORG STUDENTS] No organizationId in user token');
         throw new AppError(
           400,
           errorCodes.VALIDATION_ERROR,
@@ -1368,11 +1376,26 @@ router.get(
 
       // Verify the course belongs to this organization
       const courseCheck = await pool.query(
-        'SELECT id FROM course_requests WHERE id = $1 AND organization_id = $2',
-        [courseId, organizationId]
+        'SELECT id, organization_id FROM course_requests WHERE id = $1',
+        [courseId]
       );
 
+      console.log('[ORG STUDENTS] Course check result:', courseCheck.rows);
+
       if (courseCheck.rows.length === 0) {
+        console.log('[ORG STUDENTS] Course not found');
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Course not found'
+        );
+      }
+
+      if (courseCheck.rows[0].organization_id !== organizationId) {
+        console.log('[ORG STUDENTS] Course does not belong to organization:', {
+          courseOrgId: courseCheck.rows[0].organization_id,
+          userOrgId: organizationId
+        });
         throw new AppError(
           404,
           errorCodes.RESOURCE_NOT_FOUND,
@@ -1397,9 +1420,10 @@ router.get(
         [courseId]
       );
 
+      console.log('[ORG STUDENTS] Students found:', result.rows.length);
       return res.json(ApiResponseBuilder.success(result.rows));
     } catch (error: any) {
-      console.error('Error fetching course students:', error);
+      console.error('[ORG STUDENTS] Error fetching course students:', error);
       throw new AppError(
         500,
         errorCodes.DB_QUERY_ERROR,
@@ -6522,9 +6546,18 @@ router.get(
     try {
       const { courseId } = req.params;
       const userRole = req.user?.role;
+      
+      // Debug logging
+      console.log('[ACCOUNTING ENDPOINT] User info:', {
+        userId: req.user?.id,
+        username: req.user?.username,
+        role: userRole,
+        courseId: courseId
+      });
 
       // Only accounting users can access this endpoint
       if (userRole !== 'accounting' && userRole !== 'accountant') {
+        console.log('[ACCOUNTING ENDPOINT] Access denied for role:', userRole);
         throw new AppError(
           403,
           errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,

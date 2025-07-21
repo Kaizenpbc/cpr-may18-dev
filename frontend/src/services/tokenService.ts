@@ -249,6 +249,11 @@ class TokenService {
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
     sessionStorage.removeItem(ACCESS_TOKEN_KEY);
     
+    // Clear any cached user data that might cause confusion
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('auth_user');
+    sessionStorage.removeItem('currentUser');
+    
     console.log('[TRACE] Token service - All tokens cleared');
   }
 
@@ -413,8 +418,15 @@ class TokenService {
     // Clear tokens
     this.clearTokens();
 
-    // Clear all sessionStorage
+    // Clear all sessionStorage and localStorage auth-related items
     sessionStorage.clear();
+    
+    // Clear specific localStorage items that might contain user data
+    localStorage.removeItem('user');
+    localStorage.removeItem('auth_user');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('user_preferences');
+    localStorage.removeItem('last_user');
 
     // Broadcast logout to other tabs
     this.broadcastSessionUpdate('logout');

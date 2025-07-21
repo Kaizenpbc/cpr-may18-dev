@@ -48,9 +48,17 @@ const ReadyForBillingTable = ({
     }
     
     setLoadingStudents(true);
+    let endpoint = ''; // Declare endpoint outside try block
+    
     try {
+      // Debug user information
+      console.log('[ReadyForBillingTable] User info:', { 
+        user: user?.username, 
+        role: user?.role, 
+        userId: user?.id 
+      });
+      
       // Use different endpoints based on user role
-      let endpoint;
       if (user?.role === 'instructor') {
         // For instructors, use the instructor endpoint
         endpoint = `/instructor/classes/${courseId}/students`;
@@ -77,8 +85,14 @@ const ReadyForBillingTable = ({
       }
       
       setStudents(normalizedStudents);
+      console.log('[ReadyForBillingTable] Students loaded successfully:', normalizedStudents.length);
     } catch (error) {
-      console.error('Error fetching students:', error);
+      console.error('[ReadyForBillingTable] Error fetching students:', error);
+      console.error('[ReadyForBillingTable] Error details:', {
+        status: error.response?.status,
+        message: error.response?.data?.error?.message,
+        endpoint: endpoint
+      });
       setStudents([]);
     } finally {
       setLoadingStudents(false);

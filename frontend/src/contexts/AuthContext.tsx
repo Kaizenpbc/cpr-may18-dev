@@ -262,7 +262,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    const interval = setInterval(updateSessionStatus, 30000); // Check every 30 seconds
+    const interval = setInterval(updateSessionStatus, 120000); // Check every 2 minutes instead of 30 seconds
     return () => clearInterval(interval);
   }, [user]);
 
