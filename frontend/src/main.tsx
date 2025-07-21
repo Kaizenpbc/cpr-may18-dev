@@ -13,6 +13,7 @@ import { ToastProvider } from './contexts/ToastContext';
 import { NetworkProvider } from './contexts/NetworkContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ToastContainer from './components/common/ToastContainer';
+import TokenValidationProvider from './components/TokenValidationProvider';
 import theme from './theme';
 import App from './App';
 import './index.css';
@@ -76,7 +77,9 @@ try {
                 <AuthProvider>
                   <NetworkProvider>
                     <ToastProvider>
-                      <App />
+                      <TokenValidationProvider>
+                        <App />
+                      </TokenValidationProvider>
                       <ToastContainer />
                     </ToastProvider>
                   </NetworkProvider>

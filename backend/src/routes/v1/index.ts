@@ -1698,13 +1698,13 @@ router.get(
     try {
       // Parse the month to get start and end dates
       const startDate = `${month}-01`;
-      const endDate = new Date(
-        new Date(startDate).getFullYear(),
-        new Date(startDate).getMonth() + 1,
-        0
-      ).toISOString().split('T')[0];
+      // Get the last day of the month using UTC to avoid timezone issues
+      const year = parseInt(month.split('-')[0]);
+      const monthNum = parseInt(month.split('-')[1]) - 1; // 0-based month
+      const endDate = new Date(Date.UTC(year, monthNum + 1, 0));
+      const endDateStr = endDate.toISOString().slice(0, 10);
 
-      console.log('[Instructor Stats] Executing query with params:', [instructorId, startDate, endDate]);
+      console.log('[Instructor Stats] Executing query with params:', [instructorId, startDate, endDateStr]);
       const result = await pool.query(`
         SELECT 
           COUNT(DISTINCT cr.id) as total_courses,
@@ -1727,7 +1727,7 @@ router.get(
           (cr.scheduled_date >= $2 AND cr.scheduled_date <= $3)
           OR (cr.confirmed_date >= $2 AND cr.confirmed_date <= $3)
         )
-      `, [instructorId, startDate, endDate]);
+      `, [instructorId, startDate, endDateStr]);
 
       console.log('[Instructor Stats] Query result:', result.rows[0]);
       return res.json(ApiResponseBuilder.success(result.rows[0]));
@@ -1755,11 +1755,11 @@ router.get(
     try {
       // Parse the month to get start and end dates
       const startDate = `${month}-01`;
-      const endDate = new Date(
-        new Date(startDate).getFullYear(),
-        new Date(startDate).getMonth() + 1,
-        0
-      ).toISOString().split('T')[0];
+      // Get the last day of the month using UTC to avoid timezone issues
+      const year = parseInt(month.split('-')[0]);
+      const monthNum = parseInt(month.split('-')[1]) - 1; // 0-based month
+      const endDate = new Date(Date.UTC(year, monthNum + 1, 0));
+      const endDateStr = endDate.toISOString().slice(0, 10);
 
       let result;
       
@@ -1769,7 +1769,7 @@ router.get(
           throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor ID is required');
         }
 
-        console.log('[Dashboard Summary] Executing instructor query with params:', [user.userId, startDate, endDate]);
+        console.log('[Dashboard Summary] Executing instructor query with params:', [user.userId, startDate, endDateStr]);
         result = await pool.query(`
           SELECT 
             COUNT(DISTINCT cr.id) as total_courses,
@@ -1802,10 +1802,10 @@ router.get(
             (cr.scheduled_date >= $2 AND cr.scheduled_date <= $3)
             OR (cr.confirmed_date >= $2 AND cr.confirmed_date <= $3)
           )
-        `, [user.userId, startDate, endDate]);
+        `, [user.userId, startDate, endDateStr]);
       } else if (user?.role === 'admin') {
         // Admin overview stats
-        console.log('[Dashboard Summary] Executing admin query with params:', [startDate, endDate]);
+        console.log('[Dashboard Summary] Executing admin query with params:', [startDate, endDateStr]);
         result = await pool.query(`
           SELECT 
             COUNT(DISTINCT u.id) as total_instructors,
@@ -1838,7 +1838,7 @@ router.get(
             GROUP BY course_request_id
           ) cs ON cr.id = cs.course_request_id
           WHERE u.role = 'instructor'
-        `, [startDate, endDate]);
+        `, [startDate, endDateStr]);
       } else {
         throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin or instructor role required.');
       }

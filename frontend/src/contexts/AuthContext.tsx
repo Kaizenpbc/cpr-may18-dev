@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { tokenService } from '../services/tokenService';
 import api from '../services/api';
@@ -19,6 +19,13 @@ interface SessionStatus {
   isExpired: boolean;
 }
 
+interface TokenValidationResult {
+  isValid: boolean;
+  user?: User;
+  error?: string;
+  requiresReauth: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -29,6 +36,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  validateTokenOnPageLoad: () => Promise<TokenValidationResult>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,44 +55,176 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Enhanced token validation on page load - LESS AGGRESSIVE
+  const validateTokenOnPageLoad = async (): Promise<TokenValidationResult> => {
+    console.log('[TOKEN VALIDATION] Starting page load token validation');
+    
+    try {
+      const token = tokenService.getAccessToken();
+      
+      if (!token) {
+        console.log('[TOKEN VALIDATION] No token found');
+        return {
+          isValid: false,
+          requiresReauth: true,
+          error: 'No authentication token found'
+        };
+      }
+
+      // Client-side token expiration check (fast, no network)
+      const status = authService.getSessionStatus();
+      if (status.isExpired) {
+        console.log('[TOKEN VALIDATION] Token expired on client-side check');
+        return {
+          isValid: false,
+          requiresReauth: true,
+          error: 'Token has expired'
+        };
+      }
+
+      // Only validate with backend if we don't have user data or if it's been a while
+      if (!user) {
+        console.log('[TOKEN VALIDATION] No user data, validating with backend');
+        const userData = await authService.checkAuth();
+        
+        if (!userData) {
+          console.log('[TOKEN VALIDATION] Backend validation failed - no user data');
+          return {
+            isValid: false,
+            requiresReauth: true,
+            error: 'Token validation failed'
+          };
+        }
+        
+        // Set the user data
+        setUser(userData);
+        console.log('[TOKEN VALIDATION] User data set from backend validation');
+      }
+
+      // Use current user data (either from state or from backend validation)
+      const currentUser = user;
+      if (!currentUser) {
+        console.log('[TOKEN VALIDATION] No current user data available');
+        return {
+          isValid: false,
+          requiresReauth: true,
+          error: 'No user data available'
+        };
+      }
+
+      // Role-based route validation (only for protected routes)
+      const currentPath = location.pathname;
+      const roleRoutes = {
+        instructor: '/instructor',
+        organization: '/organization',
+        admin: '/admin',
+        accountant: '/accounting',
+        superadmin: '/superadmin',
+        sysadmin: '/sysadmin',
+        hr: '/hr',
+        vendor: '/vendor',
+      };
+
+      const userRolePrefix = roleRoutes[currentUser.role as keyof typeof roleRoutes];
+      
+      // Only validate role mismatch for protected routes, not for login/logout pages
+      const isProtectedRoute = Object.values(roleRoutes).some(prefix => currentPath.startsWith(prefix));
+      const isLoginPage = currentPath === '/login' || currentPath === '/logout';
+      
+      // ONLY validate role mismatch if we're on a protected route AND the user role doesn't match
+      // This prevents false positives when switching tabs
+      if (isProtectedRoute && userRolePrefix && !currentPath.startsWith(userRolePrefix)) {
+        console.log('[TOKEN VALIDATION] User role mismatch on protected route:', {
+          userRole: currentUser.role,
+          currentPath,
+          expectedPrefix: userRolePrefix
+        });
+        
+        // This is a multi-tab issue - user has wrong token for this route
+        return {
+          isValid: false,
+          requiresReauth: true,
+          error: `Token belongs to ${currentUser.role} but you're on ${currentPath}`
+        };
+      }
+
+      // If we're on login page but have a valid token, that's fine (user just logged in)
+      if (isLoginPage && currentUser) {
+        console.log('[TOKEN VALIDATION] User on login page with valid token - likely just logged in');
+        return {
+          isValid: true,
+          user: currentUser,
+          requiresReauth: false
+        };
+      }
+
+      console.log('[TOKEN VALIDATION] Token validation successful for user:', currentUser.username);
+      return {
+        isValid: true,
+        user: currentUser,
+        requiresReauth: false
+      };
+
+    } catch (err) {
+      console.error('[TOKEN VALIDATION] Validation error:', err);
+      
+      const errorMessage = err instanceof Error ? err.message : 'Token validation failed';
+      const isAuthError = errorMessage.includes('401') || errorMessage.includes('403');
+      
+      return {
+        isValid: false,
+        requiresReauth: isAuthError,
+        error: errorMessage
+      };
+    }
+  };
 
   const checkAuth = async () => {
     try {
       setLoading(true);
       setError(null);
-      const token = tokenService.getAccessToken();
-      console.log('[TRACE] Auth check - Token present:', !!token);
       
-      if (!token) {
-        console.log('[TRACE] Auth check - No token found, skipping auth check');
+      console.log('[TRACE] Auth check - Starting comprehensive validation');
+      const validationResult = await validateTokenOnPageLoad();
+      
+      if (!validationResult.isValid) {
+        console.log('[TRACE] Auth check - Token validation failed:', validationResult.error);
         setUser(null);
         setSessionStatus(null);
+        setError(validationResult.error || 'Authentication failed');
+        
+        if (validationResult.requiresReauth) {
+          console.log('[TRACE] Auth check - Clearing tokens due to validation failure');
+          tokenService.clearTokens();
+          tokenService.clearSavedLocation();
+          sessionStorage.removeItem('location_restoration_attempted');
+        }
         return;
       }
 
-      console.log('[TRACE] Auth check - Verifying token with backend');
-      const userData = await authService.checkAuth();
-      console.log('[TRACE] Auth check - User data received:', userData);
-      setUser(userData);
-      
-      // Update session status
-      const status = authService.getSessionStatus();
-      setSessionStatus(status);
+      // Token is valid, set user data
+      if (validationResult.user) {
+        console.log('[TRACE] Auth check - Setting user data:', validationResult.user.username);
+        setUser(validationResult.user);
+        
+        // Update session status
+        const status = authService.getSessionStatus();
+        setSessionStatus(status);
+      }
       
       console.log('[TRACE] Auth check - Authentication successful');
     } catch (err) {
-      console.error('[TRACE] Auth check - Error:', err);
+      console.error('[TRACE] Auth check - Unexpected error:', err);
       setError(err instanceof Error ? err.message : 'Authentication failed');
       setUser(null);
       setSessionStatus(null);
       
-      // Only clear tokens on actual auth failures, not network issues
-      if (err instanceof Error && err.message.includes('401')) {
-        tokenService.clearTokens();
-        // Clear any saved location and restoration flags on auth failure
-        tokenService.clearSavedLocation();
-        sessionStorage.removeItem('location_restoration_attempted');
-      }
+      // Clear tokens on any unexpected error
+      tokenService.clearTokens();
+      tokenService.clearSavedLocation();
+      sessionStorage.removeItem('location_restoration_attempted');
     } finally {
       setLoading(false);
     }
@@ -126,8 +266,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => clearInterval(interval);
   }, [user]);
 
+  // Enhanced page load validation
   useEffect(() => {
-    console.log('[TRACE] Auth context - Initial check');
+    console.log('[TRACE] Auth context - Initial page load validation');
     checkAuth();
   }, []);
 
@@ -282,7 +423,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       login, 
       logout, 
       checkAuth,
-      refreshSession
+      refreshSession,
+      validateTokenOnPageLoad
     }}>
       {children}
     </AuthContext.Provider>

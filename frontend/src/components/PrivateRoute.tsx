@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { Box, CircularProgress, Alert, Button } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import { tokenService } from '../services/tokenService';
-import { CircularProgress, Box } from '@mui/material';
 
 interface PrivateRouteProps {
   children: React.ReactNode;
@@ -13,8 +13,10 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
   children,
   role,
 }) => {
-  const { user, loading, checkAuth } = useAuth();
+  const { user, loading, checkAuth, validateTokenOnPageLoad } = useAuth();
   const location = useLocation();
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
 
   useEffect(() => {
     const token = tokenService.getAccessToken();
@@ -31,8 +33,48 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
     }
   }, [user, loading, checkAuth, location.pathname]);
 
+  // Enhanced validation on route changes
+  useEffect(() => {
+    const validateRouteAccess = async () => {
+      if (user && !loading) {
+        console.log('[TRACE] PrivateRoute - Validating route access for:', location.pathname);
+        setIsValidating(true);
+        setValidationError(null);
+        
+        try {
+          const validationResult = await validateTokenOnPageLoad();
+          
+          if (!validationResult.isValid) {
+            console.log('[TRACE] PrivateRoute - Route validation failed:', validationResult.error);
+            setValidationError(validationResult.error || 'Access denied');
+            
+            if (validationResult.requiresReauth) {
+              // Clear tokens and redirect to login
+              tokenService.clearTokens();
+              tokenService.clearSavedLocation();
+              sessionStorage.removeItem('location_restoration_attempted');
+            }
+          } else {
+            console.log('[TRACE] PrivateRoute - Route validation successful');
+            setValidationError(null);
+          }
+        } catch (err) {
+          console.error('[TRACE] PrivateRoute - Validation error:', err);
+          setValidationError('Route validation failed');
+        } finally {
+          setIsValidating(false);
+        }
+      }
+    };
+
+    // Only validate if we have a user and are not loading
+    if (user && !loading) {
+      validateRouteAccess();
+    }
+  }, [user, loading, location.pathname, validateTokenOnPageLoad]);
+
   // Show loading while authentication is being checked
-  if (loading) {
+  if (loading || isValidating) {
     return (
       <Box
         display='flex'
@@ -41,6 +83,40 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
         minHeight='60vh'
       >
         <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Show validation error if token validation failed
+  if (validationError) {
+    return (
+      <Box
+        display='flex'
+        flexDirection='column'
+        justifyContent='center'
+        alignItems='center'
+        minHeight='60vh'
+        gap={2}
+        p={3}
+      >
+        <Alert severity="error" sx={{ maxWidth: 600 }}>
+          <strong>Authentication Error</strong>
+          <br />
+          {validationError}
+          <br />
+          <br />
+          This usually happens when you have multiple browser tabs open with different user accounts.
+          Please log out of all tabs and log back in with the correct account.
+        </Alert>
+        <Button 
+          variant="contained" 
+          onClick={() => {
+            tokenService.clearTokens();
+            window.location.href = '/login';
+          }}
+        >
+          Go to Login
+        </Button>
       </Box>
     );
   }
@@ -74,24 +150,58 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
     return <Navigate to='/login' state={{ from: location }} replace />;
   }
 
-      // Check role requirements
-    if (role && user.role !== role) {
-      // Redirect to their appropriate dashboard based on role
-      const roleRoutes = {
-        instructor: '/instructor/dashboard',
-        organization: '/organization/dashboard',
-        admin: '/admin/dashboard',
-        accountant: '/accounting/dashboard',
-        superadmin: '/superadmin/dashboard',
-        sysadmin: '/sysadmin/dashboard',
-        hr: '/hr',
-        vendor: '/vendor/dashboard',
-      };
+  // Role-based access control
+  if (role && user.role !== role) {
+    console.log('[TRACE] PrivateRoute - Role mismatch:', {
+      required: role,
+      actual: user.role,
+      pathname: location.pathname
+    });
+    
+    return (
+      <Box
+        display='flex'
+        flexDirection='column'
+        justifyContent='center'
+        alignItems='center'
+        minHeight='60vh'
+        gap={2}
+        p={3}
+      >
+        <Alert severity="warning" sx={{ maxWidth: 600 }}>
+          <strong>Access Denied</strong>
+          <br />
+          You don't have permission to access this page.
+          <br />
+          Required role: {role}
+          <br />
+          Your role: {user.role}
+        </Alert>
+        <Button 
+          variant="contained" 
+          onClick={() => {
+            // Navigate to user's appropriate dashboard
+            const roleRoutes = {
+              instructor: '/instructor/dashboard',
+              organization: '/organization/dashboard',
+              admin: '/admin/dashboard',
+              accountant: '/accounting/dashboard',
+              superadmin: '/superadmin/dashboard',
+              sysadmin: '/sysadmin/dashboard',
+              hr: '/hr',
+              vendor: '/vendor/dashboard',
+            };
+            const targetRoute = roleRoutes[user.role as keyof typeof roleRoutes] || '/';
+            window.location.href = targetRoute;
+          }}
+        >
+          Go to My Dashboard
+        </Button>
+      </Box>
+    );
+  }
 
-      const targetRoute = roleRoutes[user.role as keyof typeof roleRoutes] || '/';
-      return <Navigate to={targetRoute} replace />;
-    }
-
+  // User is authenticated and has the required role
   return <>{children}</>;
 };
 

@@ -24,6 +24,7 @@ import { Receipt as InvoiceIcon, Visibility as ViewIcon, CheckCircle as PresentI
 import { formatCurrency } from '../../utils/formatters';
 import { formatDisplayDate } from '../../utils/dateUtils';
 import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const ReadyForBillingTable = ({
   courses,
@@ -31,6 +32,7 @@ const ReadyForBillingTable = ({
   isLoading,
   error,
 }) => {
+  const { user } = useAuth();
   const [creatingInvoice, setCreatingInvoice] = useState({});
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -47,8 +49,34 @@ const ReadyForBillingTable = ({
     
     setLoadingStudents(true);
     try {
-      const response = await api.get(`/accounting/courses/${courseId}/students`);
-      setStudents(response.data.data || []);
+      // Use different endpoints based on user role
+      let endpoint;
+      if (user?.role === 'instructor') {
+        // For instructors, use the instructor endpoint
+        endpoint = `/instructor/classes/${courseId}/students`;
+      } else {
+        // For accounting users, use the accounting endpoint
+        endpoint = `/accounting/courses/${courseId}/students`;
+      }
+      
+      console.log(`[ReadyForBillingTable] Fetching students using endpoint: ${endpoint} for role: ${user?.role}`);
+      const response = await api.get(endpoint);
+      
+      // Normalize the data format based on the endpoint used
+      let normalizedStudents = response.data.data || [];
+      if (user?.role === 'instructor') {
+        // Transform instructor endpoint format to match accounting format
+        normalizedStudents = normalizedStudents.map(student => ({
+          id: student.studentid,
+          first_name: student.firstname,
+          last_name: student.lastname,
+          email: student.email,
+          attended: student.attendance,
+          attendance_marked: student.attendanceMarked,
+        }));
+      }
+      
+      setStudents(normalizedStudents);
     } catch (error) {
       console.error('Error fetching students:', error);
       setStudents([]);
