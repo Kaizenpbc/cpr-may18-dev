@@ -102,7 +102,7 @@ const OrganizationPricing: React.FC<OrganizationPricingProps> = ({ organizationI
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, backgroundColor: '#fafafa', minHeight: '100vh' }}>
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -115,7 +115,7 @@ const OrganizationPricing: React.FC<OrganizationPricingProps> = ({ organizationI
       </Box>
 
       {/* Info Card */}
-      <Card sx={{ mb: 4, bgcolor: 'info.light' }}>
+      <Card sx={{ mb: 4, bgcolor: '#ffffff', boxShadow: 1 }}>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <InfoIcon color="info" />
@@ -134,7 +134,7 @@ const OrganizationPricing: React.FC<OrganizationPricingProps> = ({ organizationI
 
 
       {/* Pricing Table */}
-      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+      <Paper sx={{ width: '100%', overflow: 'hidden', backgroundColor: '#ffffff', boxShadow: 1 }}>
         <TableContainer>
           <Table stickyHeader>
             <TableHead>
@@ -242,7 +242,7 @@ const OrganizationPricing: React.FC<OrganizationPricingProps> = ({ organizationI
 
       {/* Information Card */}
       {pricingData.length === 0 && (
-        <Card sx={{ mt: 3, bgcolor: 'info.light' }}>
+        <Card sx={{ mt: 3, bgcolor: '#ffffff', boxShadow: 1 }}>
           <CardContent>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
               <InfoIcon color="info" />
