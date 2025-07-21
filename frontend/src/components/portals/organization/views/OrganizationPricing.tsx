@@ -258,15 +258,7 @@ const OrganizationPricing: React.FC<OrganizationPricingProps> = ({ organizationI
         </Card>
       )}
 
-      {/* Footer Information */}
-      {pricingData.length > 0 && (
-        <Box sx={{ mt: 4, p: 3, bgcolor: 'grey.50', borderRadius: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            <strong>Note:</strong> Pricing information is managed by your system administrator. 
-            For questions about pricing or to request changes, please contact your administrator.
-          </Typography>
-        </Box>
-      )}
+
     </Box>
   );
 };
