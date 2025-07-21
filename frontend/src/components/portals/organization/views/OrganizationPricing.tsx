@@ -131,55 +131,7 @@ const OrganizationPricing: React.FC<OrganizationPricingProps> = ({ organizationI
         </CardContent>
       </Card>
 
-      {/* Pricing Summary Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Total Course Types
-              </Typography>
-              <Typography variant="h4" color="primary">
-                {pricingData.length}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Average Base Price
-              </Typography>
-              <Typography variant="h4" color="primary">
-                {pricingData.length > 0 
-                  ? formatCurrency(
-                      pricingData.reduce((sum, item) => sum + item.base_price, 0) / pricingData.length
-                    )
-                  : formatCurrency(0)
-                }
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Average Student Price
-              </Typography>
-              <Typography variant="h4" color="primary">
-                {pricingData.length > 0 
-                  ? formatCurrency(
-                      pricingData.reduce((sum, item) => sum + item.pricePerStudent, 0) / pricingData.length
-                    )
-                  : formatCurrency(0)
-                }
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+
 
       {/* Pricing Table */}
       <Paper sx={{ width: '100%', overflow: 'hidden' }}>
