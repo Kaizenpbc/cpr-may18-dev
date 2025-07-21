@@ -182,16 +182,17 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
             color: 'white',
             boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3)',
             transition: 'transform 0.2s ease-in-out',
+            height: '140px',
             '&:hover': {
               transform: 'translateY(-4px)',
               boxShadow: '0 12px 40px rgba(102, 126, 234, 0.4)',
             }
           }}>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
                 <SchoolIcon sx={{ mr: 1, color: 'white', fontSize: 28 }} />
                 <Box>
-                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem' }}>
+                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
                     Total Courses
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
@@ -210,16 +211,17 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
             color: 'white',
             boxShadow: '0 8px 32px rgba(240, 147, 251, 0.3)',
             transition: 'transform 0.2s ease-in-out',
+            height: '140px',
             '&:hover': {
               transform: 'translateY(-4px)',
               boxShadow: '0 12px 40px rgba(240, 147, 251, 0.4)',
             }
           }}>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
                 <PeopleIcon sx={{ mr: 1, color: 'white', fontSize: 28 }} />
                 <Box>
-                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem' }}>
+                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
                     Total Students
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
@@ -238,20 +240,21 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
             color: 'white',
             boxShadow: '0 8px 32px rgba(79, 172, 254, 0.3)',
             transition: 'transform 0.2s ease-in-out',
+            height: '140px',
             '&:hover': {
               transform: 'translateY(-4px)',
               boxShadow: '0 12px 40px rgba(79, 172, 254, 0.4)',
             }
           }}>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
                 <ReceiptIcon sx={{ mr: 1, color: 'white', fontSize: 28 }} />
                 <Box>
-                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem' }}>
+                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
                     Pending Invoices
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
-                    {billingSummary?.pending_invoices || 0}
+                    {Number(billingSummary?.pending_invoices || 0)}
                   </Typography>
                 </Box>
               </Box>
@@ -266,16 +269,17 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
             color: 'white',
             boxShadow: '0 8px 32px rgba(76, 175, 80, 0.3)',
             transition: 'transform 0.2s ease-in-out',
+            height: '140px',
             '&:hover': {
               transform: 'translateY(-4px)',
               boxShadow: '0 12px 40px rgba(76, 175, 80, 0.4)',
             }
           }}>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
                 <TrendingUpIcon sx={{ mr: 1, color: 'white', fontSize: 28 }} />
                 <Box>
-                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem' }}>
+                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
                     Total Billed
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
@@ -294,16 +298,17 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
             color: 'white',
             boxShadow: '0 8px 32px rgba(33, 150, 243, 0.3)',
             transition: 'transform 0.2s ease-in-out',
+            height: '140px',
             '&:hover': {
               transform: 'translateY(-4px)',
               boxShadow: '0 12px 40px rgba(33, 150, 243, 0.4)',
             }
           }}>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
                 <CheckCircleIcon sx={{ mr: 1, color: 'white', fontSize: 28 }} />
                 <Box>
-                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem' }}>
+                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
                     Total Paid
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
@@ -322,20 +327,21 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
             color: 'white',
             boxShadow: '0 8px 32px rgba(244, 67, 54, 0.3)',
             transition: 'transform 0.2s ease-in-out',
+            height: '140px',
             '&:hover': {
               transform: 'translateY(-4px)',
               boxShadow: '0 12px 40px rgba(244, 67, 54, 0.4)',
             }
           }}>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
                 <WarningIcon sx={{ mr: 1, color: 'white', fontSize: 28 }} />
                 <Box>
-                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem' }}>
+                  <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
                     Outstanding Amount
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
-                    ${Number((billingSummary?.total_amount || 0) - (billingSummary?.paid_amount || 0)).toFixed(2)}
+                    ${Number(billingSummary?.pending_amount || 0).toFixed(2)}
                   </Typography>
                 </Box>
               </Box>
