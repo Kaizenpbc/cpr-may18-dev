@@ -183,20 +183,21 @@ const OrganizationPricing: React.FC<OrganizationPricingProps> = ({ organizationI
       </Grid>
 
       {/* Pricing Table */}
-      {pricingData.length > 0 ? (
-        <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-          <TableContainer>
-            <Table stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Course Type</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }} align="right">Base Price</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }} align="right">Student Price</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }} align="center">Last Updated</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {pricingData.map((pricing) => (
+      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+        <TableContainer>
+          <Table stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 'bold' }}>Course Type</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }} align="right">Base Price</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }} align="right">Student Price</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }} align="center">Status</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }} align="center">Last Updated</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {pricingData.length > 0 ? (
+                pricingData.map((pricing) => (
                   <TableRow key={pricing.id} hover>
                     <TableCell>
                       <Box>
@@ -222,26 +223,85 @@ const OrganizationPricing: React.FC<OrganizationPricingProps> = ({ organizationI
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
+                      <Chip 
+                        label="Active" 
+                        color="success" 
+                        size="small"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell align="center">
                       <Typography variant="body2" color="text.secondary">
                         {formatDate(pricing.updated_at)}
                       </Typography>
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
-      ) : (
-        <Card>
-          <CardContent sx={{ textAlign: 'center', py: 4 }}>
-            <PricingIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              No Pricing Information Available
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Your organization doesn't have any pricing records set up yet. 
-              Please contact your system administrator to configure pricing for your courses.
+                ))
+              ) : (
+                // Show available course types with placeholder pricing
+                [
+                  { id: 1, name: 'CPR Basic', base_price: 0, student_price: 0 },
+                  { id: 2, name: 'CPR Advanced', base_price: 0, student_price: 0 },
+                  { id: 3, name: 'First Aid', base_price: 0, student_price: 0 }
+                ].map((courseType) => (
+                  <TableRow key={courseType.id} hover>
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body1" fontWeight="medium">
+                          {courseType.name}
+                        </Typography>
+                        <Chip 
+                          label={`ID: ${courseType.id}`} 
+                          size="small" 
+                          variant="outlined" 
+                          sx={{ mt: 0.5 }}
+                        />
+                      </Box>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                        Not configured
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                        Not configured
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip 
+                        label="Pending" 
+                        color="warning" 
+                        size="small"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Typography variant="body2" color="text.secondary">
+                        -
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
+
+      {/* Information Card */}
+      {pricingData.length === 0 && (
+        <Card sx={{ mt: 3, bgcolor: 'info.light' }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <InfoIcon color="info" />
+              <Typography variant="h6" color="info.dark">
+                Pricing Setup Required
+              </Typography>
+            </Box>
+            <Typography variant="body2" color="info.dark">
+              Your organization's pricing has not been configured yet. The table above shows available course types. 
+              Please contact your system administrator to set up custom pricing for your organization.
             </Typography>
           </CardContent>
         </Card>
