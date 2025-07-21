@@ -320,7 +320,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
           </Card>
         </Grid>
 
-        {/* Outstanding Amount Card */}
+        {/* Balance Due Card */}
         <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #f44336 0%, #ef5350 100%)',
@@ -338,10 +338,10 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
                 <WarningIcon sx={{ mr: 1, color: 'white', fontSize: 28 }} />
                 <Box>
                   <Typography color="rgba(255,255,255,0.8)" gutterBottom sx={{ fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
-                    Outstanding Amount
+                    Balance Due
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
-                    ${Number(billingSummary?.pending_amount || 0).toFixed(2)}
+                    ${Number((billingSummary?.total_amount || 0) - (billingSummary?.paid_amount || 0)).toFixed(2)}
                   </Typography>
                 </Box>
               </Box>
