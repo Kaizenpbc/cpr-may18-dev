@@ -646,7 +646,33 @@ const InstructorManagement: React.FC = () => {
       });
 
       if (response.data.success) {
-        setSuccess(response.data.message || 'Instructor assigned successfully! Course status updated to Confirmed.');
+        // Get instructor name for the confirmation message
+        const assignedInstructor = availableInstructors.find(
+          (instructor: any) => instructor.id === parseInt(assignmentData.instructorId)
+        );
+        const instructorName = assignedInstructor?.instructor_name || 'Instructor';
+        
+        // Create a comprehensive success message
+        const successMessage = `✅ Course successfully assigned to ${instructorName}! 
+        
+📧 Email notifications have been sent to:
+• ${instructorName} (${assignedInstructor?.email || 'instructor'})
+• Organization contact
+
+📅 Course Details:
+• Date: ${formatDisplayDate(selectedCourse.scheduled_date)}
+• Time: ${assignmentData.startTime} - ${assignmentData.endTime}
+• Location: ${selectedCourse.location}
+• Students: ${selectedCourse.registered_students || 0}
+
+The course status has been updated to "Confirmed" and moved to the confirmed courses list.`;
+
+        setSuccess(successMessage);
+
+        // Auto-dismiss success message after 10 seconds
+        setTimeout(() => {
+          setSuccess(null);
+        }, 10000);
 
         // Refresh all data to ensure UI is in sync
         queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
@@ -916,8 +942,19 @@ const InstructorManagement: React.FC = () => {
       {success && (
         <Alert
           severity='success'
-          sx={{ mb: 2 }}
+          sx={{ 
+            mb: 2,
+            '& .MuiAlert-message': {
+              whiteSpace: 'pre-line',
+              lineHeight: 1.6
+            }
+          }}
           onClose={() => setSuccess(null)}
+          action={
+            <Button color="inherit" size="small" onClick={() => setSuccess(null)}>
+              Dismiss
+            </Button>
+          }
         >
           {success}
         </Alert>
