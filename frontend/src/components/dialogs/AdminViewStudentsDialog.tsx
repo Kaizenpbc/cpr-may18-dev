@@ -23,8 +23,9 @@ import {
   Cancel as AbsentIcon,
   HelpOutline as NotMarkedIcon,
 } from '@mui/icons-material';
-import { adminApi } from '../../services/api';
+import { adminApi, instructorApi } from '../../services/api';
 import logger from '../../utils/logger';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Student {
   id: number;
@@ -54,6 +55,7 @@ const AdminViewStudentsDialog: React.FC<AdminViewStudentsDialogProps> = ({
   courseId,
   courseInfo,
 }) => {
+  const { user } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -64,15 +66,23 @@ const AdminViewStudentsDialog: React.FC<AdminViewStudentsDialogProps> = ({
         setLoading(true);
         setError('');
         try {
-          logger.info(`[Admin] Fetching students for course: ${courseId}`);
-          const response = await adminApi.getCourseStudents(courseId);
+          logger.info(`[${user?.role || 'User'}] Fetching students for course: ${courseId}`);
+          
+          // Use appropriate API based on user role
+          let response;
+          if (user?.role === 'instructor') {
+            response = await instructorApi.getClassStudents(courseId);
+          } else {
+            response = await adminApi.getCourseStudents(courseId);
+          }
+          
           const studentsData = response.data?.data || response.data || [];
           logger.info(
-            `[Admin] Successfully fetched ${studentsData.length} students for course: ${courseId}`
+            `[${user?.role || 'User'}] Successfully fetched ${studentsData.length} students for course: ${courseId}`
           );
           setStudents(studentsData);
         } catch (err: any) {
-          logger.error('[Admin] Failed to fetch students:', err);
+          logger.error(`[${user?.role || 'User'}] Failed to fetch students:`, err);
           setError(
             err.response?.data?.error?.message ||
               err.message ||
@@ -84,7 +94,7 @@ const AdminViewStudentsDialog: React.FC<AdminViewStudentsDialogProps> = ({
       };
       fetchStudents();
     }
-  }, [open, courseId]);
+  }, [open, courseId, user?.role]);
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '';
