@@ -129,13 +129,21 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
     { name: 'Pending', value: billingSummary?.pending_invoices || 0, color: '#ff9800' },
     { name: 'Overdue', value: billingSummary?.overdue_invoices || 0, color: '#f44336' },
     { name: 'Payment Submitted', value: billingSummary?.payment_submitted || 0, color: '#2196f3' },
-  ].filter(item => item.value > 0); // Only show categories with data
+  ];
 
-  // Add fallback data if no invoices exist
-  const hasInvoiceData = invoiceStatusData.some(item => item.value > 0);
-  const displayInvoiceData = hasInvoiceData ? invoiceStatusData : [
+  // Debug logging
+  console.log('🔍 [DEBUG] Invoice Status Data:', invoiceStatusData);
+  console.log('🔍 [DEBUG] Billing Summary:', billingSummary);
+
+  // Filter out zero values but keep at least one item for display
+  const filteredInvoiceData = invoiceStatusData.filter(item => item.value > 0);
+  const hasInvoiceData = filteredInvoiceData.length > 0;
+  const displayInvoiceData = hasInvoiceData ? filteredInvoiceData : [
     { name: 'No Invoices', value: 1, color: '#9e9e9e' }
   ];
+
+  console.log('🔍 [DEBUG] Display Invoice Data:', displayInvoiceData);
+  console.log('🔍 [DEBUG] Has Invoice Data:', hasInvoiceData);
 
   const courseStatusData = courses.reduce((acc, course) => {
     const status = course.status?.toLowerCase() || 'pending';
