@@ -5449,12 +5449,7 @@ router.get(
             WHEN CURRENT_DATE > i.due_date THEN 'overdue'
             ELSE 'pending'
           END = 'overdue' THEN (i.base_cost + i.tax_amount) ELSE 0 END), 0) as overdue_amount,
-        COALESCE(SUM(CASE WHEN 
-          CASE 
-            WHEN COALESCE(payments.total_paid, 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
-            WHEN CURRENT_DATE > i.due_date THEN 'overdue'
-            ELSE 'pending'
-          END = 'paid' THEN (i.base_cost + i.tax_amount) ELSE 0 END), 0) as paid_amount
+        COALESCE(SUM(COALESCE(payments.total_paid, 0)), 0) as paid_amount
       FROM invoice_with_breakdown i
       LEFT JOIN (
         SELECT invoice_id, SUM(amount) as total_paid
