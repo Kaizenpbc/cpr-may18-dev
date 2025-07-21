@@ -176,7 +176,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
       {/* Modern Stats Cards with Charts */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* Total Courses Card */}
-        <Grid item xs={12} sm={6} md={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             color: 'white',
@@ -204,7 +204,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
         </Grid>
 
         {/* Total Students Card */}
-        <Grid item xs={12} sm={6} md={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
             color: 'white',
@@ -232,7 +232,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
         </Grid>
 
         {/* Pending Invoices Card */}
-        <Grid item xs={12} sm={6} md={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
             color: 'white',
@@ -260,7 +260,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
         </Grid>
 
         {/* Total Billed Card */}
-        <Grid item xs={12} sm={6} md={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
             color: 'white',
@@ -288,7 +288,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
         </Grid>
 
         {/* Total Paid Card */}
-        <Grid item xs={12} sm={6} md={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #2196f3 0%, #42a5f5 100%)',
             color: 'white',
@@ -316,7 +316,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
         </Grid>
 
         {/* Outstanding Amount Card */}
-        <Grid item xs={12} sm={6} md={2.4}>
+        <Grid item xs={12} sm={6} md={4} lg={2}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #f44336 0%, #ef5350 100%)',
             color: 'white',
