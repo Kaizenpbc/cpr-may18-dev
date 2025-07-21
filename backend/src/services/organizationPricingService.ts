@@ -67,21 +67,21 @@ export class OrganizationPricingService {
   async getOrganizationPricingList(organizationId: number): Promise<OrganizationPricing[]> {
     const query = `
       SELECT 
-        op.id,
-        op.organization_id as "organizationId",
-        op.class_type_id as "classTypeId",
-        op.price_per_student as "pricePerStudent",
-        op.is_active as "isActive",
-        op.created_at as "createdAt",
-        op.updated_at as "updatedAt",
-        op.created_by as "createdBy",
-        op.last_modified_by as "lastModifiedBy",
-        op.deleted_at as "deletedAt",
+        cp.id,
+        cp.organization_id as "organizationId",
+        cp.course_type_id as "classTypeId",
+        cp.price_per_student as "pricePerStudent",
+        cp.is_active as "isActive",
+        cp.created_at as "createdAt",
+        cp.updated_at as "updatedAt",
+        NULL as "createdBy",
+        NULL as "lastModifiedBy",
+        NULL as "deletedAt",
         ct.name as "classTypeName"
-      FROM organization_pricing op
-      JOIN class_types ct ON op.class_type_id = ct.id
-      WHERE op.organization_id = $1 
-        AND op.deleted_at IS NULL
+      FROM course_pricing cp
+      JOIN class_types ct ON cp.course_type_id = ct.id
+      WHERE cp.organization_id = $1 
+        AND cp.is_active = true
       ORDER BY ct.name
     `;
 

@@ -26,14 +26,13 @@ import { parseISO, format } from 'date-fns';
 
 interface OrganizationPricingData {
   id: number;
-  organization_id: number;
-  organization_name: string;
-  course_type_id: number;
-  course_type_name: string;
-  base_price: number;
-  student_price: number;
-  created_at: string;
-  updated_at: string;
+  organizationId: number;
+  classTypeId: number;
+  pricePerStudent: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  classTypeName: string;
 }
 
 interface OrganizationPricingProps {
@@ -172,7 +171,7 @@ const OrganizationPricing: React.FC<OrganizationPricingProps> = ({ organizationI
               <Typography variant="h4" color="primary">
                 {pricingData.length > 0 
                   ? formatCurrency(
-                      pricingData.reduce((sum, item) => sum + item.student_price, 0) / pricingData.length
+                      pricingData.reduce((sum, item) => sum + item.pricePerStudent, 0) / pricingData.length
                     )
                   : formatCurrency(0)
                 }
@@ -202,10 +201,10 @@ const OrganizationPricing: React.FC<OrganizationPricingProps> = ({ organizationI
                     <TableCell>
                       <Box>
                         <Typography variant="body1" fontWeight="medium">
-                          {pricing.course_type_name}
+                          {pricing.classTypeName}
                         </Typography>
                         <Chip 
-                          label={`ID: ${pricing.course_type_id}`} 
+                          label={`ID: ${pricing.classTypeId}`} 
                           size="small" 
                           variant="outlined" 
                           sx={{ mt: 0.5 }}
@@ -214,12 +213,12 @@ const OrganizationPricing: React.FC<OrganizationPricingProps> = ({ organizationI
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body1" fontWeight="medium" color="primary">
-                        {formatCurrency(pricing.base_price)}
+                        {formatCurrency(pricing.pricePerStudent)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body1" fontWeight="medium" color="secondary">
-                        {formatCurrency(pricing.student_price)}
+                        {formatCurrency(pricing.pricePerStudent)}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
@@ -232,7 +231,7 @@ const OrganizationPricing: React.FC<OrganizationPricingProps> = ({ organizationI
                     </TableCell>
                     <TableCell align="center">
                       <Typography variant="body2" color="text.secondary">
-                        {formatDate(pricing.updated_at)}
+                        {formatDate(pricing.updatedAt)}
                       </Typography>
                     </TableCell>
                   </TableRow>
