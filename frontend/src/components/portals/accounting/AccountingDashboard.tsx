@@ -36,7 +36,7 @@ import {
   Refresh as RefreshIcon,
   CalendarMonth as CalendarIcon,
 } from '@mui/icons-material';
-import { fetchAccountingDashboardData } from '../../../services/api';
+import { fetchAccountingDashboardData, api } from '../../../services/api';
 import { useNavigate } from 'react-router-dom';
 
 interface DashboardData {
@@ -201,15 +201,42 @@ const PendingActionsSidebar: React.FC = () => {
     const fetchPendingActions = async () => {
       try {
         setLoading(true);
-        // In a real implementation, you would fetch this data from API
-        // For now, we'll simulate the data structure
-        const mockData: PendingAction[] = [
+        console.log('🔍 [PENDING ACTIONS] Fetching real pending actions data...');
+        
+        // Fetch real data from API
+        const [paymentsResponse, invoicesResponse] = await Promise.all([
+          api.get('/accounting/payment-verifications'),
+          api.get('/accounting/invoices')
+        ]);
+        
+        const paymentsData = paymentsResponse.data;
+        const invoicesData = invoicesResponse.data;
+        
+        console.log('🔍 [PENDING ACTIONS] Payments data:', paymentsData);
+        console.log('🔍 [PENDING ACTIONS] Invoices data:', invoicesData);
+        
+        // Count pending payments
+        const pendingPaymentsCount = paymentsData.data?.payments?.filter((p: any) => 
+          p.status === 'pending_verification' || !p.verified_by_accounting_at
+        ).length || 0;
+        
+        // Count pending invoices
+        const pendingInvoicesCount = invoicesData.data?.invoices?.filter((i: any) => 
+          ['pending_approval', 'pending', 'draft'].includes(i.approval_status?.toLowerCase())
+        ).length || 0;
+        
+        console.log('🔍 [PENDING ACTIONS] Counts:', {
+          pendingPayments: pendingPaymentsCount,
+          pendingInvoices: pendingInvoicesCount
+        });
+        
+        const realData: PendingAction[] = [
           {
             id: '1',
             type: 'payment_verification',
             title: 'Payments Pending Verification',
             description: 'Organization payments waiting for review',
-            count: 3,
+            count: pendingPaymentsCount,
             color: 'error',
             icon: <PaymentIcon />,
             route: '/accounting/verification'
@@ -219,26 +246,17 @@ const PendingActionsSidebar: React.FC = () => {
             type: 'invoice_approval',
             title: 'Invoices Pending Approval',
             description: 'Invoices waiting for approval',
-            count: 2,
+            count: pendingInvoicesCount,
             color: 'warning',
             icon: <AssignmentIcon />,
             route: '/accounting/receivables'
-          },
-          {
-            id: '3',
-            type: 'recent_activity',
-            title: 'Recent Activity',
-            description: 'Invoices posted to organizations',
-            count: 5,
-            color: 'success',
-            icon: <CheckCircleIcon />,
-            route: '/accounting/history'
           }
         ];
         
-        setPendingActions(mockData);
+        console.log('🔍 [PENDING ACTIONS] Setting real data:', realData);
+        setPendingActions(realData);
       } catch (error) {
-        console.error('Error fetching pending actions:', error);
+        console.error('🔍 [PENDING ACTIONS] Error fetching pending actions:', error);
         setPendingActions([]);
       } finally {
         setLoading(false);
@@ -260,15 +278,42 @@ const PendingActionsSidebar: React.FC = () => {
   const handleRefresh = async () => {
     try {
       setLoading(true);
-      // In a real implementation, you would fetch this data from API
-      // For now, we'll simulate the data structure
-      const mockData: PendingAction[] = [
+      console.log('🔍 [PENDING ACTIONS] Manual refresh triggered...');
+      
+      // Fetch real data from API
+      const [paymentsResponse, invoicesResponse] = await Promise.all([
+        api.get('/accounting/payment-verifications'),
+        api.get('/accounting/invoices')
+      ]);
+      
+      const paymentsData = paymentsResponse.data;
+      const invoicesData = invoicesResponse.data;
+      
+      console.log('🔍 [PENDING ACTIONS] Refresh - Payments data:', paymentsData);
+      console.log('🔍 [PENDING ACTIONS] Refresh - Invoices data:', invoicesData);
+      
+      // Count pending payments
+      const pendingPaymentsCount = paymentsData.data?.payments?.filter((p: any) => 
+        p.status === 'pending_verification' || !p.verified_by_accounting_at
+      ).length || 0;
+      
+      // Count pending invoices
+      const pendingInvoicesCount = invoicesData.data?.invoices?.filter((i: any) => 
+        ['pending_approval', 'pending', 'draft'].includes(i.approval_status?.toLowerCase())
+      ).length || 0;
+      
+      console.log('🔍 [PENDING ACTIONS] Refresh - Counts:', {
+        pendingPayments: pendingPaymentsCount,
+        pendingInvoices: pendingInvoicesCount
+      });
+      
+      const realData: PendingAction[] = [
         {
           id: '1',
           type: 'payment_verification',
           title: 'Payments Pending Verification',
           description: 'Organization payments waiting for review',
-          count: Math.floor(Math.random() * 5) + 1, // Random count for demo
+          count: pendingPaymentsCount,
           color: 'error',
           icon: <PaymentIcon />,
           route: '/accounting/verification'
@@ -278,26 +323,17 @@ const PendingActionsSidebar: React.FC = () => {
           type: 'invoice_approval',
           title: 'Invoices Pending Approval',
           description: 'Invoices waiting for approval',
-          count: Math.floor(Math.random() * 3) + 1, // Random count for demo
+          count: pendingInvoicesCount,
           color: 'warning',
           icon: <AssignmentIcon />,
           route: '/accounting/receivables'
-        },
-        {
-          id: '3',
-          type: 'recent_activity',
-          title: 'Recent Activity',
-          description: 'Invoices posted to organizations',
-          count: Math.floor(Math.random() * 8) + 3, // Random count for demo
-          color: 'success',
-          icon: <CheckCircleIcon />,
-          route: '/accounting/history'
         }
       ];
       
-      setPendingActions(mockData);
+      console.log('🔍 [PENDING ACTIONS] Refresh - Setting real data:', realData);
+      setPendingActions(realData);
     } catch (error) {
-      console.error('Error refreshing pending actions:', error);
+      console.error('🔍 [PENDING ACTIONS] Error refreshing pending actions:', error);
     } finally {
       setLoading(false);
     }
@@ -419,6 +455,9 @@ const PendingActionsSidebar: React.FC = () => {
 };
 
 const AccountingDashboard: React.FC = () => {
+  console.log('[AccountingDashboard] Component starting to render');
+  
+  try {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(
     null
   );
@@ -636,6 +675,18 @@ const AccountingDashboard: React.FC = () => {
       </Box>
     </Box>
   );
+  } catch (error) {
+    console.error('[AccountingDashboard] Error during render:', error);
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" color="error">Error Loading Dashboard</Typography>
+        <Typography>An error occurred while loading the dashboard.</Typography>
+        <Typography variant="body2" color="textSecondary">
+          Error: {error instanceof Error ? error.message : 'Unknown error'}
+        </Typography>
+      </Box>
+    );
+  }
 };
 
 export default AccountingDashboard;

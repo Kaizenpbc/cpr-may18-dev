@@ -512,6 +512,10 @@ export const organizationApi = {
     return extractData(response);
   },
   getInvoices: () => api.get('/organization/invoices'),
+  getBalanceCalculation: (invoiceId: string, paymentAmount: number) => 
+    api.get(`/organization/invoices/${invoiceId}/balance-calculation`, {
+      params: { payment_amount: paymentAmount }
+    }),
   getBillingSummary: () => api.get('/organization/billing-summary'),
   getCourseTypes: async () => {
     const response = await api.get('/course-types');
@@ -1054,6 +1058,79 @@ export const vendorApi = {
     });
     return response.data;
   },
+};
+
+// Notification API methods
+export const getNotifications = async (limit = 50, offset = 0, unreadOnly = false) => {
+  try {
+    const response = await api.get('/notifications', {
+      params: { limit, offset, unread_only: unreadOnly }
+    });
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    throw error;
+  }
+};
+
+export const getUnreadNotificationCount = async () => {
+  try {
+    const response = await api.get('/notifications/unread-count');
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching unread notification count:', error);
+    throw error;
+  }
+};
+
+export const markNotificationAsRead = async (notificationId: number) => {
+  try {
+    const response = await api.post(`/notifications/${notificationId}/read`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    throw error;
+  }
+};
+
+export const markAllNotificationsAsRead = async () => {
+  try {
+    const response = await api.post('/notifications/mark-all-read');
+    return extractData(response);
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    throw error;
+  }
+};
+
+export const deleteNotification = async (notificationId: number) => {
+  try {
+    const response = await api.delete(`/notifications/${notificationId}`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+    throw error;
+  }
+};
+
+export const getNotificationPreferences = async () => {
+  try {
+    const response = await api.get('/notifications/preferences');
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching notification preferences:', error);
+    throw error;
+  }
+};
+
+export const updateNotificationPreferences = async (type: string, preferences: any) => {
+  try {
+    const response = await api.put(`/notifications/preferences/${type}`, preferences);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error updating notification preferences:', error);
+    throw error;
+  }
 };
 
 export default api;

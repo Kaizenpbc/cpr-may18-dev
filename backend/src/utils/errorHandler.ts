@@ -50,6 +50,11 @@ export const errorCodes = {
   INTERNAL_SERVER_ERROR: 'SRV_5001',
   SERVICE_UNAVAILABLE: 'SRV_5002',
   EMAIL_SEND_ERROR: 'SRV_5003',
+
+  // Notification Errors (6000-6999)
+  NOTIFICATION_NOT_FOUND: 'NOT_6001',
+  NOTIFICATION_CREATION_FAILED: 'NOT_6002',
+  NOTIFICATION_UPDATE_FAILED: 'NOT_6003',
 } as const;
 
 export function errorHandler(

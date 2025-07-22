@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, Paper, Container, Button } from '@mui/material';
+import NotificationBell from '../common/NotificationBell';
 import {
   Dashboard as DashboardIcon,
   ReceiptLong as BillingIcon,
@@ -16,6 +17,7 @@ import {
 import ErrorBoundary from '../common/ErrorBoundary';
 import AccountingDashboard from './accounting/AccountingDashboard';
 import PaymentRequestsDashboard from '../accounting/PaymentRequestsDashboard';
+import CoursePricingManagement from './accounting/CoursePricingManagement';
 
 import { NavLink, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
@@ -31,6 +33,7 @@ import RecordPaymentDialog from '../dialogs/RecordPaymentDialog';
 import { getBillingQueue, createInvoice, getInvoices } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
+import { NotificationProvider } from '../../contexts/NotificationContext';
 
 // Billing Ready View Component
 const ReadyForBillingView: React.FC = () => {
@@ -250,6 +253,17 @@ const AccountsReceivableView: React.FC = () => {
   );
 };
 
+// Test component to debug routing
+const TestDashboard: React.FC = () => {
+  console.log('[TestDashboard] Component rendered');
+  return (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4">Test Dashboard</Typography>
+      <Typography>This is a test to see if routing works</Typography>
+    </Box>
+  );
+};
+
 const tabRoutes = [
   { 
     label: 'Financial Dashboard', 
@@ -312,6 +326,10 @@ const AccountingPortal: React.FC = () => {
   const location = useLocation();
   const currentPath = location.pathname.split('/').pop();
 
+  // Debug logging
+  console.log('[AccountingPortal] Current location:', location.pathname);
+  console.log('[AccountingPortal] Current path segment:', currentPath);
+
   const handleLogout = async () => {
     try {
       const firstName = user?.username || 'Accounting User';
@@ -327,8 +345,9 @@ const AccountingPortal: React.FC = () => {
   };
 
   return (
-    <ErrorBoundary context="accounting_portal" onError={handleError}>
-      <Container maxWidth='xl' sx={{ mt: 2, mb: 4 }}>
+    <NotificationProvider>
+      <ErrorBoundary context="accounting_portal" onError={handleError}>
+        <Container maxWidth='xl' sx={{ mt: 2, mb: 4 }}>
         <Paper elevation={1} sx={{ mb: 3, p: 2 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
@@ -339,15 +358,18 @@ const AccountingPortal: React.FC = () => {
                 Financial management and course pricing administration
               </Typography>
             </Box>
-            <Button
-              variant="outlined"
-              color="secondary"
-              startIcon={<LogoutIcon />}
-              onClick={handleLogout}
-              sx={{ minWidth: 120 }}
-            >
-              Logout
-            </Button>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <NotificationBell size="medium" color="primary" />
+              <Button
+                variant="outlined"
+                color="secondary"
+                startIcon={<LogoutIcon />}
+                onClick={handleLogout}
+                sx={{ minWidth: 120 }}
+              >
+                Logout
+              </Button>
+            </Box>
           </Box>
         </Paper>
 
@@ -377,16 +399,58 @@ const AccountingPortal: React.FC = () => {
 
           <Box sx={{ p: 3 }}>
             <Routes>
-              {tabRoutes.map((tab) => (
-                <Route key={tab.path} path={tab.path} element={tab.component} />
-              ))}
-              <Route path="" element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={
+                <ErrorBoundary context="accounting_dashboard" onError={handleError}>
+                  <AccountingDashboard />
+                </ErrorBoundary>
+              } />
+              <Route path="history" element={
+                <ErrorBoundary context="accounting_history" onError={handleError}>
+                  <TransactionHistoryView />
+                </ErrorBoundary>
+              } />
+              <Route path="billing" element={
+                <ErrorBoundary context="accounting_billing" onError={handleError}>
+                  <ReadyForBillingView />
+                </ErrorBoundary>
+              } />
+              <Route path="pricing" element={
+                <ErrorBoundary context="accounting_pricing" onError={handleError}>
+                  <CoursePricingManagement />
+                </ErrorBoundary>
+              } />
+              <Route path="receivables" element={
+                <ErrorBoundary context="accounting_receivables" onError={handleError}>
+                  <AccountsReceivableView />
+                </ErrorBoundary>
+              } />
+              <Route path="payment-requests" element={
+                <ErrorBoundary context="accounting_payment_requests" onError={handleError}>
+                  <PaymentRequestsDashboard />
+                </ErrorBoundary>
+              } />
+              <Route path="verification" element={
+                <ErrorBoundary context="accounting_verification" onError={handleError}>
+                  <PaymentVerificationView />
+                </ErrorBoundary>
+              } />
+              <Route path="reversal" element={
+                <ErrorBoundary context="accounting_reversal" onError={handleError}>
+                  <PaymentReversalView />
+                </ErrorBoundary>
+              } />
+              <Route path="" element={
+                <ErrorBoundary context="accounting_dashboard" onError={handleError}>
+                  <AccountingDashboard />
+                </ErrorBoundary>
+              } />
               <Route path="*" element={<Box sx={{ p: 3 }}><Typography variant="h6">View not found</Typography></Box>} />
             </Routes>
           </Box>
         </Paper>
       </Container>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </NotificationProvider>
   );
 };
 

@@ -15,13 +15,14 @@ import {
   Tooltip,
 } from '@mui/material';
 import { formatDisplayDate } from '../../utils/dateUtils';
-import { PictureAsPdf as ReceiptIcon } from '@mui/icons-material';
+import { PictureAsPdf as ReceiptIcon, Visibility as ViewIcon } from '@mui/icons-material';
 import { api } from '../../services/api';
 
 interface Payment {
   id: number;
   invoice_id: number;
-  amount_paid: number;
+  amount?: number;
+  amount_paid?: number;
   payment_date: string;
   payment_method: string;
   reference_number?: string;
@@ -36,12 +37,14 @@ interface PaymentHistoryTableProps {
   payments: Payment[];
   isLoading?: boolean;
   showVerificationDetails?: boolean;
+  onViewInvoice?: (invoiceId: number) => void;
 }
 
 const PaymentHistoryTable: React.FC<PaymentHistoryTableProps> = ({
   payments,
   isLoading = false,
   showVerificationDetails = false,
+  onViewInvoice,
 }) => {
   // Ensure payments is always an array
   const safePayments = Array.isArray(payments) ? payments : [];
@@ -129,12 +132,12 @@ const PaymentHistoryTable: React.FC<PaymentHistoryTableProps> = ({
               </>
             )}
             <TableCell>Notes</TableCell>
-            <TableCell align="center">Receipt</TableCell>
+            <TableCell align="center">Actions</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {safePayments
-            .filter(payment => payment && payment.id && payment.amount_paid)
+            .filter(payment => payment && payment.id && (payment.amount || payment.amount_paid))
             .map((payment) => (
             <TableRow key={payment.id} hover>
               <TableCell>
@@ -142,7 +145,7 @@ const PaymentHistoryTable: React.FC<PaymentHistoryTableProps> = ({
               </TableCell>
               <TableCell align="right">
                 <Typography variant="body2" fontWeight="medium">
-                  ${Number(payment.amount_paid || 0).toFixed(2)}
+                  ${Number(payment.amount || payment.amount_paid || 0).toFixed(2)}
                 </Typography>
               </TableCell>
               <TableCell>
@@ -180,17 +183,30 @@ const PaymentHistoryTable: React.FC<PaymentHistoryTableProps> = ({
                 </Typography>
               </TableCell>
               <TableCell align="center">
-                {payment.status === 'verified' && (
-                  <Tooltip title="Download Receipt">
-                    <IconButton
-                      size="small"
-                      color="primary"
-                      onClick={() => handleDownloadReceipt(payment.id)}
-                    >
-                      <ReceiptIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
+                <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                  {onViewInvoice && (
+                    <Tooltip title="View Invoice">
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => onViewInvoice(payment.invoice_id)}
+                      >
+                        <ViewIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {payment.status === 'verified' && (
+                    <Tooltip title="Download Receipt">
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => handleDownloadReceipt(payment.id)}
+                      >
+                        <ReceiptIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
               </TableCell>
             </TableRow>
           ))}

@@ -18,6 +18,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  FormHelperText,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -53,6 +54,7 @@ interface Invoice {
   id: number;
   invoice_number: string;
   created_at: string;
+  invoice_date?: string;
   due_date: string;
   amount: number;
   status: string;
@@ -122,7 +124,20 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   });
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentSuccessMessage, setPaymentSuccessMessage] = useState<string>('');
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
+  
+  // State for real-time balance calculation
+  const [balanceCalculation, setBalanceCalculation] = useState<{
+    current_outstanding_balance: number;
+    remaining_balance_after_payment: number;
+    is_valid_payment: boolean;
+    is_overpayment: boolean;
+    is_full_payment: boolean;
+    can_submit_payment: boolean;
+  } | null>(null);
+  const [calculatingBalance, setCalculatingBalance] = useState(false);
 
   // State for marking invoice as paid
   const [markingAsPaid, setMarkingAsPaid] = useState<number | null>(null);
@@ -144,6 +159,9 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
 
   // Ref to prevent multiple submissions
   const isSubmittingRef = useRef(false);
+  
+  // Debounce timer for balance calculation
+  const balanceCalculationTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Ensure invoices is an array
   const safeInvoices = Array.isArray(invoices) ? invoices : [];
@@ -226,9 +244,8 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
       const validPayments = paymentsData.filter(payment => {
         return payment && 
                payment.id && 
-               payment.amount_paid && 
-               payment.payment_date && 
-               payment.payment_method;
+               (payment.amount_paid || payment.amount) && 
+               payment.payment_date;
       });
       
       // Remove duplicates based on payment ID and ensure valid data
@@ -238,9 +255,9 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         )
         .map(payment => ({
           ...payment,
-          amount_paid: Number(payment.amount_paid || 0),
+          amount_paid: Number(payment.amount_paid || payment.amount || 0),
           payment_date: payment.payment_date || payment.created_at,
-          payment_method: payment.payment_method || 'unknown',
+          payment_method: payment.payment_method || 'Not specified',
           status: payment.status || 'pending_verification'
         }));
       
@@ -321,12 +338,12 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
 
     // Validate required fields
     if (!paymentForm.payment_method || paymentForm.payment_method.trim() === '') {
-      setPaymentError('Payment Method is required. Please select a payment method.');
+      setPaymentError('❌ Payment Method is required. Please select a payment method from the dropdown.');
       return;
     }
 
     if (!paymentForm.amount || parseFloat(paymentForm.amount) <= 0) {
-      setPaymentError('Valid payment amount is required.');
+      setPaymentError('❌ Valid payment amount is required. Please enter an amount greater than $0.00.');
       return;
     }
 
@@ -352,6 +369,8 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
 
       if (response.data.success) {
         console.log('Payment submission successful');
+        
+        setPaymentSuccessMessage('Payment Submitted');
         setPaymentSuccess(true);
         handlePaymentDialogClose();
         
@@ -361,11 +380,15 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         // Close invoice dialog after a delay
         setTimeout(() => {
           handleDialogClose();
-        }, 2000);
+        }, 3000); // Increased delay to allow user to read the message
       }
     } catch (error: any) {
       console.error('Payment submission error:', error);
-      setPaymentError(error.response?.data?.message || 'Failed to submit payment');
+      
+      // Simple error message
+      let errorMessage = 'Payment Failed';
+      
+      setPaymentError(errorMessage);
     } finally {
       console.log('Payment submission completed, resetting states');
       setSubmittingPayment(false);
@@ -426,6 +449,13 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
     setPaymentDialogOpen(false);
     setPaymentError(null);
     setPaymentSuccess(false);
+    setPaymentSuccessMessage('');
+    setBalanceCalculation(null);
+    
+    // Clear balance calculation timer
+    if (balanceCalculationTimer.current) {
+      clearTimeout(balanceCalculationTimer.current);
+    }
     
     // Reset form
     setPaymentForm({
@@ -477,6 +507,36 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
     console.log('Final result:', result);
     
     return result;
+  };
+
+  // Real-time balance calculation
+  const calculateBalance = async (invoiceId: number, paymentAmount: string) => {
+    if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
+      setBalanceCalculation(null);
+      return;
+    }
+
+    // Clear existing timer
+    if (balanceCalculationTimer.current) {
+      clearTimeout(balanceCalculationTimer.current);
+    }
+
+    // Set new timer for debounced calculation
+    balanceCalculationTimer.current = setTimeout(async () => {
+      try {
+        setCalculatingBalance(true);
+        const response = await api.getBalanceCalculation(invoiceId.toString(), parseFloat(paymentAmount));
+        
+        if (response.data.success) {
+          setBalanceCalculation(response.data.data);
+        }
+      } catch (error) {
+        console.error('Error calculating balance:', error);
+        setBalanceCalculation(null);
+      } finally {
+        setCalculatingBalance(false);
+      }
+    }, 300); // 300ms debounce
   };
 
   // Check if this is a partial payment
@@ -904,20 +964,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                           {markingAsPaid === invoice.id ? 'Marking...' : 'Mark as Paid'}
                         </Button>
                       )}
-                      {invoice.balance_due > 0 && invoice.payment_status !== 'paid' && canSubmitPayment(invoice) && (
-                        <Tooltip title="Submit Payment">
-                          <IconButton
-                            size="small"
-                            color="primary"
-                            onClick={() => {
-                              setSelectedInvoice(invoice);
-                              handlePaymentDialogOpen(invoice);
-                            }}
-                          >
-                            <MonetizationOnIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
+
                       {invoice.balance_due > 0 && invoice.payment_status !== 'paid' && !canSubmitPayment(invoice) && (
                         <Button
                           size="small"
@@ -1118,6 +1165,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 payments={paymentHistory}
                 isLoading={loadingPaymentHistory}
                 showVerificationDetails={true}
+                onViewInvoice={() => {}} // Already showing invoice details in this dialog
               />
             </Box>
           )}
@@ -1197,7 +1245,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         aria-describedby="payment-dialog-description"
         disableEscapeKeyDown={submittingPayment}
       >
-        {console.log('=== PAYMENT DIALOG RENDERING ===', { paymentDialogOpen, submittingPayment })}
+        {/* Payment Dialog Rendering */}
         <DialogTitle id="payment-dialog-title">
           Submit Payment - {selectedInvoice?.invoice_number}
         </DialogTitle>
@@ -1257,19 +1305,31 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                     ? parts[0] + '.' + parts[1].substring(0, 2) // Limit to 2 decimal places
                     : numericValue;
                   setPaymentForm({ ...paymentForm, amount: formattedValue });
+                  
+                  // Trigger real-time balance calculation
+                  if (selectedInvoice) {
+                    calculateBalance(selectedInvoice.id, formattedValue);
+                  }
                 }}
                 InputProps={{
                   startAdornment: <Typography variant="body2" sx={{ mr: 1 }}>$</Typography>,
+                  endAdornment: calculatingBalance ? <CircularProgress size={20} /> : null,
                 }}
                 placeholder="0.00"
                 helperText={
-                  isPartialPayment(paymentForm.amount) 
-                    ? `This is a partial payment. Remaining balance will be $${((selectedInvoice?.balance_due || 0) - parseFloat(paymentForm.amount || '0')).toFixed(2)} after this payment.`
-                    : parseFloat(paymentForm.amount || '0') > (selectedInvoice?.balance_due || 0)
-                    ? "Payment amount exceeds balance due. Please adjust."
-                    : ""
+                  balanceCalculation ? (
+                    balanceCalculation.is_overpayment ? (
+                      `❌ Payment exceeds outstanding balance ($${balanceCalculation.current_outstanding_balance.toFixed(2)})`
+                    ) : balanceCalculation.is_full_payment ? (
+                      `✅ This will complete the payment. Remaining balance: $${balanceCalculation.remaining_balance_after_payment.toFixed(2)}`
+                    ) : (
+                      `💰 Partial payment. Remaining balance: $${balanceCalculation.remaining_balance_after_payment.toFixed(2)}`
+                    )
+                  ) : paymentForm.amount ? (
+                    "Calculating balance..."
+                  ) : ""
                 }
-                error={parseFloat(paymentForm.amount || '0') > (selectedInvoice?.balance_due || 0)}
+                error={balanceCalculation ? balanceCalculation.is_overpayment : false}
                 disabled={submittingPayment}
               />
             </Grid>
@@ -1354,10 +1414,16 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 handlePaymentSubmit();
               }, 0);
             }}
-            disabled={submittingPayment || !paymentForm.payment_method || !paymentForm.amount || parseFloat(paymentForm.amount || '0') <= 0}
+            disabled={
+              submittingPayment || 
+              !paymentForm.payment_method || 
+              !paymentForm.amount || 
+              parseFloat(paymentForm.amount || '0') <= 0 || 
+              (balanceCalculation ? !balanceCalculation.can_submit_payment : false)
+            }
             startIcon={submittingPayment ? <CircularProgress size={20} /> : <PaymentIcon />}
           >
-            {submittingPayment ? 'Submitting...' : 'Submit Payment'}
+            {submittingPayment ? 'Submitting...' : (selectedInvoice?.balance_due || 0) <= 0 ? 'Invoice Paid' : 'Submit Payment'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1365,11 +1431,24 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
       {/* Success/Error Messages */}
       <Snackbar
         open={paymentSuccess}
-        autoHideDuration={6000}
-        onClose={() => setPaymentSuccess(false)}
+        autoHideDuration={8000}
+        onClose={() => {
+          setPaymentSuccess(false);
+          setPaymentSuccessMessage('');
+        }}
       >
-        <Alert severity="success" onClose={() => setPaymentSuccess(false)}>
-          Payment submitted successfully! It will be verified by accounting.
+        <Alert 
+          severity="success" 
+          onClose={() => {
+            setPaymentSuccess(false);
+            setPaymentSuccessMessage('');
+          }}
+          sx={{ 
+            maxWidth: 500,
+            whiteSpace: 'pre-line'
+          }}
+        >
+          {paymentSuccessMessage || 'Payment submitted successfully! It will be verified by accounting.'}
         </Alert>
       </Snackbar>
 

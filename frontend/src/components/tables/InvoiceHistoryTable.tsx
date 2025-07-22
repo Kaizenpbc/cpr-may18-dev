@@ -102,7 +102,7 @@ const getApprovalStatusIcon = status => {
 };
 
 // Component to display within the expanded row
-const PaymentDetails = ({ invoiceId }) => {
+const PaymentDetails = ({ invoiceId, onViewInvoice }) => {
   const [payments, setPayments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -164,6 +164,7 @@ const PaymentDetails = ({ invoiceId }) => {
         payments={payments}
         isLoading={isLoading}
         showVerificationDetails={false}
+        onViewInvoice={onViewInvoice}
       />
     </Box>
   );
@@ -436,7 +437,7 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
               </TableCell>
               <TableCell align='right'>
                 {invoice.rate_per_student ? 
-                  <strong>${invoice.rate_per_student.toFixed(2)}</strong> : 
+                  <strong>${Number(invoice.rate_per_student || 0).toFixed(2)}</strong> : 
                   <Typography variant="body2" color="error.main" fontSize="small">
                     Pricing not configured
                   </Typography>
@@ -452,7 +453,7 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
               </TableCell>
               <TableCell align='right'>
                 {invoice.rate_per_student ? 
-                  <strong>${(invoice.rate_per_student * 1.13).toFixed(2)}</strong> : 
+                  <strong>${(invoice.rate_per_student * invoice.students_billed * 1.13).toFixed(2)}</strong> : 
                   <Typography variant="body2" color="error.main" fontSize="small">
                     N/A
                   </Typography>
@@ -466,7 +467,8 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
               <TableCell align='right'>
                 <strong>
                   {formatCurrency(
-                    40.68 - parseFloat(invoice.paidtodate || invoice.paid_to_date || 0)
+                    (invoice.rate_per_student ? (invoice.rate_per_student * invoice.students_billed * 1.13) : 0) - 
+                    parseFloat(invoice.paidtodate || invoice.paid_to_date || 0)
                   )}
                 </strong>
               </TableCell>
@@ -562,10 +564,13 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
                   timeout='auto'
                   unmountOnExit
                 >
-                  {/* Render PaymentDetails component only when expanded */}
-                  {expandedRowId === (invoice.invoiceid || invoice.invoice_id) && (
-                    <PaymentDetails invoiceId={invoice.invoiceid || invoice.invoice_id} />
-                  )}
+                                  {/* Render PaymentDetails component only when expanded */}
+                {expandedRowId === (invoice.invoiceid || invoice.invoice_id) && (
+                  <PaymentDetails 
+                    invoiceId={invoice.invoiceid || invoice.invoice_id} 
+                    onViewInvoice={handlePreview}
+                  />
+                )}
                 </Collapse>
               </TableCell>
             </TableRow>

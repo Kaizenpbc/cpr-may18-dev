@@ -208,6 +208,7 @@ const PaymentDetails = ({ invoiceId }) => {
         payments={payments}
         isLoading={isLoading}
         showVerificationDetails={false}
+        onViewInvoice={onViewDetailsClick}
       />
     </Box>
   );

@@ -30,6 +30,7 @@ import logger from '../../utils/logger';
 import { formatDisplayDate } from '../../utils/dateUtils';
 import { API_URL } from '../../config';
 import ServiceDetailsTable from '../common/ServiceDetailsTable';
+import PaymentHistoryTable from '../common/PaymentHistoryTable';
 
 // Helper function to format currency
 const formatCurrency = amount => {
@@ -67,6 +68,10 @@ const InvoiceDetailDialog = ({
   // Student list state
   const [students, setStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  
+  // Payment history state
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
   
   // Ref to prevent multiple clicks
   const isPostingRef = useRef(false);
@@ -108,6 +113,36 @@ const InvoiceDetailDialog = ({
     }
   };
 
+  // Fetch payment history for an invoice
+  const fetchPaymentHistory = async (invoiceId) => {
+    if (!invoiceId) {
+      console.error('No invoice ID provided for fetching payment history');
+      setPaymentHistory([]);
+      return;
+    }
+    
+    setLoadingPaymentHistory(true);
+    try {
+      const response = await api.get(`/accounting/invoices/${invoiceId}/payments`);
+      
+      if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        setPaymentHistory(response.data.data);
+      } else if (response.data && Array.isArray(response.data)) {
+        setPaymentHistory(response.data);
+      } else if (response.data && response.data.payments && Array.isArray(response.data.payments)) {
+        setPaymentHistory(response.data.payments);
+      } else {
+        console.warn('Unexpected payment history response format:', response.data);
+        setPaymentHistory([]);
+      }
+    } catch (error) {
+      console.error('Error fetching payment history:', error);
+      setPaymentHistory([]);
+    } finally {
+      setLoadingPaymentHistory(false);
+    }
+  };
+
   useEffect(() => {
     if (open && invoiceId) {
       const fetchInvoiceDetails = async () => {
@@ -137,9 +172,12 @@ const InvoiceDetailDialog = ({
           });
           
           // Fetch students for this course
-          if (data.coursenumber) {
-            fetchStudents(data.coursenumber);
-          }
+                  if (data.coursenumber) {
+          fetchStudents(data.coursenumber);
+        }
+        
+        // Fetch payment history
+        fetchPaymentHistory(invoiceId);
         } catch (err) {
           logger.error('Failed to fetch invoice details:', err);
           
@@ -549,6 +587,22 @@ const InvoiceDetailDialog = ({
                 No student attendance data available for this course.
               </Alert>
             )}
+            
+            {/* Payment History Section */}
+            <Divider sx={{ my: 2 }} />
+            <Typography variant='subtitle1' gutterBottom sx={{ mt: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h6" component="span">💰</Typography>
+                Payment History
+              </Box>
+            </Typography>
+            
+            <PaymentHistoryTable
+              payments={paymentHistory}
+              isLoading={loadingPaymentHistory}
+              showVerificationDetails={true}
+              onViewInvoice={() => {}} // Already showing invoice details in this dialog
+            />
             
             {/* Invoice Approval Section */}
             <Divider sx={{ my: 2 }} />

@@ -37,10 +37,11 @@ const TransactionHistoryView = () => {
     setIsLoading(true);
     setError('');
     try {
-      const data = await api.getInvoices(); // Use the existing endpoint for now
+      // Use the accounting-specific endpoint for invoice history
+      const data = await api.getInvoices();
       setAllInvoices(data || []);
       setFilteredInvoices(data || []); // Initialize filtered list
-      logger.info('[TransactionHistory] Invoices loaded:', data);
+      logger.info('[TransactionHistory] Accounting invoices loaded:', data);
     } catch (err) {
       logger.error('Error loading invoice history:', err);
       setError(err.message || 'Failed to load invoice history.');

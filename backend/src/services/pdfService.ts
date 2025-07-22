@@ -52,7 +52,7 @@ export class PDFService {
     const dueDate = new Date(invoice.due_date).toLocaleDateString();
     const courseDate = new Date(invoice.date_completed).toLocaleDateString();
     const studentsBilled = invoice.students_billed || 0;
-    const ratePerStudent = invoice.rate_per_student;
+    const ratePerStudent = Number(invoice.rate_per_student);
     
     if (!ratePerStudent) {
       throw new Error('Pricing not configured for this invoice. Please contact system administrator.');
@@ -287,65 +287,126 @@ export class PDFService {
                 </div>
             </div>
 
-            <table class="services-table">
-                <thead>
-                    <tr>
-                        <th>Description</th>
-                        <th style="text-align: center;">Qty</th>
-                        <th style="text-align: right;">Rate</th>
-                        <th style="text-align: right;">Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>
-                            <strong>${invoice.course_type_name} Training Course</strong><br>
-                            <small>
-                                Location: ${invoice.location}<br>
-                                Course Date: ${courseDate}<br>
-                                Students Trained: ${invoice.students_billed}
-                            </small>
-                        </td>
-                        <td style="text-align: center;">1</td>
-                        <td class="amount-column">$${subtotal.toFixed(2)}</td>
-                        <td class="amount-column">$${subtotal.toFixed(2)}</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div class="totals">
-                <div class="total-row">
-                    <strong>Subtotal: $${subtotal.toFixed(2)}</strong>
-                </div>
-                <div class="total-row">
-                    HST (13%): $${hst.toFixed(2)}
-                </div>
-                <div class="total-final">
-                    <strong>TOTAL DUE: $${total.toFixed(2)}</strong>
+            <div style="margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #2196F3;">
+                <h3 style="margin: 0 0 20px 0; color: #2196F3; font-size: 18px;">Course Information</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <div style="margin-bottom: 15px;">
+                            <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Course Type</div>
+                            <div style="font-size: 16px; font-weight: 600; color: #333;">${invoice.course_type_name}</div>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Location</div>
+                            <div style="font-size: 16px; font-weight: 600; color: #333;">${invoice.location}</div>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Course Date</div>
+                            <div style="font-size: 16px; font-weight: 600; color: #333;">${courseDate}</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="margin-bottom: 15px;">
+                            <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Students Billed</div>
+                            <div style="font-size: 16px; font-weight: 600; color: #333;">${invoice.students_billed}</div>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Rate per Student</div>
+                            <div style="font-size: 16px; font-weight: 600; color: #333;">$${ratePerStudent.toFixed(2)}</div>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Base Cost</div>
+                            <div style="font-size: 16px; font-weight: 600; color: #333;">$${subtotal.toFixed(2)}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <h3 style="margin-top:40px; color:#2196F3;">Attendance List</h3>
-            <table class="attendance-table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${attendanceList.map(s => `
-                        <tr>
-                            <td>${s.first_name} ${s.last_name}</td>
-                            <td>${s.email || ''}</td>
-                            <td>${s.attended ? 'Present' : 'Absent'}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-            <div class="attendance-summary">
-                Present: ${present} &nbsp; | &nbsp; Absent: ${absent} &nbsp; | &nbsp; Total: ${attendanceList.length}
+            <div style="margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #28a745;">
+                <h3 style="margin: 0 0 20px 0; color: #28a745; font-size: 18px;">Cost Breakdown</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Base Cost</div>
+                        <div style="font-size: 20px; font-weight: 700; color: #333;">$${subtotal.toFixed(2)}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Tax (HST 13%)</div>
+                        <div style="font-size: 20px; font-weight: 700; color: #333;">$${hst.toFixed(2)}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Total Amount</div>
+                        <div style="font-size: 20px; font-weight: 700; color: #2196F3;">$${total.toFixed(2)}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #ff9800;">
+                <h3 style="margin: 0 0 20px 0; color: #ff9800; font-size: 18px;">Student Attendance List</h3>
+                ${attendanceList.length > 0 ? `
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                        <thead>
+                            <tr style="background-color: #ff9800; color: white;">
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">Student Name</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">Email</th>
+                                <th style="padding: 12px; text-align: center; font-weight: 600;">Attendance Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${attendanceList.map((s, index) => `
+                                <tr style="${index % 2 === 0 ? 'background-color: #ffffff;' : 'background-color: #f9f9f9;'}">
+                                    <td style="padding: 12px; border-bottom: 1px solid #eee; font-weight: 500;">
+                                        ${s.first_name} ${s.last_name}
+                                    </td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #eee; color: #666;">
+                                        ${s.email || 'No email provided'}
+                                    </td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">
+                                        <span style="
+                                            display: inline-block;
+                                            padding: 4px 12px;
+                                            border-radius: 4px;
+                                            font-size: 12px;
+                                            font-weight: 600;
+                                            text-transform: uppercase;
+                                            ${s.attended ? 
+                                                'background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;' : 
+                                                'background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;'
+                                            }
+                                        ">
+                                            ${s.attended ? 'Present' : 'Absent'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <div style="
+                        display: flex;
+                        justify-content: space-around;
+                        padding: 15px;
+                        background-color: #ffffff;
+                        border-radius: 6px;
+                        border: 1px solid #e0e0e0;
+                        font-weight: 600;
+                    ">
+                        <div style="text-align: center;">
+                            <div style="font-size: 14px; color: #666;">Present</div>
+                            <div style="font-size: 18px; color: #28a745;">${present}</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 14px; color: #666;">Absent</div>
+                            <div style="font-size: 18px; color: #dc3545;">${absent}</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 14px; color: #666;">Total Students</div>
+                            <div style="font-size: 18px; color: #2196F3;">${attendanceList.length}</div>
+                        </div>
+                    </div>
+                ` : `
+                    <div style="text-align: center; padding: 40px; color: #666;">
+                        <div style="font-size: 16px; margin-bottom: 10px;">No attendance data available</div>
+                        <div style="font-size: 14px;">Student attendance has not been recorded for this course.</div>
+                    </div>
+                `}
             </div>
 
             <div class="payment-info">

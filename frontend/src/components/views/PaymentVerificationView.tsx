@@ -34,8 +34,11 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import ServiceDetailsTable from '../common/ServiceDetailsTable';
+import PaymentHistoryTable from '../common/PaymentHistoryTable';
+import { formatDisplayDate } from '../../utils/dateUtils';
 
 const PaymentVerificationView = () => {
+  console.log('🔍 [PAYMENT VERIFICATION] Component function called');
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState('view'); // 'view' or 'action'
@@ -53,19 +56,33 @@ const PaymentVerificationView = () => {
   }>>([]);
   const [loadingAttendance, setLoadingAttendance] = useState(false);
 
+  // State for payment history
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
+
+  // State for invoice viewing
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [loadingInvoice, setLoadingInvoice] = useState(false);
+
   const queryClient = useQueryClient();
 
   // Fetch pending payment submissions
-  const { data: paymentsData, isLoading } = useQuery({
+  const { data: paymentsData, isLoading, error } = useQuery({
     queryKey: ['pending-payment-verifications'],
     queryFn: async () => {
+      console.log('🔍 [PAYMENT VERIFICATION] Making API call to /accounting/payment-verifications');
       const response = await api.get('/accounting/payment-verifications');
+      console.log('🔍 [PAYMENT VERIFICATION] API Response:', response.data);
+      
       // Filter to only show payments that are actually pending verification
       const pendingPayments = response.data.data.payments?.filter(payment => 
         payment.status === 'pending_verification' || 
         payment.status === 'pending' ||
         !payment.verified_by_accounting_at
       ) || [];
+      
+      console.log('🔍 [PAYMENT VERIFICATION] Filtered payments:', pendingPayments);
       
       return {
         ...response.data.data,
@@ -98,9 +115,36 @@ const PaymentVerificationView = () => {
     }
   };
 
+  // Load payment history for an invoice
+  const loadPaymentHistory = async (invoiceId: number) => {
+    if (!invoiceId) return;
+    
+    setLoadingPaymentHistory(true);
+    try {
+      console.log('Loading payment history for invoice:', invoiceId);
+      const response = await api.get(`/accounting/invoices/${invoiceId}/payments`);
+      console.log('Payment history response:', response);
+      
+      if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        setPaymentHistory(response.data.data);
+      } else if (response.data && Array.isArray(response.data)) {
+        setPaymentHistory(response.data);
+      } else {
+        console.warn('Unexpected payment history response format:', response.data);
+        setPaymentHistory([]);
+      }
+    } catch (error) {
+      console.error('Error loading payment history:', error);
+      setPaymentHistory([]);
+    } finally {
+      setLoadingPaymentHistory(false);
+    }
+  };
+
   // Verify payment mutation
   const verifyPaymentMutation = useMutation({
     mutationFn: async ({ paymentId, action, notes }: { paymentId: string; action: string; notes: string }) => {
+      console.log('🔍 [VERIFY PAYMENT] Starting verification:', { paymentId, action, notes });
       const response = await api.post(
         `/accounting/payments/${paymentId}/verify`,
         {
@@ -108,18 +152,24 @@ const PaymentVerificationView = () => {
           notes,
         }
       );
+      console.log('🔍 [VERIFY PAYMENT] Response:', response.data);
       return response.data;
     },
     onSuccess: (data) => {
+      console.log('🔍 [VERIFY PAYMENT] Success callback triggered:', data);
       queryClient.invalidateQueries({ queryKey: ['pending-payment-verifications'] });
       queryClient.invalidateQueries({ queryKey: ['accounting-invoices'] });
-      setPaymentDialogOpen(false);
       setVerificationNotes('');
       setSuccessMessage(`Payment ${verificationAction === 'approve' ? 'approved' : 'rejected'} successfully!`);
       setErrorMessage('');
+      
+      // Delay closing the dialog so user can see the success message
+      setTimeout(() => {
+        setPaymentDialogOpen(false);
+      }, 2000);
     },
     onError: (error: any) => {
-      console.error('Payment verification error:', error);
+      console.error('🔍 [VERIFY PAYMENT] Error:', error);
       setErrorMessage(error.response?.data?.message || 'Failed to verify payment. Please try again.');
       setSuccessMessage('');
     },
@@ -133,6 +183,11 @@ const PaymentVerificationView = () => {
     // Load attendance data for this payment's course
     if (payment.course_request_id) {
       loadAttendanceData(payment.course_request_id);
+    }
+    
+    // Load payment history for this payment's invoice
+    if (payment.invoice_id) {
+      loadPaymentHistory(payment.invoice_id);
     }
   };
 
@@ -149,10 +204,33 @@ const PaymentVerificationView = () => {
   };
 
   const handleVerificationSubmit = () => {
-    if (!selectedPayment) return;
+    console.log('🔍 [HANDLE VERIFY SUBMIT] Called with:', {
+      selectedPayment,
+      verificationAction,
+      verificationNotes
+    });
+    
+    if (!selectedPayment) {
+      console.log('🔍 [HANDLE VERIFY SUBMIT] No selected payment, returning');
+      return;
+    }
+
+    console.log('🔍 [HANDLE VERIFY SUBMIT] Payment ID field check:', {
+      payment_id: selectedPayment.payment_id,
+      id: selectedPayment.id,
+      allFields: Object.keys(selectedPayment)
+    });
+
+    const paymentId = selectedPayment.payment_id || selectedPayment.id;
+
+    console.log('🔍 [HANDLE VERIFY SUBMIT] Calling mutation with:', {
+      paymentId,
+      action: verificationAction,
+      notes: verificationNotes,
+    });
 
     verifyPaymentMutation.mutate({
-      paymentId: selectedPayment.payment_id,
+      paymentId: paymentId.toString(),
       action: verificationAction,
       notes: verificationNotes,
     });
@@ -164,6 +242,26 @@ const PaymentVerificationView = () => {
     setVerificationNotes('');
     setDialogMode('view');
     setAttendanceData([]); // Clear attendance data when dialog closes
+    setPaymentHistory([]); // Clear payment history when dialog closes
+  };
+
+  // Handle viewing invoice
+  const handleViewInvoice = async (invoiceId: number) => {
+    setLoadingInvoice(true);
+    try {
+      const response = await api.get(`/accounting/invoices/${invoiceId}`);
+      setSelectedInvoice(response.data.data);
+      setInvoiceDialogOpen(true);
+    } catch (error) {
+      console.error('Error loading invoice:', error);
+    } finally {
+      setLoadingInvoice(false);
+    }
+  };
+
+  const handleCloseInvoiceDialog = () => {
+    setInvoiceDialogOpen(false);
+    setSelectedInvoice(null);
   };
 
   // Transform payment data into service details format
@@ -214,6 +312,24 @@ const PaymentVerificationView = () => {
         icon: <PendingIcon />
       };
     }
+    
+    // If we have a success message, show the updated status
+    if (successMessage) {
+      if (verificationAction === 'approve') {
+        return {
+          label: 'VERIFIED',
+          color: 'success' as const,
+          icon: <CheckCircleIcon />
+        };
+      } else if (verificationAction === 'reject') {
+        return {
+          label: 'REJECTED',
+          color: 'error' as const,
+          icon: <RejectIcon />
+        };
+      }
+    }
+    
     if (payment.verified_by_accounting_at) {
       return {
         label: 'VERIFIED',
@@ -235,6 +351,17 @@ const PaymentVerificationView = () => {
     };
   };
 
+  // Debug logging
+  console.log('🔍 [PAYMENT VERIFICATION] Component state:', {
+    isLoading,
+    error: error?.message,
+    paymentsData,
+    paymentsCount: paymentsData?.payments?.length
+  });
+
+  // Force a console log to see if component is rendering
+  console.log('🔍 [PAYMENT VERIFICATION] Component is rendering');
+
   if (isLoading) {
     return (
       <Box
@@ -244,6 +371,17 @@ const PaymentVerificationView = () => {
         minHeight='400px'
       >
         <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          <Typography variant="h6">Error loading payment verifications</Typography>
+          <Typography variant="body2">{error.message}</Typography>
+        </Alert>
       </Box>
     );
   }
@@ -334,39 +472,15 @@ const PaymentVerificationView = () => {
                         />
                       </TableCell>
                       <TableCell align='center'>
-                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                          <Tooltip title='View Payment Details'>
-                            <IconButton
-                              size='small'
-                              onClick={() => handleViewPayment(payment)}
-                              color='primary'
-                            >
-                              <ViewIcon />
-                            </IconButton>
-                          </Tooltip>
-                          {canVerifyPayment(payment) && (
-                            <>
-                              <Tooltip title='Reject Payment'>
-                                <IconButton
-                                  size='small'
-                                  onClick={() => handleActionPayment(payment, 'reject')}
-                                  color='error'
-                                >
-                                  <RejectIcon />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title='Approve Payment'>
-                                <IconButton
-                                  size='small'
-                                  onClick={() => handleActionPayment(payment, 'approve')}
-                                  color='success'
-                                >
-                                  <CheckCircleIcon />
-                                </IconButton>
-                              </Tooltip>
-                            </>
-                          )}
-                        </Box>
+                        <Tooltip title='View Payment Details'>
+                          <IconButton
+                            size='small'
+                            onClick={() => handleViewPayment(payment)}
+                            color='primary'
+                          >
+                            <ViewIcon />
+                          </IconButton>
+                        </Tooltip>
                       </TableCell>
                     </TableRow>
                   );
@@ -473,6 +587,14 @@ const PaymentVerificationView = () => {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant='body2' color='text.secondary'>
+                    Payment Amount
+                  </Typography>
+                  <Typography variant='body1' fontWeight='medium' color='success.main'>
+                    {formatCurrency(selectedPayment.amount)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant='body2' color='text.secondary'>
                     Payment Method
                   </Typography>
                   <Typography variant='body1'>
@@ -567,9 +689,39 @@ const PaymentVerificationView = () => {
                 </Alert>
               )}
 
+              {/* Payment History Section */}
+              <Divider sx={{ my: 2 }} />
+              <Typography variant='subtitle1' gutterBottom sx={{ mt: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="h6" component="span">💰</Typography>
+                  Payment History
+                </Box>
+              </Typography>
+
+              <PaymentHistoryTable
+                payments={paymentHistory}
+                isLoading={loadingPaymentHistory}
+                showVerificationDetails={true}
+                onViewInvoice={handleViewInvoice}
+              />
+
               {dialogMode === 'view' && (
                 <Alert severity='info' sx={{ mt: 2 }}>
                   Review the payment details above. Use the action buttons below to approve or reject this payment.
+                </Alert>
+              )}
+
+              {/* Success message in dialog */}
+              {successMessage && (
+                <Alert severity='success' sx={{ mt: 2 }}>
+                  {successMessage}
+                </Alert>
+              )}
+
+              {/* Error message in dialog */}
+              {errorMessage && (
+                <Alert severity='error' sx={{ mt: 2 }}>
+                  {errorMessage}
                 </Alert>
               )}
             </Box>
@@ -616,16 +768,145 @@ const PaymentVerificationView = () => {
               color={verificationAction === 'approve' ? 'success' : 'error'}
               disabled={
                 verifyPaymentMutation.isPending ||
-                (verificationAction === 'reject' && !verificationNotes.trim())
+                (verificationAction === 'reject' && !verificationNotes.trim()) ||
+                !!successMessage
               }
             >
               {verifyPaymentMutation.isPending
                 ? 'Processing...'
-                : verificationAction === 'approve'
-                  ? 'Approve Payment'
-                  : 'Reject Payment'}
+                : successMessage
+                  ? 'Completed!'
+                  : verificationAction === 'approve'
+                    ? 'Approve Payment'
+                    : 'Reject Payment'}
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Invoice Detail Dialog */}
+      <Dialog
+        open={invoiceDialogOpen}
+        onClose={handleCloseInvoiceDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="h6" component="span">📄</Typography>
+            Invoice Details
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {loadingInvoice ? (
+            <Box display="flex" justifyContent="center" p={3}>
+              <CircularProgress />
+            </Box>
+          ) : selectedInvoice ? (
+            <Box>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Invoice Number
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedInvoice.invoicenumber}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Organization
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedInvoice.organizationname}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Course Type
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedInvoice.name}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Location
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedInvoice.location}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Course Date
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedInvoice.course_date ? formatDisplayDate(selectedInvoice.course_date) : 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Students Billed
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedInvoice.studentsattendance}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Total Amount
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium" color="primary.main">
+                    ${Number(selectedInvoice.amount || 0).toFixed(2)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Amount Paid
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium" color="success.main">
+                    ${Number(selectedInvoice.amount_paid || 0).toFixed(2)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">
+                    Balance Due
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium" color={Number(selectedInvoice.balance_due || 0) > 0 ? 'error.main' : 'success.main'}>
+                    ${Number(selectedInvoice.balance_due || 0).toFixed(2)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Due Date
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedInvoice.duedate ? formatDisplayDate(selectedInvoice.duedate) : 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Status
+                  </Typography>
+                  <Chip
+                    label={selectedInvoice.paymentstatus || selectedInvoice.status}
+                    color={getPaymentStatus(selectedInvoice).color}
+                    size="small"
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              No invoice details available.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseInvoiceDialog}>
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
 

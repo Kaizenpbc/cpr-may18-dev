@@ -8,6 +8,7 @@ import { authenticateToken, requireRole, authorizeRoles } from '../../middleware
 import { authenticateSession } from '../../middleware/sessionAuth.js';
 import { PDFService } from '../../services/pdfService.js';
 import { emailService } from '../../services/emailService.js';
+import { notificationService } from '../../services/NotificationService.js';
 import emailTemplatesRouter from './emailTemplates.js';
 import { cacheService } from '../../services/cacheService.js';
 import healthRouter from './health.js';
@@ -3116,7 +3117,18 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      console.log(`[DEBUG] Fetching all invoices list`);
+      const user = (req as any).user;
+      
+      // Only allow accounting roles to access this endpoint
+      if (user.role !== 'accountant') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Accounting role required.'
+        );
+      }
+      
+      console.log(`[DEBUG] Fetching all invoices list for accounting user: ${user.username}`);
       
       const result = await pool.query(`
       SELECT 
@@ -3626,6 +3638,7 @@ router.get(
         cr.location,
         ct.name as course_type_name,
         cr.completed_at as date_completed,
+        cp.price_per_student as rate_per_student,
         COALESCE(
           json_agg(
             json_build_object(
@@ -3641,9 +3654,10 @@ router.get(
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
       LEFT JOIN course_students cs ON cr.id = cs.course_request_id
       WHERE i.id = $1
-      GROUP BY i.id, i.invoice_number, i.organization_id, i.course_request_id, i.created_at, i.due_date, i.amount, i.status, i.students_billed, i.paid_date, o.name, o.contact_email, cr.location, ct.name, cr.completed_at
+      GROUP BY i.id, i.invoice_number, i.organization_id, i.course_request_id, i.created_at, i.due_date, i.amount, i.status, i.students_billed, i.paid_date, o.name, o.contact_email, cr.location, ct.name, cr.completed_at, cp.price_per_student
     `,
         [id]
       );
@@ -3710,12 +3724,27 @@ router.get(
         o.contact_email,
         cr.location,
         ct.name as course_type_name,
-        cr.completed_at as date_completed
+        cr.completed_at as date_completed,
+        cp.price_per_student as rate_per_student,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'first_name', cs.first_name,
+              'last_name', cs.last_name,
+              'email', cs.email,
+              'attended', cs.attended
+            ) ORDER BY cs.last_name, cs.first_name
+          ) FILTER (WHERE cs.id IS NOT NULL),
+          '[]'::json
+        ) as attendance_list
       FROM invoices i
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
+      LEFT JOIN course_students cs ON cr.id = cs.course_request_id
       WHERE i.id = $1
+      GROUP BY i.id, i.invoice_number, i.organization_id, i.course_request_id, i.created_at, i.due_date, i.amount, i.status, i.students_billed, i.paid_date, o.name, o.contact_email, cr.location, ct.name, cr.completed_at, cp.price_per_student
     `,
         [id]
       );
@@ -5317,7 +5346,16 @@ router.post(
         payment_proof_url,
       } = req.body;
 
+      console.log('[PAYMENT SUBMISSION] Request details:', {
+        invoiceId: id,
+        userRole: user.role,
+        userOrgId: user.organizationId,
+        amount,
+        paymentMethod: payment_method
+      });
+
       if (user.role !== 'organization') {
+        console.log('[PAYMENT SUBMISSION] Wrong role:', user.role);
         throw new AppError(
           403,
           errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
@@ -5341,13 +5379,21 @@ router.post(
         );
       }
 
-      // Verify invoice belongs to organization
+      // Verify invoice belongs to organization and get current balance
       const invoiceResult = await pool.query(
         `
-      SELECT id, amount, status, organization_id
-      FROM invoices 
-      WHERE id = $1 AND organization_id = $2
-    `,
+        SELECT 
+          i.id, 
+          i.amount, 
+          i.status, 
+          i.organization_id,
+          COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as verified_payments,
+          COALESCE(SUM(CASE WHEN p.status = 'pending_verification' THEN p.amount ELSE 0 END), 0) as pending_payments
+        FROM invoices i
+        LEFT JOIN payments p ON i.id = p.invoice_id
+        WHERE i.id = $1 AND i.organization_id = $2
+        GROUP BY i.id, i.amount, i.status, i.organization_id
+        `,
         [id, user.organizationId]
       );
 
@@ -5356,6 +5402,33 @@ router.post(
           404,
           errorCodes.RESOURCE_NOT_FOUND,
           'Invoice not found'
+        );
+      }
+
+      const invoice = invoiceResult.rows[0];
+      const totalInvoiceAmount = parseFloat(invoice.amount) || 0;
+      const verifiedPayments = parseFloat(invoice.verified_payments) || 0;
+      const pendingPayments = parseFloat(invoice.pending_payments) || 0;
+      const proposedPayment = parseFloat(amount) || 0;
+      
+      // Calculate current outstanding balance (excluding pending payments)
+      const currentOutstandingBalance = totalInvoiceAmount - verifiedPayments;
+      
+      // Validate payment amount against outstanding balance
+      if (proposedPayment > currentOutstandingBalance) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          `Payment amount ($${proposedPayment.toFixed(2)}) exceeds outstanding balance ($${currentOutstandingBalance.toFixed(2)}). Cannot submit overpayment.`
+        );
+      }
+
+      // Check if invoice is already paid
+      if (invoice.status === 'paid') {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Invoice is already marked as paid. Cannot submit additional payments.'
         );
       }
 
@@ -5390,23 +5463,70 @@ router.post(
           ]
         );
 
-        // Update invoice status to indicate payment submitted
-        await client.query(
-          `
-        UPDATE invoices 
-        SET status = 'payment_submitted', updated_at = NOW()
-        WHERE id = $1
-      `,
-          [id]
-        );
+        // Calculate if this payment completes the invoice
+        const totalPaymentsAfterSubmission = verifiedPayments + pendingPayments + proposedPayment;
+        const isFullPayment = totalPaymentsAfterSubmission >= totalInvoiceAmount;
+        
+        // Update invoice status based on payment completion
+        if (isFullPayment) {
+          await client.query(
+            `
+            UPDATE invoices 
+            SET status = 'payment_submitted', updated_at = NOW()
+            WHERE id = $1
+            `,
+            [id]
+          );
+        } else {
+          await client.query(
+            `
+            UPDATE invoices 
+            SET status = 'payment_submitted', updated_at = NOW()
+            WHERE id = $1
+            `,
+            [id]
+          );
+        }
 
         await client.query('COMMIT');
 
+        const paymentType = isFullPayment ? 'full payment' : 'partial payment';
+        const remainingBalance = Math.max(0, totalInvoiceAmount - totalPaymentsAfterSubmission);
+
+        // Get organization name for notification
+        const orgResult = await pool.query(
+          'SELECT name FROM organizations WHERE id = $1',
+          [user.organizationId]
+        );
+        const organizationName = orgResult.rows[0]?.name || 'Unknown Organization';
+
+        // Get invoice number for notification
+        const invoiceNumberResult = await pool.query(
+          'SELECT invoice_number FROM invoices WHERE id = $1',
+          [id]
+        );
+        const invoiceNumber = invoiceNumberResult.rows[0]?.invoice_number || 'Unknown Invoice';
+
+        // Send notification to all accountants asynchronously
+        notificationService.notifyPaymentSubmitted(
+          parseInt(id),
+          invoiceNumber,
+          organizationName,
+          proposedPayment
+        ).catch(error => {
+          console.error('[NOTIFICATION] Error sending payment notification:', error);
+        });
+
         res.json({
           success: true,
-          message:
-            'Payment submission recorded successfully. It will be verified by accounting.',
-          data: paymentResult.rows[0],
+          message: `Payment submission recorded successfully. This is a ${paymentType}. It will be verified by accounting.`,
+          data: {
+            ...paymentResult.rows[0],
+            payment_type: paymentType,
+            remaining_balance: remainingBalance,
+            is_full_payment: isFullPayment,
+            can_submit_additional_payments: !isFullPayment
+          },
         });
       } catch (error) {
         await client.query('ROLLBACK');
@@ -5645,7 +5765,19 @@ router.post(
       const { id } = req.params;
       const { action, notes } = req.body; // action: 'approve' or 'reject'
 
+      console.log('🔍 [PAYMENT VERIFICATION] Request received:', {
+        paymentId: id,
+        action,
+        notes,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role
+        }
+      });
+
       if (user.role !== 'accountant' && user.role !== 'admin') {
+        console.log('🔍 [PAYMENT VERIFICATION] Access denied for role:', user.role);
         throw new AppError(
           403,
           errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
@@ -5654,6 +5786,7 @@ router.post(
       }
 
       if (!action || !['approve', 'reject'].includes(action)) {
+        console.log('🔍 [PAYMENT VERIFICATION] Invalid action:', action);
         throw new AppError(
           400,
           errorCodes.VALIDATION_ERROR,
@@ -5662,6 +5795,7 @@ router.post(
       }
 
       if (action === 'reject' && !notes?.trim()) {
+        console.log('🔍 [PAYMENT VERIFICATION] Reject action requires notes');
         throw new AppError(
           400,
           errorCodes.VALIDATION_ERROR,
@@ -5673,6 +5807,7 @@ router.post(
 
       try {
         await client.query('BEGIN');
+        console.log('🔍 [PAYMENT VERIFICATION] Database transaction started');
 
         // Get payment and invoice details
         const paymentResult = await client.query(
@@ -5685,7 +5820,14 @@ router.post(
           [id]
         );
 
+        console.log('🔍 [PAYMENT VERIFICATION] Payment lookup result:', {
+          paymentId: id,
+          rowsFound: paymentResult.rows.length,
+          paymentData: paymentResult.rows[0] || null
+        });
+
         if (paymentResult.rows.length === 0) {
+          console.log('🔍 [PAYMENT VERIFICATION] Payment not found or already processed');
           throw new AppError(
             404,
             errorCodes.RESOURCE_NOT_FOUND,
@@ -5694,19 +5836,34 @@ router.post(
         }
 
         const payment = paymentResult.rows[0];
+        console.log('🔍 [PAYMENT VERIFICATION] Processing payment:', {
+          paymentId: payment.id,
+          amount: payment.amount,
+          status: payment.status,
+          invoiceId: payment.invoice_id,
+          invoiceAmount: payment.invoice_amount
+        });
 
         if (action === 'approve') {
+          console.log('🔍 [PAYMENT VERIFICATION] Approving payment...');
+          
           // Approve payment
-          await client.query(
+          const updateResult = await client.query(
             `
               UPDATE payments 
               SET status = 'verified', 
                   verified_by_accounting_at = NOW(),
                   notes = COALESCE(notes, '') || CASE WHEN notes IS NOT NULL AND notes != '' THEN E'\n\n' ELSE '' END || $2
               WHERE id = $1
+              RETURNING *
             `,
             [id, `Verified by ${user.username}: ${notes || 'Payment approved'}`]
           );
+
+          console.log('🔍 [PAYMENT VERIFICATION] Payment update result:', {
+            rowsAffected: updateResult.rowCount,
+            updatedPayment: updateResult.rows[0]
+          });
 
           // Check if invoice is fully paid
           const totalPaidResult = await client.query(
@@ -5721,53 +5878,83 @@ router.post(
           const totalPaid = parseFloat(totalPaidResult.rows[0].total_paid);
           const invoiceAmount = parseFloat(payment.invoice_amount);
 
+          console.log('🔍 [PAYMENT VERIFICATION] Invoice payment calculation:', {
+            totalPaid,
+            invoiceAmount,
+            isFullyPaid: totalPaid >= invoiceAmount
+          });
+
           // Update invoice status based on payment amount
           if (totalPaid >= invoiceAmount) {
             // Fully paid - mark as paid
-            await client.query(
+            const invoiceUpdateResult = await client.query(
               `
                 UPDATE invoices 
                 SET status = 'paid', paid_date = NOW(), updated_at = NOW()
                 WHERE id = $1
+                RETURNING *
               `,
               [payment.invoice_id]
             );
+            console.log('🔍 [PAYMENT VERIFICATION] Invoice marked as paid:', {
+              rowsAffected: invoiceUpdateResult.rowCount,
+              updatedInvoice: invoiceUpdateResult.rows[0]
+            });
           } else {
             // Partial payment - revert to pending status
-            await client.query(
+            const invoiceUpdateResult = await client.query(
               `
                 UPDATE invoices 
                 SET status = 'pending', updated_at = NOW()
                 WHERE id = $1
+                RETURNING *
               `,
               [payment.invoice_id]
             );
+            console.log('🔍 [PAYMENT VERIFICATION] Invoice marked as pending (partial payment):', {
+              rowsAffected: invoiceUpdateResult.rowCount,
+              updatedInvoice: invoiceUpdateResult.rows[0]
+            });
           }
         } else if (action === 'reject') {
+          console.log('🔍 [PAYMENT VERIFICATION] Rejecting payment...');
+          
           // Reject payment - mark as rejected
-          await client.query(
+          const updateResult = await client.query(
             `
               UPDATE payments 
               SET status = 'rejected', 
                   verified_by_accounting_at = NOW(),
                   notes = COALESCE(notes, '') || CASE WHEN notes IS NOT NULL AND notes != '' THEN E'\n\n' ELSE '' END || $2
               WHERE id = $1
+              RETURNING *
             `,
             [id, `Rejected by ${user.username}: ${notes}`]
           );
 
+          console.log('🔍 [PAYMENT VERIFICATION] Payment rejection result:', {
+            rowsAffected: updateResult.rowCount,
+            updatedPayment: updateResult.rows[0]
+          });
+
           // Revert invoice status to pending
-          await client.query(
+          const invoiceUpdateResult = await client.query(
             `
               UPDATE invoices 
               SET status = 'pending', updated_at = NOW()
               WHERE id = $1
+              RETURNING *
             `,
             [payment.invoice_id]
           );
+          console.log('🔍 [PAYMENT VERIFICATION] Invoice reverted to pending:', {
+            rowsAffected: invoiceUpdateResult.rowCount,
+            updatedInvoice: invoiceUpdateResult.rows[0]
+          });
         }
 
         await client.query('COMMIT');
+        console.log('🔍 [PAYMENT VERIFICATION] Database transaction committed successfully');
 
         // Emit real-time update event for payment verification
         const io = req.app.get('io');
@@ -5785,7 +5972,7 @@ router.post(
         }
 
         // Send success response
-        res.json({
+        const responseData = {
           success: true,
           message: `Payment ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
           data: {
@@ -5793,16 +5980,20 @@ router.post(
             action: action,
             invoiceId: payment.invoice_id
           }
-        });
+        };
+        
+        console.log('🔍 [PAYMENT VERIFICATION] Sending success response:', responseData);
+        res.json(responseData);
       } catch (error) {
         await client.query('ROLLBACK');
-        console.error('Error recording payment:', error);
+        console.error('🔍 [PAYMENT VERIFICATION] Error during transaction, rolling back:', error);
         throw error;
       } finally {
         client.release();
+        console.log('🔍 [PAYMENT VERIFICATION] Database client released');
       }
     } catch (error) {
-      console.error('Error recording payment:', error);
+      console.error('🔍 [PAYMENT VERIFICATION] Error in payment verification endpoint:', error);
       throw error;
     }
   })
@@ -6730,6 +6921,100 @@ router.get(
       });
     } catch (error) {
       console.error('Error validating billing readiness:', error);
+      throw error;
+    }
+  })
+);
+
+// Organization Bills Payable - Real-time balance calculation
+router.get(
+  '/organization/invoices/:id/balance-calculation',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const { payment_amount = 0 } = req.query;
+
+      console.log('[BALANCE CALCULATION] Request details:', {
+        invoiceId: id,
+        userRole: user.role,
+        userOrgId: user.organizationId,
+        paymentAmount: payment_amount
+      });
+
+      if (user.role !== 'organization') {
+        console.log('[BALANCE CALCULATION] Wrong role:', user.role);
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Organization role required.'
+        );
+      }
+
+      // Get invoice details with current balance
+      const invoiceResult = await pool.query(
+        `
+        SELECT 
+          i.id,
+          i.invoice_number,
+          i.amount,
+          i.status,
+          i.base_cost,
+          i.tax_amount,
+          COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as verified_payments,
+          COALESCE(SUM(CASE WHEN p.status = 'pending_verification' THEN p.amount ELSE 0 END), 0) as pending_payments
+        FROM invoices i
+        LEFT JOIN payments p ON i.id = p.invoice_id
+        WHERE i.id = $1 AND i.organization_id = $2
+        GROUP BY i.id, i.invoice_number, i.amount, i.status, i.base_cost, i.tax_amount
+        `,
+        [id, user.organizationId]
+      );
+
+      if (invoiceResult.rows.length === 0) {
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Invoice not found'
+        );
+      }
+
+      const invoice = invoiceResult.rows[0];
+      const totalInvoiceAmount = parseFloat(invoice.amount) || 0;
+      const verifiedPayments = parseFloat(invoice.verified_payments) || 0;
+      const pendingPayments = parseFloat(invoice.pending_payments) || 0;
+      const proposedPayment = parseFloat(payment_amount as string) || 0;
+      
+      // Calculate current outstanding balance (excluding pending payments)
+      const currentOutstandingBalance = totalInvoiceAmount - verifiedPayments;
+      
+      // Calculate remaining balance after proposed payment
+      const remainingBalanceAfterPayment = currentOutstandingBalance - proposedPayment;
+      
+      // Determine if payment is valid
+      const isValidPayment = proposedPayment > 0 && proposedPayment <= currentOutstandingBalance;
+      const isOverpayment = proposedPayment > currentOutstandingBalance;
+      const isFullPayment = proposedPayment >= currentOutstandingBalance;
+
+      res.json({
+        success: true,
+        data: {
+          invoice_number: invoice.invoice_number,
+          total_invoice_amount: totalInvoiceAmount,
+          verified_payments: verifiedPayments,
+          pending_payments: pendingPayments,
+          current_outstanding_balance: currentOutstandingBalance,
+          proposed_payment: proposedPayment,
+          remaining_balance_after_payment: Math.max(0, remainingBalanceAfterPayment),
+          is_valid_payment: isValidPayment,
+          is_overpayment: isOverpayment,
+          is_full_payment: isFullPayment,
+          can_submit_payment: isValidPayment && invoice.status !== 'paid'
+        }
+      });
+    } catch (error) {
+      console.error('[Balance Calculation] Error:', error);
       throw error;
     }
   })

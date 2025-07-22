@@ -45,6 +45,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { API_URL } from '../../config';
+import PaymentHistoryTable from '../common/PaymentHistoryTable';
 
 const BillsPayableView = () => {
   const [selectedTab, setSelectedTab] = useState(0);
@@ -58,6 +59,10 @@ const BillsPayableView = () => {
     payment_date: new Date().toISOString().split('T')[0],
     notes: '',
   });
+
+  // State for payment history
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -128,6 +133,32 @@ const BillsPayableView = () => {
     },
   });
 
+  // Load payment history for an invoice
+  const loadPaymentHistory = async (invoiceId: number) => {
+    if (!invoiceId) return;
+    
+    setLoadingPaymentHistory(true);
+    try {
+      console.log('Loading payment history for invoice:', invoiceId);
+      const response = await api.get(`/organization/invoices/${invoiceId}/payments`);
+      console.log('Payment history response:', response);
+      
+      if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        setPaymentHistory(response.data.data);
+      } else if (response.data && Array.isArray(response.data)) {
+        setPaymentHistory(response.data);
+      } else {
+        console.warn('Unexpected payment history response format:', response.data);
+        setPaymentHistory([]);
+      }
+    } catch (error) {
+      console.error('Error loading payment history:', error);
+      setPaymentHistory([]);
+    } finally {
+      setLoadingPaymentHistory(false);
+    }
+  };
+
   const handleTabChange = (event, newValue) => {
     setSelectedTab(newValue);
   };
@@ -155,6 +186,11 @@ const BillsPayableView = () => {
   const handleViewInvoice = invoice => {
     setSelectedInvoice(invoice);
     setInvoiceDetailOpen(true);
+    
+    // Load payment history for this invoice
+    if (invoice.invoice_id) {
+      loadPaymentHistory(invoice.invoice_id);
+    }
   };
 
   const handlePayInvoice = invoice => {
@@ -815,7 +851,10 @@ const BillsPayableView = () => {
       {/* Invoice Detail Dialog */}
       <Dialog
         open={invoiceDetailOpen}
-        onClose={() => setInvoiceDetailOpen(false)}
+        onClose={() => {
+          setInvoiceDetailOpen(false);
+          setPaymentHistory([]); // Clear payment history when dialog closes
+        }}
         maxWidth='md'
         fullWidth
       >
@@ -986,11 +1025,32 @@ const BillsPayableView = () => {
                   </Grid>
                 </Grid>
               </Grid>
+
+              {/* Payment History Section */}
+              <Divider sx={{ my: 2 }} />
+              <Typography variant='subtitle1' gutterBottom sx={{ mt: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="h6" component="span">💰</Typography>
+                  Payment History
+                </Box>
+              </Typography>
+
+              <PaymentHistoryTable
+                payments={paymentHistory}
+                isLoading={loadingPaymentHistory}
+                showVerificationDetails={true}
+                onViewInvoice={() => {}} // Already showing invoice details in this dialog
+              />
             </Box>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setInvoiceDetailOpen(false)}>Close</Button>
+          <Button onClick={() => {
+            setInvoiceDetailOpen(false);
+            setPaymentHistory([]); // Clear payment history when dialog closes
+          }}>
+            Close
+          </Button>
           {selectedInvoice && (
             <Button
               onClick={() => handlePreviewPDF(selectedInvoice.invoice_id)}

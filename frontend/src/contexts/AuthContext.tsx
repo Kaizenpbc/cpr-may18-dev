@@ -313,22 +313,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         
         if (isDefaultRoute && isSavedLocationAppropriate()) {
-          console.log('[TRACE] Auth context - Restoring saved location:', savedLocation);
-          // Mark that we've attempted restoration to prevent loops
-          sessionStorage.setItem('location_restoration_attempted', 'true');
-          tokenService.clearSavedLocation();
-          // Use setTimeout to ensure navigation happens after state updates
-          setTimeout(() => {
-            navigate(savedLocation, { replace: true });
-          }, 100);
+          // Don't restore location if user is intentionally on dashboard
+          // Only restore if we're coming from a login/logout flow
+          const isFromAuthFlow = sessionStorage.getItem('from_auth_flow') === 'true';
+          
+          if (isFromAuthFlow) {
+            console.log('[TRACE] Auth context - Restoring saved location from auth flow:', savedLocation);
+            // Mark that we've attempted restoration to prevent loops
+            sessionStorage.setItem('location_restoration_attempted', 'true');
+            tokenService.clearSavedLocation();
+            // Clear auth flow flag since we're restoring location
+            sessionStorage.removeItem('from_auth_flow');
+            // Use setTimeout to ensure navigation happens after state updates
+            setTimeout(() => {
+              navigate(savedLocation, { replace: true });
+            }, 100);
+          } else {
+            console.log('[TRACE] Auth context - Not restoring location (not from auth flow)');
+            tokenService.clearSavedLocation();
+            // Clear auth flow flag since we're not restoring location
+            sessionStorage.removeItem('from_auth_flow');
+          }
         } else {
           // Clear saved location if we're already on a specific page or location is inappropriate
           console.log('[TRACE] Auth context - Clearing saved location (not default route or inappropriate)');
           tokenService.clearSavedLocation();
+          // Clear auth flow flag since we're not restoring location
+          sessionStorage.removeItem('from_auth_flow');
         }
       } else if (restorationAttempted) {
         // Clear the flag if we're not attempting restoration
         sessionStorage.removeItem('location_restoration_attempted');
+        // Also clear auth flow flag
+        sessionStorage.removeItem('from_auth_flow');
       }
     }
   }, [user, loading, navigate]);
@@ -377,6 +394,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         timestamp: new Date().toISOString()
       });
       
+      // Set flag to indicate this is from auth flow for location restoration
+      sessionStorage.setItem('from_auth_flow', 'true');
       navigate(targetRoute);
       console.log('[DEEP TRACE] AuthContext.login - Navigation completed');
     } catch (err) {
