@@ -5,16 +5,15 @@ import {
   Card,
   CardContent,
   Typography,
-  CircularProgress,
-  Alert,
-  Chip
+  Chip,
 } from '@mui/material';
 import {
+  PendingActions as PendingIcon,
   Receipt as InvoiceIcon,
-  Pending as PendingIcon,
   CheckCircle as PaidIcon,
-  Timeline as TimelineIcon
+  Timeline as TimelineIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { vendorApi } from '../../../services/api';
 
 interface DashboardStats {
@@ -25,42 +24,42 @@ interface DashboardStats {
 }
 
 const VendorDashboard: React.FC = () => {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<DashboardStats>({
+    pendingInvoices: 0,
+    totalInvoices: 0,
+    totalPaid: 0,
+    averagePaymentTime: 0,
+  });
+  const navigate = useNavigate();
+
+  const fetchDashboardStats = async () => {
+    try {
+      const response = await vendorApi.getDashboard();
+      setStats(response.data);
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    }
+  };
 
   useEffect(() => {
     fetchDashboardStats();
   }, []);
 
-  const fetchDashboardStats = async () => {
-    try {
-      setLoading(true);
-      const response = await vendorApi.getDashboard();
-      setStats(response);
-    } catch (err) {
-      setError('Failed to load dashboard statistics');
-      console.error('Error fetching dashboard stats:', err);
-    } finally {
-      setLoading(false);
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case 'upload':
+        navigate('/vendor/upload');
+        break;
+      case 'history':
+        navigate('/vendor/history');
+        break;
+      case 'profile':
+        navigate('/vendor/profile');
+        break;
+      default:
+        break;
     }
   };
-
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert severity="error" sx={{ mb: 2 }}>
-        {error}
-      </Alert>
-    );
-  }
 
   return (
     <Box>
@@ -153,6 +152,7 @@ const VendorDashboard: React.FC = () => {
               color="primary" 
               variant="outlined"
               clickable
+              onClick={() => handleQuickAction('upload')}
             />
           </Grid>
           <Grid item>
@@ -161,6 +161,7 @@ const VendorDashboard: React.FC = () => {
               color="secondary" 
               variant="outlined"
               clickable
+              onClick={() => handleQuickAction('history')}
             />
           </Grid>
           <Grid item>
@@ -169,6 +170,7 @@ const VendorDashboard: React.FC = () => {
               color="default" 
               variant="outlined"
               clickable
+              onClick={() => handleQuickAction('profile')}
             />
           </Grid>
         </Grid>

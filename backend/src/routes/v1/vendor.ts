@@ -7,6 +7,19 @@ import fs from 'fs';
 
 const router = express.Router();
 
+// Get all vendors for dropdown selection
+router.get('/vendors', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, name as vendor_name, vendor_type FROM vendors WHERE is_active = true ORDER BY name'
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching vendors:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -231,21 +244,28 @@ router.get('/invoices', authenticateToken, async (req, res) => {
     const vendorId = vendorResult.rows[0].id;
     const { status, search } = req.query;
 
-    let query = 'SELECT * FROM vendor_invoices WHERE vendor_id = $1';
+    let query = `
+      SELECT 
+        vi.*,
+        v.name as company
+      FROM vendor_invoices vi
+      LEFT JOIN vendors v ON vi.vendor_id = v.id
+      WHERE vi.vendor_id = $1
+    `;
     let params = [vendorId];
 
     if (status) {
-      query += ' AND status = $2';
+      query += ' AND vi.status = $2';
       params.push(status);
     }
 
     if (search) {
       const searchParam = params.length + 1;
-      query += ` AND (invoice_number ILIKE $${searchParam} OR description ILIKE $${searchParam})`;
+      query += ` AND (vi.invoice_number ILIKE $${searchParam} OR vi.description ILIKE $${searchParam})`;
       params.push(`%${search}%`);
     }
 
-    query += ' ORDER BY created_at DESC';
+    query += ' ORDER BY vi.created_at DESC';
 
     const result = await pool.query(query, params);
     res.json(result.rows);
@@ -258,27 +278,6 @@ router.get('/invoices', authenticateToken, async (req, res) => {
 // Submit new invoice
 router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), async (req, res) => {
   try {
-    // Get user email from database using user ID
-    const userResult = await pool.query(
-      'SELECT email FROM users WHERE id = $1',
-      [req.user.id]
-    );
-
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const userEmail = userResult.rows[0].email;
-
-    const vendorResult = await pool.query(
-      'SELECT id FROM vendors WHERE contact_email = $1',
-      [userEmail]
-    );
-
-    if (vendorResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Vendor not found' });
-    }
-
     const {
       invoice_number,
       amount,
@@ -286,11 +285,22 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), async 
       invoice_date,
       due_date,
       manual_type,
-      quantity
+      quantity,
+      vendor_id
     } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ error: 'Invoice PDF is required' });
+    }
+
+    // Validate that the selected vendor exists and is active
+    const vendorResult = await pool.query(
+      'SELECT id FROM vendors WHERE id = $1 AND is_active = true',
+      [vendor_id]
+    );
+
+    if (vendorResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid vendor selected' });
     }
 
     const result = await pool.query(
@@ -301,7 +311,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), async 
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING id`,
       [
-        vendorResult.rows[0].id,
+        vendor_id,
         invoice_number,
         parseFloat(amount),
         description,

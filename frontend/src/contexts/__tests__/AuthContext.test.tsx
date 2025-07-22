@@ -1,88 +1,238 @@
-import React from 'react';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider, useAuth } from '../AuthContext';
-import authService from '../../services/authService';
 
-// Mock authService
-vi.mock('../../services/authService', () => ({
-  default: {
-    getCurrentUser: vi.fn(),
-    login: vi.fn(),
-    logout: vi.fn(),
-  },
+// Mock the API
+const mockApi = {
+  post: jest.fn(),
+  get: jest.fn()
+};
+
+jest.mock('../../services/api', () => ({
+  api: mockApi
 }));
 
-// Test component that uses the auth context
-function TestComponent() {
-  const { user, isAuthenticated, login, logout } = useAuth();
+const TestComponent = () => {
+  const { user, login, logout, isAuthenticated } = useAuth();
+  
   return (
     <div>
-      <div data-testid='user'>{JSON.stringify(user)}</div>
-      <div data-testid='isAuthenticated'>{isAuthenticated.toString()}</div>
-      <button onClick={() => login('test', 'pass')}>Login</button>
+      <div data-testid="user-info">
+        {user ? `Logged in as ${user.name}` : 'Not logged in'}
+      </div>
+      <div data-testid="auth-status">
+        {isAuthenticated ? 'Authenticated' : 'Not authenticated'}
+      </div>
+      <button onClick={() => login('test@example.com', 'password')}>
+        Login
+      </button>
       <button onClick={logout}>Logout</button>
     </div>
   );
-}
+};
+
+const renderWithProviders = (component: React.ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          {component}
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+};
 
 describe('AuthContext', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
+    localStorage.clear();
   });
 
-  it('provides initial state', () => {
-    authService.getCurrentUser.mockReturnValue(null);
-    render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
-    );
-
-    expect(screen.getByTestId('user')).toHaveTextContent('null');
-    expect(screen.getByTestId('isAuthenticated')).toHaveTextContent('false');
+  test('provides initial unauthenticated state', () => {
+    renderWithProviders(<TestComponent />);
+    
+    expect(screen.getByTestId('user-info')).toHaveTextContent('Not logged in');
+    expect(screen.getByTestId('auth-status')).toHaveTextContent('Not authenticated');
   });
 
-  it('handles login', async () => {
-    const mockUser = { id: 1, username: 'test' };
-    authService.login.mockResolvedValue(mockUser);
+  test('login function calls API correctly', async () => {
+    const mockUser = {
+      id: 1,
+      name: 'Test User',
+      email: 'test@example.com',
+      role: 'vendor'
+    };
 
-    render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
-    );
+    mockApi.post.mockResolvedValue({ 
+      data: { 
+        user: mockUser, 
+        token: 'mock-jwt-token' 
+      } 
+    });
 
+    renderWithProviders(<TestComponent />);
+    
     const loginButton = screen.getByText('Login');
-    await act(async () => {
-      loginButton.click();
-    });
+    fireEvent.click(loginButton);
 
-    expect(authService.login).toHaveBeenCalledWith('test', 'pass');
+    await waitFor(() => {
+      expect(mockApi.post).toHaveBeenCalledWith('/auth/login', {
+        email: 'test@example.com',
+        password: 'password'
+      });
+    });
   });
 
-  it('handles logout', async () => {
-    render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
-    );
+  test('stores token in localStorage on successful login', async () => {
+    const mockUser = {
+      id: 1,
+      name: 'Test User',
+      email: 'test@example.com',
+      role: 'vendor'
+    };
 
+    mockApi.post.mockResolvedValue({ 
+      data: { 
+        user: mockUser, 
+        token: 'mock-jwt-token' 
+      } 
+    });
+
+    renderWithProviders(<TestComponent />);
+    
+    const loginButton = screen.getByText('Login');
+    fireEvent.click(loginButton);
+
+    await waitFor(() => {
+      expect(localStorage.getItem('token')).toBe('mock-jwt-token');
+    });
+  });
+
+  test('handles login errors', async () => {
+    mockApi.post.mockRejectedValue(new Error('Invalid credentials'));
+
+    renderWithProviders(<TestComponent />);
+    
+    const loginButton = screen.getByText('Login');
+    fireEvent.click(loginButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('user-info')).toHaveTextContent('Not logged in');
+    });
+  });
+
+  test('logout function clears user state', async () => {
+    // First login
+    const mockUser = {
+      id: 1,
+      name: 'Test User',
+      email: 'test@example.com',
+      role: 'vendor'
+    };
+
+    mockApi.post.mockResolvedValue({ 
+      data: { 
+        user: mockUser, 
+        token: 'mock-jwt-token' 
+      } 
+    });
+
+    renderWithProviders(<TestComponent />);
+    
+    const loginButton = screen.getByText('Login');
+    fireEvent.click(loginButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('user-info')).toHaveTextContent('Logged in as Test User');
+    });
+
+    // Then logout
     const logoutButton = screen.getByText('Logout');
-    await act(async () => {
-      logoutButton.click();
-    });
+    fireEvent.click(logoutButton);
 
-    expect(authService.logout).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByTestId('user-info')).toHaveTextContent('Not logged in');
+      expect(localStorage.getItem('token')).toBeNull();
+    });
   });
 
-  it('throws error when useAuth is used outside AuthProvider', () => {
-    const consoleError = console.error;
-    console.error = vi.fn();
+  test('validates token on mount', async () => {
+    localStorage.setItem('token', 'existing-token');
+    
+    const mockUser = {
+      id: 1,
+      name: 'Test User',
+      email: 'test@example.com',
+      role: 'vendor'
+    };
 
-    expect(() => {
-      render(<TestComponent />);
-    }).toThrow('useAuth must be used within an AuthProvider');
+    mockApi.get.mockResolvedValue({ data: { user: mockUser } });
 
-    console.error = consoleError;
+    renderWithProviders(<TestComponent />);
+
+    await waitFor(() => {
+      expect(mockApi.get).toHaveBeenCalledWith('/auth/validate');
+    });
+  });
+
+  test('handles token validation errors', async () => {
+    localStorage.setItem('token', 'invalid-token');
+    
+    mockApi.get.mockRejectedValue(new Error('Invalid token'));
+
+    renderWithProviders(<TestComponent />);
+
+    await waitFor(() => {
+      expect(localStorage.getItem('token')).toBeNull();
+      expect(screen.getByTestId('user-info')).toHaveTextContent('Not logged in');
+    });
+  });
+
+  test('provides user role information', async () => {
+    const mockUser = {
+      id: 1,
+      name: 'Test User',
+      email: 'test@example.com',
+      role: 'vendor'
+    };
+
+    mockApi.post.mockResolvedValue({ 
+      data: { 
+        user: mockUser, 
+        token: 'mock-jwt-token' 
+      } 
+    });
+
+    renderWithProviders(<TestComponent />);
+    
+    const loginButton = screen.getByText('Login');
+    fireEvent.click(loginButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('user-info')).toHaveTextContent('Logged in as Test User');
+    });
+  });
+
+  test('handles network errors gracefully', async () => {
+    mockApi.post.mockRejectedValue(new Error('Network error'));
+
+    renderWithProviders(<TestComponent />);
+    
+    const loginButton = screen.getByText('Login');
+    fireEvent.click(loginButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('user-info')).toHaveTextContent('Not logged in');
+    });
   });
 });

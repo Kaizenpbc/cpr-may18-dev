@@ -39,7 +39,9 @@ exports.up = function(knex) {
         'pending_review', 
         'approved',
         'rejected',
-        'paid'
+        'sent_to_accounting',
+        'paid',
+        'partially_paid'
       ]).defaultTo('submitted');
       table.date('invoice_date');
       table.date('due_date');
@@ -50,6 +52,7 @@ exports.up = function(knex) {
       table.date('payment_date');
       table.integer('approved_by').unsigned(); // User ID who approved
       table.integer('rejected_by').unsigned(); // User ID who rejected
+      table.timestamp('sent_to_accounting_at'); // When sent to accounting
       table.timestamp('created_at').defaultTo(knex.fn.now());
       table.timestamp('updated_at').defaultTo(knex.fn.now());
       
@@ -64,6 +67,34 @@ exports.up = function(knex) {
       table.index(['invoice_number']);
       table.index(['created_at']);
       table.index(['invoice_date']);
+    })
+    .createTable('vendor_payments', function(table) {
+      table.increments('id').primary();
+      table.integer('vendor_invoice_id').unsigned().notNullable();
+      table.decimal('amount', 10, 2).notNullable();
+      table.date('payment_date').notNullable();
+      table.string('payment_method', 50).notNullable(); // check, direct_deposit, wire_transfer
+      table.string('reference_number', 100); // Check number, transaction ID, etc.
+      table.text('notes');
+      table.enum('status', [
+        'pending',
+        'processed',
+        'reversed'
+      ]).defaultTo('pending');
+      table.integer('processed_by').unsigned(); // User ID who processed payment
+      table.timestamp('processed_at');
+      table.timestamp('created_at').defaultTo(knex.fn.now());
+      table.timestamp('updated_at').defaultTo(knex.fn.now());
+      
+      // Foreign keys
+      table.foreign('vendor_invoice_id').references('id').inTable('vendor_invoices').onDelete('CASCADE');
+      table.foreign('processed_by').references('id').inTable('users').onDelete('SET NULL');
+      
+      // Indexes
+      table.index(['vendor_invoice_id']);
+      table.index(['status']);
+      table.index(['payment_date']);
+      table.index(['created_at']);
     });
 };
 
@@ -73,6 +104,7 @@ exports.up = function(knex) {
  */
 exports.down = function(knex) {
   return knex.schema
+    .dropTableIfExists('vendor_payments')
     .dropTableIfExists('vendor_invoices')
     .dropTableIfExists('vendors');
 }; 

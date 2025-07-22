@@ -274,29 +274,43 @@ const AccountsReceivableTable = ({
 
   // Calculate invoice amounts
   const calculateInvoiceAmounts = (invoice) => {
-    const studentsBilled = invoice.students_billed || 0;
-    const ratePerStudent = invoice.rate_per_student;
-    
-    if (!ratePerStudent) {
+    try {
+      const studentsBilled = parseInt(invoice.studentsattendance) || 0;
+      const ratePerStudent = parseFloat(invoice.rate_per_student) || 0;
+      
+      if (studentsBilled === 0 || ratePerStudent === 0) {
+        return {
+          error: 'Invalid rate or student count',
+          baseCost: '0.00',
+          taxAmount: '0.00',
+          totalAmount: '0.00',
+          balanceDue: '0.00'
+        };
+      }
+      
+      const baseCost = studentsBilled * ratePerStudent;
+      const taxAmount = baseCost * 0.13; // 13% HST
+      const totalAmount = baseCost + taxAmount;
+      
+      // Use the balancedue from backend instead of calculating in frontend
+      const balanceDue = parseFloat(invoice.balancedue || 0);
+      
       return {
-        baseCost: 'N/A',
-        taxAmount: 'N/A',
-        totalAmount: 'N/A',
-        balanceDue: 'N/A',
-        error: 'Pricing not configured'
+        baseCost: baseCost.toFixed(2),
+        taxAmount: taxAmount.toFixed(2),
+        totalAmount: totalAmount.toFixed(2),
+        balanceDue: balanceDue.toFixed(2)
+      };
+    } catch (error) {
+      console.error('Error calculating invoice amounts:', error);
+      return {
+        error: 'Calculation error',
+        baseCost: '0.00',
+        taxAmount: '0.00',
+        totalAmount: '0.00',
+        balanceDue: '0.00'
       };
     }
-    
-    const baseCost = studentsBilled * ratePerStudent;
-    const taxAmount = baseCost * 0.13; // 13% HST
-    const totalAmount = baseCost + taxAmount;
-    
-    return {
-      baseCost: baseCost.toFixed(2),
-      taxAmount: taxAmount.toFixed(2),
-      totalAmount: totalAmount.toFixed(2),
-      balanceDue: (totalAmount - parseFloat(invoice.paidtodate || 0)).toFixed(2)
-    };
   };
 
   if (!invoices || invoices.length === 0) {

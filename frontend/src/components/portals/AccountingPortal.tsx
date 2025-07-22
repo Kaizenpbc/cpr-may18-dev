@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Paper, Container, Button } from '@mui/material';
+import { 
+  Box, Typography, Paper, Container, Button, 
+  Menu, MenuItem, ListItemIcon, ListItemText,
+  Divider, Chip
+} from '@mui/material';
 import NotificationBell from '../common/NotificationBell';
 import {
   Dashboard as DashboardIcon,
@@ -13,11 +17,16 @@ import {
   Undo as ReverseIcon,
   Logout as LogoutIcon,
   Assignment as PaymentRequestsIcon,
+  Store as VendorIcon,
+  AccountBalance as FinancialIcon,
+  Business as OrganizationIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import ErrorBoundary from '../common/ErrorBoundary';
 import AccountingDashboard from './accounting/AccountingDashboard';
 import PaymentRequestsDashboard from '../accounting/PaymentRequestsDashboard';
-import CoursePricingManagement from './accounting/CoursePricingManagement';
+import VendorInvoiceManagement from './accounting/VendorInvoiceManagement';
 
 import { NavLink, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
@@ -253,68 +262,90 @@ const AccountsReceivableView: React.FC = () => {
   );
 };
 
-// Test component to debug routing
-const TestDashboard: React.FC = () => {
-  console.log('[TestDashboard] Component rendered');
-  return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4">Test Dashboard</Typography>
-      <Typography>This is a test to see if routing works</Typography>
-    </Box>
-  );
-};
-
-const tabRoutes = [
-  { 
-    label: 'Financial Dashboard', 
-    icon: <DashboardIcon />, 
-    path: 'dashboard', 
-    component: <AccountingDashboard /> 
+// Grouped menu structure
+const menuGroups = [
+  {
+    label: 'Financial Management',
+    icon: <FinancialIcon />,
+    items: [
+      { 
+        label: 'Financial Dashboard', 
+        icon: <DashboardIcon />, 
+        path: 'dashboard', 
+        component: <AccountingDashboard /> 
+      },
+      { 
+        label: 'Aging Report', 
+        icon: <AgingIcon />, 
+        path: 'aging', 
+        component: <AgingReportView /> 
+      },
+    ]
   },
-
-  { 
-    label: 'Ready for Billing', 
-    icon: <BillingIcon />, 
-    path: 'billing', 
-    component: <ReadyForBillingView /> 
+  {
+    label: 'Billing & Receivables',
+    icon: <OrganizationIcon />,
+    items: [
+      { 
+        label: 'Ready for Billing', 
+        icon: <BillingIcon />, 
+        path: 'billing', 
+        component: <ReadyForBillingView /> 
+      },
+      { 
+        label: 'Organization Receivables', 
+        icon: <ReceivablesIcon />, 
+        path: 'receivables', 
+        component: <AccountsReceivableView /> 
+      },
+      { 
+        label: 'Invoice History', 
+        icon: <HistoryIcon />, 
+        path: 'history', 
+        component: <TransactionHistoryView /> 
+      },
+    ]
   },
-  { 
-    label: 'Organization Receivables', 
-    icon: <ReceivablesIcon />, 
-    path: 'receivables', 
-    component: <AccountsReceivableView /> 
+  {
+    label: 'Payment Processing',
+    icon: <PaymentIcon />,
+    items: [
+      { 
+        label: 'Instructor Payment Requests', 
+        icon: <PaymentRequestsIcon />, 
+        path: 'payment-requests', 
+        component: <PaymentRequestsDashboard /> 
+      },
+      { 
+        label: 'Payment Verification', 
+        icon: <VerificationIcon />, 
+        path: 'verification', 
+        component: <PaymentVerificationView /> 
+      },
+      { 
+        label: 'Payment Reversal', 
+        icon: <ReverseIcon />, 
+        path: 'reversal', 
+        component: <PaymentReversalView /> 
+      },
+    ]
   },
-  { 
-    label: 'Instructor Payment Requests', 
-    icon: <PaymentRequestsIcon />, 
-    path: 'payment-requests', 
-    component: <PaymentRequestsDashboard /> 
-  },
-  { 
-    label: 'Invoice History', 
-    icon: <HistoryIcon />, 
-    path: 'history', 
-    component: <TransactionHistoryView /> 
-  },
-  { 
-    label: 'Aging Report', 
-    icon: <AgingIcon />, 
-    path: 'aging', 
-    component: <AgingReportView /> 
-  },
-  { 
-    label: 'Payment Verification', 
-    icon: <VerificationIcon />, 
-    path: 'verification', 
-    component: <PaymentVerificationView /> 
-  },
-  { 
-    label: 'Payment Reversal', 
-    icon: <ReverseIcon />, 
-    path: 'reversal', 
-    component: <PaymentReversalView /> 
+  {
+    label: 'Vendor Management',
+    icon: <VendorIcon />,
+    items: [
+      { 
+        label: 'Vendor Invoices', 
+        icon: <VendorIcon />, 
+        path: 'vendor-invoices', 
+        component: <VendorInvoiceManagement /> 
+      },
+    ]
   },
 ];
+
+// Flatten all items for routing
+const allRoutes = menuGroups.flatMap(group => group.items);
 
 const AccountingPortal: React.FC = () => {
   const handleError = (error: Error, errorInfo: any) => {
@@ -326,9 +357,21 @@ const AccountingPortal: React.FC = () => {
   const location = useLocation();
   const currentPath = location.pathname.split('/').pop();
 
-  // Debug logging
-  console.log('[AccountingPortal] Current location:', location.pathname);
-  console.log('[AccountingPortal] Current path segment:', currentPath);
+  // Menu state management
+  const [menuAnchors, setMenuAnchors] = useState<{ [key: string]: HTMLElement | null }>({});
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, groupLabel: string) => {
+    setMenuAnchors(prev => ({ ...prev, [groupLabel]: event.currentTarget }));
+  };
+
+  const handleMenuClose = (groupLabel: string) => {
+    setMenuAnchors(prev => ({ ...prev, [groupLabel]: null }));
+  };
+
+  // Helper function to check if a group contains the current active route
+  const isGroupActive = (group: any) => {
+    return group.items.some((item: any) => `/accounting/${item.path}` === location.pathname);
+  };
 
   const handleLogout = async () => {
     try {
@@ -345,9 +388,8 @@ const AccountingPortal: React.FC = () => {
   };
 
   return (
-    <NotificationProvider>
-      <ErrorBoundary context="accounting_portal" onError={handleError}>
-        <Container maxWidth='xl' sx={{ mt: 2, mb: 4 }}>
+    <ErrorBoundary context="accounting_portal" onError={handleError}>
+      <Container maxWidth='xl' sx={{ mt: 2, mb: 4 }}>
         <Paper elevation={1} sx={{ mb: 3, p: 2 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
@@ -359,7 +401,6 @@ const AccountingPortal: React.FC = () => {
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <NotificationBell size="medium" color="primary" />
               <Button
                 variant="outlined"
                 color="secondary"
@@ -374,83 +415,117 @@ const AccountingPortal: React.FC = () => {
         </Paper>
 
         <Paper elevation={1}>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', overflowX: 'auto' }}>
-            {tabRoutes.map((tab) => (
-              <NavLink
-                key={tab.label}
-                to={`/accounting/${tab.path}`}
-                style={({ isActive }) => ({
-                  textDecoration: 'none',
-                  color: isActive ? '#1976d2' : 'inherit',
-                  fontWeight: isActive ? 'bold' : 'normal',
-                  padding: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  borderBottom: isActive ? '2px solid #1976d2' : 'none',
-                  whiteSpace: 'nowrap',
-                  minWidth: 'fit-content',
-                })}
-              >
-                {tab.icon}
-                <span style={{ marginLeft: 8 }}>{tab.label}</span>
-              </NavLink>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', overflowX: 'auto', p: 1 }}>
+            {menuGroups.map((group) => (
+              <Box key={group.label} sx={{ position: 'relative' }}>
+                <Button
+                  variant="text"
+                  color={isGroupActive(group) ? "primary" : "inherit"}
+                  startIcon={group.icon}
+                  endIcon={menuAnchors[group.label] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  onClick={(e) => handleMenuOpen(e, group.label)}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: isGroupActive(group) ? 'bold' : 'medium',
+                    px: 2,
+                    py: 1.5,
+                    borderBottom: isGroupActive(group) ? '2px solid #1976d2' : 'none',
+                    '&:hover': {
+                      backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                    }
+                  }}
+                >
+                  {group.label}
+                </Button>
+                <Menu
+                  anchorEl={menuAnchors[group.label]}
+                  open={Boolean(menuAnchors[group.label])}
+                  onClose={() => handleMenuClose(group.label)}
+                  anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'left',
+                  }}
+                  transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'left',
+                  }}
+                  PaperProps={{
+                    sx: {
+                      minWidth: 250,
+                      mt: 1,
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                    }
+                  }}
+                >
+                  {group.items.map((item) => (
+                    <MenuItem
+                      key={item.label}
+                      component={NavLink}
+                      to={`/accounting/${item.path}`}
+                      onClick={() => handleMenuClose(group.label)}
+                      sx={{
+                        py: 1.5,
+                        px: 2,
+                        '&.active': {
+                          backgroundColor: 'primary.light',
+                          color: 'primary.contrastText',
+                          '&:hover': {
+                            backgroundColor: 'primary.main',
+                          }
+                        }
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 40 }}>
+                        {item.icon}
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={item.label}
+                        primaryTypographyProps={{
+                          fontSize: '0.9rem',
+                          fontWeight: 'medium'
+                        }}
+                      />
+                    </MenuItem>
+                  ))}
+                </Menu>
+              </Box>
             ))}
           </Box>
 
           <Box sx={{ p: 3 }}>
             <Routes>
-              <Route path="dashboard" element={
+              <Route index element={
                 <ErrorBoundary context="accounting_dashboard" onError={handleError}>
                   <AccountingDashboard />
                 </ErrorBoundary>
               } />
-              <Route path="history" element={
-                <ErrorBoundary context="accounting_history" onError={handleError}>
-                  <TransactionHistoryView />
-                </ErrorBoundary>
+              {allRoutes.map((route) => (
+                <Route
+                  key={route.path}
+                  path={route.path}
+                  element={
+                    <ErrorBoundary context={`accounting_${route.path}`} onError={handleError}>
+                      {route.component}
+                    </ErrorBoundary>
+                  }
+                />
+              ))}
+              <Route path="*" element={
+                <Box sx={{ p: 3 }}>
+                  <Typography variant="h6">View not found</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Current path: {location.pathname}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Available routes: {allRoutes.map(r => r.path).join(', ')}
+                  </Typography>
+                </Box>
               } />
-              <Route path="billing" element={
-                <ErrorBoundary context="accounting_billing" onError={handleError}>
-                  <ReadyForBillingView />
-                </ErrorBoundary>
-              } />
-              <Route path="pricing" element={
-                <ErrorBoundary context="accounting_pricing" onError={handleError}>
-                  <CoursePricingManagement />
-                </ErrorBoundary>
-              } />
-              <Route path="receivables" element={
-                <ErrorBoundary context="accounting_receivables" onError={handleError}>
-                  <AccountsReceivableView />
-                </ErrorBoundary>
-              } />
-              <Route path="payment-requests" element={
-                <ErrorBoundary context="accounting_payment_requests" onError={handleError}>
-                  <PaymentRequestsDashboard />
-                </ErrorBoundary>
-              } />
-              <Route path="verification" element={
-                <ErrorBoundary context="accounting_verification" onError={handleError}>
-                  <PaymentVerificationView />
-                </ErrorBoundary>
-              } />
-              <Route path="reversal" element={
-                <ErrorBoundary context="accounting_reversal" onError={handleError}>
-                  <PaymentReversalView />
-                </ErrorBoundary>
-              } />
-              <Route path="" element={
-                <ErrorBoundary context="accounting_dashboard" onError={handleError}>
-                  <AccountingDashboard />
-                </ErrorBoundary>
-              } />
-              <Route path="*" element={<Box sx={{ p: 3 }}><Typography variant="h6">View not found</Typography></Box>} />
             </Routes>
           </Box>
         </Paper>
       </Container>
       </ErrorBoundary>
-    </NotificationProvider>
   );
 };
 

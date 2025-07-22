@@ -454,16 +454,27 @@ router.post(
   '/refresh',
   asyncHandler(async (req: Request, res: Response) => {
     console.log('🔐 [AUTH] Processing token refresh request');
+    console.log('🔐 [AUTH] Cookies received:', req.cookies);
+    console.log('🔐 [AUTH] Headers:', {
+      cookie: req.headers.cookie ? 'present' : 'missing',
+      'user-agent': req.headers['user-agent']
+    });
 
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
       console.log('🔐 [AUTH] No refresh token provided');
-      throw new AppError(
-        401,
-        errorCodes.AUTH_TOKEN_INVALID,
-        'Refresh token required'
-      );
+      console.log('🔐 [AUTH] Available cookies:', Object.keys(req.cookies || {}));
+      
+      // Return a more helpful error message
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: errorCodes.AUTH_TOKEN_INVALID,
+          message: 'Refresh token required. Please log in again.',
+          details: 'No refresh token found in cookies. This may happen if cookies are disabled or cleared.'
+        }
+      });
     }
 
     try {

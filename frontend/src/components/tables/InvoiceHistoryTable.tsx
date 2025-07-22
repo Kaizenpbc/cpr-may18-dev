@@ -343,7 +343,6 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
             <TableCell sx={{ fontWeight: 'bold' }}>Invoice Date</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Due Date</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Organization</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Course #</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Course Name</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Location</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Course Date</TableCell>
@@ -351,10 +350,13 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
               Students
             </TableCell>
             <TableCell align='right' sx={{ fontWeight: 'bold' }}>
-              Base Cost
+              Rate/Student
             </TableCell>
             <TableCell align='right' sx={{ fontWeight: 'bold' }}>
-              Tax (HST)
+              Base Price
+            </TableCell>
+            <TableCell align='right' sx={{ fontWeight: 'bold' }}>
+              HST
             </TableCell>
             <TableCell align='right' sx={{ fontWeight: 'bold' }}>
               Total
@@ -425,9 +427,8 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
                 </MuiLink>
               </TableCell>
               <TableCell>
-                {invoice.coursenumber || invoice.course_number || '-'}
+                {invoice.course_type_name || '-'}
               </TableCell>
-              <TableCell>{invoice.course_type_name || '-'}</TableCell>
               <TableCell>{invoice.location || '-'}</TableCell>
               <TableCell>
                 {formatDisplayDate(invoice.date_completed || invoice.course_date)}
@@ -444,16 +445,24 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
                 }
               </TableCell>
               <TableCell align='right'>
-                {invoice.rate_per_student ? 
-                  <strong>${(invoice.rate_per_student * 0.13).toFixed(2)}</strong> : 
+                {invoice.rate_per_student && invoice.students_billed ? 
+                  <strong>${(Number(invoice.rate_per_student) * Number(invoice.students_billed)).toFixed(2)}</strong> : 
                   <Typography variant="body2" color="error.main" fontSize="small">
                     N/A
                   </Typography>
                 }
               </TableCell>
               <TableCell align='right'>
-                {invoice.rate_per_student ? 
-                  <strong>${(invoice.rate_per_student * invoice.students_billed * 1.13).toFixed(2)}</strong> : 
+                {invoice.rate_per_student && invoice.students_billed ? 
+                  <strong>${(Number(invoice.rate_per_student) * Number(invoice.students_billed) * 0.13).toFixed(2)}</strong> : 
+                  <Typography variant="body2" color="error.main" fontSize="small">
+                    N/A
+                  </Typography>
+                }
+              </TableCell>
+              <TableCell align='right'>
+                {invoice.rate_per_student && invoice.students_billed ? 
+                  <strong>${(Number(invoice.rate_per_student) * Number(invoice.students_billed) * 1.13).toFixed(2)}</strong> : 
                   <Typography variant="body2" color="error.main" fontSize="small">
                     N/A
                   </Typography>
@@ -466,10 +475,7 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
               </TableCell>
               <TableCell align='right'>
                 <strong>
-                  {formatCurrency(
-                    (invoice.rate_per_student ? (invoice.rate_per_student * invoice.students_billed * 1.13) : 0) - 
-                    parseFloat(invoice.paidtodate || invoice.paid_to_date || 0)
-                  )}
+                  {formatCurrency(invoice.balancedue || 0)}
                 </strong>
               </TableCell>
               <TableCell align='center'>

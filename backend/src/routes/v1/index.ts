@@ -26,6 +26,8 @@ import vendorRouter from './vendor.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import bcrypt from 'bcryptjs';
+import path from 'path';
+import fs from 'fs';
 
 const router = Router();
 
@@ -4322,9 +4324,9 @@ router.get(
       const result = await pool.query(`
       SELECT 
         id,
-        name,
-        contact_email,
-        contact_phone,
+        name as vendor_name,
+        contact_email as email,
+        contact_phone as phone,
         address,
         vendor_type,
         is_active,
@@ -4334,9 +4336,47 @@ router.get(
       ORDER BY name
     `);
 
+      // Transform the data to match frontend expectations
+      const transformedVendors = result.rows.map(vendor => {
+        // Parse address into separate fields if it contains commas
+        let address_street = '';
+        let address_city = '';
+        let address_province = '';
+        let address_postal_code = '';
+        
+        if (vendor.address) {
+          const addressParts = vendor.address.split(',').map(part => part.trim());
+          address_street = addressParts[0] || '';
+          address_city = addressParts[1] || '';
+          address_province = addressParts[2] || '';
+          address_postal_code = addressParts[3] || '';
+        }
+
+        return {
+          ...vendor,
+          address_street,
+          address_city,
+          address_province,
+          address_postal_code,
+          // Add default values for fields that don't exist in database
+          contact_first_name: '',
+          contact_last_name: '',
+          mobile: '',
+          services: [],
+          contract_start_date: null,
+          contract_end_date: null,
+          performance_rating: 0,
+          insurance_expiry: null,
+          certification_status: '',
+          billing_contact_email: '',
+          comments: '',
+          status: vendor.is_active ? 'active' : 'inactive'
+        };
+      });
+
       res.json({
         success: true,
-        data: result.rows,
+        data: transformedVendors,
       });
     } catch (error) {
       console.error('Error fetching vendors:', error);
@@ -4350,21 +4390,56 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const {
+        vendor_name, // Frontend sends this, map to 'name'
+        contact_first_name,
+        contact_last_name,
+        email, // Frontend sends this, map to 'contact_email'
+        mobile,
+        phone, // Frontend sends this, map to 'contact_phone'
+        address_street,
+        address_city,
+        address_province,
+        address_postal_code,
+        vendor_type,
+        services,
+        contract_start_date,
+        contract_end_date,
+        performance_rating,
+        insurance_expiry,
+        certification_status,
+        billing_contact_email,
+        comments,
+        status,
+        // Also accept the original field names for backward compatibility
         name,
         contact_email,
         contact_phone,
         address,
-        vendor_type,
         is_active,
       } = req.body;
 
-      if (!name) {
+      // Use vendor_name if provided, otherwise fall back to name
+      const vendorName = vendor_name || name;
+      if (!vendorName) {
         throw new AppError(
           400,
           errorCodes.VALIDATION_ERROR,
           'Vendor name is required'
         );
       }
+
+      // Build address from separate fields if provided
+      let fullAddress = address;
+      if (address_street || address_city || address_province || address_postal_code) {
+        const addressParts = [address_street, address_city, address_province, address_postal_code].filter(Boolean);
+        fullAddress = addressParts.join(', ');
+      }
+
+      // Use email if provided, otherwise fall back to contact_email
+      const contactEmail = email || contact_email;
+      
+      // Use phone if provided, otherwise fall back to contact_phone
+      const contactPhone = phone || contact_phone;
 
       const result = await pool.query(
         `
@@ -4375,12 +4450,12 @@ router.post(
       RETURNING *
     `,
         [
-          name,
-          contact_email,
-          contact_phone,
-          address,
+          vendorName,
+          contactEmail,
+          contactPhone,
+          fullAddress,
           vendor_type,
-          is_active,
+          is_active !== undefined ? is_active : true,
         ]
       );
 
@@ -4402,13 +4477,49 @@ router.put(
     try {
       const { id } = req.params;
       const {
+        vendor_name, // Frontend sends this, map to 'name'
+        contact_first_name,
+        contact_last_name,
+        email, // Frontend sends this, map to 'contact_email'
+        mobile,
+        phone, // Frontend sends this, map to 'contact_phone'
+        address_street,
+        address_city,
+        address_province,
+        address_postal_code,
+        vendor_type,
+        services,
+        contract_start_date,
+        contract_end_date,
+        performance_rating,
+        insurance_expiry,
+        certification_status,
+        billing_contact_email,
+        comments,
+        status,
+        // Also accept the original field names for backward compatibility
         name,
         contact_email,
         contact_phone,
         address,
-        vendor_type,
         is_active,
       } = req.body;
+
+      // Use vendor_name if provided, otherwise fall back to name
+      const vendorName = vendor_name || name;
+      
+      // Build address from separate fields if provided
+      let fullAddress = address;
+      if (address_street || address_city || address_province || address_postal_code) {
+        const addressParts = [address_street, address_city, address_province, address_postal_code].filter(Boolean);
+        fullAddress = addressParts.join(', ');
+      }
+
+      // Use email if provided, otherwise fall back to contact_email
+      const contactEmail = email || contact_email;
+      
+      // Use phone if provided, otherwise fall back to contact_phone
+      const contactPhone = phone || contact_phone;
 
       const result = await pool.query(
         `
@@ -4425,10 +4536,10 @@ router.put(
       RETURNING *
     `,
         [
-          name,
-          contact_email,
-          contact_phone,
-          address,
+          vendorName,
+          contactEmail,
+          contactPhone,
+          fullAddress,
           vendor_type,
           is_active,
           id,
@@ -4438,7 +4549,7 @@ router.put(
       if (result.rows.length === 0) {
         throw new AppError(
           404,
-          errorCodes.RESOURCE_NOT_FOUND,
+          errorCodes.NOT_FOUND,
           'Vendor not found'
         );
       }
@@ -7020,4 +7131,456 @@ router.get(
   })
 );
 
+
+
+// Get all vendor invoices for admin approval
+router.get(
+  '/admin/vendor-invoices',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { role } = (req as any).user;
+      
+      if (role !== 'admin' && role !== 'sysadmin') {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin or sysadmin role required.');
+      }
+
+      const result = await pool.query(`
+        SELECT 
+          vi.*,
+          v.name as vendor_name,
+          v.contact_email as vendor_email,
+          u_approved.username as approved_by,
+          u_rejected.username as rejected_by
+        FROM vendor_invoices vi
+        LEFT JOIN vendors v ON vi.vendor_id = v.id
+        LEFT JOIN users u_approved ON vi.approved_by = u_approved.id
+        LEFT JOIN users u_rejected ON vi.rejected_by = u_rejected.id
+        ORDER BY vi.created_at DESC
+      `);
+
+      res.json({
+        success: true,
+        data: result.rows,
+      });
+    } catch (error) {
+      console.error('Error fetching vendor invoices:', error);
+      throw error;
+    }
+  })
+);
+
+// Approve or reject vendor invoice
+router.post(
+  '/admin/vendor-invoices/:id/approve',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { role } = (req as any).user;
+      const { id } = req.params;
+      const { action, notes } = req.body; // action: 'approve' or 'reject'
+      
+      if (role !== 'admin' && role !== 'sysadmin') {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin or sysadmin role required.');
+      }
+
+      if (!['approve', 'reject'].includes(action)) {
+        throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid action. Must be "approve" or "reject".');
+      }
+
+      if (action === 'reject' && !notes?.trim()) {
+        throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Notes are required when rejecting an invoice.');
+      }
+
+      const client = await pool.connect();
+      
+      try {
+        await client.query('BEGIN');
+        
+        // Get the invoice
+        const invoiceResult = await client.query(`
+          SELECT vi.*, v.contact_email as vendor_email, v.name as vendor_name
+          FROM vendor_invoices vi
+          LEFT JOIN vendors v ON vi.vendor_id = v.id
+          WHERE vi.id = $1 AND vi.status = 'submitted'
+        `, [id]);
+        
+        if (invoiceResult.rows.length === 0) {
+          throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found or already processed.');
+        }
+        
+        const invoice = invoiceResult.rows[0];
+        const newStatus = action === 'approve' ? 'approved' : 'rejected';
+        const userId = (req as any).user.id;
+        
+        // Update the invoice status
+        if (action === 'approve') {
+          // Send to accounting for payment processing
+          await client.query(`
+            UPDATE vendor_invoices 
+            SET status = 'sent_to_accounting', approved_by = $1, admin_notes = $2, sent_to_accounting_at = NOW(), updated_at = NOW()
+            WHERE id = $3
+          `, [userId, notes || '', id]);
+        } else {
+          await client.query(`
+            UPDATE vendor_invoices 
+            SET status = $1, rejected_by = $2, admin_notes = $3, updated_at = NOW()
+            WHERE id = $4
+          `, [newStatus, userId, notes, id]);
+        }
+        
+        await client.query('COMMIT');
+        
+        // TODO: Send email notification to vendor
+        // await sendVendorInvoiceNotification(invoice.vendor_email, action, invoice.invoice_number, notes);
+        
+        res.json({
+          success: true,
+          message: `Invoice ${action}d successfully.`,
+          data: {
+            invoiceId: id,
+            action: action,
+            status: newStatus
+          }
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Error processing vendor invoice approval:', error);
+      throw error;
+    }
+  })
+);
+
+// Download vendor invoice PDF
+router.get(
+  '/admin/vendor-invoices/:id/download',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { role } = (req as any).user;
+      const { id } = req.params;
+      
+      if (role !== 'admin' && role !== 'sysadmin') {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin or sysadmin role required.');
+      }
+
+      const result = await pool.query(
+        'SELECT * FROM vendor_invoices WHERE id = $1',
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found.');
+      }
+
+      const invoice = result.rows[0];
+
+      if (!invoice.pdf_filename) {
+        throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'PDF file not found.');
+      }
+
+      const filePath = path.join(process.cwd(), 'uploads/vendor-invoices', invoice.pdf_filename);
+      
+      if (!fs.existsSync(filePath)) {
+        throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'PDF file not found on server.');
+      }
+
+      res.download(filePath, `invoice-${invoice.invoice_number}.pdf`);
+    } catch (error) {
+      console.error('Error downloading vendor invoice:', error);
+      throw error;
+    }
+  })
+);
+
 export default router;
+
+// ========================================
+// ACCOUNTING VENDOR INVOICE MANAGEMENT
+// ========================================
+
+// Get vendor invoices sent to accounting for payment processing
+router.get(
+  '/accounting/vendor-invoices',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { role } = (req as any).user;
+      
+      if (role !== 'accountant' && role !== 'admin') {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Accountant or admin role required.');
+      }
+
+      const result = await pool.query(`
+        SELECT 
+          vi.*,
+          v.name as vendor_name,
+          v.contact_email as vendor_email,
+          v.name as vendor_contact,
+          v.vendor_type as vendor_payment_method,
+          v.address as vendor_address,
+          u_approved.username as approved_by_name,
+          u_approved.email as approved_by_email,
+          COALESCE(payments.total_paid, 0) as total_paid,
+          (vi.amount - COALESCE(payments.total_paid, 0)) as balance_due
+        FROM vendor_invoices vi
+        LEFT JOIN vendors v ON vi.vendor_id = v.id
+        LEFT JOIN users u_approved ON vi.approved_by = u_approved.id
+        LEFT JOIN (
+          SELECT 
+            vendor_invoice_id, 
+            SUM(amount) as total_paid
+          FROM vendor_payments 
+          WHERE status = 'processed'
+          GROUP BY vendor_invoice_id
+        ) payments ON payments.vendor_invoice_id = vi.id
+        WHERE vi.status = 'sent_to_accounting'
+        ORDER BY vi.sent_to_accounting_at ASC
+      `);
+
+      res.json({
+        success: true,
+        data: result.rows
+      });
+    } catch (error) {
+      console.error('Error fetching vendor invoices for accounting:', error);
+      throw error;
+    }
+  })
+);
+
+// Get vendor invoice details with payment history
+router.get(
+  '/accounting/vendor-invoices/:id',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { role } = (req as any).user;
+      const { id } = req.params;
+      
+      if (role !== 'accountant' && role !== 'admin') {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Accountant or admin role required.');
+      }
+
+      // Get invoice details
+      const invoiceResult = await pool.query(`
+        SELECT 
+          vi.*,
+          v.name as vendor_name,
+          v.contact_email as vendor_email,
+          v.contact_name as vendor_contact,
+          v.payment_method as vendor_payment_method,
+          v.bank_name,
+          v.account_number,
+          v.routing_number,
+          v.address as vendor_address,
+          v.city as vendor_city,
+          v.state as vendor_state,
+          v.zip_code as vendor_zip,
+          v.tax_id as vendor_tax_id,
+          u_approved.username as approved_by_name,
+          u_approved.email as approved_by_email,
+          COALESCE(payments.total_paid, 0) as total_paid,
+          (vi.amount - COALESCE(payments.total_paid, 0)) as balance_due
+        FROM vendor_invoices vi
+        LEFT JOIN vendors v ON vi.vendor_id = v.id
+        LEFT JOIN users u_approved ON vi.approved_by = u_approved.id
+        LEFT JOIN (
+          SELECT 
+            vendor_invoice_id, 
+            SUM(amount) as total_paid
+          FROM vendor_payments 
+          WHERE status = 'processed'
+          GROUP BY vendor_invoice_id
+        ) payments ON payments.vendor_invoice_id = vi.id
+        WHERE vi.id = $1
+      `, [id]);
+
+      if (invoiceResult.rows.length === 0) {
+        throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Vendor invoice not found.');
+      }
+
+      // Get payment history
+      const paymentsResult = await pool.query(`
+        SELECT 
+          vp.*,
+          u_processed.username as processed_by_name
+        FROM vendor_payments vp
+        LEFT JOIN users u_processed ON vp.processed_by = u_processed.id
+        WHERE vp.vendor_invoice_id = $1
+        ORDER BY vp.payment_date DESC, vp.created_at DESC
+      `, [id]);
+
+      res.json({
+        success: true,
+        data: {
+          invoice: invoiceResult.rows[0],
+          payments: paymentsResult.rows
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching vendor invoice details:', error);
+      throw error;
+    }
+  })
+);
+
+// Process payment for vendor invoice
+router.post(
+  '/accounting/vendor-invoices/:id/payments',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { role } = (req as any).user;
+      const { id } = req.params;
+      const {
+        amount,
+        payment_date,
+        payment_method,
+        reference_number,
+        notes
+      } = req.body;
+
+      if (role !== 'accountant' && role !== 'admin') {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Accountant or admin role required.');
+      }
+
+      if (!amount || amount <= 0) {
+        throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Valid payment amount is required.');
+      }
+
+      const client = await pool.connect();
+      
+      try {
+        await client.query('BEGIN');
+
+        // Get invoice details and current balance
+        const invoiceResult = await client.query(`
+          SELECT 
+            vi.*,
+            COALESCE(payments.total_paid, 0) as total_paid,
+            (vi.amount - COALESCE(payments.total_paid, 0)) as balance_due
+          FROM vendor_invoices vi
+          LEFT JOIN (
+            SELECT 
+              vendor_invoice_id, 
+              SUM(amount) as total_paid
+            FROM vendor_payments 
+            WHERE status = 'processed'
+            GROUP BY vendor_invoice_id
+          ) payments ON payments.vendor_invoice_id = vi.id
+          WHERE vi.id = $1 AND vi.status = 'sent_to_accounting'
+        `, [id]);
+
+        if (invoiceResult.rows.length === 0) {
+          throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Vendor invoice not found or not ready for payment.');
+        }
+
+        const invoice = invoiceResult.rows[0];
+        const balanceDue = parseFloat(invoice.balance_due);
+        const paymentAmount = parseFloat(amount);
+
+        if (paymentAmount > balanceDue) {
+          throw new AppError(400, errorCodes.VALIDATION_ERROR, `Payment amount ($${paymentAmount.toFixed(2)}) exceeds balance due ($${balanceDue.toFixed(2)}).`);
+        }
+
+        // Record the payment
+        const paymentResult = await client.query(`
+          INSERT INTO vendor_payments (
+            vendor_invoice_id, 
+            amount, 
+            payment_date, 
+            payment_method, 
+            reference_number, 
+            notes, 
+            status, 
+            processed_by, 
+            processed_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, 'processed', $7, NOW())
+          RETURNING *
+        `, [
+          id,
+          paymentAmount,
+          payment_date || new Date(),
+          payment_method,
+          reference_number,
+          notes,
+          (req as any).user.id
+        ]);
+
+        // Update invoice status based on payment
+        const newTotalPaid = parseFloat(invoice.total_paid) + paymentAmount;
+        const newStatus = newTotalPaid >= parseFloat(invoice.amount) ? 'paid' : 'partially_paid';
+
+        await client.query(`
+          UPDATE vendor_invoices 
+          SET status = $1, updated_at = NOW()
+          WHERE id = $2
+        `, [newStatus, id]);
+
+        await client.query('COMMIT');
+
+        res.json({
+          success: true,
+          message: `Payment of $${paymentAmount.toFixed(2)} processed successfully.`,
+          data: {
+            payment: paymentResult.rows[0],
+            invoiceStatus: newStatus,
+            remainingBalance: Math.max(0, balanceDue - paymentAmount)
+          }
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Error processing vendor payment:', error);
+      throw error;
+    }
+  })
+);
+
+// Get vendor payment history
+router.get(
+  '/accounting/vendor-payments',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { role } = (req as any).user;
+      
+      if (role !== 'accountant' && role !== 'admin') {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Accountant or admin role required.');
+      }
+
+      const result = await pool.query(`
+        SELECT 
+          vp.*,
+          vi.invoice_number,
+          vi.amount as invoice_amount,
+          v.name as vendor_name,
+          u_processed.username as processed_by_name
+        FROM vendor_payments vp
+        JOIN vendor_invoices vi ON vp.vendor_invoice_id = vi.id
+        JOIN vendors v ON vi.vendor_id = v.id
+        LEFT JOIN users u_processed ON vp.processed_by = u_processed.id
+        ORDER BY vp.payment_date DESC, vp.created_at DESC
+      `);
+
+      res.json({
+        success: true,
+        data: result.rows
+      });
+    } catch (error) {
+      console.error('Error fetching vendor payment history:', error);
+      throw error;
+    }
+  })
+);

@@ -98,67 +98,70 @@ api.interceptors.response.use(
       config: {
         method: error.config?.method,
         url: error.config?.url,
-        headers: error.config?.headers,
-        data: error.config?.data,
       }
     });
 
     const originalRequest = error.config;
 
-    // Handle 401 errors - attempt token refresh first
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
+    // Handle 401 errors (unauthorized)
+    if (error.response?.status === 401) {
+      const errorCode = error.response?.data?.error?.code;
+      
+      // If it's a refresh token error, don't try to refresh - just redirect to login
+      if (errorCode === 'AUTH_1003' || error.response?.data?.error?.message?.includes('Refresh token')) {
+        console.log('🔐 [API] Refresh token error - redirecting to login');
+        tokenService.forceLogout();
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      // For other 401 errors, try to refresh the token
+      if (!isRefreshing) {
+        isRefreshing = true;
+
+        try {
+          console.log('🔐 [API] Attempting token refresh...');
+          const response = await tokenService.refreshTokenSilently();
+          
+          if (response) {
+            console.log('🔐 [API] Token refresh successful');
+            processQueue(null, response);
+            
+            // Retry the original request
+            if (originalRequest) {
+              originalRequest.headers.Authorization = response;
+              return api(originalRequest);
+            }
+          }
+        } catch (refreshError) {
+          console.error('🔐 [API] Token refresh failed:', refreshError);
+          processQueue(refreshError, null);
+          
+          // Clear tokens and redirect to login
+          tokenService.forceLogout();
+          window.location.href = '/login';
+        } finally {
+          isRefreshing = false;
+        }
+      } else {
         // If refresh is already in progress, queue this request
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then(token => {
-          originalRequest.headers.Authorization = token;
-          return api(originalRequest);
+          if (originalRequest) {
+            originalRequest.headers.Authorization = token;
+            return api(originalRequest);
+          }
         }).catch(err => {
           return Promise.reject(err);
         });
       }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        console.log('[AUTH] Attempting token refresh before redirecting to login');
-        
-        // Import authService dynamically to avoid circular dependencies
-        const { authService } = await import('./authService');
-        const refreshResponse = await authService.refreshToken();
-        
-        // Update the original request with new token
-        originalRequest.headers.Authorization = refreshResponse.accessToken;
-        
-        // Process queued requests
-        processQueue(null, refreshResponse.accessToken);
-        
-        // Retry the original request
-        return api(originalRequest);
-      } catch (refreshError) {
-        console.log('[AUTH] Token refresh failed, redirecting to login');
-        
-        // Process queued requests with error
-        processQueue(refreshError, null);
-        
-        // Clear tokens and redirect to login
-        tokenService.clearTokens();
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
     }
 
-    // Enhanced error handling for specific status codes
+    // Handle 403 errors (forbidden)
     if (error.response?.status === 403) {
-      console.error('[AUTH] Access denied - insufficient permissions');
-    } else if (error.response?.status === 404) {
-      console.error('[API] Resource not found');
-    } else if (error.response?.status === 500) {
-      console.error('[API] Internal server error - check backend logs');
+      console.log('🔐 [API] Access denied - insufficient permissions');
+      // Don't redirect for 403 errors, just show the error
     }
 
     return Promise.reject(error);
@@ -757,48 +760,6 @@ export const sysAdminApi = {
     return response.data;
   },
 
-  // Course Management
-  getCourses: async () => {
-    const response = await api.get('/sysadmin/courses');
-    return response.data;
-  },
-  createCourse: async (courseData: any) => {
-    const response = await api.post('/sysadmin/courses', courseData);
-    return response.data;
-  },
-  updateCourse: async (courseId: number, courseData: any) => {
-    const response = await api.put(
-      `/sysadmin/courses/${courseId}`,
-      courseData
-    );
-    return response.data;
-  },
-  deleteCourse: async (courseId: number) => {
-    const response = await api.delete(`/sysadmin/courses/${courseId}`);
-    return response.data;
-  },
-
-  // User Management
-  getUsers: async () => {
-    const response = await api.get('/sysadmin/users');
-    return response.data;
-  },
-  createUser: async (userData: any) => {
-    const response = await api.post('/sysadmin/users', userData);
-    return response.data;
-  },
-  updateUser: async (userId: number, userData: any) => {
-    const response = await api.put(
-      `/sysadmin/users/${userId}`,
-      userData
-    );
-    return response.data;
-  },
-  deleteUser: async (userId: number) => {
-    const response = await api.delete(`/sysadmin/users/${userId}`);
-    return response.data;
-  },
-
   // Vendor Management
   getVendors: async () => {
     const response = await api.get('/sysadmin/vendors');
@@ -808,15 +769,36 @@ export const sysAdminApi = {
     const response = await api.post('/sysadmin/vendors', vendorData);
     return response.data;
   },
-  updateVendor: async (vendorId: number, vendorData: any) => {
-    const response = await api.put(
-      `/sysadmin/vendors/${vendorId}`,
-      vendorData
-    );
+  updateVendor: async (id: number, vendorData: any) => {
+    const response = await api.put(`/sysadmin/vendors/${id}`, vendorData);
     return response.data;
   },
-  deleteVendor: async (vendorId: number) => {
-    const response = await api.delete(`/sysadmin/vendors/${vendorId}`);
+  deleteVendor: async (id: number) => {
+    const response = await api.delete(`/sysadmin/vendors/${id}`);
+    return response.data;
+  },
+
+  // User Management
+  getUsers: async () => {
+    const response = await api.get('/sysadmin/users');
+    return response.data;
+  },
+
+  // Course Management
+  getCourses: async () => {
+    const response = await api.get('/sysadmin/courses');
+    return response.data;
+  },
+  createCourse: async (courseData: any) => {
+    const response = await api.post('/sysadmin/courses', courseData);
+    return response.data;
+  },
+  updateCourse: async (id: number, courseData: any) => {
+    const response = await api.put(`/sysadmin/courses/${id}`, courseData);
+    return response.data;
+  },
+  deleteCourse: async (id: number) => {
+    const response = await api.delete(`/sysadmin/courses/${id}`);
     return response.data;
   },
 
@@ -829,58 +811,12 @@ export const sysAdminApi = {
     const response = await api.post('/sysadmin/organizations', orgData);
     return response.data;
   },
-  updateOrganization: async (orgId: number, orgData: any) => {
-    const response = await api.put(
-      `/sysadmin/organizations/${orgId}`,
-      orgData
-    );
+  updateOrganization: async (id: number, orgData: any) => {
+    const response = await api.put(`/sysadmin/organizations/${id}`, orgData);
     return response.data;
   },
-  deleteOrganization: async (orgId: number) => {
-    const response = await api.delete(
-      `/sysadmin/organizations/${orgId}`
-    );
-    return response.data;
-  },
-
-  // System Configuration
-  getConfigurations: async () => {
-    const response = await api.get('/sysadmin/configurations');
-    return response.data;
-  },
-
-  getConfigurationsByCategory: async (category: string) => {
-    const response = await api.get(`/sysadmin/configurations/category/${category}`);
-    return response.data;
-  },
-
-  getConfigurationCategories: async () => {
-    const response = await api.get('/sysadmin/configurations/categories');
-    return response.data;
-  },
-
-  getConfiguration: async (key: string) => {
-    const response = await api.get(`/sysadmin/configurations/${key}`);
-    return response.data;
-  },
-
-  updateConfiguration: async (key: string, value: string) => {
-    const response = await api.put(`/sysadmin/configurations/${key}`, { value });
-    return response.data;
-  },
-
-  validateSMTPConfig: async () => {
-    const response = await api.post('/sysadmin/configurations/validate-smtp');
-    return response.data;
-  },
-
-  getInvoiceDueDays: async () => {
-    const response = await api.get('/sysadmin/configurations/invoice/due-days');
-    return response.data;
-  },
-
-  getLateFeePercent: async () => {
-    const response = await api.get('/sysadmin/configurations/invoice/late-fee');
+  deleteOrganization: async (id: number) => {
+    const response = await api.delete(`/sysadmin/organizations/${id}`);
     return response.data;
   },
 };
@@ -906,12 +842,102 @@ export const getOrganizationStudentParticipationAnalytics = async (
 
 // Admin endpoints
 export const adminApi = {
-  getCourseStudents: (courseId: number) =>
-    api.get(`/admin/courses/${courseId}/students`),
-  getInstructorStats: (month: string) =>
-    api.get('/admin/instructor-stats', { params: { month } }),
-  getDashboardSummary: (month: string) =>
-    api.get('/admin/dashboard-summary', { params: { month } }),
+  // Dashboard
+  getDashboard: async () => {
+    const response = await api.get('/admin/dashboard');
+    return response.data;
+  },
+
+  // Instructor Management
+  getInstructors: async () => {
+    const response = await api.get('/admin/instructors');
+    return response.data;
+  },
+  createInstructor: async (instructorData: any) => {
+    const response = await api.post('/admin/instructors', instructorData);
+    return response.data;
+  },
+  updateInstructor: async (id: number, instructorData: any) => {
+    const response = await api.put(`/admin/instructors/${id}`, instructorData);
+    return response.data;
+  },
+  deleteInstructor: async (id: number) => {
+    const response = await api.delete(`/admin/instructors/${id}`);
+    return response.data;
+  },
+
+  // Course Management
+  getCourses: async () => {
+    const response = await api.get('/admin/courses');
+    return response.data;
+  },
+  createCourse: async (courseData: any) => {
+    const response = await api.post('/admin/courses', courseData);
+    return response.data;
+  },
+  updateCourse: async (id: number, courseData: any) => {
+    const response = await api.put(`/admin/courses/${id}`, courseData);
+    return response.data;
+  },
+  deleteCourse: async (id: number) => {
+    const response = await api.delete(`/admin/courses/${id}`);
+    return response.data;
+  },
+
+  // Vendor Invoice Approval
+  getVendorInvoices: async () => {
+    const response = await api.get('/admin/vendor-invoices');
+    return response.data;
+  },
+  approveVendorInvoice: async (invoiceId: number, action: 'approve' | 'reject', notes: string) => {
+    const response = await api.post(`/admin/vendor-invoices/${invoiceId}/approve`, {
+      action,
+      notes
+    });
+    return response.data;
+  },
+  downloadVendorInvoice: async (invoiceId: number) => {
+    const response = await api.get(`/admin/vendor-invoices/${invoiceId}/download`, {
+      responseType: 'blob'
+    });
+    return response;
+  },
+
+  // Accounting Vendor Invoice Management
+  getAccountingVendorInvoices: async () => {
+    const response = await api.get('/accounting/vendor-invoices');
+    return response.data;
+  },
+  getAccountingVendorInvoiceDetails: async (invoiceId: number) => {
+    const response = await api.get(`/accounting/vendor-invoices/${invoiceId}`);
+    return response.data;
+  },
+  processVendorPayment: async (invoiceId: number, paymentData: any) => {
+    const response = await api.post(`/accounting/vendor-invoices/${invoiceId}/payments`, paymentData);
+    return response.data;
+  },
+  getVendorPaymentHistory: async () => {
+    const response = await api.get('/accounting/vendor-payments');
+    return response.data;
+  },
+
+  // Email Templates
+  getEmailTemplates: async () => {
+    const response = await api.get('/admin/email-templates');
+    return response.data;
+  },
+  createEmailTemplate: async (templateData: any) => {
+    const response = await api.post('/admin/email-templates', templateData);
+    return response.data;
+  },
+  updateEmailTemplate: async (id: number, templateData: any) => {
+    const response = await api.put(`/admin/email-templates/${id}`, templateData);
+    return response.data;
+  },
+  deleteEmailTemplate: async (id: number) => {
+    const response = await api.delete(`/admin/email-templates/${id}`);
+    return response.data;
+  },
 };
 
 // Email Template endpoints
@@ -1025,6 +1051,12 @@ export const vendorApi = {
   },
   updateProfile: async (profileData: any) => {
     const response = await api.put('/vendor/profile', profileData);
+    return response.data;
+  },
+
+  // Get all vendors for dropdown selection
+  getVendors: async () => {
+    const response = await api.get('/vendor/vendors');
     return response.data;
   },
 

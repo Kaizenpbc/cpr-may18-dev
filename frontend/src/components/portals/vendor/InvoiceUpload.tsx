@@ -1,6 +1,6 @@
 console.log('📦 [INVOICE UPLOAD] Module loaded');
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -38,14 +38,36 @@ const InvoiceUpload: React.FC = () => {
       invoice_date: today,
       due_date: dueDate,
       manual_type: '',
-      quantity: ''
+      quantity: '',
+      vendor_id: '' // Add vendor selection field
     });
+    const [vendors, setVendors] = useState<Array<{id: number, vendor_name: string, vendor_type: string}>>([]);
+    const [vendorsLoading, setVendorsLoading] = useState(true);
     const [file, setFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const navigate = useNavigate();
+
+    // Load vendors on component mount
+    useEffect(() => {
+      const loadVendors = async () => {
+        try {
+          setVendorsLoading(true);
+          const response = await vendorApi.getVendors();
+          console.log('📋 [INVOICE UPLOAD] Vendors loaded:', response);
+          setVendors(response || []);
+        } catch (error) {
+          console.error('❌ [INVOICE UPLOAD] Error loading vendors:', error);
+          setError('Failed to load vendors. Please try again.');
+        } finally {
+          setVendorsLoading(false);
+        }
+      };
+      
+      loadVendors();
+    }, []);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const { name, value } = e.target;
@@ -104,9 +126,9 @@ const InvoiceUpload: React.FC = () => {
 
       try {
         // Validate required fields
-        if (!formData.invoice_number || !formData.amount || !formData.description || !formData.invoice_date) {
+        if (!formData.invoice_number || !formData.amount || !formData.description || !formData.invoice_date || !formData.vendor_id) {
           console.log('❌ [INVOICE UPLOAD] Validation failed - missing required fields');
-          setError('Please fill in all required fields.');
+          setError('Please fill in all required fields including vendor selection.');
           setLoading(false);
           return;
         }
@@ -165,7 +187,8 @@ const InvoiceUpload: React.FC = () => {
             invoice_date: today,
             due_date: dueDate,
             manual_type: '',
-            quantity: ''
+            quantity: '',
+            vendor_id: '' // Reset vendor_id
           });
           setFile(null);
           // After a short delay, navigate to history and trigger refresh
@@ -280,6 +303,33 @@ const InvoiceUpload: React.FC = () => {
 
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
+                  <InputLabel>Vendor *</InputLabel>
+                  <Select
+                    name="vendor_id"
+                    value={formData.vendor_id}
+                    onChange={handleSelectChange}
+                    label="Vendor *"
+                    disabled={vendorsLoading}
+                  >
+                    {vendorsLoading ? (
+                      <MenuItem value="">
+                        <CircularProgress size={20} />
+                      </MenuItem>
+                    ) : vendors.length === 0 ? (
+                      <MenuItem value="">No vendors found.</MenuItem>
+                    ) : (
+                      vendors.map((vendor) => (
+                        <MenuItem key={vendor.id} value={vendor.id}>
+                          {vendor.vendor_name}
+                        </MenuItem>
+                      ))
+                    )}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
                   <InputLabel>Manual Type</InputLabel>
                   <Select
                     name="manual_type"
@@ -350,14 +400,14 @@ const InvoiceUpload: React.FC = () => {
                   type="submit"
                   variant="contained"
                   startIcon={loading ? <CircularProgress size={20} /> : <UploadIcon />}
-                  disabled={loading || !file}
+                  disabled={loading || !file || !formData.vendor_id}
                   fullWidth
                   size="large"
                   sx={{ 
                     py: 2, 
                     fontSize: '1.1rem',
                     fontWeight: 'bold',
-                    backgroundColor: file ? '#1976d2' : '#ccc'
+                    backgroundColor: file && formData.vendor_id ? '#1976d2' : '#ccc'
                   }}
                 >
                   {loading ? 'Uploading...' : 'Upload Invoice'}
@@ -365,6 +415,11 @@ const InvoiceUpload: React.FC = () => {
                 {!file && (
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
                     Please select a PDF file to enable upload
+                  </Typography>
+                )}
+                {!formData.vendor_id && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
+                    Please select a vendor to enable upload
                   </Typography>
                 )}
               </Grid>

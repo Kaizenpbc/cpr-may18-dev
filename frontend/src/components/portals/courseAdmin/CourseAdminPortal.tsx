@@ -24,6 +24,7 @@ import {
   AccountCircle as AccountIcon,
   Logout as LogoutIcon,
   VpnKey as PasswordIcon,
+  Store as StoreIcon,
 } from '@mui/icons-material';
 import ErrorBoundary from '../../common/ErrorBoundary';
 import InstructorManagement from './InstructorManagement';
@@ -31,6 +32,7 @@ import CourseScheduling from './CourseScheduling';
 import EmailTemplateManager from './EmailTemplateManager';
 import DashboardView from './DashboardView';
 import CancelledCourses from './CancelledCourses';
+import VendorInvoiceApproval from './VendorInvoiceApproval';
 import { User } from '../../../types/api';
 
 interface TabPanelProps {
@@ -61,6 +63,7 @@ const tabRoutes = [
   { label: 'Course Scheduling', icon: <EventIcon />, path: 'scheduling', component: <CourseScheduling /> },
   { label: 'Email Templates', icon: <EmailIcon />, path: 'email-templates', component: <EmailTemplateManager /> },
   { label: 'Cancelled Courses', icon: <EventIcon />, path: 'cancelled-courses', component: <CancelledCourses /> },
+  { label: 'Vendor Invoice Approval', icon: <StoreIcon />, path: 'vendor-invoices', component: <VendorInvoiceApproval /> },
 ];
 
 interface CourseAdminPortalProps {
