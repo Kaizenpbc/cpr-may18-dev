@@ -5,6 +5,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { ocrService } from '../../services/ocrService.js';
+import { vendorDetectionService } from '../../services/vendorDetectionService.js';
 
 const router = express.Router();
 
@@ -245,15 +246,21 @@ router.get('/invoices', authenticateToken, async (req, res) => {
     const vendorId = vendorResult.rows[0].id;
     const { status, search } = req.query;
 
+    // 🔍 PHASE 3: Show all invoices (not just those belonging to the authenticated user's vendor ID)
+    // This allows GTACPR staff to see all invoices they uploaded on behalf of any vendor
     let query = `
       SELECT 
         vi.*,
-        v.name as company
+        v.name as company,
+        v.name as billing_company,
+        COALESCE(vi.rate, 0) as rate,
+        COALESCE(vi.subtotal, vi.amount) as subtotal,
+        COALESCE(vi.hst, 0) as hst,
+        COALESCE(vi.total, vi.amount) as total
       FROM vendor_invoices vi
       LEFT JOIN vendors v ON vi.vendor_id = v.id
-      WHERE vi.vendor_id = $1
     `;
-    let params = [vendorId];
+    let params = [];
 
     if (status) {
       query += ' AND vi.status = $2';
@@ -287,13 +294,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), async 
       due_date,
       manual_type,
       quantity,
-      vendor_id,
-      acct_no,
-      item,
-      rate,
-      subtotal,
-      hst,
-      total
+      detected_vendor_id // New field for vendor detection
     } = req.body;
     
     // Map 'date' to 'invoice_date' for database
@@ -303,25 +304,69 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), async 
       return res.status(400).json({ error: 'Invoice PDF is required' });
     }
 
-    // Validate that the selected vendor exists and is active
-    const vendorResult = await pool.query(
-      'SELECT id FROM vendors WHERE id = $1 AND is_active = true',
-      [vendor_id]
+    // Get user email from database using user ID
+    const userResult = await pool.query(
+      'SELECT email FROM users WHERE id = $1',
+      [req.user.id]
     );
 
-    if (vendorResult.rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid vendor selected' });
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userEmail = userResult.rows[0].email;
+
+    // 🔍 PHASE 2: Vendor Detection Integration
+    let vendor_id;
+    
+    if (detected_vendor_id && detected_vendor_id !== '') {
+      // Use detected vendor ID if provided and valid
+      console.log('🔍 [VENDOR DETECTION] Using detected vendor ID:', detected_vendor_id);
+      
+      const detectedVendorResult = await pool.query(
+        'SELECT id FROM vendors WHERE id = $1 AND is_active = true',
+        [detected_vendor_id]
+      );
+
+      if (detectedVendorResult.rows.length > 0) {
+        vendor_id = detectedVendorResult.rows[0].id;
+        console.log('✅ [VENDOR DETECTION] Using detected vendor ID:', vendor_id);
+      } else {
+        console.log('⚠️ [VENDOR DETECTION] Detected vendor ID not found, falling back to authenticated user');
+        // Fall back to authenticated user's vendor ID
+        const vendorResult = await pool.query(
+          'SELECT id FROM vendors WHERE contact_email = $1 AND is_active = true',
+          [userEmail]
+        );
+
+        if (vendorResult.rows.length === 0) {
+          return res.status(400).json({ error: 'Vendor not found or inactive' });
+        }
+        vendor_id = vendorResult.rows[0].id;
+      }
+    } else {
+      // Use authenticated user's vendor ID (fallback)
+      console.log('🔍 [VENDOR DETECTION] No detected vendor ID, using authenticated user');
+      const vendorResult = await pool.query(
+        'SELECT id FROM vendors WHERE contact_email = $1 AND is_active = true',
+        [userEmail]
+      );
+
+      if (vendorResult.rows.length === 0) {
+        return res.status(400).json({ error: 'Vendor not found or inactive' });
+      }
+      vendor_id = vendorResult.rows[0].id;
     }
 
     const result = await pool.query(
       `INSERT INTO vendor_invoices (
         vendor_id, invoice_number, amount, description, invoice_date, due_date,
-        manual_type, quantity, pdf_filename, status, acct_no, item, rate, subtotal, hst, total
+        manual_type, quantity, pdf_filename, status, rate, subtotal, hst, total
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING id`,
       [
-        vendor_id,
+        vendor_id, // Use authenticated user's vendor ID
         invoice_number,
         parseFloat(amount),
         description,
@@ -331,12 +376,10 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), async 
         quantity ? parseInt(quantity) : null,
         req.file.filename,
         'submitted',
-        acct_no,
-        item,
-        rate ? parseFloat(rate) : null,
-        subtotal ? parseFloat(subtotal) : null,
-        hst ? parseFloat(hst) : null,
-        total ? parseFloat(total) : null
+        parseFloat(req.body.rate) || 0,
+        parseFloat(req.body.subtotal) || parseFloat(amount),
+        parseFloat(req.body.hst) || 0,
+        parseFloat(req.body.total) || parseFloat(amount)
       ]
     );
 
@@ -366,12 +409,35 @@ router.post('/invoices/scan', authenticateToken, upload.single('invoice_pdf'), a
     // Extract structured data from text
     const extractedData = await ocrService.extractInvoiceData(extractedText);
 
-    console.log('✅ [VENDOR OCR] Invoice scan completed successfully');
+    // 🔍 PHASE 1: Enhanced OCR with Vendor Detection
+    console.log('🔍 [VENDOR DETECTION] Starting vendor auto-detection...');
+    
+    // Detect vendor from extracted vendor name
+    const vendorDetection = await vendorDetectionService.detectVendor(extractedData.vendorName);
+    
+    // Add vendor detection results to the response
+    const enhancedData = {
+      ...extractedData,
+      vendorDetection: {
+        detectedVendorId: vendorDetection.vendorId,
+        detectedVendorName: vendorDetection.vendorName,
+        confidence: vendorDetection.confidence,
+        detectedName: vendorDetection.detectedName,
+        allMatches: vendorDetection.allMatches
+      }
+    };
+
+    console.log('✅ [VENDOR OCR] Invoice scan completed with vendor detection');
+    console.log('📊 [VENDOR DETECTION] Results:', {
+      extractedVendorName: extractedData.vendorName,
+      detectedVendor: vendorDetection.vendorName,
+      confidence: `${(vendorDetection.confidence * 100).toFixed(1)}%`
+    });
 
     res.json({
       success: true,
-      data: extractedData,
-      message: 'Invoice scanned successfully'
+      data: enhancedData,
+      message: 'Invoice scanned successfully with vendor detection'
     });
 
   } catch (error) {

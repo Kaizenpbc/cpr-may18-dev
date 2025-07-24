@@ -22,10 +22,16 @@ import {
   Tabs,
   Tab,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Tooltip,
 } from '@mui/material';
 import {
   Visibility as ViewIcon,
   Download as DownloadIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { vendorApi } from '../../../services/api';
 
@@ -34,13 +40,14 @@ interface Invoice {
   invoice_number: string;
   item?: string;
   company?: string;
-  quantity?: number;
+  billing_company?: string;
+  quantity?: number | null;
   description: string;
-  rate?: number;
-  amount: number; // Ensure this is always a number
-  subtotal?: number;
-  hst?: number;
-  total?: number;
+  rate: number; // Always a number (defaults to 0)
+  amount: number; // Always a number (defaults to 0)
+  subtotal: number; // Always a number (defaults to 0)
+  hst: number; // Always a number (defaults to 0)
+  total: number; // Always a number (defaults to 0)
   status: string;
   created_at: string;
   due_date?: string;
@@ -73,10 +80,12 @@ function TabPanel(props: TabPanelProps) {
 const InvoiceHistory: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [tabValue, setTabValue] = useState(0);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchInvoices();
@@ -100,11 +109,16 @@ const InvoiceHistory: React.FC = () => {
         return;
       }
       
-      // Ensure amount is properly converted to number
-      const processedInvoices = invoiceData.map((invoice: any) => ({
-        ...invoice,
-        amount: typeof invoice.amount === 'string' ? parseFloat(invoice.amount) : invoice.amount || 0
-      }));
+             // Ensure all numeric fields are properly converted to numbers
+       const processedInvoices = invoiceData.map((invoice: any) => ({
+         ...invoice,
+         amount: typeof invoice.amount === 'string' ? parseFloat(invoice.amount) : invoice.amount || 0,
+         rate: typeof invoice.rate === 'string' ? parseFloat(invoice.rate) : invoice.rate || 0,
+         subtotal: typeof invoice.subtotal === 'string' ? parseFloat(invoice.subtotal) : invoice.subtotal || 0,
+         hst: typeof invoice.hst === 'string' ? parseFloat(invoice.hst) : invoice.hst || 0,
+         total: typeof invoice.total === 'string' ? parseFloat(invoice.total) : invoice.total || 0,
+         quantity: typeof invoice.quantity === 'string' ? parseInt(invoice.quantity) : invoice.quantity || null
+       }));
       
       console.log('🔍 [INVOICE HISTORY] Processed invoice data:', processedInvoices);
       setInvoices(processedInvoices);
@@ -161,8 +175,17 @@ const InvoiceHistory: React.FC = () => {
   const handleDownload = async (invoiceId: number, invoiceNumber: string) => {
     try {
       console.log('📥 [INVOICE HISTORY] Downloading invoice:', invoiceId);
+      
+      // Use the vendorApi method which handles authentication automatically
       const blob = await vendorApi.downloadInvoice(invoiceId);
       
+      console.log('📥 [INVOICE HISTORY] Blob received, size:', blob.size, 'bytes, type:', blob.type);
+
+      // Verify the blob size
+      if (blob.size === 0) {
+        throw new Error('PDF file is empty');
+      }
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -173,11 +196,34 @@ const InvoiceHistory: React.FC = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      console.log('✅ [INVOICE HISTORY] Download completed');
+      console.log('✅ [INVOICE HISTORY] Download completed successfully');
     } catch (err: any) {
       console.error('❌ [INVOICE HISTORY] Download error:', err);
-      alert('Failed to download invoice. Please try again.');
+      console.error('❌ [INVOICE HISTORY] Error details:', {
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      });
+      alert(`Failed to download invoice: ${err.message}`);
     }
+  };
+
+  const handleView = async (invoiceId: number) => {
+    try {
+      console.log('👁️ [INVOICE HISTORY] Viewing invoice:', invoiceId);
+      const response = await vendorApi.getInvoice(invoiceId);
+      setSelectedInvoice(response.data);
+      setViewDialogOpen(true);
+      console.log('✅ [INVOICE HISTORY] Invoice details loaded');
+    } catch (err: any) {
+      console.error('❌ [INVOICE HISTORY] View error:', err);
+      alert('Failed to load invoice details. Please try again.');
+    }
+  };
+
+  const handleCloseViewDialog = () => {
+    setViewDialogOpen(false);
+    setSelectedInvoice(null);
   };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -225,7 +271,7 @@ const InvoiceHistory: React.FC = () => {
         <TableHead>
           <TableRow>
             <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Company</TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>Billing Company</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Invoice #</TableCell>
             <TableCell align="right" sx={{ fontWeight: 'bold' }}>Quantity</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Item</TableCell>
@@ -244,25 +290,40 @@ const InvoiceHistory: React.FC = () => {
           {filteredInvoices.map((invoice) => (
             <TableRow key={invoice.id}>
               <TableCell>{new Date(invoice.created_at).toLocaleDateString()}</TableCell>
-              <TableCell>{invoice.company || '-'}</TableCell>
+              <TableCell>{invoice.billing_company || invoice.company || '-'}</TableCell>
               <TableCell>{invoice.invoice_number}</TableCell>
               <TableCell align="right">{invoice.quantity || '-'}</TableCell>
               <TableCell>{invoice.item || '-'}</TableCell>
               <TableCell>{invoice.description}</TableCell>
               <TableCell align="right">
-                {invoice.rate ? `$${invoice.rate.toFixed(2)}` : '-'}
+                {invoice.rate !== undefined && invoice.rate !== null ? 
+                  (invoice.rate > 0 ? `$${invoice.rate.toFixed(2)}` : '-') : 
+                  'DEBUG: ' + JSON.stringify(invoice.rate)
+                }
               </TableCell>
               <TableCell align="right">
-                ${invoice.amount.toFixed(2)}
+                {invoice.amount !== undefined && invoice.amount !== null ? 
+                  `$${invoice.amount.toFixed(2)}` : 
+                  'DEBUG: ' + JSON.stringify(invoice.amount)
+                }
               </TableCell>
               <TableCell align="right">
-                {invoice.subtotal ? `$${invoice.subtotal.toFixed(2)}` : '-'}
+                {invoice.subtotal !== undefined && invoice.subtotal !== null ? 
+                  (invoice.subtotal > 0 ? `$${invoice.subtotal.toFixed(2)}` : '-') : 
+                  'DEBUG: ' + JSON.stringify(invoice.subtotal)
+                }
               </TableCell>
               <TableCell align="right">
-                {invoice.hst ? `$${invoice.hst.toFixed(2)}` : '-'}
+                {invoice.hst !== undefined && invoice.hst !== null ? 
+                  (invoice.hst > 0 ? `$${invoice.hst.toFixed(2)}` : '-') : 
+                  'DEBUG: ' + JSON.stringify(invoice.hst)
+                }
               </TableCell>
               <TableCell align="right">
-                {invoice.total ? `$${invoice.total.toFixed(2)}` : '-'}
+                {invoice.total !== undefined && invoice.total !== null ? 
+                  (invoice.total > 0 ? `$${invoice.total.toFixed(2)}` : '-') : 
+                  'DEBUG: ' + JSON.stringify(invoice.total)
+                }
               </TableCell>
               <TableCell>
                 <Chip
@@ -275,16 +336,24 @@ const InvoiceHistory: React.FC = () => {
                 {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '-'}
               </TableCell>
               <TableCell align="center">
-                <IconButton size="small" title="View Invoice">
-                  <ViewIcon />
-                </IconButton>
-                <IconButton 
-                  size="small" 
-                  title="Download PDF"
-                  onClick={() => handleDownload(invoice.id, invoice.invoice_number)}
-                >
-                  <DownloadIcon />
-                </IconButton>
+                <Tooltip title="View Invoice Details">
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleView(invoice.id)}
+                    color="primary"
+                  >
+                    <ViewIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Download PDF">
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleDownload(invoice.id, invoice.invoice_number)}
+                    color="secondary"
+                  >
+                    <DownloadIcon />
+                  </IconButton>
+                </Tooltip>
               </TableCell>
             </TableRow>
           ))}
@@ -372,30 +441,8 @@ const InvoiceHistory: React.FC = () => {
               3
             </Box>
             <Typography variant="body2">
-              <strong>Sent to Accounting</strong><br/>
-              Ready for payment
-            </Typography>
-          </Box>
-          
-          <Box sx={{ color: '#666' }}>→</Box>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ 
-              width: 40, 
-              height: 40, 
-              borderRadius: '50%', 
-              backgroundColor: '#9c27b0', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: 'bold'
-            }}>
-              4
-            </Box>
-            <Typography variant="body2">
               <strong>Payment Processed</strong><br/>
-              Full or partial payment
+              Invoice is paid
             </Typography>
           </Box>
         </Box>
@@ -471,6 +518,8 @@ const InvoiceHistory: React.FC = () => {
                 <MenuItem value="submitted">Submitted</MenuItem>
                 <MenuItem value="pending_review">Pending Review</MenuItem>
                 <MenuItem value="approved">Approved</MenuItem>
+                <MenuItem value="sent_to_accounting">Sent to Accounting</MenuItem>
+                <MenuItem value="partially_paid">Partially Paid</MenuItem>
                 <MenuItem value="paid">Paid</MenuItem>
                 <MenuItem value="rejected">Rejected</MenuItem>
               </Select>
@@ -585,6 +634,98 @@ const InvoiceHistory: React.FC = () => {
         </Box>
         {renderInvoiceTable()}
       </TabPanel>
+
+      {/* Invoice Detail Dialog */}
+      <Dialog
+        open={viewDialogOpen}
+        onClose={handleCloseViewDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">
+              Invoice Details - {selectedInvoice?.invoice_number}
+            </Typography>
+            <IconButton onClick={handleCloseViewDialog}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedInvoice && (
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="textSecondary">Invoice Number</Typography>
+                <Typography variant="body1" gutterBottom>{selectedInvoice.invoice_number}</Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="textSecondary">Status</Typography>
+                <Chip
+                  label={getStatusLabel(selectedInvoice.status)}
+                  color={getStatusColor(selectedInvoice.status) as any}
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="textSecondary">Created Date</Typography>
+                <Typography variant="body1" gutterBottom>
+                  {new Date(selectedInvoice.created_at).toLocaleDateString()}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="textSecondary">Due Date</Typography>
+                <Typography variant="body1" gutterBottom>
+                  {selectedInvoice.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : 'Not set'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="textSecondary">Description</Typography>
+                <Typography variant="body1" gutterBottom>{selectedInvoice.description}</Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="textSecondary">Item</Typography>
+                <Typography variant="body1" gutterBottom>{selectedInvoice.item || 'N/A'}</Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="textSecondary">Quantity</Typography>
+                <Typography variant="body1" gutterBottom>{selectedInvoice.quantity || 'N/A'}</Typography>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Typography variant="subtitle2" color="textSecondary">Rate</Typography>
+                <Typography variant="body1" gutterBottom>
+                  {selectedInvoice.rate > 0 ? `$${selectedInvoice.rate.toFixed(2)}` : 'N/A'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Typography variant="subtitle2" color="textSecondary">Amount</Typography>
+                <Typography variant="body1" fontWeight="bold" gutterBottom>
+                  ${selectedInvoice.amount.toFixed(2)}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Typography variant="subtitle2" color="textSecondary">Total</Typography>
+                <Typography variant="body1" fontWeight="bold" gutterBottom>
+                  ${selectedInvoice.total > 0 ? selectedInvoice.total.toFixed(2) : selectedInvoice.amount.toFixed(2)}
+                </Typography>
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseViewDialog}>Close</Button>
+          {selectedInvoice && (
+            <Button
+              onClick={() => handleDownload(selectedInvoice.id, selectedInvoice.invoice_number)}
+              startIcon={<DownloadIcon />}
+              variant="contained"
+              color="primary"
+            >
+              Download PDF
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

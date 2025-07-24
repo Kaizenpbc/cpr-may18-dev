@@ -49,7 +49,8 @@ const InvoiceUpload: React.FC = () => {
       subtotal: '',
       hst: '',
       total: '',
-      vendor_id: '' // Keep vendor_id for database relationship
+      vendor_id: '', // Keep vendor_id for database relationship
+      detected_vendor_id: '' // Store detected vendor ID for backend processing
     });
     const [vendors, setVendors] = useState<Array<{id: number, vendor_name: string, vendor_type: string}>>([]);
     const [vendorsLoading, setVendorsLoading] = useState(true);
@@ -251,7 +252,8 @@ const InvoiceUpload: React.FC = () => {
             subtotal: '',
             hst: '',
             total: '',
-            vendor_id: '' // Reset vendor_id
+            vendor_id: '', // Reset vendor_id
+            detected_vendor_id: '' // Reset detected vendor ID
           });
           setFile(null);
           // After a short delay, navigate to history and trigger refresh
@@ -373,21 +375,47 @@ const InvoiceUpload: React.FC = () => {
             console.log('🏛️ [INVOICE UPLOAD] Cleaned HST:', cleanHst);
           }
           
-          // Try to auto-match vendor name to vendor_id
-          if (extractedData.vendorName && vendors.length > 0) {
-            console.log('🏢 [INVOICE UPLOAD] Attempting to auto-match vendor:', extractedData.vendorName);
-            const matchedVendor = vendors.find(vendor => 
-              vendor.vendor_name.toLowerCase().includes(extractedData.vendorName.toLowerCase()) ||
-              extractedData.vendorName.toLowerCase().includes(vendor.vendor_name.toLowerCase())
-            );
+          // 🔍 PHASE 2: Enhanced Vendor Detection Integration
+          if (extractedData.vendorDetection && extractedData.vendorDetection.detectedVendorId) {
+            console.log('🔍 [INVOICE UPLOAD] Using backend vendor detection results:', extractedData.vendorDetection);
             
-            if (matchedVendor) {
-              console.log('✅ [INVOICE UPLOAD] Vendor auto-matched:', matchedVendor.vendor_name, 'ID:', matchedVendor.id);
-              updatedFormData.vendor_id = matchedVendor.id.toString();
-              updatedFormData.vendor_name = matchedVendor.vendor_name;
+            const detectedVendorId = extractedData.vendorDetection.detectedVendorId;
+            const detectedVendorName = extractedData.vendorDetection.detectedVendorName;
+            const confidence = extractedData.vendorDetection.confidence;
+            
+            console.log(`🔍 [INVOICE UPLOAD] Detected vendor: ${detectedVendorName} (ID: ${detectedVendorId}) - Confidence: ${(confidence * 100).toFixed(1)}%`);
+            
+            if (confidence > 0.7) { // High confidence threshold
+              console.log('✅ [INVOICE UPLOAD] High confidence vendor detection, auto-selecting vendor');
+              updatedFormData.vendor_id = detectedVendorId.toString();
+              updatedFormData.vendor_name = detectedVendorName;
+              
+              // Store detected vendor ID for submission
+              updatedFormData.detected_vendor_id = detectedVendorId.toString();
             } else {
-              console.log('⚠️ [INVOICE UPLOAD] No vendor match found for:', extractedData.vendorName);
-              console.log('🔍 [INVOICE UPLOAD] Available vendors:', vendors.map(v => v.vendor_name));
+              console.log('⚠️ [INVOICE UPLOAD] Low confidence vendor detection, requiring manual selection');
+              // Still store the detected vendor ID but don't auto-select
+              updatedFormData.detected_vendor_id = detectedVendorId.toString();
+            }
+          } else {
+            // Fallback to simple string matching if no vendor detection data
+            console.log('🔍 [INVOICE UPLOAD] No vendor detection data, using fallback string matching');
+            if (extractedData.vendorName && vendors.length > 0) {
+              console.log('🏢 [INVOICE UPLOAD] Attempting to auto-match vendor:', extractedData.vendorName);
+              const matchedVendor = vendors.find(vendor => 
+                vendor.vendor_name.toLowerCase().includes(extractedData.vendorName.toLowerCase()) ||
+                extractedData.vendorName.toLowerCase().includes(vendor.vendor_name.toLowerCase())
+              );
+              
+              if (matchedVendor) {
+                console.log('✅ [INVOICE UPLOAD] Vendor auto-matched (fallback):', matchedVendor.vendor_name, 'ID:', matchedVendor.id);
+                updatedFormData.vendor_id = matchedVendor.id.toString();
+                updatedFormData.vendor_name = matchedVendor.vendor_name;
+                updatedFormData.detected_vendor_id = matchedVendor.id.toString();
+              } else {
+                console.log('⚠️ [INVOICE UPLOAD] No vendor match found for:', extractedData.vendorName);
+                console.log('🔍 [INVOICE UPLOAD] Available vendors:', vendors.map(v => v.vendor_name));
+              }
             }
           }
           
@@ -509,7 +537,8 @@ const InvoiceUpload: React.FC = () => {
         subtotal: '',
         hst: '',
         total: '',
-        vendor_id: ''
+        vendor_id: '',
+        detected_vendor_id: ''
       });
       
       setSuccess('Form cleared. You can now enter data manually or scan another invoice.');
