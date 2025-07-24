@@ -1,0 +1,38 @@
+
+F.A.S.T. Rescue Incorporated
+
+750 Oakdale Rd., Suite 56
+Toronto ON M3N 2Z4
+Canada
+Phone: (905) 760-2045
+www.fast-rescue.com
+GST/HST #: 852997477RT0001
+
+Bill To
+Coujoe Annamunthodo
+46 Sunnyside Hill Rd
+Markham ON L6B 0X5
+Canada	  	Ship To
+Coujoe Annamunthodo
+46 Sunnyside Hill Rd
+Markham ON L6B 0X5
+Canada
+Invoice
+Date	 	06/02/2025
+Invoice #	 	67691
+Acct. No.	 	519293
+Terms	 	Net 30
+Due Date	 	07/02/2025
+PO #	 	 
+Currency	 	CAD
+Memo	 	 
+
+Project	Item	Quantity	Units	Inventory Detail	Description	Rate	Options	Amount
+ 	ITFR-B-SFA-O	685	 	 	FAST Standard First Aid Theory Completed Part 1 Online Training
+
+Students that completed Part 1 Standard Training in the month of May	15.00	 	10,275.00
+Subtotal	10,275.00
+Shipping Cost (No Charge)	0.00
+Tax	1,335.75
+Total	11,610.75
+Amount Due	$11,610.75

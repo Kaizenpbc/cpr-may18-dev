@@ -16,11 +16,16 @@ import {
   MenuItem,
   InputAdornment,
   SelectChangeEvent,
-  Snackbar
+  Snackbar,
+  Chip,
+  Stack
 } from '@mui/material';
-import { Upload as UploadIcon, AttachFile as AttachFileIcon } from '@mui/icons-material';
+import { Upload as UploadIcon, AttachFile as AttachFileIcon, DocumentScanner as ScanIcon } from '@mui/icons-material';
 import { vendorApi } from '../../../services/api';
 import { useNavigate } from 'react-router-dom';
+import SaveIcon from '@mui/icons-material/Save';
+import CancelIcon from '@mui/icons-material/Cancel';
+import CheckIcon from '@mui/icons-material/Check';
 
 const InvoiceUpload: React.FC = () => {
   try {
@@ -32,22 +37,32 @@ const InvoiceUpload: React.FC = () => {
     const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 30 days from now
 
     const [formData, setFormData] = useState({
+      vendor_name: '',
+      date: today,
       invoice_number: '',
-      amount: '',
-      description: '',
-      invoice_date: today,
+      acct_no: '',
       due_date: dueDate,
-      manual_type: '',
       quantity: '',
-      vendor_id: '' // Add vendor selection field
+      item: '',
+      description: '',
+      rate: '',
+      subtotal: '',
+      hst: '',
+      total: '',
+      vendor_id: '' // Keep vendor_id for database relationship
     });
     const [vendors, setVendors] = useState<Array<{id: number, vendor_name: string, vendor_type: string}>>([]);
     const [vendorsLoading, setVendorsLoading] = useState(true);
     const [file, setFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
+    const [scanning, setScanning] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [ocrResults, setOcrResults] = useState<any>(null);
+    const [ocrConfidence, setOcrConfidence] = useState<any>(null);
+    const [showConfirmation, setShowConfirmation] = useState(false);
+    const [pendingOcrData, setPendingOcrData] = useState<any>(null);
     const navigate = useNavigate();
 
     // Load vendors on component mount
@@ -69,11 +84,52 @@ const InvoiceUpload: React.FC = () => {
       loadVendors();
     }, []);
 
+    // Monitor success state changes
+    useEffect(() => {
+      if (success) {
+        console.log('🎉 [INVOICE UPLOAD] Success state changed:', success);
+      }
+    }, [success]);
+
+    // Monitor snackbar state changes
+    useEffect(() => {
+      if (snackbarOpen) {
+        console.log('🔔 [INVOICE UPLOAD] Snackbar opened with message:', success || error);
+      }
+    }, [snackbarOpen, success, error]);
+
+    // Monitor form data changes
+    useEffect(() => {
+      console.log('📝 [INVOICE UPLOAD] Form data updated:', formData);
+    }, [formData]);
+
+    // Monitor confirmation dialog state
+    useEffect(() => {
+      console.log('🔍 [INVOICE UPLOAD] Confirmation dialog state changed - showConfirmation:', showConfirmation, 'pendingOcrData:', pendingOcrData);
+    }, [showConfirmation, pendingOcrData]);
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const { name, value } = e.target;
+      
+      // Handle comma formatting for financial fields
+      let cleanValue = value;
+      if (['subtotal', 'hst', 'total', 'rate'].includes(name)) {
+        // Remove commas and convert to clean number string
+        cleanValue = value.replace(/,/g, '');
+        // Ensure it's a valid number or empty string
+        if (cleanValue && !isNaN(parseFloat(cleanValue))) {
+          cleanValue = parseFloat(cleanValue).toString();
+        } else if (cleanValue === '') {
+          cleanValue = '';
+        } else {
+          // Invalid input, don't update
+          return;
+        }
+      }
+      
       setFormData(prev => ({
         ...prev,
-        [name]: value
+        [name]: cleanValue
       }));
     };
 
@@ -90,8 +146,8 @@ const InvoiceUpload: React.FC = () => {
         const selectedFile = e.target.files[0];
         
         // Validate file type
-        if (selectedFile.type !== 'application/pdf') {
-          setError('Please select a valid PDF file.');
+        if (selectedFile.type !== 'application/pdf' && selectedFile.type !== 'text/html') {
+          setError('Please select a valid PDF or HTML file.');
           return;
         }
         
@@ -126,7 +182,7 @@ const InvoiceUpload: React.FC = () => {
 
       try {
         // Validate required fields
-        if (!formData.invoice_number || !formData.amount || !formData.description || !formData.invoice_date || !formData.vendor_id) {
+        if (!formData.invoice_number || !formData.total || !formData.description || !formData.date || !formData.vendor_id) {
           console.log('❌ [INVOICE UPLOAD] Validation failed - missing required fields');
           setError('Please fill in all required fields including vendor selection.');
           setLoading(false);
@@ -141,9 +197,9 @@ const InvoiceUpload: React.FC = () => {
         }
 
         // Validate file type
-        if (file.type !== 'application/pdf') {
+        if (file.type !== 'application/pdf' && file.type !== 'text/html') {
           console.log('❌ [INVOICE UPLOAD] Validation failed - invalid file type:', file.type);
-          setError('Please select a valid PDF file.');
+          setError('Please select a valid PDF or HTML file.');
           setLoading(false);
           return;
         }
@@ -177,17 +233,24 @@ const InvoiceUpload: React.FC = () => {
 
         console.log('✅ [INVOICE UPLOAD] API response received:', response);
 
-        if (response) {
-          setSuccess('Invoice uploaded successfully!');
+        if (response && response.success) {
+          const successMessage = response.message || 'Invoice uploaded successfully!';
+          console.log('✅ [INVOICE UPLOAD] Setting success message:', successMessage);
+          setSuccess(successMessage);
           setSnackbarOpen(true);
           setFormData({
+            vendor_name: '',
+            date: today,
             invoice_number: '',
-            amount: '',
-            description: '',
-            invoice_date: today,
+            acct_no: '',
             due_date: dueDate,
-            manual_type: '',
             quantity: '',
+            item: '',
+            description: '',
+            rate: '',
+            subtotal: '',
+            hst: '',
+            total: '',
             vendor_id: '' // Reset vendor_id
           });
           setFile(null);
@@ -212,6 +275,251 @@ const InvoiceUpload: React.FC = () => {
       }
     };
 
+    const handleScanInvoice = async () => {
+              if (!file) {
+          setError('Please select a PDF or HTML file first');
+          return;
+        }
+
+      try {
+        setScanning(true);
+        setError(null);
+        console.log('🔍 [INVOICE UPLOAD] Starting OCR scan for file:', file.name);
+
+        const response = await vendorApi.scanInvoice(file);
+        console.log('✅ [INVOICE UPLOAD] OCR scan completed:', response);
+        console.log('🔍 [INVOICE UPLOAD] Response data structure:', JSON.stringify(response.data, null, 2));
+
+        if (response.success && response.data) {
+          const extractedData = response.data;
+          console.log('🔍 [INVOICE UPLOAD] Extracted data fields:', {
+            invoiceNumber: extractedData.invoiceNumber,
+            invoiceDate: extractedData.invoiceDate,
+            dueDate: extractedData.dueDate,
+            amount: extractedData.amount,
+            description: extractedData.description,
+            acctNo: extractedData.acctNo,
+            rate: extractedData.rate,
+            subtotal: extractedData.subtotal,
+            hst: extractedData.hst,
+            item: extractedData.item,
+            quantity: extractedData.quantity
+          });
+          
+          console.log('🔍 [INVOICE UPLOAD] Checking specific financial fields:');
+          console.log('  - extractedData.subtotal:', extractedData.subtotal, 'type:', typeof extractedData.subtotal);
+          console.log('  - extractedData.hst:', extractedData.hst, 'type:', typeof extractedData.hst);
+          console.log('  - extractedData.amount:', extractedData.amount, 'type:', typeof extractedData.amount);
+          
+          console.log('🔍 [INVOICE UPLOAD] Automatically populating form with extracted data');
+          
+          // Automatically populate the form with extracted data
+          const updatedFormData = { ...formData };
+          
+          if (extractedData.invoiceDate) {
+            console.log('📅 [INVOICE UPLOAD] Setting invoice date:', extractedData.invoiceDate);
+            updatedFormData.date = extractedData.invoiceDate;
+          }
+          if (extractedData.invoiceNumber) {
+            console.log('📄 [INVOICE UPLOAD] Setting invoice number:', extractedData.invoiceNumber);
+            updatedFormData.invoice_number = extractedData.invoiceNumber;
+          }
+          if (extractedData.dueDate) {
+            console.log('📅 [INVOICE UPLOAD] Setting due date:', extractedData.dueDate);
+            updatedFormData.due_date = extractedData.dueDate;
+          }
+          if (extractedData.description) {
+            console.log('📝 [INVOICE UPLOAD] Setting description:', extractedData.description);
+            updatedFormData.description = extractedData.description;
+          }
+          if (extractedData.amount) {
+            console.log('💰 [INVOICE UPLOAD] Setting total amount:', extractedData.amount);
+            // Remove commas for number input compatibility
+            const cleanAmount = extractedData.amount.replace(/,/g, '');
+            updatedFormData.total = cleanAmount;
+            console.log('💰 [INVOICE UPLOAD] Cleaned total amount:', cleanAmount);
+          }
+          if (extractedData.acctNo) {
+            console.log('🏦 [INVOICE UPLOAD] Setting account number:', extractedData.acctNo);
+            updatedFormData.acct_no = extractedData.acctNo;
+          }
+          if (extractedData.quantity) {
+            console.log('🔢 [INVOICE UPLOAD] Setting quantity:', extractedData.quantity);
+            updatedFormData.quantity = extractedData.quantity;
+          }
+          if (extractedData.item) {
+            console.log('📦 [INVOICE UPLOAD] Setting item:', extractedData.item);
+            updatedFormData.item = extractedData.item;
+          }
+          if (extractedData.rate) {
+            console.log('💵 [INVOICE UPLOAD] Setting rate:', extractedData.rate);
+            // Remove commas for number input compatibility
+            const cleanRate = extractedData.rate.replace(/,/g, '');
+            updatedFormData.rate = cleanRate;
+            console.log('💵 [INVOICE UPLOAD] Cleaned rate:', cleanRate);
+          }
+          if (extractedData.subtotal) {
+            console.log('💰 [INVOICE UPLOAD] Setting subtotal:', extractedData.subtotal);
+            // Remove commas for number input compatibility
+            const cleanSubtotal = extractedData.subtotal.replace(/,/g, '');
+            updatedFormData.subtotal = cleanSubtotal;
+            console.log('💰 [INVOICE UPLOAD] Cleaned subtotal:', cleanSubtotal);
+          }
+          if (extractedData.hst) {
+            console.log('🏛️ [INVOICE UPLOAD] Setting HST:', extractedData.hst);
+            // Remove commas for number input compatibility
+            const cleanHst = extractedData.hst.replace(/,/g, '');
+            updatedFormData.hst = cleanHst;
+            console.log('🏛️ [INVOICE UPLOAD] Cleaned HST:', cleanHst);
+          }
+          
+          // Try to auto-match vendor name to vendor_id
+          if (extractedData.vendorName && vendors.length > 0) {
+            console.log('🏢 [INVOICE UPLOAD] Attempting to auto-match vendor:', extractedData.vendorName);
+            const matchedVendor = vendors.find(vendor => 
+              vendor.vendor_name.toLowerCase().includes(extractedData.vendorName.toLowerCase()) ||
+              extractedData.vendorName.toLowerCase().includes(vendor.vendor_name.toLowerCase())
+            );
+            
+            if (matchedVendor) {
+              console.log('✅ [INVOICE UPLOAD] Vendor auto-matched:', matchedVendor.vendor_name, 'ID:', matchedVendor.id);
+              updatedFormData.vendor_id = matchedVendor.id.toString();
+              updatedFormData.vendor_name = matchedVendor.vendor_name;
+            } else {
+              console.log('⚠️ [INVOICE UPLOAD] No vendor match found for:', extractedData.vendorName);
+              console.log('🔍 [INVOICE UPLOAD] Available vendors:', vendors.map(v => v.vendor_name));
+            }
+          }
+          
+          console.log('🔍 [INVOICE UPLOAD] Final updated form data:', updatedFormData);
+          console.log('🔍 [INVOICE UPLOAD] Financial fields in updatedFormData:');
+          console.log('  - updatedFormData.subtotal:', updatedFormData.subtotal);
+          console.log('  - updatedFormData.hst:', updatedFormData.hst);
+          console.log('  - updatedFormData.total:', updatedFormData.total);
+          setFormData(updatedFormData);
+          
+          // Also set OCR results for display and show confirmation dialog
+          setOcrResults(extractedData);
+          setOcrConfidence(extractedData.confidence);
+          setPendingOcrData(extractedData);
+          setShowConfirmation(true);
+          
+          const vendorMessage = updatedFormData.vendor_id 
+            ? 'Vendor has been auto-matched and form is ready to submit!'
+            : 'Form has been populated. Please select the vendor from the dropdown.';
+          
+          setSuccess(`Invoice scanned successfully! ${vendorMessage}`);
+          setSnackbarOpen(true);
+          console.log('🔍 [INVOICE UPLOAD] Form has been automatically populated');
+        } else {
+          setError('Failed to scan invoice. Please try again or enter data manually.');
+        }
+      } catch (err: any) {
+        console.error('❌ [INVOICE UPLOAD] OCR scan error:', err);
+        setError(err.response?.data?.error || 'Failed to scan invoice. Please try again.');
+      } finally {
+        setScanning(false);
+      }
+    };
+
+    const handleSaveOcrData = () => {
+      if (pendingOcrData) {
+        console.log('🔍 [INVOICE UPLOAD] Starting to apply OCR data:', pendingOcrData);
+        console.log('🔍 [INVOICE UPLOAD] Current form data before update:', formData);
+        
+        const updatedFormData = { ...formData };
+        
+        // Note: vendor_id cannot be auto-populated from OCR since we need the ID, not the name
+        // User will need to manually select the vendor from the dropdown
+        
+        if (pendingOcrData.invoiceDate) {
+          console.log('📅 [INVOICE UPLOAD] Setting invoice date:', pendingOcrData.invoiceDate);
+          updatedFormData.date = pendingOcrData.invoiceDate;
+        }
+        if (pendingOcrData.invoiceNumber) {
+          console.log('📄 [INVOICE UPLOAD] Setting invoice number:', pendingOcrData.invoiceNumber);
+          updatedFormData.invoice_number = pendingOcrData.invoiceNumber;
+        }
+        if (pendingOcrData.dueDate) {
+          console.log('📅 [INVOICE UPLOAD] Setting due date:', pendingOcrData.dueDate);
+          updatedFormData.due_date = pendingOcrData.dueDate;
+        }
+        if (pendingOcrData.description) {
+          console.log('📝 [INVOICE UPLOAD] Setting description:', pendingOcrData.description);
+          updatedFormData.description = pendingOcrData.description;
+        }
+        if (pendingOcrData.amount) {
+          console.log('💰 [INVOICE UPLOAD] Setting total amount:', pendingOcrData.amount);
+          updatedFormData.total = pendingOcrData.amount;
+        }
+        if (pendingOcrData.acctNo) {
+          console.log('🏦 [INVOICE UPLOAD] Setting account number:', pendingOcrData.acctNo);
+          updatedFormData.acct_no = pendingOcrData.acctNo;
+        }
+        if (pendingOcrData.quantity) {
+          console.log('🔢 [INVOICE UPLOAD] Setting quantity:', pendingOcrData.quantity);
+          updatedFormData.quantity = pendingOcrData.quantity;
+        }
+        if (pendingOcrData.item) {
+          console.log('📦 [INVOICE UPLOAD] Setting item:', pendingOcrData.item);
+          updatedFormData.item = pendingOcrData.item;
+        }
+        if (pendingOcrData.rate) {
+          console.log('💵 [INVOICE UPLOAD] Setting rate:', pendingOcrData.rate);
+          updatedFormData.rate = pendingOcrData.rate;
+        }
+        if (pendingOcrData.subtotal) {
+          console.log('💰 [INVOICE UPLOAD] Setting subtotal:', pendingOcrData.subtotal);
+          updatedFormData.subtotal = pendingOcrData.subtotal;
+        }
+        if (pendingOcrData.hst) {
+          console.log('🏛️ [INVOICE UPLOAD] Setting HST:', pendingOcrData.hst);
+          updatedFormData.hst = pendingOcrData.hst;
+        }
+
+        console.log('🔍 [INVOICE UPLOAD] Final updated form data:', updatedFormData);
+        setFormData(updatedFormData);
+        setShowConfirmation(false);
+        setPendingOcrData(null);
+        setSuccess('OCR data applied to form successfully! Please select the vendor from the dropdown.');
+        setSnackbarOpen(true);
+      } else {
+        console.log('❌ [INVOICE UPLOAD] No pending OCR data to apply');
+      }
+    };
+
+    const handleCancelOcrData = () => {
+      console.log('🖱️ [INVOICE UPLOAD] Clear form button clicked');
+      setShowConfirmation(false);
+      setPendingOcrData(null);
+      
+      // Clear the form data
+      const today = new Date().toISOString().split('T')[0];
+      const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      setFormData({
+        vendor_name: '',
+        date: today,
+        invoice_number: '',
+        acct_no: '',
+        due_date: dueDate,
+        quantity: '',
+        item: '',
+        description: '',
+        rate: '',
+        subtotal: '',
+        hst: '',
+        total: '',
+        vendor_id: ''
+      });
+      
+      setSuccess('Form cleared. You can now enter data manually or scan another invoice.');
+      setSnackbarOpen(true);
+      setOcrResults(null);
+      setOcrConfidence(null);
+      setSuccess('OCR data cancelled. You can enter data manually.');
+      setSnackbarOpen(true);
+    };
+
     const handleButtonClick = () => {
       console.log('🖱️ [INVOICE UPLOAD] Submit button clicked');
     };
@@ -234,10 +542,44 @@ const InvoiceUpload: React.FC = () => {
             handleSubmit(e);
           }}>
             <Grid container spacing={3}>
+              {/* Row 1: Vendor Name and Date */}
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Vendor Name *</InputLabel>
+                  <Select
+                    name="vendor_id"
+                    value={formData.vendor_id}
+                    onChange={handleSelectChange}
+                    required
+                    disabled={vendorsLoading}
+                  >
+                    {vendors.map((vendor) => (
+                      <MenuItem key={vendor.id} value={vendor.id}>
+                        {vendor.vendor_name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
-                  label="Invoice Number *"
+                  label="Date *"
+                  name="date"
+                  type="date"
+                  value={formData.date}
+                  onChange={handleInputChange}
+                  required
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              {/* Row 2: Invoice # and Acct. No. */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Invoice # *"
                   name="invoice_number"
                   value={formData.invoice_number}
                   onChange={handleInputChange}
@@ -249,12 +591,59 @@ const InvoiceUpload: React.FC = () => {
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
-                  label="Amount *"
-                  name="amount"
-                  type="number"
-                  value={formData.amount}
+                  label="Acct. No."
+                  name="acct_no"
+                  value={formData.acct_no}
                   onChange={handleInputChange}
-                  required
+                  placeholder="Account number"
+                />
+              </Grid>
+
+              {/* Row 3: Due Date and Quantity */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Due Date"
+                  name="due_date"
+                  type="date"
+                  value={formData.due_date}
+                  onChange={handleInputChange}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Quantity"
+                  name="quantity"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={handleInputChange}
+                  placeholder="0"
+                />
+              </Grid>
+
+              {/* Row 4: Item and Rate */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Item"
+                  name="item"
+                  value={formData.item}
+                  onChange={handleInputChange}
+                  placeholder="Item code or name"
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Rate"
+                  name="rate"
+                  type="text"
+                  value={formData.rate ? parseFloat(formData.rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
+                  onChange={handleInputChange}
                   placeholder="0.00"
                   InputProps={{
                     startAdornment: <InputAdornment position="start">$</InputAdornment>,
@@ -262,6 +651,7 @@ const InvoiceUpload: React.FC = () => {
                 />
               </Grid>
 
+              {/* Row 5: Description */}
               <Grid item xs={12}>
                 <TextField
                   fullWidth
@@ -276,84 +666,50 @@ const InvoiceUpload: React.FC = () => {
                 />
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              {/* Row 6: Subtotal, HST, and Total */}
+              <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
-                  label="Invoice Date *"
-                  name="invoice_date"
-                  type="date"
-                  value={formData.invoice_date}
+                  label="Subtotal"
+                  name="subtotal"
+                  type="text"
+                  value={formData.subtotal ? parseFloat(formData.subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
+                  onChange={handleInputChange}
+                  placeholder="0.00"
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="HST"
+                  name="hst"
+                  type="text"
+                  value={formData.hst ? parseFloat(formData.hst).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
+                  onChange={handleInputChange}
+                  placeholder="0.00"
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="Total *"
+                  name="total"
+                  type="text"
+                  value={formData.total ? parseFloat(formData.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
                   onChange={handleInputChange}
                   required
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Due Date"
-                  name="due_date"
-                  type="date"
-                  value={formData.due_date}
-                  onChange={handleInputChange}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Vendor *</InputLabel>
-                  <Select
-                    name="vendor_id"
-                    value={formData.vendor_id}
-                    onChange={handleSelectChange}
-                    label="Vendor *"
-                    disabled={vendorsLoading}
-                  >
-                    {vendorsLoading ? (
-                      <MenuItem value="">
-                        <CircularProgress size={20} />
-                      </MenuItem>
-                    ) : vendors.length === 0 ? (
-                      <MenuItem value="">No vendors found.</MenuItem>
-                    ) : (
-                      vendors.map((vendor) => (
-                        <MenuItem key={vendor.id} value={vendor.id}>
-                          {vendor.vendor_name}
-                        </MenuItem>
-                      ))
-                    )}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Manual Type</InputLabel>
-                  <Select
-                    name="manual_type"
-                    value={formData.manual_type}
-                    onChange={handleSelectChange}
-                    label="Manual Type"
-                  >
-                    <MenuItem value="training">Training Manual</MenuItem>
-                    <MenuItem value="safety">Safety Manual</MenuItem>
-                    <MenuItem value="procedural">Procedural Manual</MenuItem>
-                    <MenuItem value="other">Other</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Quantity"
-                  name="quantity"
-                  type="number"
-                  value={formData.quantity}
-                  onChange={handleInputChange}
-                  placeholder="1"
+                  placeholder="0.00"
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                  }}
                 />
               </Grid>
 
@@ -369,11 +725,11 @@ const InvoiceUpload: React.FC = () => {
                   sx={{ py: 2, mb: 1 }}
                   color={file ? "success" : "primary"}
                 >
-                  {file ? `${file.name} (${formatFileSize(file.size)})` : 'Choose PDF File'}
+                  {file ? `${file.name} (${formatFileSize(file.size)})` : 'Choose PDF or HTML File'}
                   <input
                     type="file"
                     hidden
-                    accept=".pdf"
+                    accept=".pdf,.html,.htm"
                     onChange={handleFileChange}
                   />
                 </Button>
@@ -384,66 +740,169 @@ const InvoiceUpload: React.FC = () => {
                 )}
                 {!file && (
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                    Please select a PDF file (max 5MB)
+                    Please select a PDF or HTML file (max 5MB)
                   </Typography>
                 )}
               </Grid>
 
-              {error && (
-                <Grid item xs={12}>
-                  <Alert severity="error">{error}</Alert>
-                </Grid>
-              )}
+              <Grid item xs={12}>
+                <Button
+                  variant="outlined"
+                  startIcon={scanning ? <CircularProgress size={20} /> : <ScanIcon />}
+                  fullWidth
+                  sx={{ py: 2, mb: 1 }}
+                  onClick={handleScanInvoice}
+                  disabled={loading || !file || scanning}
+                >
+                  {scanning ? 'Scanning...' : 'Scan Invoice'}
+                </Button>
+                {ocrResults && (
+                  <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
+                    <Chip label={`Confidence: ${ocrConfidence}%`} color="success" />
+                                    <Chip label={`Vendor: ${ocrResults.vendorName || 'N/A'}`} />
+                <Chip label={`Invoice #: ${ocrResults.invoiceNumber || 'N/A'}`} />
+                <Chip label={`Date: ${ocrResults.invoiceDate || 'N/A'}`} />
+                <Chip label={`Due Date: ${ocrResults.dueDate || 'N/A'}`} />
+                <Chip label={`Total: ${ocrResults.amount || 'N/A'}`} />
+                <Chip label={`Description: ${ocrResults.description || 'N/A'}`} />
+                <Chip label={`Account #: ${ocrResults.acctNo || 'N/A'}`} />
+                <Chip label={`Rate: ${ocrResults.rate || 'N/A'}`} />
+                <Chip label={`Subtotal: ${ocrResults.subtotal || 'N/A'}`} />
+                <Chip label={`Tax/HST: ${ocrResults.hst || 'N/A'}`} />
+                <Chip label={`Item: ${ocrResults.item || 'N/A'}`} />
+                <Chip label={`Quantity: ${ocrResults.quantity || 'N/A'}`} />
+                  </Stack>
+                )}
+
+                {showConfirmation && pendingOcrData && (
+                  <Paper sx={{ p: 2, mt: 2, bgcolor: 'grey.50' }}>
+                    <Typography variant="h6" gutterBottom color="primary">
+                      📋 Extracted Data Review
+                    </Typography>
+                    <Typography variant="body2" sx={{ mb: 2 }}>
+                      The form has been automatically populated with the extracted data below. Please review and select the vendor from the dropdown above.
+                    </Typography>
+                    
+                    <Grid container spacing={2} sx={{ mb: 2 }}>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">Vendor</Typography>
+                        <Typography variant="body2">{pendingOcrData.vendorName || 'N/A'}</Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">Invoice #</Typography>
+                        <Typography variant="body2">{pendingOcrData.invoiceNumber || 'N/A'}</Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">Date</Typography>
+                        <Typography variant="body2">{pendingOcrData.invoiceDate || 'N/A'}</Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">Due Date</Typography>
+                        <Typography variant="body2">{pendingOcrData.dueDate || 'N/A'}</Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">Account #</Typography>
+                        <Typography variant="body2">{pendingOcrData.acctNo || 'N/A'}</Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">Item</Typography>
+                        <Typography variant="body2">{pendingOcrData.item || 'N/A'}</Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">Quantity</Typography>
+                        <Typography variant="body2">{pendingOcrData.quantity || 'N/A'}</Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">Rate</Typography>
+                        <Typography variant="body2">{pendingOcrData.rate || 'N/A'}</Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">Subtotal</Typography>
+                        <Typography variant="body2">{pendingOcrData.subtotal || 'N/A'}</Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">Tax/HST</Typography>
+                        <Typography variant="body2">{pendingOcrData.hst || 'N/A'}</Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">Total</Typography>
+                        <Typography variant="body2" fontWeight="bold">{pendingOcrData.amount || 'N/A'}</Typography>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Typography variant="caption" color="text.secondary">Description</Typography>
+                        <Typography variant="body2">{pendingOcrData.description || 'N/A'}</Typography>
+                      </Grid>
+                    </Grid>
+
+                    <Stack direction="row" spacing={2}>
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<CheckIcon />}
+                        onClick={() => {
+                          console.log('🖱️ [INVOICE UPLOAD] OK button clicked');
+                          setShowConfirmation(false);
+                          setPendingOcrData(null);
+                        }}
+                        sx={{ flex: 1 }}
+                      >
+                        OK
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        startIcon={<CancelIcon />}
+                        onClick={handleCancelOcrData}
+                        sx={{ flex: 1 }}
+                      >
+                        CLEAR FORM
+                      </Button>
+                    </Stack>
+                  </Paper>
+                )}
+              </Grid>
 
               <Grid item xs={12}>
                 <Button
                   type="submit"
                   variant="contained"
-                  startIcon={loading ? <CircularProgress size={20} /> : <UploadIcon />}
-                  disabled={loading || !file || !formData.vendor_id}
+                  startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <UploadIcon />}
                   fullWidth
-                  size="large"
-                  sx={{ 
-                    py: 2, 
-                    fontSize: '1.1rem',
-                    fontWeight: 'bold',
-                    backgroundColor: file && formData.vendor_id ? '#1976d2' : '#ccc'
-                  }}
+                  sx={{ py: 2 }}
+                  disabled={loading || !file || !formData.vendor_id || !formData.invoice_number || !formData.total || !formData.description || !formData.date || showConfirmation}
                 >
                   {loading ? 'Uploading...' : 'Upload Invoice'}
                 </Button>
-                {!file && (
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
-                    Please select a PDF file to enable upload
-                  </Typography>
-                )}
-                {!formData.vendor_id && (
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
-                    Please select a vendor to enable upload
-                  </Typography>
-                )}
               </Grid>
             </Grid>
           </form>
         </Paper>
+
         <Snackbar
           open={snackbarOpen}
-          autoHideDuration={2000}
+          autoHideDuration={6000}
           onClose={() => setSnackbarOpen(false)}
-          message={success}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        />
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        >
+          <Alert onClose={() => setSnackbarOpen(false)} severity={error ? 'error' : success ? 'success' : 'info'} sx={{ width: '100%' }}>
+            {error || success || 'Invoice uploaded successfully!'}
+          </Alert>
+        </Snackbar>
       </Box>
     );
   } catch (error) {
-    console.error('❌ [INVOICE UPLOAD] Component error:', error);
+    console.error('❌ [INVOICE UPLOAD] Error in InvoiceUpload component:', error);
     return (
-      <div>
-        <h2>Error loading upload component</h2>
-        <p>Error: {error instanceof Error ? error.message : 'Unknown error'}</p>
-      </div>
+      <Box>
+        <Typography variant="h4" gutterBottom>
+          Upload Invoice
+        </Typography>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Failed to load invoice upload component. Please try again later.
+        </Alert>
+      </Box>
     );
   }
 };
 
-export default InvoiceUpload; 
+export default InvoiceUpload;

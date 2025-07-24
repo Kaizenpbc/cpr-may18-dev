@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Invoice for OCR</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+        }
+        .invoice-header {
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .company-info {
+            margin-bottom: 30px;
+        }
+        .invoice-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 30px;
+        }
+        .bill-to, .ship-to {
+            border: 1px solid #ccc;
+            padding: 15px;
+        }
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        .invoice-table th, .invoice-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .invoice-table th {
+            background-color: #f2f2f2;
+        }
+        .totals {
+            text-align: right;
+            margin-top: 20px;
+        }
+        .total-row {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-header">
+        <h1>F.A.S.T. Rescue Incorporated</h1>
+        <div class="company-info">
+            <p>750 Oakdale Rd., Suite 56<br>
+            Toronto ON M3N 2Z4<br>
+            Canada<br>
+            Phone: (905) 760-2045<br>
+            www.fast-rescue.com<br>
+            GST/HST #: 852997477RT0001</p>
+        </div>
+    </div>
+
+    <div class="invoice-details">
+        <div class="bill-to">
+            <h3>Bill To</h3>
+            <p>Coujoe Annamunthodo<br>
+            46 Sunnyside Hill Rd<br>
+            Markham ON L6B 0X5<br>
+            Canada</p>
+        </div>
+        <div class="ship-to">
+            <h3>Ship To</h3>
+            <p>Coujoe Annamunthodo<br>
+            46 Sunnyside Hill Rd<br>
+            Markham ON L6B 0X5<br>
+            Canada</p>
+        </div>
+    </div>
+
+    <div class="invoice-info">
+        <h2>Invoice</h2>
+        <p><strong>Date:</strong> 06/02/2025</p>
+        <p><strong>Invoice #:</strong> 67691</p>
+        <p><strong>Acct. No.:</strong> 519293</p>
+        <p><strong>Terms:</strong> Net 30</p>
+        <p><strong>Due Date:</strong> 07/02/2025</p>
+        <p><strong>PO #:</strong></p>
+        <p><strong>Currency:</strong> CAD</p>
+        <p><strong>Memo:</strong></p>
+    </div>
+
+    <table class="invoice-table">
+        <thead>
+            <tr>
+                <th>Project</th>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Units</th>
+                <th>Inventory Detail</th>
+                <th>Description</th>
+                <th>Rate</th>
+                <th>Options</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td></td>
+                <td>ITFR-B-SFA-O</td>
+                <td>685</td>
+                <td></td>
+                <td></td>
+                <td>FAST Standard First Aid Theory Completed Part 1 Online Training</td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>Students that completed Part 1 Standard Training in the month of May</td>
+                <td>15.00</td>
+                <td></td>
+                <td>10,275.00</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <p><strong>Subtotal:</strong> 10,275.00</p>
+        <p><strong>Shipping Cost (No Charge):</strong> 0.00</p>
+        <p><strong>Tax:</strong> 1,335.75</p>
+        <p class="total-row"><strong>Total:</strong> 11,610.75</p>
+        <p class="total-row"><strong>Amount Due:</strong> $11,610.75</p>
+    </div>
+
+    <script>
+        // Instructions for converting to PDF
+        console.log('To convert this to PDF:');
+        console.log('1. Open this HTML file in your browser');
+        console.log('2. Press Ctrl+P (or Cmd+P on Mac)');
+        console.log('3. Select "Save as PDF" as destination');
+        console.log('4. Save the file as "test-invoice.pdf"');
+        console.log('5. Use this PDF to test the OCR system');
+    </script>
+</body>
+</html> 

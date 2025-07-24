@@ -295,3 +295,6 @@ docs/build/
 # Temporary files
 .tmp/
 .temp/
+
+# Google Cloud Vision
+gtacpr-ocr-266c4803c5bc.json

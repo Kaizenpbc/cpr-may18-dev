@@ -4,6 +4,7 @@ import { pool } from '../../config/database.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { ocrService } from '../../services/ocrService.js';
 
 const router = express.Router();
 
@@ -38,10 +39,10 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage: storage,
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
+    if (file.mimetype === 'application/pdf' || file.mimetype === 'text/html') {
       cb(null, true);
     } else {
-      cb(new Error('Only PDF files are allowed'), false);
+      cb(new Error('Only PDF and HTML files are allowed'), false);
     }
   },
   limits: {
@@ -282,12 +283,21 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), async 
       invoice_number,
       amount,
       description,
-      invoice_date,
+      date, // Frontend sends 'date', not 'invoice_date'
       due_date,
       manual_type,
       quantity,
-      vendor_id
+      vendor_id,
+      acct_no,
+      item,
+      rate,
+      subtotal,
+      hst,
+      total
     } = req.body;
+    
+    // Map 'date' to 'invoice_date' for database
+    const invoice_date = date;
 
     if (!req.file) {
       return res.status(400).json({ error: 'Invoice PDF is required' });
@@ -306,9 +316,9 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), async 
     const result = await pool.query(
       `INSERT INTO vendor_invoices (
         vendor_id, invoice_number, amount, description, invoice_date, due_date,
-        manual_type, quantity, pdf_filename, status
+        manual_type, quantity, pdf_filename, status, acct_no, item, rate, subtotal, hst, total
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING id`,
       [
         vendor_id,
@@ -320,17 +330,56 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), async 
         manual_type,
         quantity ? parseInt(quantity) : null,
         req.file.filename,
-        'submitted'
+        'submitted',
+        acct_no,
+        item,
+        rate ? parseFloat(rate) : null,
+        subtotal ? parseFloat(subtotal) : null,
+        hst ? parseFloat(hst) : null,
+        total ? parseFloat(total) : null
       ]
     );
 
     res.status(201).json({
+      success: true,
       message: 'Invoice submitted successfully',
       invoice_id: result.rows[0].id
     });
   } catch (error) {
     console.error('Error submitting invoice:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// OCR endpoint for scanning invoices
+router.post('/invoices/scan', authenticateToken, upload.single('invoice_pdf'), async (req, res) => {
+  try {
+    console.log('🔍 [VENDOR OCR] Starting invoice scan request');
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Invoice PDF is required' });
+    }
+
+    // Extract text from PDF or HTML
+    const extractedText = await ocrService.extractTextFromFile(req.file.path);
+    
+    // Extract structured data from text
+    const extractedData = await ocrService.extractInvoiceData(extractedText);
+
+    console.log('✅ [VENDOR OCR] Invoice scan completed successfully');
+
+    res.json({
+      success: true,
+      data: extractedData,
+      message: 'Invoice scanned successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ [VENDOR OCR] Error scanning invoice:', error);
+    res.status(500).json({ 
+      error: 'Failed to scan invoice',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 

@@ -1090,6 +1090,19 @@ export const vendorApi = {
     });
     return response.data;
   },
+  
+  // OCR functions
+  scanInvoice: async (file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append('invoice_pdf', file);
+    
+    const response = await api.post('/vendor/invoices/scan', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };
 
 // Notification API methods
