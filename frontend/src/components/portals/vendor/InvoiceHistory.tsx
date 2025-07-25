@@ -86,6 +86,8 @@ const InvoiceHistory: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+  const [notes, setNotes] = useState('');
 
   useEffect(() => {
     fetchInvoices();
@@ -132,16 +134,16 @@ const InvoiceHistory: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'submitted':
+      case 'ready_to_process':
         return 'warning';
-      case 'pending_review':
+      case 'sent_to_admin':
         return 'info';
-      case 'approved':
-        return 'success';
+      case 'ready_for_review':
+        return 'warning';
       case 'sent_to_accounting':
         return 'primary';
-      case 'partially_paid':
-        return 'warning';
+      case 'ready_for_payment':
+        return 'primary';
       case 'paid':
         return 'success';
       case 'rejected':
@@ -153,16 +155,16 @@ const InvoiceHistory: React.FC = () => {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'submitted':
-        return 'Submitted';
-      case 'pending_review':
-        return 'Pending Review';
-      case 'approved':
-        return 'Approved';
+      case 'ready_to_process':
+        return 'Ready to Process';
+      case 'sent_to_admin':
+        return 'Sent to Admin';
+      case 'ready_for_review':
+        return 'Ready for Review';
       case 'sent_to_accounting':
         return 'Sent to Accounting';
-      case 'partially_paid':
-        return 'Partially Paid';
+      case 'ready_for_payment':
+        return 'Ready for Payment';
       case 'paid':
         return 'Paid';
       case 'rejected':
@@ -183,7 +185,7 @@ const InvoiceHistory: React.FC = () => {
 
       // Verify the blob size
       if (blob.size === 0) {
-        throw new Error('PDF file is empty');
+        throw new Error('Invoice file is empty');
       }
 
       // Create download link
@@ -212,9 +214,28 @@ const InvoiceHistory: React.FC = () => {
     try {
       console.log('👁️ [INVOICE HISTORY] Viewing invoice:', invoiceId);
       const response = await vendorApi.getInvoice(invoiceId);
-      setSelectedInvoice(response.data);
+      console.log('📋 [INVOICE HISTORY] Invoice response:', response);
+      
+      // Handle different response structures
+      let invoiceData = response;
+      if (response && response.data) {
+        invoiceData = response.data;
+      }
+      
+      // Ensure all numeric fields are properly converted to numbers for the modal
+      const processedInvoiceData = {
+        ...invoiceData,
+        amount: typeof invoiceData.amount === 'string' ? parseFloat(invoiceData.amount) : invoiceData.amount || 0,
+        rate: typeof invoiceData.rate === 'string' ? parseFloat(invoiceData.rate) : invoiceData.rate || 0,
+        subtotal: typeof invoiceData.subtotal === 'string' ? parseFloat(invoiceData.subtotal) : invoiceData.subtotal || 0,
+        hst: typeof invoiceData.hst === 'string' ? parseFloat(invoiceData.hst) : invoiceData.hst || 0,
+        total: typeof invoiceData.total === 'string' ? parseFloat(invoiceData.total) : invoiceData.total || 0,
+        quantity: typeof invoiceData.quantity === 'string' ? parseInt(invoiceData.quantity) : invoiceData.quantity || null
+      };
+      
+      setSelectedInvoice(processedInvoiceData);
       setViewDialogOpen(true);
-      console.log('✅ [INVOICE HISTORY] Invoice details loaded');
+      console.log('✅ [INVOICE HISTORY] Invoice details loaded:', processedInvoiceData);
     } catch (err: any) {
       console.error('❌ [INVOICE HISTORY] View error:', err);
       alert('Failed to load invoice details. Please try again.');
@@ -224,6 +245,46 @@ const InvoiceHistory: React.FC = () => {
   const handleCloseViewDialog = () => {
     setViewDialogOpen(false);
     setSelectedInvoice(null);
+  };
+
+  const handleSubmitToAdmin = async (invoiceId: number) => {
+    try {
+      console.log('📤 [INVOICE HISTORY] Submitting invoice to admin:', invoiceId);
+      await vendorApi.submitToAdmin(invoiceId);
+      console.log('✅ [INVOICE HISTORY] Invoice submitted to admin successfully');
+      
+      // Refresh the invoice list
+      await fetchInvoices();
+      
+      // Close the dialog
+      handleCloseViewDialog();
+      
+      // Show success message
+      alert('Invoice submitted to admin successfully!');
+    } catch (err: any) {
+      console.error('❌ [INVOICE HISTORY] Submit to admin error:', err);
+      alert(`Failed to submit invoice to admin: ${err.message}`);
+    }
+  };
+
+  const handleResendToAdmin = async (invoiceId: number, notes: string) => {
+    try {
+      console.log('📤 [INVOICE HISTORY] Resending invoice to admin:', invoiceId);
+      await vendorApi.resendToAdmin(invoiceId, notes);
+      console.log('✅ [INVOICE HISTORY] Invoice resent to admin successfully');
+      
+      // Refresh the invoice list
+      await fetchInvoices();
+      
+      // Close the dialog
+      handleCloseViewDialog();
+      
+      // Show success message
+      alert('Invoice resent to admin successfully!');
+    } catch (err: any) {
+      console.error('❌ [INVOICE HISTORY] Resend to admin error:', err);
+      alert(`Failed to resend invoice to admin: ${err.message}`);
+    }
   };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -244,19 +305,27 @@ const InvoiceHistory: React.FC = () => {
     });
 
     switch (tabValue) {
-      case 0: // Bills Payable (submitted and sent to accounting)
+      case 0: // Ready to Process (ready_to_process and sent_to_admin)
         return baseFiltered.filter(invoice => 
-          ['submitted', 'sent_to_accounting'].includes(invoice.status)
+          ['ready_to_process', 'sent_to_admin'].includes(invoice.status)
         );
-      case 1: // Invoice History (approved and sent to accounting)
+      case 1: // In Review (ready_for_review and sent_to_accounting)
         return baseFiltered.filter(invoice => 
-          ['approved', 'sent_to_accounting', 'partially_paid'].includes(invoice.status)
+          ['ready_for_review', 'sent_to_accounting'].includes(invoice.status)
         );
-      case 2: // Invoices Paid (fully paid)
+      case 2: // Ready for Payment (ready_for_payment)
+        return baseFiltered.filter(invoice => 
+          invoice.status === 'ready_for_payment'
+        );
+      case 3: // Paid Invoices (paid)
         return baseFiltered.filter(invoice => 
           invoice.status === 'paid'
         );
-      case 3: // All Invoices
+      case 4: // Rejected Invoices (rejected)
+        return baseFiltered.filter(invoice => 
+          invoice.status === 'rejected'
+        );
+      case 5: // All Invoices
         return baseFiltered;
       default:
         return baseFiltered;
@@ -266,76 +335,115 @@ const InvoiceHistory: React.FC = () => {
   const filteredInvoices = getFilteredInvoices();
 
   const renderInvoiceTable = () => (
-    <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+    <TableContainer 
+      component={Paper} 
+      sx={{ 
+        overflowX: 'auto',
+        maxHeight: '70vh', // Limit height for better scrolling
+        '& .MuiTableHead-root': {
+          position: 'sticky',
+          top: 0,
+          zIndex: 1,
+          backgroundColor: 'background.paper',
+          '& .MuiTableCell-root': {
+            backgroundColor: 'background.paper',
+            borderBottom: '2px solid',
+            borderColor: 'divider'
+          }
+        }
+      }}
+    >
       <Table sx={{ minWidth: 1200 }}>
         <TableHead>
           <TableRow>
-            <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Billing Company</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Invoice #</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Quantity</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Item</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Description</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Rate</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Amount</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Subtotal</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 'bold' }}>HST</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Total</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
-            <TableCell sx={{ fontWeight: 'bold' }}>Due Date</TableCell>
-            <TableCell align="center" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', minWidth: 100, position: 'sticky', left: 0, backgroundColor: 'background.paper', zIndex: 2 }}>Date</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', minWidth: 150 }}>Billing Company</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }}>Invoice #</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 80, display: { xs: 'none', md: 'table-cell' } }}>Quantity</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', minWidth: 120, display: { xs: 'none', lg: 'table-cell' } }}>Item</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', minWidth: 200, maxWidth: 300 }}>Description</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 100, display: { xs: 'none', lg: 'table-cell' } }}>Rate</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120 }}>Amount</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120, display: { xs: 'none', md: 'table-cell' } }}>Subtotal</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 100, display: { xs: 'none', lg: 'table-cell' } }}>HST</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120, display: { xs: 'none', md: 'table-cell' } }}>Total</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }}>Status</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', minWidth: 100, display: { xs: 'none', md: 'table-cell' } }}>Due Date</TableCell>
+            <TableCell align="center" sx={{ fontWeight: 'bold', minWidth: 120, position: 'sticky', right: 0, backgroundColor: 'background.paper', zIndex: 2 }}>Actions</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {filteredInvoices.map((invoice) => (
             <TableRow key={invoice.id}>
-              <TableCell>{new Date(invoice.created_at).toLocaleDateString()}</TableCell>
-              <TableCell>{invoice.billing_company || invoice.company || '-'}</TableCell>
-              <TableCell>{invoice.invoice_number}</TableCell>
-              <TableCell align="right">{invoice.quantity || '-'}</TableCell>
-              <TableCell>{invoice.item || '-'}</TableCell>
-              <TableCell>{invoice.description}</TableCell>
-              <TableCell align="right">
+              <TableCell sx={{ position: 'sticky', left: 0, backgroundColor: 'background.paper', zIndex: 1 }}>
+                {new Date(invoice.created_at).toLocaleDateString()}
+              </TableCell>
+              <TableCell sx={{ minWidth: 150 }}>
+                {invoice.billing_company || invoice.company || '-'}
+              </TableCell>
+              <TableCell sx={{ minWidth: 120 }}>
+                {invoice.invoice_number}
+              </TableCell>
+              <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                {invoice.quantity || '-'}
+              </TableCell>
+              <TableCell sx={{ minWidth: 120, display: { xs: 'none', lg: 'table-cell' } }}>
+                {invoice.item || '-'}
+              </TableCell>
+              <TableCell sx={{ minWidth: 200, maxWidth: 300 }}>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title={invoice.description}
+                >
+                  {invoice.description}
+                </Typography>
+              </TableCell>
+              <TableCell align="right" sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
                 {invoice.rate !== undefined && invoice.rate !== null ? 
                   (invoice.rate > 0 ? `$${invoice.rate.toFixed(2)}` : '-') : 
                   'DEBUG: ' + JSON.stringify(invoice.rate)
                 }
               </TableCell>
-              <TableCell align="right">
+              <TableCell align="right" sx={{ minWidth: 120 }}>
                 {invoice.amount !== undefined && invoice.amount !== null ? 
                   `$${invoice.amount.toFixed(2)}` : 
                   'DEBUG: ' + JSON.stringify(invoice.amount)
                 }
               </TableCell>
-              <TableCell align="right">
+              <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                 {invoice.subtotal !== undefined && invoice.subtotal !== null ? 
                   (invoice.subtotal > 0 ? `$${invoice.subtotal.toFixed(2)}` : '-') : 
                   'DEBUG: ' + JSON.stringify(invoice.subtotal)
                 }
               </TableCell>
-              <TableCell align="right">
+              <TableCell align="right" sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
                 {invoice.hst !== undefined && invoice.hst !== null ? 
                   (invoice.hst > 0 ? `$${invoice.hst.toFixed(2)}` : '-') : 
                   'DEBUG: ' + JSON.stringify(invoice.hst)
                 }
               </TableCell>
-              <TableCell align="right">
+              <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                 {invoice.total !== undefined && invoice.total !== null ? 
                   (invoice.total > 0 ? `$${invoice.total.toFixed(2)}` : '-') : 
                   'DEBUG: ' + JSON.stringify(invoice.total)
                 }
               </TableCell>
-              <TableCell>
+              <TableCell sx={{ minWidth: 120 }}>
                 <Chip
                   label={getStatusLabel(invoice.status)}
                   color={getStatusColor(invoice.status) as any}
                   size="small"
                 />
               </TableCell>
-              <TableCell>
+              <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                 {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '-'}
               </TableCell>
-              <TableCell align="center">
+              <TableCell align="center" sx={{ position: 'sticky', right: 0, backgroundColor: 'background.paper', zIndex: 1 }}>
                 <Tooltip title="View Invoice Details">
                   <IconButton 
                     size="small" 
@@ -546,9 +654,9 @@ const InvoiceHistory: React.FC = () => {
           <Tab 
             label={
               <Box>
-                <Typography variant="body2">📋 Pending Review</Typography>
+                <Typography variant="body2">📋 Ready to Process</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  ({invoices.filter(i => i.status === 'submitted').length} invoices)
+                  ({invoices.filter(i => ['ready_to_process', 'sent_to_admin'].includes(i.status)).length} invoices)
                 </Typography>
               </Box>
             } 
@@ -556,9 +664,9 @@ const InvoiceHistory: React.FC = () => {
           <Tab 
             label={
               <Box>
-                <Typography variant="body2">✅ Approved</Typography>
+                <Typography variant="body2">👀 In Review</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  ({invoices.filter(i => i.status === 'approved').length} invoices)
+                  ({invoices.filter(i => ['ready_for_review', 'sent_to_accounting'].includes(i.status)).length} invoices)
                 </Typography>
               </Box>
             } 
@@ -566,9 +674,29 @@ const InvoiceHistory: React.FC = () => {
           <Tab 
             label={
               <Box>
-                <Typography variant="body2">💰 Paid</Typography>
+                <Typography variant="body2">💳 Ready for Payment</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  ({invoices.filter(i => i.status === 'ready_for_payment').length} invoices)
+                </Typography>
+              </Box>
+            } 
+          />
+          <Tab 
+            label={
+              <Box>
+                <Typography variant="body2">✅ Paid</Typography>
                 <Typography variant="caption" color="text.secondary">
                   ({invoices.filter(i => i.status === 'paid').length} invoices)
+                </Typography>
+              </Box>
+            } 
+          />
+          <Tab 
+            label={
+              <Box>
+                <Typography variant="body2">❌ Rejected</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  ({invoices.filter(i => i.status === 'rejected').length} invoices)
                 </Typography>
               </Box>
             } 
@@ -586,25 +714,36 @@ const InvoiceHistory: React.FC = () => {
         </Tabs>
       </Box>
 
-      {/* Tab Panels */}
-      <TabPanel value={tabValue} index={0}>
-        <Box sx={{ mb: 2 }}>
-          <Alert severity="info">
-            <Typography variant="body2">
-              <strong>Pending Review:</strong> These invoices have been submitted and are waiting for admin approval. 
-              You'll be notified when they are approved or rejected.
-            </Typography>
-          </Alert>
-        </Box>
-        {renderInvoiceTable()}
-      </TabPanel>
+             {/* Responsive Table Info */}
+       <Box sx={{ mb: 2 }}>
+         <Alert severity="info" sx={{ mb: 2 }}>
+           <Typography variant="body2">
+             <strong>📱 Responsive Table:</strong> Headers stay visible while scrolling. 
+             On smaller screens, some columns are hidden to improve readability. 
+             Hover over descriptions to see full text.
+           </Typography>
+         </Alert>
+       </Box>
+
+       {/* Tab Panels */}
+       <TabPanel value={tabValue} index={0}>
+         <Box sx={{ mb: 2 }}>
+           <Alert severity="info">
+             <Typography variant="body2">
+               <strong>Ready to Process:</strong> These invoices are ready to be submitted to admin for review. 
+               Click "View" and then "Submit to Admin" to send them for approval.
+             </Typography>
+           </Alert>
+         </Box>
+         {renderInvoiceTable()}
+       </TabPanel>
 
       <TabPanel value={tabValue} index={1}>
         <Box sx={{ mb: 2 }}>
-          <Alert severity="success">
+          <Alert severity="warning">
             <Typography variant="body2">
-              <strong>Approved:</strong> These invoices have been approved by admin and are ready for payment processing. 
-              Payment will be processed by administrators and the status will change to "Paid" when complete.
+              <strong>In Review:</strong> These invoices are currently being reviewed by admin or have been sent to accounting. 
+              You'll be notified when they are approved, rejected, or ready for payment.
             </Typography>
           </Alert>
         </Box>
@@ -612,10 +751,22 @@ const InvoiceHistory: React.FC = () => {
       </TabPanel>
 
       <TabPanel value={tabValue} index={2}>
+                 <Box sx={{ mb: 2 }}>
+           <Alert severity="info">
+             <Typography variant="body2">
+               <strong>Ready for Payment:</strong> These invoices have been approved and are ready for payment processing. 
+               Accounting will process the payment and update the status to "Paid".
+             </Typography>
+           </Alert>
+         </Box>
+        {renderInvoiceTable()}
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={3}>
         <Box sx={{ mb: 2 }}>
           <Alert severity="success">
             <Typography variant="body2">
-              <strong>Paid:</strong> These invoices have been fully paid by administrators. 
+              <strong>Paid:</strong> These invoices have been fully paid by accounting. 
               The payment process is complete.
             </Typography>
           </Alert>
@@ -623,11 +774,23 @@ const InvoiceHistory: React.FC = () => {
         {renderInvoiceTable()}
       </TabPanel>
 
-      <TabPanel value={tabValue} index={3}>
+      <TabPanel value={tabValue} index={4}>
+        <Box sx={{ mb: 2 }}>
+          <Alert severity="error">
+            <Typography variant="body2">
+              <strong>Rejected:</strong> These invoices were rejected by admin or accounting. 
+              Click "View" to see rejection details and "Resend to Admin" to submit corrections.
+            </Typography>
+          </Alert>
+        </Box>
+        {renderInvoiceTable()}
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={5}>
         <Box sx={{ mb: 2 }}>
           <Alert severity="info">
             <Typography variant="body2">
-              <strong>All Invoices:</strong> Complete view of all your invoices across all statuses. 
+              <strong>All Invoices:</strong> Complete view of all invoices across all statuses. 
               Use this to get an overview of your entire invoice history.
             </Typography>
           </Alert>
@@ -653,11 +816,11 @@ const InvoiceHistory: React.FC = () => {
           </Box>
         </DialogTitle>
         <DialogContent>
-          {selectedInvoice && (
-            <Grid container spacing={3}>
+                     {selectedInvoice ? (
+             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="textSecondary">Invoice Number</Typography>
-                <Typography variant="body1" gutterBottom>{selectedInvoice.invoice_number}</Typography>
+                <Typography variant="body1" gutterBottom>{selectedInvoice.invoice_number || 'N/A'}</Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="textSecondary">Status</Typography>
@@ -670,7 +833,7 @@ const InvoiceHistory: React.FC = () => {
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="textSecondary">Created Date</Typography>
                 <Typography variant="body1" gutterBottom>
-                  {new Date(selectedInvoice.created_at).toLocaleDateString()}
+                  {selectedInvoice.created_at ? new Date(selectedInvoice.created_at).toLocaleDateString() : 'N/A'}
                 </Typography>
               </Grid>
               <Grid item xs={12} md={6}>
@@ -681,49 +844,147 @@ const InvoiceHistory: React.FC = () => {
               </Grid>
               <Grid item xs={12}>
                 <Typography variant="subtitle2" color="textSecondary">Description</Typography>
-                <Typography variant="body1" gutterBottom>{selectedInvoice.description}</Typography>
+                <Typography variant="body1" gutterBottom>{selectedInvoice.description || 'N/A'}</Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="textSecondary">Item</Typography>
                 <Typography variant="body1" gutterBottom>{selectedInvoice.item || 'N/A'}</Typography>
               </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" color="textSecondary">Quantity</Typography>
-                <Typography variant="body1" gutterBottom>{selectedInvoice.quantity || 'N/A'}</Typography>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Typography variant="subtitle2" color="textSecondary">Rate</Typography>
-                <Typography variant="body1" gutterBottom>
-                  {selectedInvoice.rate > 0 ? `$${selectedInvoice.rate.toFixed(2)}` : 'N/A'}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Typography variant="subtitle2" color="textSecondary">Amount</Typography>
-                <Typography variant="body1" fontWeight="bold" gutterBottom>
-                  ${selectedInvoice.amount.toFixed(2)}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Typography variant="subtitle2" color="textSecondary">Total</Typography>
-                <Typography variant="body1" fontWeight="bold" gutterBottom>
-                  ${selectedInvoice.total > 0 ? selectedInvoice.total.toFixed(2) : selectedInvoice.amount.toFixed(2)}
-                </Typography>
+                             <Grid item xs={12} md={6}>
+                 <Typography variant="subtitle2" color="textSecondary">Quantity</Typography>
+                 <Typography variant="body1" gutterBottom>{selectedInvoice.quantity || 'N/A'}</Typography>
+               </Grid>
+               <Grid item xs={12} md={4}>
+                 <Typography variant="subtitle2" color="textSecondary">Rate</Typography>
+                 <Typography variant="body1" gutterBottom>
+                   {selectedInvoice.rate && typeof selectedInvoice.rate === 'number' && selectedInvoice.rate > 0 ? 
+                     `$${selectedInvoice.rate.toFixed(2)}` : 'N/A'}
+                 </Typography>
+               </Grid>
+               <Grid item xs={12} md={4}>
+                 <Typography variant="subtitle2" color="textSecondary">Subtotal</Typography>
+                 <Typography variant="body1" gutterBottom>
+                   ${selectedInvoice.subtotal && typeof selectedInvoice.subtotal === 'number' && selectedInvoice.subtotal > 0 ? 
+                     selectedInvoice.subtotal.toFixed(2) : '0.00'}
+                 </Typography>
+               </Grid>
+               <Grid item xs={12} md={4}>
+                 <Typography variant="subtitle2" color="textSecondary">HST</Typography>
+                 <Typography variant="body1" gutterBottom>
+                   ${selectedInvoice.hst && typeof selectedInvoice.hst === 'number' && selectedInvoice.hst > 0 ? 
+                     selectedInvoice.hst.toFixed(2) : '0.00'}
+                 </Typography>
+               </Grid>
+               <Grid item xs={12} md={4}>
+                 <Typography variant="subtitle2" color="textSecondary">Amount</Typography>
+                 <Typography variant="body1" fontWeight="bold" gutterBottom>
+                   ${selectedInvoice.amount && typeof selectedInvoice.amount === 'number' ? 
+                     selectedInvoice.amount.toFixed(2) : '0.00'}
+                 </Typography>
+               </Grid>
+               <Grid item xs={12} md={4}>
+                 <Typography variant="subtitle2" color="textSecondary">Total</Typography>
+                 <Typography variant="body1" fontWeight="bold" gutterBottom>
+                   ${selectedInvoice.total && typeof selectedInvoice.total === 'number' && selectedInvoice.total > 0 ? 
+                     selectedInvoice.total.toFixed(2) : 
+                     (selectedInvoice.amount && typeof selectedInvoice.amount === 'number' ? selectedInvoice.amount.toFixed(2) : '0.00')}
+                 </Typography>
+               </Grid>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="textSecondary">Billing Company</Typography>
+                <Typography variant="body1" gutterBottom>{selectedInvoice.billing_company || selectedInvoice.company || 'N/A'}</Typography>
               </Grid>
             </Grid>
+          ) : (
+            <Typography variant="body1" color="error">
+              No invoice data available. Please try again.
+            </Typography>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseViewDialog}>Close</Button>
           {selectedInvoice && (
-            <Button
-              onClick={() => handleDownload(selectedInvoice.id, selectedInvoice.invoice_number)}
-              startIcon={<DownloadIcon />}
-              variant="contained"
-              color="primary"
-            >
-              Download PDF
-            </Button>
+            <>
+              <Button
+                onClick={() => handleDownload(selectedInvoice.id, selectedInvoice.invoice_number)}
+                startIcon={<DownloadIcon />}
+                variant="outlined"
+                color="primary"
+              >
+                Download PDF
+              </Button>
+              
+              {/* Submit to Admin button - only show for ready_to_process status */}
+              {selectedInvoice.status === 'ready_to_process' && (
+                <Button
+                  onClick={() => handleSubmitToAdmin(selectedInvoice.id)}
+                  variant="contained"
+                  color="primary"
+                >
+                  Submit to Admin
+                </Button>
+              )}
+              
+              {/* Resend to Admin button - only show for rejected status */}
+              {selectedInvoice.status === 'rejected' && (
+                <Button
+                  onClick={() => setNotesDialogOpen(true)}
+                  variant="contained"
+                  color="warning"
+                >
+                  Resend to Admin
+                </Button>
+              )}
+            </>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Notes Dialog for Rejected Invoices */}
+      <Dialog
+        open={notesDialogOpen}
+        onClose={() => setNotesDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6">
+            Resend Invoice to Admin
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Please provide notes explaining what corrections have been made to the invoice:
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            label="Correction Notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Describe what corrections were made to the invoice..."
+            required
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNotesDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={() => {
+              if (notes.trim()) {
+                handleResendToAdmin(selectedInvoice!.id, notes);
+                setNotes('');
+                setNotesDialogOpen(false);
+              } else {
+                alert('Please provide correction notes before resending.');
+              }
+            }}
+            variant="contained"
+            color="primary"
+            disabled={!notes.trim()}
+          >
+            Resend to Admin
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

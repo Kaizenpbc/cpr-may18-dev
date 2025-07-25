@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import { ocrService } from '../../services/ocrService.js';
 import { vendorDetectionService } from '../../services/vendorDetectionService.js';
+import pdfGenerationService from '../../services/pdfGenerationService.js';
 
 const router = express.Router();
 
@@ -254,6 +255,7 @@ router.get('/invoices', authenticateToken, async (req, res) => {
         v.name as company,
         v.name as billing_company,
         COALESCE(vi.rate, 0) as rate,
+        COALESCE(vi.amount, 0) as amount,
         COALESCE(vi.subtotal, vi.amount) as subtotal,
         COALESCE(vi.hst, 0) as hst,
         COALESCE(vi.total, vi.amount) as total
@@ -361,9 +363,10 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), async 
     const result = await pool.query(
       `INSERT INTO vendor_invoices (
         vendor_id, invoice_number, amount, description, invoice_date, due_date,
-        manual_type, quantity, pdf_filename, status, rate, subtotal, hst, total
+        manual_type, quantity, pdf_filename, status, rate, subtotal, hst, total,
+        submitted_by, submitted_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
       RETURNING id`,
       [
         vendor_id, // Use authenticated user's vendor ID
@@ -375,7 +378,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), async 
         manual_type,
         quantity ? parseInt(quantity) : null,
         req.file.filename,
-        'submitted',
+        'ready_to_process', // New workflow status
         parseFloat(req.body.rate) || 0,
         parseFloat(req.body.subtotal) || parseFloat(amount),
         parseFloat(req.body.hst) || 0,
@@ -464,19 +467,22 @@ router.get('/invoices/:id', authenticateToken, async (req, res) => {
 
     const userEmail = userResult.rows[0].email;
 
-    const vendorResult = await pool.query(
-      'SELECT id FROM vendors WHERE contact_email = $1',
-      [userEmail]
-    );
-
-    if (vendorResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Vendor not found' });
-    }
-
-    const result = await pool.query(
-      'SELECT * FROM vendor_invoices WHERE id = $1 AND vendor_id = $2',
-      [req.params.id, vendorResult.rows[0].id]
-    );
+    // 🔍 PHASE 3: Allow GTACPR staff to view any invoice (not just their own vendor's invoices)
+    // This allows GTACPR staff to see all invoices they uploaded on behalf of any vendor
+    const result = await pool.query(`
+      SELECT 
+        vi.*,
+        v.name as company,
+        v.name as billing_company,
+        COALESCE(vi.rate, 0) as rate,
+        COALESCE(vi.amount, 0) as amount,
+        COALESCE(vi.subtotal, vi.amount) as subtotal,
+        COALESCE(vi.hst, 0) as hst,
+        COALESCE(vi.total, vi.amount) as total
+      FROM vendor_invoices vi
+      LEFT JOIN vendors v ON vi.vendor_id = v.id
+      WHERE vi.id = $1
+    `, [req.params.id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Invoice not found' });
@@ -485,6 +491,62 @@ router.get('/invoices/:id', authenticateToken, async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error fetching invoice:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Submit invoice to admin
+router.post('/invoices/:id/submit-to-admin', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      `UPDATE vendor_invoices 
+       SET status = 'sent_to_admin', 
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING id`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    res.json({ message: 'Invoice submitted to admin successfully' });
+  } catch (error) {
+    console.error('Error submitting invoice to admin:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Resend rejected invoice to admin
+router.post('/invoices/:id/resend-to-admin', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body;
+    
+    if (!notes || notes.trim() === '') {
+      return res.status(400).json({ error: 'Notes are required when resending rejected invoice' });
+    }
+
+    const result = await pool.query(
+      `UPDATE vendor_invoices 
+       SET status = 'sent_to_admin', 
+           admin_notes = $2,
+           updated_at = NOW()
+       WHERE id = $1 AND status = 'rejected'
+       RETURNING id`,
+      [id, notes]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found or not in rejected status' });
+    }
+
+    res.json({ message: 'Invoice resent to admin successfully' });
+  } catch (error) {
+    console.error('Error resending invoice to admin:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -504,19 +566,22 @@ router.get('/invoices/:id/download', authenticateToken, async (req, res) => {
 
     const userEmail = userResult.rows[0].email;
 
-    const vendorResult = await pool.query(
-      'SELECT id FROM vendors WHERE contact_email = $1',
-      [userEmail]
-    );
-
-    if (vendorResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Vendor not found' });
-    }
-
-    const result = await pool.query(
-      'SELECT * FROM vendor_invoices WHERE id = $1 AND vendor_id = $2',
-      [req.params.id, vendorResult.rows[0].id]
-    );
+    // 🔍 PHASE 3: Allow GTACPR staff to download any invoice (not just their own vendor's invoices)
+    // This allows GTACPR staff to download all invoices they uploaded on behalf of any vendor
+    const result = await pool.query(`
+      SELECT 
+        vi.*,
+        v.name as company,
+        v.name as billing_company,
+        COALESCE(vi.rate, 0) as rate,
+        COALESCE(vi.amount, 0) as amount,
+        COALESCE(vi.subtotal, vi.amount) as subtotal,
+        COALESCE(vi.hst, 0) as hst,
+        COALESCE(vi.total, vi.amount) as total
+      FROM vendor_invoices vi
+      LEFT JOIN vendors v ON vi.vendor_id = v.id
+      WHERE vi.id = $1
+    `, [req.params.id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Invoice not found' });
@@ -524,19 +589,18 @@ router.get('/invoices/:id/download', authenticateToken, async (req, res) => {
 
     const invoice = result.rows[0];
 
-    if (!invoice.pdf_filename) {
-      return res.status(404).json({ error: 'PDF file not found' });
-    }
-
-    const filePath = path.join(process.cwd(), 'uploads/vendor-invoices', invoice.pdf_filename);
+    // Generate PDF from database data
+    const pdfBuffer = await pdfGenerationService.generateInvoicePDF(invoice);
     
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'PDF file not found on server' });
-    }
-
-    res.download(filePath, `invoice-${invoice.invoice_number}.pdf`);
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoice.invoice_number}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    
+    // Send the PDF buffer
+    res.send(pdfBuffer);
   } catch (error) {
-    console.error('Error downloading invoice:', error);
+    console.error('Error generating invoice PDF:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -196,7 +196,7 @@ const InvoiceStatusView: React.FC = () => {
 
       // Verify the blob size
       if (blob.size === 0) {
-        throw new Error('PDF file is empty');
+        throw new Error('Invoice file is empty');
       }
 
       // Create download link

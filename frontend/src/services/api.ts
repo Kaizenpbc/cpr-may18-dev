@@ -1103,6 +1103,17 @@ export const vendorApi = {
     });
     return response.data;
   },
+
+  // Workflow functions
+  submitToAdmin: async (invoiceId: number) => {
+    const response = await api.post(`/vendor/invoices/${invoiceId}/submit-to-admin`);
+    return response.data;
+  },
+  
+  resendToAdmin: async (invoiceId: number, notes: string) => {
+    const response = await api.post(`/vendor/invoices/${invoiceId}/resend-to-admin`, { notes });
+    return response.data;
+  },
 };
 
 // Notification API methods
