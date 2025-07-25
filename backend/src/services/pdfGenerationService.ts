@@ -168,23 +168,27 @@ class PDFGenerationService {
     let currentY = doc.y + 20;
 
     // Subtotal
-    if (invoiceData.subtotal && invoiceData.subtotal > 0) {
+    const subtotal = Number(invoiceData.subtotal) || 0;
+    if (subtotal > 0) {
       doc.fontSize(10)
          .font('Helvetica')
          .text('Subtotal:', totalsX, currentY)
-         .text(`$${invoiceData.subtotal.toFixed(2)}`, totalsX + 100, currentY);
+         .text(`$${subtotal.toFixed(2)}`, totalsX + 100, currentY);
       currentY += 20;
     }
 
     // HST
-    if (invoiceData.hst && invoiceData.hst > 0) {
+    const hst = Number(invoiceData.hst) || 0;
+    if (hst > 0) {
       doc.text('HST:', totalsX, currentY)
-         .text(`$${invoiceData.hst.toFixed(2)}`, totalsX + 100, currentY);
+         .text(`$${hst.toFixed(2)}`, totalsX + 100, currentY);
       currentY += 20;
     }
 
     // Total
-    const total = invoiceData.total && invoiceData.total > 0 ? invoiceData.total : invoiceData.amount;
+    const total = (Number(invoiceData.total) && Number(invoiceData.total) > 0)
+      ? Number(invoiceData.total)
+      : Number(invoiceData.amount) || 0;
     doc.fontSize(12)
        .font('Helvetica-Bold')
        .text('Total:', totalsX, currentY)
