@@ -7,19 +7,16 @@ exports.up = function(knex) {
   return knex.schema
     // Update vendor_invoices table
     .alterTable('vendor_invoices', function(table) {
-      // Add new status values
+      // Simplified status values for the workflow
       table.enum('status', [
-        'submitted',
-        'pending_review', 
-        'approved',
-        'rejected',
-        'sent_to_accounting',
-        'paid',
-        'partially_paid'
-      ], { useNative: true, enumName: 'vendor_invoice_status_updated' }).alter();
+        'pending_submission',  // Vendor uploads, can review/edit
+        'submitted',           // Vendor submits to admin/accounting
+        'paid'                 // Payment completed
+      ], { useNative: true, enumName: 'vendor_invoice_status_simplified' }).alter();
       
       // Add accounting workflow fields
       table.timestamp('sent_to_accounting_at');
+      table.timestamp('paid_at');
     })
     // Create vendor_payments table
     .createTable('vendor_payments', function(table) {
@@ -71,5 +68,6 @@ exports.down = function(knex) {
       
       // Remove accounting workflow fields
       table.dropColumn('sent_to_accounting_at');
+      table.dropColumn('paid_at');
     });
 }; 

@@ -7197,7 +7197,7 @@ router.post(
       try {
         await client.query('BEGIN');
         
-        // Get the invoice
+        // Get the invoice - now checking for submitted status
         const invoiceResult = await client.query(`
           SELECT vi.*, v.contact_email as vendor_email, v.name as vendor_name
           FROM vendor_invoices vi
@@ -7206,27 +7206,32 @@ router.post(
         `, [id]);
         
         if (invoiceResult.rows.length === 0) {
-          throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found or already processed.');
+          throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found or not ready for processing.');
         }
         
         const invoice = invoiceResult.rows[0];
-        const newStatus = action === 'approve' ? 'approved' : 'rejected';
         const userId = (req as any).user.id;
         
-        // Update the invoice status
+        // Update the invoice status based on the simplified workflow
         if (action === 'approve') {
-          // Send to accounting for payment processing
+          // Mark as paid (simplified workflow - admin approval = payment)
           await client.query(`
             UPDATE vendor_invoices 
-            SET status = 'sent_to_accounting', approved_by = $1, admin_notes = $2, sent_to_accounting_at = NOW(), updated_at = NOW()
+            SET status = 'paid', 
+                approved_by = $1, 
+                admin_notes = $2, 
+                paid_at = NOW(), 
+                updated_at = NOW()
             WHERE id = $3
           `, [userId, notes || '', id]);
         } else {
+          // For rejected invoices, we'll keep them as 'submitted' but add rejection notes
           await client.query(`
             UPDATE vendor_invoices 
-            SET status = $1, rejected_by = $2, admin_notes = $3, updated_at = NOW()
-            WHERE id = $4
-          `, [newStatus, userId, notes, id]);
+            SET admin_notes = $1, 
+                updated_at = NOW()
+            WHERE id = $2
+          `, [notes, id]);
         }
         
         await client.query('COMMIT');
@@ -7240,7 +7245,7 @@ router.post(
           data: {
             invoiceId: id,
             action: action,
-            status: newStatus
+            status: action === 'approve' ? 'paid' : 'submitted'
           }
         });
       } catch (error) {
@@ -7251,6 +7256,45 @@ router.post(
       }
     } catch (error) {
       console.error('Error processing vendor invoice approval:', error);
+      throw error;
+    }
+  })
+);
+
+// Get vendor invoices ready for processing (admin view)
+router.get(
+  '/admin/vendor-invoices/ready-for-processing',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { role } = (req as any).user;
+      
+      if (role !== 'admin' && role !== 'sysadmin') {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin or sysadmin role required.');
+      }
+
+      const result = await pool.query(`
+        SELECT 
+          vi.*,
+          v.name as vendor_name,
+          v.contact_email as vendor_email,
+          v.contact_name as vendor_contact,
+          v.address as vendor_address,
+          v.city as vendor_city,
+          v.state as vendor_state,
+          v.zip_code as vendor_zip
+        FROM vendor_invoices vi
+        LEFT JOIN vendors v ON vi.vendor_id = v.id
+        WHERE vi.status = 'submitted'
+        ORDER BY vi.created_at ASC
+      `);
+
+      res.json({
+        success: true,
+        data: result.rows
+      });
+    } catch (error) {
+      console.error('Error fetching vendor invoices ready for processing:', error);
       throw error;
     }
   })
@@ -7327,7 +7371,8 @@ router.get(
           u_approved.username as approved_by_name,
           u_approved.email as approved_by_email,
           COALESCE(payments.total_paid, 0) as total_paid,
-          (vi.amount - COALESCE(payments.total_paid, 0)) as balance_due
+          (vi.amount - COALESCE(payments.total_paid, 0)) as balance_due,
+          vi.status as display_status
         FROM vendor_invoices vi
         LEFT JOIN vendors v ON vi.vendor_id = v.id
         LEFT JOIN users u_approved ON vi.approved_by = u_approved.id
@@ -7339,8 +7384,8 @@ router.get(
           WHERE status = 'processed'
           GROUP BY vendor_invoice_id
         ) payments ON payments.vendor_invoice_id = vi.id
-        WHERE vi.status = 'sent_to_accounting'
-        ORDER BY vi.sent_to_accounting_at ASC
+        WHERE vi.status = 'paid'
+        ORDER BY vi.paid_at ASC
       `);
 
       res.json({
@@ -7474,11 +7519,11 @@ router.post(
             WHERE status = 'processed'
             GROUP BY vendor_invoice_id
           ) payments ON payments.vendor_invoice_id = vi.id
-          WHERE vi.id = $1 AND vi.status = 'sent_to_accounting'
+          WHERE vi.id = $1 AND vi.status = 'submitted'
         `, [id]);
 
         if (invoiceResult.rows.length === 0) {
-          throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Vendor invoice not found or not ready for payment.');
+          throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Vendor invoice not found or not ready for payment processing.');
         }
 
         const invoice = invoiceResult.rows[0];
@@ -7516,11 +7561,13 @@ router.post(
 
         // Update invoice status based on payment
         const newTotalPaid = parseFloat(invoice.total_paid) + paymentAmount;
-        const newStatus = newTotalPaid >= parseFloat(invoice.amount) ? 'paid' : 'partially_paid';
+        const newStatus = newTotalPaid >= parseFloat(invoice.amount) ? 'paid' : 'submitted';
 
         await client.query(`
           UPDATE vendor_invoices 
-          SET status = $1, updated_at = NOW()
+          SET status = $1, 
+              paid_at = CASE WHEN $1 = 'paid' THEN NOW() ELSE paid_at END,
+              updated_at = NOW()
           WHERE id = $2
         `, [newStatus, id]);
 

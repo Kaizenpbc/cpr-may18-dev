@@ -66,7 +66,7 @@ const VendorInvoiceApproval: React.FC = () => {
   const [action, setAction] = useState<'approve' | 'reject'>('approve');
   const [notes, setNotes] = useState('');
   const [processing, setProcessing] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('submitted');
+  const [statusFilter, setStatusFilter] = useState('all'); // Changed from 'submitted' to 'all' to show all invoices
 
   useEffect(() => {
     fetchVendorInvoices();
@@ -147,6 +147,8 @@ const VendorInvoiceApproval: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'pending_submission':
+        return 'default';
       case 'submitted':
         return 'warning';
       case 'approved':
@@ -176,6 +178,7 @@ const VendorInvoiceApproval: React.FC = () => {
   );
 
   const stats = {
+    pending_submission: invoices.filter(i => i.status === 'pending_submission').length,
     submitted: invoices.filter(i => i.status === 'submitted').length,
     approved: invoices.filter(i => i.status === 'approved').length,
     rejected: invoices.filter(i => i.status === 'rejected').length,
@@ -214,7 +217,19 @@ const VendorInvoiceApproval: React.FC = () => {
 
       {/* Statistics Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Pending Submission
+              </Typography>
+              <Typography variant="h4" color="default">
+                {stats.pending_submission}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
@@ -226,7 +241,7 @@ const VendorInvoiceApproval: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
@@ -238,7 +253,7 @@ const VendorInvoiceApproval: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
@@ -250,7 +265,7 @@ const VendorInvoiceApproval: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
@@ -274,6 +289,7 @@ const VendorInvoiceApproval: React.FC = () => {
             label="Filter by Status"
           >
             <MenuItem value="all">All Invoices</MenuItem>
+            <MenuItem value="pending_submission">Pending Submission</MenuItem>
             <MenuItem value="submitted">Pending Review</MenuItem>
             <MenuItem value="approved">Approved</MenuItem>
             <MenuItem value="rejected">Rejected</MenuItem>

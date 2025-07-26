@@ -2,68 +2,85 @@
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  host: 'localhost',
-  database: 'cpr_jun21',
   user: 'postgres',
-  password: 'gtacpr'
+  password: 'gtacpr',
+  host: '127.0.0.1',
+  port: 5432,
+  database: 'cpr_jun21',
 });
 
 async function checkVendorInvoices() {
   try {
-    console.log('🔍 [DATABASE] Checking recent vendor invoices...\n');
+    console.log('🔍 Checking vendor invoices in database...');
     
-    const result = await pool.query(`
-      SELECT 
-        id, 
-        invoice_number, 
-        amount, 
-        description, 
-        status, 
-        created_at,
-        pdf_filename
+    // Check if vendor_invoices table exists
+    const tableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'vendor_invoices'
+      );
+    `);
+    
+    if (!tableExists.rows[0].exists) {
+      console.log('❌ vendor_invoices table does not exist');
+      return;
+    }
+    
+    console.log('✅ vendor_invoices table exists');
+    
+    // Get table structure
+    const columns = await pool.query(`
+      SELECT column_name, data_type, is_nullable
+      FROM information_schema.columns 
+      WHERE table_name = 'vendor_invoices'
+      ORDER BY ordinal_position;
+    `);
+    
+    console.log('📋 Table structure:');
+    columns.rows.forEach(col => {
+      console.log(`  - ${col.column_name}: ${col.data_type} (${col.is_nullable === 'YES' ? 'nullable' : 'not null'})`);
+    });
+    
+    // Check for invoice 001
+    const invoice001 = await pool.query(`
+      SELECT * FROM vendor_invoices 
+      WHERE invoice_number = '001' 
+      OR pdf_filename LIKE '%001%'
+      OR id = 1;
+    `);
+    
+    if (invoice001.rows.length > 0) {
+      console.log('✅ Found invoice 001:');
+      console.log(JSON.stringify(invoice001.rows[0], null, 2));
+    } else {
+      console.log('❌ Invoice 001 not found');
+    }
+    
+    // Get all vendor invoices
+    const allInvoices = await pool.query(`
+      SELECT id, invoice_number, pdf_filename, status, vendor_id, created_at, updated_at
       FROM vendor_invoices 
       ORDER BY created_at DESC 
-      LIMIT 5
+      LIMIT 10;
     `);
-
-    if (result.rows.length === 0) {
-      console.log('📋 No vendor invoices found in database');
-    } else {
-      console.log('📋 Recent Vendor Invoices:');
-      result.rows.forEach((row, index) => {
-        console.log(`\n  ${index + 1}. Invoice #${row.id}:`);
-        console.log(`     Invoice Number: ${row.invoice_number}`);
-        console.log(`     Amount: $${row.amount}`);
-        console.log(`     Description: ${row.description || 'N/A'}`);
-        console.log(`     Status: ${row.status}`);
-        console.log(`     PDF File: ${row.pdf_filename || 'N/A'}`);
-        console.log(`     Created: ${row.created_at}`);
-      });
-    }
-
-    // Check file storage
-    console.log('\n📁 Checking uploads directory...');
-    const fs = require('fs');
-    const path = require('path');
-    const uploadsDir = path.join(__dirname, 'backend', 'uploads', 'vendor-invoices');
     
-    if (fs.existsSync(uploadsDir)) {
-      const files = fs.readdirSync(uploadsDir);
-      console.log(`  Found ${files.length} files in uploads/vendor-invoices/`);
-      if (files.length > 0) {
-        console.log('  Recent files:');
-        files.slice(-3).forEach(file => {
-          const filePath = path.join(uploadsDir, file);
-          const stats = fs.statSync(filePath);
-          console.log(`    - ${file} (${stats.size} bytes, ${stats.mtime})`);
-        });
-      }
-    } else {
-      console.log('  Uploads directory not found');
-    }
-
+    console.log('📊 Recent vendor invoices:');
+    allInvoices.rows.forEach(invoice => {
+      console.log(`  - ID: ${invoice.id}, Number: ${invoice.invoice_number}, File: ${invoice.pdf_filename}, Status: ${invoice.status}, Vendor: ${invoice.vendor_id}, Created: ${invoice.created_at}`);
+    });
+    
+    // Check vendors table
+    const vendors = await pool.query(`
+      SELECT id, name, email FROM vendors LIMIT 5;
+    `);
+    
+    console.log('👥 Available vendors:');
+    vendors.rows.forEach(vendor => {
+      console.log(`  - ID: ${vendor.id}, Name: ${vendor.name}, Email: ${vendor.email}`);
+    });
+    
   } catch (error) {
-    console.error('❌ [DATABASE] Error:', error.message);
+    console.error('❌ Error checking vendor invoices:', error.message);
   } finally {
     await pool.end();
   }

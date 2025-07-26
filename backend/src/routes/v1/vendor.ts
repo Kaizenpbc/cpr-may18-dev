@@ -189,7 +189,7 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     const [pendingResult, totalResult, paidResult, avgResult] = await Promise.all([
       pool.query(
         `SELECT COUNT(*) as count FROM vendor_invoices 
-         WHERE vendor_id = $1 AND status IN ('submitted', 'pending_review')`,
+         WHERE vendor_id = $1 AND status = 'submitted'`,
         [vendorId]
       ),
       pool.query(
@@ -223,9 +223,9 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
 // Get vendor invoices
 router.get('/invoices', authenticateToken, async (req, res) => {
   try {
-    // Get user email from database using user ID
+    // Get user email and role from database using user ID
     const userResult = await pool.query(
-      'SELECT email FROM users WHERE id = $1',
+      'SELECT email, role FROM users WHERE id = $1',
       [req.user.id]
     );
 
@@ -234,21 +234,40 @@ router.get('/invoices', authenticateToken, async (req, res) => {
     }
 
     const userEmail = userResult.rows[0].email;
+    const userRole = userResult.rows[0].role;
 
-    const vendorResult = await pool.query(
-      'SELECT id FROM vendors WHERE contact_email = $1',
-      [userEmail]
-    );
+    console.log('🔍 [VENDOR INVOICES] User info:', {
+      id: req.user.id,
+      email: userEmail,
+      role: userRole
+    });
 
-    if (vendorResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Vendor not found' });
+    // Check if this is a vendor user (GTACPR employee who manages all vendor invoices)
+    const isVendorUser = userRole === 'vendor';
+    
+    console.log('🔍 [VENDOR INVOICES] isVendorUser:', isVendorUser);
+    
+    let vendorId = null;
+    let params = [];
+    let paramIndex = 1;
+
+    if (!isVendorUser) {
+      // For regular vendors, get their specific vendor ID
+      const vendorResult = await pool.query(
+        'SELECT id FROM vendors WHERE contact_email = $1',
+        [userEmail]
+      );
+
+      if (vendorResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Vendor not found' });
+      }
+
+      vendorId = vendorResult.rows[0].id;
     }
 
-    const vendorId = vendorResult.rows[0].id;
     const { status, search } = req.query;
 
-    // 🔍 PHASE 3: Show all invoices (not just those belonging to the authenticated user's vendor ID)
-    // This allows GTACPR staff to see all invoices they uploaded on behalf of any vendor
+    // Build query to get invoices
     let query = `
       SELECT 
         vi.*,
@@ -262,22 +281,39 @@ router.get('/invoices', authenticateToken, async (req, res) => {
       FROM vendor_invoices vi
       LEFT JOIN vendors v ON vi.vendor_id = v.id
     `;
-    let params = [];
+
+    // Add WHERE clause based on user type
+    if (isVendorUser) {
+      // Vendor user (GTACPR employee) can see ALL vendor invoices
+      query += ' WHERE 1=1';
+    } else {
+      // Regular vendor can only see their own invoices
+      query += ` WHERE vi.vendor_id = $${paramIndex}`;
+      params.push(vendorId);
+      paramIndex++;
+    }
 
     if (status) {
-      query += ' AND vi.status = $2';
+      query += ` AND vi.status = $${paramIndex}`;
       params.push(status);
+      paramIndex++;
     }
 
     if (search) {
-      const searchParam = params.length + 1;
-      query += ` AND (vi.invoice_number ILIKE $${searchParam} OR vi.description ILIKE $${searchParam})`;
+      query += ` AND (vi.invoice_number ILIKE $${paramIndex} OR vi.description ILIKE $${paramIndex})`;
       params.push(`%${search}%`);
+      paramIndex++;
     }
 
     query += ' ORDER BY vi.created_at DESC';
 
+    console.log('🔍 [VENDOR INVOICES] Query:', query);
+    console.log('🔍 [VENDOR INVOICES] Params:', params);
+    console.log('🔍 [VENDOR INVOICES] isVendorUser:', isVendorUser);
+
     const result = await pool.query(query, params);
+    console.log('🔍 [VENDOR INVOICES] Result rows:', result.rows.length);
+    
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching vendor invoices:', error);
@@ -377,12 +413,13 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), async 
         due_date,
         manual_type,
         quantity ? parseInt(quantity) : null,
-        req.file.filename,
-        'ready_to_process', // New workflow status
+                req.file.filename,
+        'pending_submission', // Vendor uploads, can review before submitting to admin
         parseFloat(req.body.rate) || 0,
         parseFloat(req.body.subtotal) || parseFloat(amount),
         parseFloat(req.body.hst) || 0,
-        parseFloat(req.body.total) || parseFloat(amount)
+        parseFloat(req.body.total) || parseFloat(amount),
+        req.user.id // submitted_by - user ID who submitted the invoice
       ]
     );
 
@@ -502,15 +539,15 @@ router.post('/invoices/:id/submit-to-admin', authenticateToken, async (req, res)
     
     const result = await pool.query(
       `UPDATE vendor_invoices 
-       SET status = 'sent_to_admin', 
-           updated_at = NOW()
-       WHERE id = $1
+                   SET status = 'submitted', 
+                updated_at = NOW()
+            WHERE id = $1 AND status IN ('pending_submission', 'pending')
        RETURNING id`,
       [id]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Invoice not found' });
+                  return res.status(404).json({ error: 'Invoice not found or not ready to submit to admin' });
     }
 
     res.json({ message: 'Invoice submitted to admin successfully' });
@@ -532,16 +569,16 @@ router.post('/invoices/:id/resend-to-admin', authenticateToken, async (req, res)
 
     const result = await pool.query(
       `UPDATE vendor_invoices 
-       SET status = 'sent_to_admin', 
+       SET status = 'submitted', 
            admin_notes = $2,
            updated_at = NOW()
-       WHERE id = $1 AND status = 'rejected'
+       WHERE id = $1 AND status = 'submitted' AND admin_notes IS NOT NULL
        RETURNING id`,
       [id, notes]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Invoice not found or not in rejected status' });
+      return res.status(404).json({ error: 'Invoice not found or not in rejected state' });
     }
 
     res.json({ message: 'Invoice resent to admin successfully' });

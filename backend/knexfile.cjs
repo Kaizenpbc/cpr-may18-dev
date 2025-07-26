@@ -11,7 +11,7 @@ module.exports = {
       port: parseInt(process.env.DB_PORT || '5432'),
       user: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD || 'gtacpr',
-      database: process.env.DB_NAME || 'cpr_may18',
+      database: process.env.DB_NAME || 'cpr_jun21',
     },
     pool: {
       min: 2,
@@ -55,7 +55,7 @@ module.exports = {
       port: parseInt(process.env.DB_PORT || '5432'),
       user: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD || 'gtacpr',
-      database: process.env.DB_NAME_TEST || 'cpr_may18_test',
+      database: process.env.DB_NAME_TEST || 'cpr_jun21_test',
     },
     pool: {
       min: 1,

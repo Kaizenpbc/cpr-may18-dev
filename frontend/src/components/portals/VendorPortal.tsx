@@ -56,13 +56,33 @@ const VendorPortal: React.FC<VendorPortalProps> = () => {
     }
   };
 
+  // Component wrapper for InvoiceHistory to add logging
+  const InvoiceHistoryWrapper = () => {
+    console.log('📋 [VENDOR PORTAL] Rendering InvoiceHistory component');
+    try {
+      console.log('📋 [VENDOR PORTAL] About to render InvoiceHistory component');
+      const result = <InvoiceHistory />;
+      console.log('📋 [VENDOR PORTAL] InvoiceHistory component rendered successfully');
+      return result;
+    } catch (error) {
+      console.error('❌ [VENDOR PORTAL] Error rendering InvoiceHistory:', error);
+      return (
+        <div>
+          <h2>Error loading invoice history component</h2>
+          <p>Error: {error instanceof Error ? error.message : 'Unknown error'}</p>
+          <button onClick={() => console.log('Test button clicked')}>Test Button</button>
+        </div>
+      );
+    }
+  };
+
   return (
     <VendorLayout currentView={getCurrentView()}>
       <Container maxWidth="lg">
         <Routes>
           <Route path="dashboard" element={<VendorDashboard />} />
           <Route path="upload" element={<InvoiceUploadWrapper />} />
-          <Route path="history" element={<InvoiceHistory />} />
+          <Route path="history" element={<InvoiceHistoryWrapper />} />
           <Route path="status" element={<InvoiceStatusView />} />
           <Route path="profile" element={<VendorProfile />} />
           <Route path="" element={<Navigate to="dashboard" replace />} />
