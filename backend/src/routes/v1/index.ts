@@ -7197,12 +7197,12 @@ router.post(
       try {
         await client.query('BEGIN');
         
-        // Get the invoice - now checking for submitted status
+        // Get the invoice - checking for submitted_to_admin status
         const invoiceResult = await client.query(`
           SELECT vi.*, v.contact_email as vendor_email, v.name as vendor_name
           FROM vendor_invoices vi
           LEFT JOIN vendors v ON vi.vendor_id = v.id
-          WHERE vi.id = $1 AND vi.status = 'submitted'
+          WHERE vi.id = $1 AND vi.status = 'submitted_to_admin'
         `, [id]);
         
         if (invoiceResult.rows.length === 0) {
@@ -7212,26 +7212,30 @@ router.post(
         const invoice = invoiceResult.rows[0];
         const userId = (req as any).user.id;
         
-        // Update the invoice status based on the simplified workflow
+        // Update the invoice status based on the detailed workflow
         if (action === 'approve') {
-          // Mark as paid (simplified workflow - admin approval = payment)
+          // Send to accounting for payment processing
           await client.query(`
             UPDATE vendor_invoices 
-            SET status = 'paid', 
+            SET status = 'submitted_to_accounting', 
                 approved_by = $1, 
                 admin_notes = $2, 
-                paid_at = NOW(), 
+                sent_to_accounting_at = NOW(), 
                 updated_at = NOW()
             WHERE id = $3
           `, [userId, notes || '', id]);
         } else {
-          // For rejected invoices, we'll keep them as 'submitted' but add rejection notes
+          // Reject the invoice
           await client.query(`
             UPDATE vendor_invoices 
-            SET admin_notes = $1, 
+            SET status = 'rejected_by_admin', 
+                admin_notes = $1, 
+                rejection_reason = $1,
+                rejected_at = NOW(),
+                rejected_by = $2,
                 updated_at = NOW()
-            WHERE id = $2
-          `, [notes, id]);
+            WHERE id = $3
+          `, [notes, userId, id]);
         }
         
         await client.query('COMMIT');
@@ -7245,7 +7249,7 @@ router.post(
           data: {
             invoiceId: id,
             action: action,
-            status: action === 'approve' ? 'paid' : 'submitted'
+            status: action === 'approve' ? 'submitted_to_accounting' : 'rejected_by_admin'
           }
         });
       } catch (error) {
@@ -7285,7 +7289,7 @@ router.get(
           v.zip_code as vendor_zip
         FROM vendor_invoices vi
         LEFT JOIN vendors v ON vi.vendor_id = v.id
-        WHERE vi.status = 'submitted'
+        WHERE vi.status = 'submitted_to_admin'
         ORDER BY vi.created_at ASC
       `);
 
@@ -7384,8 +7388,8 @@ router.get(
           WHERE status = 'processed'
           GROUP BY vendor_invoice_id
         ) payments ON payments.vendor_invoice_id = vi.id
-        WHERE vi.status = 'paid'
-        ORDER BY vi.paid_at ASC
+        WHERE vi.status = 'submitted_to_accounting'
+        ORDER BY vi.sent_to_accounting_at ASC
       `);
 
       res.json({
@@ -7519,7 +7523,7 @@ router.post(
             WHERE status = 'processed'
             GROUP BY vendor_invoice_id
           ) payments ON payments.vendor_invoice_id = vi.id
-          WHERE vi.id = $1 AND vi.status = 'submitted'
+          WHERE vi.id = $1 AND vi.status = 'submitted_to_accounting'
         `, [id]);
 
         if (invoiceResult.rows.length === 0) {
@@ -7561,7 +7565,7 @@ router.post(
 
         // Update invoice status based on payment
         const newTotalPaid = parseFloat(invoice.total_paid) + paymentAmount;
-        const newStatus = newTotalPaid >= parseFloat(invoice.amount) ? 'paid' : 'submitted';
+        const newStatus = newTotalPaid >= parseFloat(invoice.amount) ? 'paid' : 'submitted_to_accounting';
 
         await client.query(`
           UPDATE vendor_invoices 
@@ -7590,6 +7594,79 @@ router.post(
       }
     } catch (error) {
       console.error('Error processing vendor payment:', error);
+      throw error;
+    }
+  })
+);
+
+// Reject vendor invoice (accounting)
+router.post(
+  '/accounting/vendor-invoices/:id/reject',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { role } = (req as any).user;
+      const { id } = req.params;
+      const { notes } = req.body;
+      
+      if (role !== 'accountant' && role !== 'admin') {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Accountant or admin role required.');
+      }
+
+      if (!notes?.trim()) {
+        throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Notes are required when rejecting an invoice.');
+      }
+
+      const client = await pool.connect();
+      
+      try {
+        await client.query('BEGIN');
+        
+        // Get the invoice - checking for submitted_to_accounting status
+        const invoiceResult = await client.query(`
+          SELECT vi.*, v.contact_email as vendor_email, v.name as vendor_name
+          FROM vendor_invoices vi
+          LEFT JOIN vendors v ON vi.vendor_id = v.id
+          WHERE vi.id = $1 AND vi.status = 'submitted_to_accounting'
+        `, [id]);
+        
+        if (invoiceResult.rows.length === 0) {
+          throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found or not ready for processing.');
+        }
+        
+        const invoice = invoiceResult.rows[0];
+        const userId = (req as any).user.id;
+        
+        // Reject the invoice
+        await client.query(`
+          UPDATE vendor_invoices 
+          SET status = 'rejected_by_accountant', 
+              admin_notes = $1, 
+              rejection_reason = $1,
+              rejected_at = NOW(),
+              rejected_by = $2,
+              updated_at = NOW()
+          WHERE id = $3
+        `, [notes, userId, id]);
+        
+        await client.query('COMMIT');
+        
+        res.json({
+          success: true,
+          message: 'Invoice rejected successfully.',
+          data: {
+            invoiceId: id,
+            status: 'rejected_by_accountant'
+          }
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Error rejecting vendor invoice:', error);
       throw error;
     }
   })

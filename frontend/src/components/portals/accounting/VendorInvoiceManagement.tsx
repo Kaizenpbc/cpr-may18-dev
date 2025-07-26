@@ -47,9 +47,18 @@ import { useSnackbar } from '../../../contexts/SnackbarContext';
 interface VendorInvoice {
   id: number;
   invoice_number: string;
-  amount: number;
+  item?: string;
+  company?: string;
+  billing_company?: string;
+  quantity?: number | null;
   description: string;
+  rate: number;
+  amount: number;
+  subtotal: number;
+  hst: number;
+  total: number;
   status: string;
+  created_at: string;
   invoice_date: string;
   due_date: string;
   vendor_name: string;
@@ -66,6 +75,7 @@ interface VendorInvoice {
   balance_due: number;
   payment_status: string;
   admin_notes: string;
+  rejection_reason?: string;
 }
 
 interface PaymentData {
@@ -150,10 +160,39 @@ const VendorInvoiceManagement: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'sent_to_accounting': return 'primary';
-      case 'partially_paid': return 'warning';
-      case 'paid': return 'success';
-      default: return 'default';
+      case 'pending_submission':
+        return 'default';
+      case 'submitted_to_admin':
+        return 'warning';
+      case 'submitted_to_accounting':
+        return 'info';
+      case 'rejected_by_admin':
+        return 'error';
+      case 'rejected_by_accountant':
+        return 'error';
+      case 'paid':
+        return 'success';
+      default:
+        return 'default';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending_submission':
+        return 'Pending Submission';
+      case 'submitted_to_admin':
+        return 'Submitted to Admin';
+      case 'submitted_to_accounting':
+        return 'Submitted to Accounting';
+      case 'rejected_by_admin':
+        return 'Rejected by Admin';
+      case 'rejected_by_accountant':
+        return 'Rejected by Accountant';
+      case 'paid':
+        return 'Paid';
+      default:
+        return status.replace('_', ' ').toUpperCase();
     }
   };
 
@@ -248,73 +287,66 @@ const VendorInvoiceManagement: React.FC = () => {
         </Grid>
       </Paper>
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto', maxHeight: '70vh' }}>
+        <Table sx={{ minWidth: 1200 }}>
+          <TableHead sx={{ position: 'sticky', top: 0, backgroundColor: 'background.paper', zIndex: 1 }}>
             <TableRow>
-              <TableCell>Invoice #</TableCell>
-              <TableCell>Vendor</TableCell>
-              <TableCell>Amount</TableCell>
-              <TableCell>Paid</TableCell>
-              <TableCell>Balance</TableCell>
-              <TableCell>Payment Status</TableCell>
-              <TableCell>Approved By</TableCell>
-              <TableCell>Sent to Accounting</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 100, backgroundColor: 'background.paper', position: 'sticky', left: 0, zIndex: 2 }}>Date</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 150, backgroundColor: 'background.paper', position: 'sticky', left: 100, zIndex: 2 }}>Billing Company</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper', position: 'sticky', left: 250, zIndex: 2 }}>Invoice #</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 80, backgroundColor: 'background.paper' }}>Quantity</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Item</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 200, maxWidth: 300, backgroundColor: 'background.paper' }}>Description</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 100, backgroundColor: 'background.paper' }}>Rate</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Amount</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Subtotal</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 100, backgroundColor: 'background.paper' }}>HST</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Total</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Status</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 100, backgroundColor: 'background.paper' }}>Due Date</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper', position: 'sticky', right: 0, zIndex: 2 }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {invoices.map((invoice) => (
               <TableRow key={invoice.id}>
+                <TableCell sx={{ position: 'sticky', left: 0, backgroundColor: 'background.paper', zIndex: 1 }}>{new Date(invoice.created_at || invoice.invoice_date).toLocaleDateString()}</TableCell>
+                <TableCell sx={{ position: 'sticky', left: 100, backgroundColor: 'background.paper', zIndex: 1 }}>{invoice.billing_company || invoice.company || invoice.vendor_name || '-'}</TableCell>
+                <TableCell sx={{ position: 'sticky', left: 250, backgroundColor: 'background.paper', zIndex: 1 }}>{invoice.invoice_number}</TableCell>
+                <TableCell align="right">{invoice.quantity || '-'}</TableCell>
+                <TableCell>{invoice.item || '-'}</TableCell>
                 <TableCell>
-                  <Typography variant="body2" fontWeight="bold">
-                    {invoice.invoice_number}
+                  <Typography variant="body2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={invoice.description}>
+                    {invoice.description}
                   </Typography>
                 </TableCell>
-                <TableCell>
-                  <Typography variant="body2" fontWeight="medium">
-                    {invoice.vendor_name}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    {invoice.vendor_contact}
-                  </Typography>
+                <TableCell align="right">
+                  {invoice.rate && !isNaN(invoice.rate) && invoice.rate > 0 ? 
+                    `$${Number(invoice.rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                </TableCell>
+                <TableCell align="right">
+                  {invoice.amount && !isNaN(invoice.amount) ? 
+                    `$${parseFloat(invoice.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 
+                    (invoice.total && !isNaN(invoice.total) ? 
+                      `$${parseFloat(invoice.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-')}
+                </TableCell>
+                <TableCell align="right">
+                  {invoice.subtotal && !isNaN(invoice.subtotal) && invoice.subtotal > 0 ? 
+                    `$${Number(invoice.subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                </TableCell>
+                <TableCell align="right">
+                  {invoice.hst && !isNaN(invoice.hst) && invoice.hst > 0 ? 
+                    `$${Number(invoice.hst).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                </TableCell>
+                <TableCell align="right">
+                  {invoice.total && !isNaN(invoice.total) && invoice.total > 0 ? 
+                    `$${Number(invoice.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </TableCell>
                 <TableCell>
-                  <Typography variant="body2" fontWeight="bold">
-                    {formatCurrency(invoice.amount)}
-                  </Typography>
+                  <Chip label={getStatusLabel(invoice.status)} color={getStatusColor(invoice.status) as any} size="small" />
                 </TableCell>
-                <TableCell>
-                  <Typography variant="body2" color="success.main">
-                    {formatCurrency(invoice.total_paid)}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2" color="warning.main" fontWeight="bold">
-                    {formatCurrency(invoice.balance_due)}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    label={(invoice.payment_status || 'unknown').replace('_', ' ').toUpperCase()}
-                    color={getPaymentStatusColor(invoice.payment_status || 'unknown') as any}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2">
-                    {invoice.approved_by_name}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    {formatDate(invoice.sent_to_accounting_at)}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2">
-                    {formatDate(invoice.sent_to_accounting_at)}
-                  </Typography>
-                </TableCell>
-                <TableCell>
+                <TableCell>{invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '-'}</TableCell>
+                <TableCell align="center" sx={{ position: 'sticky', right: 0, backgroundColor: 'background.paper', zIndex: 1 }}>
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     <Tooltip title="View Details">
                       <IconButton

@@ -179,8 +179,14 @@ const InvoiceHistory: React.FC = () => {
     switch (status) {
       case 'pending_submission':
         return 'default';
-      case 'submitted':
+      case 'submitted_to_admin':
         return 'warning';
+      case 'submitted_to_accounting':
+        return 'info';
+      case 'rejected_by_admin':
+        return 'error';
+      case 'rejected_by_accountant':
+        return 'error';
       case 'paid':
         return 'success';
       default:
@@ -192,8 +198,14 @@ const InvoiceHistory: React.FC = () => {
     switch (status) {
       case 'pending_submission':
         return 'Pending Submission';
-      case 'submitted':
-        return 'Submitted';
+      case 'submitted_to_admin':
+        return 'Submitted to Admin';
+      case 'submitted_to_accounting':
+        return 'Submitted to Accounting';
+      case 'rejected_by_admin':
+        return 'Rejected by Admin';
+      case 'rejected_by_accountant':
+        return 'Rejected by Accountant';
       case 'paid':
         return 'Paid';
       default:
@@ -302,9 +314,9 @@ const InvoiceHistory: React.FC = () => {
         filtered = filtered.filter(invoice => invoice.status === 'pending_submission');
         console.log('🔍 [FILTER DEBUG] Tab 0 (Pending Submission) - filtered to:', filtered.length, 'invoices');
         break;
-      case 1: // Submitted
-        filtered = filtered.filter(invoice => invoice.status === 'submitted');
-        console.log('🔍 [FILTER DEBUG] Tab 1 (Submitted) - filtered to:', filtered.length, 'invoices');
+      case 1: // Submitted to Admin
+        filtered = filtered.filter(invoice => invoice.status === 'submitted_to_admin');
+        console.log('🔍 [FILTER DEBUG] Tab 1 (Submitted to Admin) - filtered to:', filtered.length, 'invoices');
         break;
       case 2: // Paid
         filtered = filtered.filter(invoice => invoice.status === 'paid');
@@ -325,30 +337,30 @@ const InvoiceHistory: React.FC = () => {
     return (
       <TableContainer component={Paper} sx={{ overflowX: 'auto', maxHeight: '70vh' }}>
         <Table sx={{ minWidth: 1200 }}>
-          <TableHead>
+          <TableHead sx={{ position: 'sticky', top: 0, backgroundColor: 'background.paper', zIndex: 1 }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 'bold', minWidth: 100 }}>Date</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', minWidth: 150 }}>Billing Company</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }}>Invoice #</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 80 }}>Quantity</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }}>Item</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', minWidth: 200, maxWidth: 300 }}>Description</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 100 }}>Rate</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120 }}>Amount</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120 }}>Subtotal</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 100 }}>HST</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120 }}>Total</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }}>Status</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', minWidth: 100 }}>Due Date</TableCell>
-              <TableCell align="center" sx={{ fontWeight: 'bold', minWidth: 120 }}>Actions</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 100, backgroundColor: 'background.paper', position: 'sticky', left: 0, zIndex: 2 }}>Date</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 150, backgroundColor: 'background.paper', position: 'sticky', left: 100, zIndex: 2 }}>Billing Company</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper', position: 'sticky', left: 250, zIndex: 2 }}>Invoice #</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 80, backgroundColor: 'background.paper' }}>Quantity</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Item</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 200, maxWidth: 300, backgroundColor: 'background.paper' }}>Description</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 100, backgroundColor: 'background.paper' }}>Rate</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Amount</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Subtotal</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 100, backgroundColor: 'background.paper' }}>HST</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Total</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Status</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 100, backgroundColor: 'background.paper' }}>Due Date</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper', position: 'sticky', right: 0, zIndex: 2 }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredInvoices.map((invoice) => (
               <TableRow key={invoice.id}>
-                <TableCell>{new Date(invoice.created_at).toLocaleDateString()}</TableCell>
-                <TableCell>{invoice.billing_company || invoice.company || '-'}</TableCell>
-                <TableCell>{invoice.invoice_number}</TableCell>
+                <TableCell sx={{ position: 'sticky', left: 0, backgroundColor: 'background.paper', zIndex: 1 }}>{new Date(invoice.created_at).toLocaleDateString()}</TableCell>
+                <TableCell sx={{ position: 'sticky', left: 100, backgroundColor: 'background.paper', zIndex: 1 }}>{invoice.billing_company || invoice.company || '-'}</TableCell>
+                <TableCell sx={{ position: 'sticky', left: 250, backgroundColor: 'background.paper', zIndex: 1 }}>{invoice.invoice_number}</TableCell>
                 <TableCell align="right">{invoice.quantity || '-'}</TableCell>
                 <TableCell>{invoice.item || '-'}</TableCell>
                 <TableCell>
@@ -382,7 +394,7 @@ const InvoiceHistory: React.FC = () => {
                   <Chip label={getStatusLabel(invoice.status)} color={getStatusColor(invoice.status) as any} size="small" />
                 </TableCell>
                 <TableCell>{invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '-'}</TableCell>
-                <TableCell align="center">
+                <TableCell align="center" sx={{ position: 'sticky', right: 0, backgroundColor: 'background.paper', zIndex: 1 }}>
                   <Tooltip title="View Invoice Details">
                     <IconButton size="small" onClick={() => handleView(invoice.id)} color="primary">
                       <ViewIcon />
@@ -430,7 +442,7 @@ const InvoiceHistory: React.FC = () => {
             </Box>
             <Typography variant="body2">
               <strong>You Submit</strong><br/>
-              Status: Submitted
+              Status: Submitted to Admin
             </Typography>
           </Box>
           <Box sx={{ color: '#666' }}>→</Box>
@@ -440,7 +452,7 @@ const InvoiceHistory: React.FC = () => {
             </Box>
             <Typography variant="body2">
               <strong>Admin Reviews</strong><br/>
-              Status: Processing
+              Status: Submitted to Accounting
             </Typography>
           </Box>
           <Box sx={{ color: '#666' }}>→</Box>
@@ -464,7 +476,7 @@ const InvoiceHistory: React.FC = () => {
       
       {/* Summary Statistics */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={2}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h6" color="text.secondary">
               Pending Submission ({invoices.filter(i => i.status === 'pending_submission').length})
@@ -477,26 +489,65 @@ const InvoiceHistory: React.FC = () => {
             </Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={2}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h6" color="warning.main">
-              Submitted ({invoices.filter(i => i.status === 'submitted').length})
+              Submitted to Admin ({invoices.filter(i => i.status === 'submitted_to_admin').length})
             </Typography>
             <Typography variant="h4" color="warning.main">
-              ${invoices.filter(i => i.status === 'submitted').reduce((sum, i) => {
+              ${invoices.filter(i => i.status === 'submitted_to_admin').reduce((sum, i) => {
                 const amount = (i.total && !isNaN(i.total) && i.total > 0) ? i.total : 0;
                 return sum + amount;
               }, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={2}>
+          <Paper sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h6" color="info.main">
+              Submitted to Accounting ({invoices.filter(i => i.status === 'submitted_to_accounting').length})
+            </Typography>
+            <Typography variant="h4" color="info.main">
+              ${invoices.filter(i => i.status === 'submitted_to_accounting').reduce((sum, i) => {
+                const amount = (i.total && !isNaN(i.total) && i.total > 0) ? i.total : 0;
+                return sum + amount;
+              }, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={2}>
+          <Paper sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h6" color="error.main">
+              Rejected ({invoices.filter(i => i.status === 'rejected_by_admin' || i.status === 'rejected_by_accountant').length})
+            </Typography>
+            <Typography variant="h4" color="error.main">
+              ${invoices.filter(i => i.status === 'rejected_by_admin' || i.status === 'rejected_by_accountant').reduce((sum, i) => {
+                const amount = (i.total && !isNaN(i.total) && i.total > 0) ? i.total : 0;
+                return sum + amount;
+              }, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={2}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h6" color="success.main">
               Paid ({invoices.filter(i => i.status === 'paid').length})
             </Typography>
             <Typography variant="h4" color="success.main">
               ${invoices.filter(i => i.status === 'paid').reduce((sum, i) => {
+                const amount = (i.total && !isNaN(i.total) && i.total > 0) ? i.total : 0;
+                return sum + amount;
+              }, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={2}>
+          <Paper sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h6" color="primary.main">
+              Total ({invoices.length})
+            </Typography>
+            <Typography variant="h4" color="primary.main">
+              ${invoices.reduce((sum, i) => {
                 const amount = (i.total && !isNaN(i.total) && i.total > 0) ? i.total : 0;
                 return sum + amount;
               }, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -527,7 +578,10 @@ const InvoiceHistory: React.FC = () => {
               >
                 <MenuItem value="">All Statuses</MenuItem>
                 <MenuItem value="pending_submission">Pending Submission</MenuItem>
-                <MenuItem value="submitted">Submitted</MenuItem>
+                <MenuItem value="submitted_to_admin">Submitted to Admin</MenuItem>
+                <MenuItem value="submitted_to_accounting">Submitted to Accounting</MenuItem>
+                <MenuItem value="rejected_by_admin">Rejected by Admin</MenuItem>
+                <MenuItem value="rejected_by_accountant">Rejected by Accountant</MenuItem>
                 <MenuItem value="paid">Paid</MenuItem>
               </Select>
             </FormControl>
@@ -563,9 +617,9 @@ const InvoiceHistory: React.FC = () => {
           <Tab 
             label={
               <Box>
-                <Typography variant="body2">📋 Submitted</Typography>
+                <Typography variant="body2">📋 Submitted to Admin</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  ({invoices.filter(i => i.status === 'submitted').length} invoices)
+                  ({invoices.filter(i => i.status === 'submitted_to_admin').length} invoices)
                 </Typography>
               </Box>
             } 

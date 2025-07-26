@@ -41,11 +41,20 @@ import logger from '../../../utils/logger';
 interface VendorInvoice {
   id: number;
   invoice_number: string;
-  amount: number;
+  item?: string;
+  company?: string;
+  billing_company?: string;
+  quantity?: number | null;
   description: string;
+  rate: number;
+  amount: number;
+  subtotal: number;
+  hst: number;
+  total: number;
   status: string;
   created_at: string;
   due_date?: string;
+  payment_date?: string;
   pdf_filename?: string;
   vendor_name: string;
   vendor_email: string;
@@ -54,6 +63,7 @@ interface VendorInvoice {
   approved_at?: string;
   rejected_by?: string;
   rejected_at?: string;
+  rejection_reason?: string;
 }
 
 const VendorInvoiceApproval: React.FC = () => {
@@ -149,16 +159,37 @@ const VendorInvoiceApproval: React.FC = () => {
     switch (status) {
       case 'pending_submission':
         return 'default';
-      case 'submitted':
+      case 'submitted_to_admin':
         return 'warning';
-      case 'approved':
-        return 'success';
-      case 'rejected':
+      case 'submitted_to_accounting':
+        return 'info';
+      case 'rejected_by_admin':
+        return 'error';
+      case 'rejected_by_accountant':
         return 'error';
       case 'paid':
-        return 'info';
+        return 'success';
       default:
         return 'default';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending_submission':
+        return 'Pending Submission';
+      case 'submitted_to_admin':
+        return 'Submitted to Admin';
+      case 'submitted_to_accounting':
+        return 'Submitted to Accounting';
+      case 'rejected_by_admin':
+        return 'Rejected by Admin';
+      case 'rejected_by_accountant':
+        return 'Rejected by Accountant';
+      case 'paid':
+        return 'Paid';
+      default:
+        return status.replace('_', ' ').toUpperCase();
     }
   };
 
@@ -179,9 +210,9 @@ const VendorInvoiceApproval: React.FC = () => {
 
   const stats = {
     pending_submission: invoices.filter(i => i.status === 'pending_submission').length,
-    submitted: invoices.filter(i => i.status === 'submitted').length,
-    approved: invoices.filter(i => i.status === 'approved').length,
-    rejected: invoices.filter(i => i.status === 'rejected').length,
+    submitted_to_admin: invoices.filter(i => i.status === 'submitted_to_admin').length,
+    submitted_to_accounting: invoices.filter(i => i.status === 'submitted_to_accounting').length,
+    rejected: invoices.filter(i => i.status === 'rejected_by_admin' || i.status === 'rejected_by_accountant').length,
     paid: invoices.filter(i => i.status === 'paid').length,
   };
 
@@ -233,10 +264,10 @@ const VendorInvoiceApproval: React.FC = () => {
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
-                Pending Review
+                Submitted to Admin
               </Typography>
               <Typography variant="h4" color="warning.main">
-                {stats.submitted}
+                {stats.submitted_to_admin}
               </Typography>
             </CardContent>
           </Card>
@@ -245,10 +276,10 @@ const VendorInvoiceApproval: React.FC = () => {
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
-                Approved
+                Submitted to Accounting
               </Typography>
-              <Typography variant="h4" color="success.main">
-                {stats.approved}
+              <Typography variant="h4" color="info.main">
+                {stats.submitted_to_accounting}
               </Typography>
             </CardContent>
           </Card>
@@ -290,67 +321,100 @@ const VendorInvoiceApproval: React.FC = () => {
           >
             <MenuItem value="all">All Invoices</MenuItem>
             <MenuItem value="pending_submission">Pending Submission</MenuItem>
-            <MenuItem value="submitted">Pending Review</MenuItem>
-            <MenuItem value="approved">Approved</MenuItem>
-            <MenuItem value="rejected">Rejected</MenuItem>
+            <MenuItem value="submitted_to_admin">Submitted to Admin</MenuItem>
+            <MenuItem value="submitted_to_accounting">Submitted to Accounting</MenuItem>
+            <MenuItem value="rejected_by_admin">Rejected by Admin</MenuItem>
+            <MenuItem value="rejected_by_accountant">Rejected by Accountant</MenuItem>
             <MenuItem value="paid">Paid</MenuItem>
           </Select>
         </FormControl>
       </Box>
 
       {/* Invoices Table */}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto', maxHeight: '70vh' }}>
+        <Table sx={{ minWidth: 1200 }}>
+          <TableHead sx={{ position: 'sticky', top: 0, backgroundColor: 'background.paper', zIndex: 1 }}>
             <TableRow>
-              <TableCell>Invoice #</TableCell>
-              <TableCell>Vendor</TableCell>
-              <TableCell>Description</TableCell>
-              <TableCell align="right">Amount</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Submitted</TableCell>
-              <TableCell>Due Date</TableCell>
-              <TableCell align="center">Actions</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 100, backgroundColor: 'background.paper', position: 'sticky', left: 0, zIndex: 2 }}>Date</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 150, backgroundColor: 'background.paper', position: 'sticky', left: 100, zIndex: 2 }}>Billing Company</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper', position: 'sticky', left: 250, zIndex: 2 }}>Invoice #</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 80, backgroundColor: 'background.paper' }}>Quantity</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Item</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 200, maxWidth: 300, backgroundColor: 'background.paper' }}>Description</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 100, backgroundColor: 'background.paper' }}>Rate</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Amount</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Subtotal</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 100, backgroundColor: 'background.paper' }}>HST</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Total</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper' }}>Status</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', minWidth: 100, backgroundColor: 'background.paper' }}>Due Date</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 'bold', minWidth: 120, backgroundColor: 'background.paper', position: 'sticky', right: 0, zIndex: 2 }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredInvoices.map((invoice) => (
               <TableRow key={invoice.id}>
-                <TableCell>{invoice.invoice_number}</TableCell>
+                <TableCell sx={{ position: 'sticky', left: 0, backgroundColor: 'background.paper', zIndex: 1 }}>{new Date(invoice.created_at).toLocaleDateString()}</TableCell>
+                <TableCell sx={{ position: 'sticky', left: 100, backgroundColor: 'background.paper', zIndex: 1 }}>{invoice.billing_company || invoice.company || invoice.vendor_name || '-'}</TableCell>
+                <TableCell sx={{ position: 'sticky', left: 250, backgroundColor: 'background.paper', zIndex: 1 }}>{invoice.invoice_number}</TableCell>
+                <TableCell align="right">{invoice.quantity || '-'}</TableCell>
+                <TableCell>{invoice.item || '-'}</TableCell>
                 <TableCell>
-                  <Box>
-                    <Typography variant="body2" fontWeight="bold">
-                      {invoice.vendor_name}
-                    </Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      {invoice.vendor_email}
-                    </Typography>
-                  </Box>
+                  <Typography variant="body2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={invoice.description}>
+                    {invoice.description}
+                  </Typography>
                 </TableCell>
-                <TableCell>{invoice.description}</TableCell>
                 <TableCell align="right">
-                  {formatCurrency(invoice.amount)}
+                  {invoice.rate && !isNaN(invoice.rate) && invoice.rate > 0 ? 
+                    `$${Number(invoice.rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                </TableCell>
+                <TableCell align="right">
+                  {invoice.amount && !isNaN(invoice.amount) ? 
+                    `$${parseFloat(invoice.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 
+                    (invoice.total && !isNaN(invoice.total) ? 
+                      `$${parseFloat(invoice.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-')}
+                </TableCell>
+                <TableCell align="right">
+                  {invoice.subtotal && !isNaN(invoice.subtotal) && invoice.subtotal > 0 ? 
+                    `$${Number(invoice.subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                </TableCell>
+                <TableCell align="right">
+                  {invoice.hst && !isNaN(invoice.hst) && invoice.hst > 0 ? 
+                    `$${Number(invoice.hst).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                </TableCell>
+                <TableCell align="right">
+                  {invoice.total && !isNaN(invoice.total) && invoice.total > 0 ? 
+                    `$${Number(invoice.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </TableCell>
                 <TableCell>
-                  <Chip
-                    label={invoice.status.replace('_', ' ').toUpperCase()}
-                    color={getStatusColor(invoice.status) as any}
-                    size="small"
-                  />
+                  <Chip label={getStatusLabel(invoice.status)} color={getStatusColor(invoice.status) as any} size="small" />
                 </TableCell>
-                <TableCell>{formatDate(invoice.created_at)}</TableCell>
-                <TableCell>
-                  {invoice.due_date ? formatDate(invoice.due_date) : '-'}
-                </TableCell>
-                <TableCell align="center">
+                <TableCell>{invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '-'}</TableCell>
+                <TableCell align="center" sx={{ position: 'sticky', right: 0, backgroundColor: 'background.paper', zIndex: 1 }}>
                   <Tooltip title="View Invoice Details">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleView(invoice)}
-                    >
+                    <IconButton size="small" onClick={() => handleView(invoice)} color="primary">
                       <ViewIcon />
                     </IconButton>
                   </Tooltip>
+                  <Tooltip title="Download PDF">
+                    <IconButton size="small" onClick={() => handleDownload(invoice)} color="secondary">
+                      <DownloadIcon />
+                    </IconButton>
+                  </Tooltip>
+                  {invoice.status === 'submitted_to_admin' && (
+                    <>
+                      <Tooltip title="Approve Invoice">
+                        <IconButton size="small" onClick={() => handleApprove()} color="success">
+                          <ApproveIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Reject Invoice">
+                        <IconButton size="small" onClick={() => handleReject()} color="error">
+                          <RejectIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
