@@ -158,9 +158,9 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
   try {
     console.log('[VENDOR DEBUG] User object:', req.user);
     
-    // Get user email from database using user ID
+    // Get user email and role from database using user ID
     const userResult = await pool.query(
-      'SELECT email FROM users WHERE id = $1',
+      'SELECT email, role FROM users WHERE id = $1',
       [req.user.id]
     );
 
@@ -170,7 +170,16 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     }
 
     const userEmail = userResult.rows[0].email;
+    const userRole = userResult.rows[0].role;
+    
     console.log('[VENDOR DEBUG] User email from database:', userEmail);
+    console.log('[VENDOR DEBUG] User role from database:', userRole);
+    
+    // Check if user has vendor role
+    if (userRole !== 'vendor') {
+      console.log('[VENDOR DEBUG] Access denied - user role is not vendor:', userRole);
+      return res.status(403).json({ error: 'Access denied. Vendor role required.' });
+    }
     
     const vendorResult = await pool.query(
       'SELECT id FROM vendors WHERE contact_email = $1',
@@ -241,6 +250,12 @@ router.get('/invoices', authenticateToken, async (req, res) => {
       email: userEmail,
       role: userRole
     });
+
+    // Check if user has vendor role
+    if (userRole !== 'vendor') {
+      console.log('🔍 [VENDOR INVOICES] Access denied - user role is not vendor:', userRole);
+      return res.status(403).json({ error: 'Access denied. Vendor role required.' });
+    }
 
     // Check if this is a vendor user (GTACPR employee who manages all vendor invoices)
     const isVendorUser = userRole === 'vendor';
