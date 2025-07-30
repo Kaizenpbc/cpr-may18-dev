@@ -26,6 +26,7 @@ import {
   Assessment as AssessmentIcon,
   Person as ProfileIcon,
   Logout as LogoutIcon,
+  CheckCircle as PaidIcon,
 } from '@mui/icons-material';
 
 const DRAWER_WIDTH = 240;
@@ -76,6 +77,12 @@ const VendorLayout: React.FC<VendorLayoutProps> = ({
       label: 'Invoice Status',
       icon: <AssessmentIcon />,
       path: '/vendor/status',
+    },
+    {
+      id: 'paid-invoices',
+      label: 'Paid Invoices',
+      icon: <PaidIcon />,
+      path: '/vendor/paid-invoices',
     },
     {
       id: 'profile',

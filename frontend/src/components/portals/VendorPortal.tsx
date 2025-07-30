@@ -7,6 +7,7 @@ import InvoiceUpload from './vendor/InvoiceUpload';
 import InvoiceHistory from './vendor/InvoiceHistory';
 import InvoiceStatusView from './vendor/InvoiceStatusView';
 import VendorProfile from './vendor/VendorProfile';
+import PaidVendorInvoices from './vendor/PaidVendorInvoices';
 
 console.log('📦 [VENDOR PORTAL] InvoiceUpload imported:', typeof InvoiceUpload);
 
@@ -31,6 +32,7 @@ const VendorPortal: React.FC<VendorPortalProps> = () => {
     if (path.includes('/upload')) return 'upload';
     if (path.includes('/history')) return 'history';
     if (path.includes('/status')) return 'status';
+    if (path.includes('/paid-invoices')) return 'paid-invoices';
     if (path.includes('/profile')) return 'profile';
     console.log('🔍 [VENDOR PORTAL] getCurrentView - defaulting to dashboard');
     return 'dashboard';
@@ -84,6 +86,7 @@ const VendorPortal: React.FC<VendorPortalProps> = () => {
           <Route path="upload" element={<InvoiceUploadWrapper />} />
           <Route path="history" element={<InvoiceHistoryWrapper />} />
           <Route path="status" element={<InvoiceStatusView />} />
+          <Route path="paid-invoices" element={<PaidVendorInvoices />} />
           <Route path="profile" element={<VendorProfile />} />
           <Route path="" element={<Navigate to="dashboard" replace />} />
           <Route path="*" element={<Navigate to="dashboard" replace />} />
