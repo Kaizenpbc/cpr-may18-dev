@@ -34,6 +34,7 @@ import {
   Visibility as ViewIcon,
   Download as DownloadIcon,
   Refresh as RefreshIcon,
+  Receipt as InvoiceIcon,
 } from '@mui/icons-material';
 import { adminApi } from '../../../services/api';
 import logger from '../../../utils/logger';
