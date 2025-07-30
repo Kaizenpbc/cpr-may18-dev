@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Box, Typography, Paper, Container, Button, 
   Menu, MenuItem, ListItemIcon, ListItemText,
-  Divider, Chip
+  Divider, Chip, CircularProgress
 } from '@mui/material';
 import NotificationBell from '../common/NotificationBell';
 import {
@@ -361,15 +361,45 @@ const AccountingPortal: React.FC = () => {
     console.error('[AccountingPortal] Error caught by boundary:', error, errorInfo);
   };
 
-  const { logout, user } = useAuth();
+  const { logout, user, loading } = useAuth();
   const { showSuccess } = useSnackbar();
   const location = useLocation();
   const currentPath = location.pathname.split('/').pop();
 
+  console.log('[AccountingPortal] Auth state:', { user: user?.username, role: user?.role, loading, pathname: location.pathname });
+
   // Role-based access control - redirect vendors to vendor portal
   if (user && user.role === 'vendor') {
     console.log('[AccountingPortal] Vendor detected, redirecting to vendor portal');
+    console.log('[AccountingPortal] User details:', { id: user.id, username: user.username, role: user.role });
+    console.log('[AccountingPortal] Current location:', location.pathname);
+    console.log('[AccountingPortal] Forcing redirect to vendor portal...');
     return <Navigate to="/vendor/dashboard" replace />;
+  }
+
+  // Additional check: if user is not an accountant or admin, redirect to appropriate portal
+  if (user && !['accountant', 'admin'].includes(user.role)) {
+    console.log('[AccountingPortal] Non-accounting user detected, redirecting to appropriate portal');
+    const roleRoutes = {
+      instructor: '/instructor/dashboard',
+      organization: '/organization/dashboard',
+      superadmin: '/superadmin/dashboard',
+      sysadmin: '/sysadmin/dashboard',
+      hr: '/hr',
+      vendor: '/vendor/dashboard',
+    };
+    const targetRoute = roleRoutes[user.role as keyof typeof roleRoutes] || '/vendor/dashboard';
+    console.log('[AccountingPortal] Redirecting to:', targetRoute);
+    return <Navigate to={targetRoute} replace />;
+  }
+
+  // Show loading while auth is being checked
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
+      </Box>
+    );
   }
 
   // Menu state management

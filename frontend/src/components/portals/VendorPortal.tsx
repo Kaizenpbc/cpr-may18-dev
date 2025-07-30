@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Box, Container } from '@mui/material';
+import { Box, Container, CircularProgress } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import VendorLayout from './VendorLayout';
 import VendorDashboard from './vendor/VendorDashboard';
@@ -17,13 +17,24 @@ interface VendorPortalProps {}
 const VendorPortal: React.FC<VendorPortalProps> = () => {
   console.log('🏢 [VENDOR PORTAL] Component rendered');
   
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
+
+  console.log('[VendorPortal] Auth state:', { user: user?.username, role: user?.role, loading, pathname: location.pathname });
 
   // Role-based access control - redirect accountants to accounting portal
   if (user && user.role === 'accountant') {
     console.log('[VendorPortal] Accountant detected, redirecting to accounting portal');
     return <Navigate to="/accounting/dashboard" replace />;
+  }
+
+  // Show loading while auth is being checked
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
+      </Box>
+    );
   }
 
   console.log('🏢 [VENDOR PORTAL] Current location:', location.pathname);
