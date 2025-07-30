@@ -7146,8 +7146,8 @@ router.get(
     try {
       const { role } = (req as any).user;
       
-      if (role !== 'admin' && role !== 'sysadmin') {
-        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin or sysadmin role required.');
+      if (role !== 'admin' && role !== 'sysadmin' && role !== 'courseadmin') {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin, sysadmin, or courseadmin role required.');
       }
 
       const result = await pool.query(`
@@ -7185,8 +7185,8 @@ router.put(
       const { id } = req.params;
       const { notes } = req.body;
       
-      if (role !== 'admin' && role !== 'sysadmin') {
-        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin or sysadmin role required.');
+      if (role !== 'admin' && role !== 'sysadmin' && role !== 'courseadmin') {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin, sysadmin, or courseadmin role required.');
       }
 
       const result = await pool.query(`
@@ -7232,8 +7232,8 @@ router.post(
       const { id } = req.params;
       const { action, notes } = req.body; // action: 'approve' or 'reject'
       
-      if (role !== 'admin' && role !== 'sysadmin') {
-        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin or sysadmin role required.');
+      if (role !== 'admin' && role !== 'sysadmin' && role !== 'courseadmin') {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin, sysadmin, or courseadmin role required.');
       }
 
       if (!['approve', 'reject'].includes(action)) {
@@ -7336,8 +7336,8 @@ router.get(
     try {
       const { role } = (req as any).user;
       
-      if (role !== 'admin' && role !== 'sysadmin') {
-        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin or sysadmin role required.');
+      if (role !== 'admin' && role !== 'sysadmin' && role !== 'courseadmin') {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin, sysadmin, or courseadmin role required.');
       }
 
       const result = await pool.query(`
@@ -7376,8 +7376,8 @@ router.get(
       const { role } = (req as any).user;
       const { id } = req.params;
       
-      if (role !== 'admin' && role !== 'sysadmin') {
-        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin or sysadmin role required.');
+      if (role !== 'admin' && role !== 'sysadmin' && role !== 'courseadmin') {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin, sysadmin, or courseadmin role required.');
       }
 
       const result = await pool.query(
