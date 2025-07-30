@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -80,10 +80,18 @@ const PaidVendorInvoices: React.FC = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<PaidVendorInvoice | null>(null);
   const [viewDialog, setViewDialog] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { showSuccess, showError } = useSnackbar();
 
-  const fetchPaidInvoices = async () => {
+  const fetchPaidInvoices = useCallback(async () => {
+    // Prevent rapid successive calls
+    if (isRefreshing) {
+      console.log('🔄 Skipping fetch - already refreshing');
+      return;
+    }
+    
     try {
+      setIsRefreshing(true);
       setLoading(true);
       setError('');
       const response = await vendorApi.getInvoices();
@@ -99,27 +107,48 @@ const PaidVendorInvoices: React.FC = () => {
       showError('Failed to load paid vendor invoices');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  };
+  }, [showError, isRefreshing]);
 
-  // Real-time updates
+  // Real-time updates - don't use onRefresh to avoid loops
   const { isConnected } = useVendorInvoiceUpdates({
     onStatusUpdate: (update) => {
       console.log('🔄 Real-time status update received in vendor paid invoices:', update);
-      // Refresh if an invoice becomes paid
-      if (update.newStatus === 'paid') {
+      // Only refresh if an invoice becomes paid (not if it's already paid)
+      if (update.newStatus === 'paid' && update.oldStatus !== 'paid') {
         fetchPaidInvoices();
       }
     },
     onNotesUpdate: (update) => {
       console.log('📝 Real-time notes update received in vendor paid invoices:', update);
-    },
-    onRefresh: fetchPaidInvoices
+      // Refresh to get updated notes
+      fetchPaidInvoices();
+    }
+    // Removed onRefresh to prevent loops
   });
 
   useEffect(() => {
     fetchPaidInvoices();
   }, []);
+
+  // Memoize summary calculations to prevent unnecessary re-renders
+  const summaryData = useMemo(() => {
+    const totalAmount = invoices.reduce((sum, inv) => {
+      const total = typeof inv.total === 'number' ? inv.total : parseFloat(inv.total) || 0;
+      return sum + total;
+    }, 0);
+    
+    const totalPaid = invoices.reduce((sum, inv) => {
+      const totalPaid = inv.total_paid || 0;
+      return sum + (isNaN(totalPaid) ? 0 : totalPaid);
+    }, 0);
+    
+    const mostRecentDate = invoices.length > 0 ? 
+      (invoices[0].paid_at || invoices[0].created_at) : null;
+    
+    return { totalAmount, totalPaid, mostRecentDate };
+  }, [invoices]);
 
   const handleView = async (invoice: PaidVendorInvoice) => {
     setSelectedInvoice(invoice);
@@ -231,10 +260,7 @@ const PaidVendorInvoices: React.FC = () => {
           <Grid item xs={12} md={3}>
             <Box textAlign="center">
               <Typography variant="h4" color="success.main">
-                {formatCurrency(invoices.reduce((sum, inv) => {
-                  const total = typeof inv.total === 'number' ? inv.total : parseFloat(inv.total) || 0;
-                  return sum + total;
-                }, 0))}
+                {formatCurrency(summaryData.totalAmount)}
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Total Amount Paid
@@ -244,10 +270,7 @@ const PaidVendorInvoices: React.FC = () => {
           <Grid item xs={12} md={3}>
             <Box textAlign="center">
               <Typography variant="h4" color="info.main">
-                {formatCurrency(invoices.reduce((sum, inv) => {
-                  const totalPaid = inv.total_paid || 0;
-                  return sum + (isNaN(totalPaid) ? 0 : totalPaid);
-                }, 0))}
+                {formatCurrency(summaryData.totalPaid)}
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Total Payments Processed
@@ -257,10 +280,7 @@ const PaidVendorInvoices: React.FC = () => {
           <Grid item xs={12} md={3}>
             <Box textAlign="center">
               <Typography variant="h4" color="primary.main">
-                {invoices.length > 0 ? 
-                  formatDate(invoices[0].paid_at || invoices[0].created_at) : 
-                  'N/A'
-                }
+                {summaryData.mostRecentDate ? formatDate(summaryData.mostRecentDate) : 'N/A'}
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Most Recent Payment
