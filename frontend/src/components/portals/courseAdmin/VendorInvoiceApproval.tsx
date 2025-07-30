@@ -566,6 +566,7 @@ const VendorInvoiceApproval: React.FC = () => {
               {/* Invoice Details */}
               <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold', mb: 2 }}>
+                  <InvoiceIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
                   Invoice Details
                 </Typography>
                 <Grid container spacing={3}>
@@ -603,6 +604,53 @@ const VendorInvoiceApproval: React.FC = () => {
                     </Grid>
                   )}
                 </Grid>
+              </Paper>
+
+              {/* Payment Details Section */}
+              <Paper sx={{ p: 3, mb: 3, backgroundColor: '#f8f9fa' }}>
+                <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+                  💰 Payment Details
+                </Typography>
+                
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={4}>
+                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                      Total Invoice Amount
+                    </Typography>
+                    <Typography variant="h6" color="primary" fontWeight="bold">
+                      {formatCurrency(parseFloat(selectedInvoice.total?.toString() || '0') || 0)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                      Amount Paid
+                    </Typography>
+                    <Typography variant="h6" color="success.main" fontWeight="bold">
+                      {selectedInvoice.total_paid && parseFloat(selectedInvoice.total_paid.toString()) > 0 
+                        ? formatCurrency(parseFloat(selectedInvoice.total_paid.toString()))
+                        : formatCurrency(parseFloat(selectedInvoice.total?.toString() || '0'))
+                      }
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                      Balance Due
+                    </Typography>
+                    <Typography variant="h6" color="warning.main" fontWeight="bold">
+                      {formatCurrency(parseFloat(selectedInvoice.balance_due?.toString() || '0'))}
+                    </Typography>
+                  </Grid>
+                </Grid>
+                
+                {selectedInvoice.status === 'paid' && (
+                  <Box sx={{ mt: 3 }}>
+                    <Alert severity="success">
+                      <Typography variant="body2">
+                        <strong>✅ Payment Complete:</strong> This invoice has been fully paid.
+                      </Typography>
+                    </Alert>
+                  </Box>
+                )}
               </Paper>
 
                              {/* Status & Processing Information */}
@@ -688,7 +736,7 @@ const VendorInvoiceApproval: React.FC = () => {
                {/* Payment History Section */}
                <Paper sx={{ p: 3, mb: 3, backgroundColor: '#f8f9fa' }}>
                  <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>
-                   💰 Payment History
+                   📋 Payment History
                  </Typography>
                  
                  {paymentHistory.length === 0 ? (
@@ -698,45 +746,47 @@ const VendorInvoiceApproval: React.FC = () => {
                      </Typography>
                    </Alert>
                  ) : (
-                   <TableContainer component={Paper} sx={{ mt: 2 }}>
-                     <Table size="small">
-                       <TableHead>
-                         <TableRow>
-                           <TableCell>Date</TableCell>
-                           <TableCell>Amount</TableCell>
-                           <TableCell>Method</TableCell>
-                           <TableCell>Reference</TableCell>
-                           <TableCell>Processed By</TableCell>
-                           <TableCell>Status</TableCell>
-                         </TableRow>
-                       </TableHead>
-                       <TableBody>
-                         {paymentHistory.map((payment) => (
-                           <TableRow key={payment.id}>
-                             <TableCell>{new Date(payment.payment_date).toLocaleDateString()}</TableCell>
-                             <TableCell>${payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                             <TableCell>
-                               <Chip 
-                                 label={payment.payment_method.replace('_', ' ').toUpperCase()} 
-                                 size="small" 
-                                 color="primary" 
-                                 variant="outlined"
-                               />
-                             </TableCell>
-                             <TableCell>{payment.reference_number || '-'}</TableCell>
-                             <TableCell>{payment.processed_by_name || 'Unknown'}</TableCell>
-                             <TableCell>
-                               <Chip 
-                                 label={payment.status.toUpperCase()} 
-                                 size="small" 
-                                 color={payment.status === 'processed' ? 'success' : 'warning'} 
-                               />
-                             </TableCell>
+                   <Box sx={{ mt: 3 }}>
+                     <TableContainer component={Paper} sx={{ mt: 2 }}>
+                       <Table size="small">
+                         <TableHead>
+                           <TableRow>
+                             <TableCell>Date</TableCell>
+                             <TableCell>Amount</TableCell>
+                             <TableCell>Method</TableCell>
+                             <TableCell>Reference</TableCell>
+                             <TableCell>Processed By</TableCell>
+                             <TableCell>Status</TableCell>
                            </TableRow>
-                         ))}
-                       </TableBody>
-                     </Table>
-                   </TableContainer>
+                         </TableHead>
+                         <TableBody>
+                           {paymentHistory.map((payment) => (
+                             <TableRow key={payment.id}>
+                               <TableCell>{new Date(payment.payment_date).toLocaleDateString()}</TableCell>
+                               <TableCell>${payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                               <TableCell>
+                                 <Chip 
+                                   label={payment.payment_method.replace('_', ' ').toUpperCase()} 
+                                   size="small" 
+                                   color="primary" 
+                                   variant="outlined"
+                                 />
+                               </TableCell>
+                               <TableCell>{payment.reference_number || '-'}</TableCell>
+                               <TableCell>{payment.processed_by_name || 'Unknown'}</TableCell>
+                               <TableCell>
+                                 <Chip 
+                                   label={payment.status.toUpperCase()} 
+                                   size="small" 
+                                   color={payment.status === 'processed' ? 'success' : 'warning'} 
+                                 />
+                               </TableCell>
+                             </TableRow>
+                           ))}
+                         </TableBody>
+                       </Table>
+                     </TableContainer>
+                   </Box>
                  )}
                </Paper>
 
