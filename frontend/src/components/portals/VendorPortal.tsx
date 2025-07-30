@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Box, Container } from '@mui/material';
+import { useAuth } from '../../contexts/AuthContext';
 import VendorLayout from './VendorLayout';
 import VendorDashboard from './vendor/VendorDashboard';
 import InvoiceUpload from './vendor/InvoiceUpload';
@@ -16,7 +17,14 @@ interface VendorPortalProps {}
 const VendorPortal: React.FC<VendorPortalProps> = () => {
   console.log('🏢 [VENDOR PORTAL] Component rendered');
   
+  const { user } = useAuth();
   const location = useLocation();
+
+  // Role-based access control - redirect accountants to accounting portal
+  if (user && user.role === 'accountant') {
+    console.log('[VendorPortal] Accountant detected, redirecting to accounting portal');
+    return <Navigate to="/accounting/dashboard" replace />;
+  }
 
   console.log('🏢 [VENDOR PORTAL] Current location:', location.pathname);
 
@@ -28,12 +36,15 @@ const VendorPortal: React.FC<VendorPortalProps> = () => {
   const getCurrentView = () => {
     const path = location.pathname;
     console.log('🔍 [VENDOR PORTAL] getCurrentView - checking path:', path);
-    if (path.includes('/dashboard')) return 'dashboard';
+    
+    // More specific checks first to avoid conflicts
+    if (path.includes('/paid-invoices')) return 'paid-invoices';
     if (path.includes('/upload')) return 'upload';
     if (path.includes('/history')) return 'history';
     if (path.includes('/status')) return 'status';
-    if (path.includes('/paid-invoices')) return 'paid-invoices';
     if (path.includes('/profile')) return 'profile';
+    if (path.includes('/dashboard')) return 'dashboard';
+    
     console.log('🔍 [VENDOR PORTAL] getCurrentView - defaulting to dashboard');
     return 'dashboard';
   };

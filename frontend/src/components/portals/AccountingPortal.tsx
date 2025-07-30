@@ -45,6 +45,7 @@ import { getBillingQueue, createInvoice, getInvoices } from '../../services/api'
 import { useAuth } from '../../contexts/AuthContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { NotificationProvider } from '../../contexts/NotificationContext';
+import { Navigate } from 'react-router-dom';
 
 // Billing Ready View Component
 const ReadyForBillingView: React.FC = () => {
@@ -364,6 +365,12 @@ const AccountingPortal: React.FC = () => {
   const { showSuccess } = useSnackbar();
   const location = useLocation();
   const currentPath = location.pathname.split('/').pop();
+
+  // Role-based access control - redirect vendors to vendor portal
+  if (user && user.role === 'vendor') {
+    console.log('[AccountingPortal] Vendor detected, redirecting to vendor portal');
+    return <Navigate to="/vendor/dashboard" replace />;
+  }
 
   // Menu state management
   const [menuAnchors, setMenuAnchors] = useState<{ [key: string]: HTMLElement | null }>({});
