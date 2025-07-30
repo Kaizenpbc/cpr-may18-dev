@@ -115,7 +115,7 @@ const InvoiceHistory: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [tabValue, setTabValue] = useState(4); // Default to "All Invoices" tab (index 4)
+  const [tabValue, setTabValue] = useState(5); // Default to "Pending Invoices" tab (index 5)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
@@ -126,10 +126,10 @@ const InvoiceHistory: React.FC = () => {
 
   useEffect(() => {
     console.log('🔍 [STATE DEBUG] Component mounted, tabValue:', tabValue);
-    // Ensure we start on "All Invoices" tab
-    if (tabValue !== 4) {
-      console.log('🔍 [STATE DEBUG] Forcing tabValue to 4 (All Invoices)');
-      setTabValue(4);
+    // Ensure we start on "Pending Invoices" tab
+    if (tabValue !== 5) {
+      console.log('🔍 [STATE DEBUG] Forcing tabValue to 5 (Pending Invoices)');
+      setTabValue(5);
     }
     fetchInvoices();
   }, []);
@@ -388,6 +388,10 @@ const InvoiceHistory: React.FC = () => {
         break;
       case 4: // All Invoices
         console.log('🔍 [FILTER DEBUG] Tab 4 (All Invoices) - no additional filtering');
+        break;
+      case 5: // Pending Invoices (Non-Paid)
+        filtered = filtered.filter(invoice => invoice.status !== 'paid');
+        console.log('🔍 [FILTER DEBUG] Tab 5 (Pending Invoices) - filtered to:', filtered.length, 'invoices');
         break;
     }
 
@@ -718,6 +722,16 @@ const InvoiceHistory: React.FC = () => {
               </Box>
             } 
           />
+          <Tab 
+            label={
+              <Box>
+                <Typography variant="body2">⏳ Pending Invoices (Non-Paid)</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  ({invoices.filter(i => i.status !== 'paid').length} invoices)
+                </Typography>
+              </Box>
+            } 
+          />
         </Tabs>
       </Box>
 
@@ -776,6 +790,18 @@ const InvoiceHistory: React.FC = () => {
             <Typography variant="body2">
               <strong>All Invoices:</strong> Complete view of all invoices across all statuses. 
               Use this to get an overview of your entire invoice history.
+            </Typography>
+          </Alert>
+        </Box>
+        {renderInvoiceTable()}
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={5}>
+        <Box sx={{ mb: 2 }}>
+          <Alert severity="info">
+            <Typography variant="body2">
+              <strong>Pending Invoices (Non-Paid):</strong> View all invoices that are not yet fully paid. 
+              This includes pending, submitted, and rejected invoices that still require action.
             </Typography>
           </Alert>
         </Box>
