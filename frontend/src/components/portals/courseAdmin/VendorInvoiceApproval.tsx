@@ -96,7 +96,7 @@ const VendorInvoiceApproval: React.FC = () => {
   const [modalNotes, setModalNotes] = useState('');
   const [processing, setProcessing] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
-  const [statusFilter, setStatusFilter] = useState('all'); // Changed from 'submitted' to 'all' to show all invoices
+  const [statusFilter, setStatusFilter] = useState('pending'); // Default to pending (non-paid) invoices
 
   const fetchVendorInvoices = async () => {
     try {
@@ -276,9 +276,11 @@ const VendorInvoiceApproval: React.FC = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const filteredInvoices = invoices.filter(invoice => 
-    statusFilter === 'all' || invoice.status === statusFilter
-  );
+  const filteredInvoices = invoices.filter(invoice => {
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'pending') return invoice.status !== 'paid';
+    return invoice.status === statusFilter;
+  });
 
   const stats = {
     pending_submission: invoices.filter(i => i.status === 'pending_submission').length,
@@ -399,6 +401,7 @@ const VendorInvoiceApproval: React.FC = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
             label="Filter by Status"
           >
+            <MenuItem value="pending">Pending Invoices (Non-Paid)</MenuItem>
             <MenuItem value="all">All Invoices</MenuItem>
             <MenuItem value="pending_submission">Pending Submission</MenuItem>
             <MenuItem value="submitted_to_admin">Submitted to Admin</MenuItem>

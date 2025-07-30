@@ -114,7 +114,7 @@ const VendorInvoiceManagement: React.FC = () => {
     reference_number: '',
     notes: ''
   });
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('pending');
   const { showSuccess, showError } = useSnackbar();
 
   const fetchInvoices = async () => {
@@ -308,7 +308,7 @@ const VendorInvoiceManagement: React.FC = () => {
                 {invoices.length}
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                Pending Invoices
+                Pending Invoices (Non-Paid)
               </Typography>
             </Box>
           </Grid>
@@ -363,6 +363,7 @@ const VendorInvoiceManagement: React.FC = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
             label="Filter by Status"
           >
+            <MenuItem value="pending">Pending Invoices (Non-Paid)</MenuItem>
             <MenuItem value="all">All Invoices</MenuItem>
             <MenuItem value="pending_submission">Pending Submission</MenuItem>
             <MenuItem value="submitted_to_admin">Submitted to Admin</MenuItem>
@@ -396,7 +397,11 @@ const VendorInvoiceManagement: React.FC = () => {
           </TableHead>
           <TableBody>
             {invoices
-              .filter(invoice => statusFilter === 'all' || invoice.status === statusFilter)
+              .filter(invoice => {
+                if (statusFilter === 'all') return true;
+                if (statusFilter === 'pending') return invoice.status !== 'paid';
+                return invoice.status === statusFilter;
+              })
               .map((invoice) => (
               <TableRow key={invoice.id}>
                 <TableCell sx={{ position: 'sticky', left: 0, backgroundColor: 'background.paper', zIndex: 1 }}>{new Date(invoice.created_at || invoice.invoice_date).toLocaleDateString()}</TableCell>
