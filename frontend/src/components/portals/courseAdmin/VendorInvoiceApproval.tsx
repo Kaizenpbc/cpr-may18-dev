@@ -37,6 +37,7 @@ import {
 } from '@mui/icons-material';
 import { adminApi } from '../../../services/api';
 import logger from '../../../utils/logger';
+import { useVendorInvoiceUpdates } from '../../../hooks/useVendorInvoiceUpdates';
 
 interface VendorInvoice {
   id: number;
@@ -64,6 +65,23 @@ interface VendorInvoice {
   rejected_by?: string;
   rejected_at?: string;
   rejection_reason?: string;
+  total_paid?: number | string;
+  balance_due?: number | string;
+  approved_by_name?: string;
+  approved_by_email?: string;
+  sent_to_accounting_at?: string;
+}
+
+interface PaymentHistory {
+  id: number;
+  amount: number;
+  payment_date: string;
+  payment_method: string;
+  reference_number: string;
+  notes: string;
+  status: string;
+  processed_at: string;
+  processed_by_name: string;
 }
 
 const VendorInvoiceApproval: React.FC = () => {
@@ -75,12 +93,10 @@ const VendorInvoiceApproval: React.FC = () => {
   const [approvalDialog, setApprovalDialog] = useState(false);
   const [action, setAction] = useState<'approve' | 'reject'>('approve');
   const [notes, setNotes] = useState('');
+  const [modalNotes, setModalNotes] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
   const [statusFilter, setStatusFilter] = useState('all'); // Changed from 'submitted' to 'all' to show all invoices
-
-  useEffect(() => {
-    fetchVendorInvoices();
-  }, []);
 
   const fetchVendorInvoices = async () => {
     try {
@@ -96,8 +112,38 @@ const VendorInvoiceApproval: React.FC = () => {
     }
   };
 
-  const handleView = (invoice: VendorInvoice) => {
+  // Real-time updates
+  const { isConnected } = useVendorInvoiceUpdates({
+    onStatusUpdate: (update) => {
+      logger.info(`Real-time status update: Invoice ${update.invoiceId} ${update.action}d by ${update.updatedBy}`);
+    },
+    onNotesUpdate: (update) => {
+      logger.info(`Real-time notes update: Invoice ${update.invoiceId} notes updated by ${update.updatedBy}`);
+    },
+    onRefresh: fetchVendorInvoices
+  });
+
+  useEffect(() => {
+    fetchVendorInvoices();
+  }, []);
+
+  const handleView = async (invoice: VendorInvoice) => {
     setSelectedInvoice(invoice);
+    setModalNotes(invoice.admin_notes || '');
+    
+    // Fetch payment history for this invoice
+    try {
+      const historyResponse = await adminApi.getAccountingVendorInvoiceDetails(invoice.id);
+      if (historyResponse && historyResponse.data && historyResponse.data.payments) {
+        setPaymentHistory(historyResponse.data.payments);
+      } else {
+        setPaymentHistory([]);
+      }
+    } catch (error) {
+      console.error('Error fetching payment history:', error);
+      setPaymentHistory([]);
+    }
+    
     setViewDialog(true);
   };
 
@@ -152,6 +198,32 @@ const VendorInvoiceApproval: React.FC = () => {
     } catch (err) {
       logger.error('Error downloading invoice:', err);
       setError('Failed to download invoice');
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    if (!selectedInvoice) return;
+
+    try {
+      setProcessing(true);
+      // Update the invoice with new notes
+      await adminApi.updateVendorInvoiceNotes(selectedInvoice.id, modalNotes);
+      
+      // Update the local invoice data
+      setSelectedInvoice({
+        ...selectedInvoice,
+        admin_notes: modalNotes
+      });
+      
+      // Refresh the invoice list
+      await fetchVendorInvoices();
+      
+      logger.info('Notes saved successfully');
+    } catch (err) {
+      logger.error('Error saving notes:', err);
+      setError('Failed to save notes');
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -230,14 +302,22 @@ const VendorInvoiceApproval: React.FC = () => {
         <Typography variant="h4" gutterBottom>
           Vendor Invoice Approval
         </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
-          onClick={fetchVendorInvoices}
-          disabled={loading}
-        >
-          Refresh
-        </Button>
+                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+           <Chip
+             label={isConnected ? '🟢 Live Updates' : '🔴 Offline'}
+             color={isConnected ? 'success' : 'error'}
+             size="small"
+             variant="outlined"
+           />
+           <Button
+             variant="outlined"
+             startIcon={<RefreshIcon />}
+             onClick={fetchVendorInvoices}
+             disabled={loading}
+           >
+             Refresh
+           </Button>
+         </Box>
       </Box>
 
       {error && (
@@ -401,20 +481,6 @@ const VendorInvoiceApproval: React.FC = () => {
                       <DownloadIcon />
                     </IconButton>
                   </Tooltip>
-                  {invoice.status === 'submitted_to_admin' && (
-                    <>
-                      <Tooltip title="Approve Invoice">
-                        <IconButton size="small" onClick={() => handleApprove()} color="success">
-                          <ApproveIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Reject Invoice">
-                        <IconButton size="small" onClick={() => handleReject()} color="error">
-                          <RejectIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </>
-                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -431,7 +497,7 @@ const VendorInvoiceApproval: React.FC = () => {
       )}
 
       {/* View Invoice Dialog */}
-      <Dialog open={viewDialog} onClose={() => setViewDialog(false)} maxWidth="md" fullWidth>
+      <Dialog open={viewDialog} onClose={() => setViewDialog(false)} maxWidth="md" fullWidth sx={{ '& .MuiDialog-paper': { maxHeight: '90vh' } }}>
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6">
@@ -467,13 +533,26 @@ const VendorInvoiceApproval: React.FC = () => {
                   </Grid>
                   <Grid item xs={12} md={6}>
                     <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>
-                      Invoice Summary
+                      💰 Payment Summary
                     </Typography>
                     <Box sx={{ pl: 2 }}>
                       <Typography variant="h5" color="primary" fontWeight="bold" sx={{ mb: 1 }}>
-                        {formatCurrency(selectedInvoice.amount)}
+                        ${selectedInvoice.total && typeof selectedInvoice.total === 'number' && selectedInvoice.total > 0 ? 
+                          selectedInvoice.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 
+                          (selectedInvoice.amount && typeof selectedInvoice.amount === 'number' && selectedInvoice.amount > 0 ? 
+                            selectedInvoice.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00')}
                       </Typography>
-                      <Typography variant="body2" color="textSecondary">
+                      {selectedInvoice.total_paid && (
+                        <Typography variant="body2" color="success.main" sx={{ mb: 1 }}>
+                          Paid: ${typeof selectedInvoice.total_paid === 'string' ? parseFloat(selectedInvoice.total_paid).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : selectedInvoice.total_paid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </Typography>
+                      )}
+                      {selectedInvoice.balance_due && (
+                        <Typography variant="body2" color="warning.main" fontWeight="bold">
+                          Balance: ${typeof selectedInvoice.balance_due === 'string' ? parseFloat(selectedInvoice.balance_due).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : selectedInvoice.balance_due.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </Typography>
+                      )}
+                      <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                         Invoice #{selectedInvoice.invoice_number}
                       </Typography>
                     </Box>
@@ -523,23 +602,26 @@ const VendorInvoiceApproval: React.FC = () => {
                 </Grid>
               </Paper>
 
-              {/* Status & Processing Information */}
-              <Paper sx={{ p: 3, mb: 3 }}>
-                <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold', mb: 2 }}>
-                  Processing Information
-                </Typography>
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
-                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                      📊 Current Status
-                    </Typography>
-                    <Chip
-                      label={selectedInvoice.status.replace('_', ' ').toUpperCase()}
-                      color={getStatusColor(selectedInvoice.status) as any}
-                      size="medium"
-                      sx={{ fontWeight: 'bold' }}
-                    />
-                  </Grid>
+                             {/* Status & Processing Information */}
+               <Paper sx={{ p: 3, mb: 3 }}>
+                 <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold', mb: 2 }}>
+                   Processing Information
+                 </Typography>
+                 <Grid container spacing={3}>
+                   <Grid item xs={12} md={6}>
+                     <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                       📊 Current Status
+                     </Typography>
+                     <Chip
+                       label={selectedInvoice.status.replace('_', ' ').toUpperCase()}
+                       color={getStatusColor(selectedInvoice.status) as any}
+                       size="medium"
+                       sx={{ fontWeight: 'bold' }}
+                     />
+                     <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 1 }}>
+                       Raw status: {selectedInvoice.status}
+                     </Typography>
+                   </Grid>
                   
                   {selectedInvoice.approved_by && (
                     <Grid item xs={12} md={6}>
@@ -565,70 +647,143 @@ const VendorInvoiceApproval: React.FC = () => {
                 </Grid>
               </Paper>
 
-              {/* Admin Notes Section */}
-              {selectedInvoice.admin_notes && (
-                <Paper sx={{ p: 3, mb: 3, backgroundColor: '#fff3e0' }}>
-                  <Typography variant="h6" gutterBottom sx={{ color: 'warning.main', fontWeight: 'bold', mb: 2 }}>
-                    📝 Admin Notes
-                  </Typography>
-                  <Typography variant="body1" sx={{ 
-                    p: 2, 
-                    backgroundColor: '#fff8e1', 
-                    borderRadius: 1,
-                    border: '1px solid #ffcc02'
-                  }}>
-                    {selectedInvoice.admin_notes}
-                  </Typography>
-                </Paper>
-              )}
+                             {/* Admin Notes Section */}
+               <Paper sx={{ p: 3, mb: 3, backgroundColor: '#fff3e0' }}>
+                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                   <Typography variant="h6" sx={{ color: 'warning.main', fontWeight: 'bold' }}>
+                     📝 Admin Notes
+                   </Typography>
+                   <Button
+                     variant="contained"
+                     size="small"
+                     onClick={handleSaveNotes}
+                     disabled={processing}
+                     sx={{ backgroundColor: '#ff9800', '&:hover': { backgroundColor: '#f57c00' } }}
+                   >
+                     {processing ? 'Saving...' : 'Save Notes'}
+                   </Button>
+                 </Box>
+                 <TextField
+                   fullWidth
+                   multiline
+                   rows={4}
+                   value={modalNotes}
+                   onChange={(e) => setModalNotes(e.target.value)}
+                   placeholder="Enter admin notes here..."
+                   variant="outlined"
+                   sx={{ 
+                     backgroundColor: '#fff8e1',
+                     '& .MuiOutlinedInput-root': {
+                       '& fieldset': {
+                         borderColor: '#ffcc02',
+                       },
+                     }
+                   }}
+                 />
+               </Paper>
 
-              {/* Action Buttons */}
-              <Paper sx={{ p: 3, backgroundColor: '#f8f9fa' }}>
-                <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold', mb: 2 }}>
-                  Actions
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                  {selectedInvoice.pdf_filename && (
-                    <Button
-                      variant="outlined"
-                      startIcon={<DownloadIcon />}
-                      onClick={() => handleDownload(selectedInvoice)}
-                      sx={{ minWidth: 150 }}
-                    >
-                      📄 Download PDF
-                    </Button>
-                  )}
-                  
-                  {selectedInvoice.status === 'submitted' && (
-                    <>
-                      <Button
-                        variant="contained"
-                        color="success"
-                        startIcon={<ApproveIcon />}
-                        onClick={handleApprove}
-                        sx={{ minWidth: 150 }}
-                      >
-                        ✅ Approve Invoice
-                      </Button>
-                      <Button
-                        variant="contained"
-                        color="error"
-                        startIcon={<RejectIcon />}
-                        onClick={handleReject}
-                        sx={{ minWidth: 150 }}
-                      >
-                        ❌ Reject Invoice
-                      </Button>
-                    </>
-                  )}
-                  
-                  {selectedInvoice.status !== 'submitted' && (
-                    <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
-                      This invoice has already been processed and cannot be modified.
-                    </Typography>
-                  )}
-                </Box>
-              </Paper>
+               {/* Payment History Section */}
+               <Paper sx={{ p: 3, mb: 3, backgroundColor: '#f8f9fa' }}>
+                 <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+                   💰 Payment History
+                 </Typography>
+                 
+                 {paymentHistory.length === 0 ? (
+                   <Alert severity="info">
+                     <Typography variant="body2">
+                       No payments have been processed for this invoice yet.
+                     </Typography>
+                   </Alert>
+                 ) : (
+                   <TableContainer component={Paper} sx={{ mt: 2 }}>
+                     <Table size="small">
+                       <TableHead>
+                         <TableRow>
+                           <TableCell>Date</TableCell>
+                           <TableCell>Amount</TableCell>
+                           <TableCell>Method</TableCell>
+                           <TableCell>Reference</TableCell>
+                           <TableCell>Processed By</TableCell>
+                           <TableCell>Status</TableCell>
+                         </TableRow>
+                       </TableHead>
+                       <TableBody>
+                         {paymentHistory.map((payment) => (
+                           <TableRow key={payment.id}>
+                             <TableCell>{new Date(payment.payment_date).toLocaleDateString()}</TableCell>
+                             <TableCell>${payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                             <TableCell>
+                               <Chip 
+                                 label={payment.payment_method.replace('_', ' ').toUpperCase()} 
+                                 size="small" 
+                                 color="primary" 
+                                 variant="outlined"
+                               />
+                             </TableCell>
+                             <TableCell>{payment.reference_number || '-'}</TableCell>
+                             <TableCell>{payment.processed_by_name || 'Unknown'}</TableCell>
+                             <TableCell>
+                               <Chip 
+                                 label={payment.status.toUpperCase()} 
+                                 size="small" 
+                                 color={payment.status === 'processed' ? 'success' : 'warning'} 
+                               />
+                             </TableCell>
+                           </TableRow>
+                         ))}
+                       </TableBody>
+                     </Table>
+                   </TableContainer>
+                 )}
+               </Paper>
+
+               {/* Action Buttons */}
+               <Paper sx={{ p: 3, backgroundColor: '#f8f9fa', border: '2px solid #e0e0e0' }}>
+                 <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold', mb: 2 }}>
+                   🎯 Available Actions
+                 </Typography>
+                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', minHeight: 60 }}>
+                   {selectedInvoice.pdf_filename && (
+                     <Button
+                       variant="outlined"
+                       startIcon={<DownloadIcon />}
+                       onClick={() => handleDownload(selectedInvoice)}
+                       sx={{ minWidth: 150 }}
+                     >
+                       📄 Download PDF
+                     </Button>
+                   )}
+                   
+                   {selectedInvoice.status === 'submitted_to_admin' && (
+                     <>
+                       <Button
+                         variant="contained"
+                         color="success"
+                         startIcon={<ApproveIcon />}
+                         onClick={handleApprove}
+                         sx={{ minWidth: 150, height: 48 }}
+                       >
+                         ✅ Submit to Accounting
+                       </Button>
+                       <Button
+                         variant="contained"
+                         color="error"
+                         startIcon={<RejectIcon />}
+                         onClick={handleReject}
+                         sx={{ minWidth: 150, height: 48 }}
+                       >
+                         ❌ Reject Invoice
+                       </Button>
+                     </>
+                   )}
+                   
+                   {selectedInvoice.status !== 'submitted_to_admin' && (
+                     <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic', alignSelf: 'center' }}>
+                       This invoice has already been processed and cannot be modified.
+                     </Typography>
+                   )}
+                 </Box>
+               </Paper>
             </Box>
           )}
         </DialogContent>

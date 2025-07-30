@@ -515,9 +515,22 @@ router.get('/invoices/:id', authenticateToken, async (req, res) => {
         COALESCE(vi.amount, 0) as amount,
         COALESCE(vi.subtotal, vi.amount) as subtotal,
         COALESCE(vi.hst, 0) as hst,
-        COALESCE(vi.total, vi.amount) as total
+        COALESCE(vi.total, vi.amount) as total,
+        u_approved.username as approved_by_name,
+        u_approved.email as approved_by_email,
+        COALESCE(payments.total_paid, 0) as total_paid,
+        (COALESCE(vi.total, vi.amount) - COALESCE(payments.total_paid, 0)) as balance_due
       FROM vendor_invoices vi
       LEFT JOIN vendors v ON vi.vendor_id = v.id
+      LEFT JOIN users u_approved ON vi.approved_by = u_approved.id
+      LEFT JOIN (
+        SELECT 
+          vendor_invoice_id, 
+          SUM(amount) as total_paid
+        FROM vendor_payments 
+        WHERE status = 'processed'
+        GROUP BY vendor_invoice_id
+      ) payments ON payments.vendor_invoice_id = vi.id
       WHERE vi.id = $1
     `, [req.params.id]);
 
@@ -528,6 +541,78 @@ router.get('/invoices/:id', authenticateToken, async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error fetching invoice:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get vendor invoice details with payment history
+router.get('/invoices/:id/details', authenticateToken, async (req, res) => {
+  try {
+    // Get user email from database using user ID
+    const userResult = await pool.query(
+      'SELECT email FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userEmail = userResult.rows[0].email;
+
+    // Get invoice details with payment information
+    const invoiceResult = await pool.query(`
+      SELECT 
+        vi.*,
+        v.name as company,
+        v.name as billing_company,
+        COALESCE(vi.rate, 0) as rate,
+        COALESCE(vi.amount, 0) as amount,
+        COALESCE(vi.subtotal, vi.amount) as subtotal,
+        COALESCE(vi.hst, 0) as hst,
+        COALESCE(vi.total, vi.amount) as total,
+        u_approved.username as approved_by_name,
+        u_approved.email as approved_by_email,
+        COALESCE(payments.total_paid, 0) as total_paid,
+        (COALESCE(vi.total, vi.amount) - COALESCE(payments.total_paid, 0)) as balance_due
+      FROM vendor_invoices vi
+      LEFT JOIN vendors v ON vi.vendor_id = v.id
+      LEFT JOIN users u_approved ON vi.approved_by = u_approved.id
+      LEFT JOIN (
+        SELECT 
+          vendor_invoice_id, 
+          SUM(amount) as total_paid
+        FROM vendor_payments 
+        WHERE status = 'processed'
+        GROUP BY vendor_invoice_id
+      ) payments ON payments.vendor_invoice_id = vi.id
+      WHERE vi.id = $1
+    `, [req.params.id]);
+
+    if (invoiceResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    // Get payment history
+    const paymentsResult = await pool.query(`
+      SELECT 
+        vp.*,
+        u_processed.username as processed_by_name
+      FROM vendor_payments vp
+      LEFT JOIN users u_processed ON vp.processed_by = u_processed.id
+      WHERE vp.vendor_invoice_id = $1
+      ORDER BY vp.payment_date DESC, vp.created_at DESC
+    `, [req.params.id]);
+
+    res.json({
+      success: true,
+      data: {
+        ...invoiceResult.rows[0],
+        payments: paymentsResult.rows
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching invoice details:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

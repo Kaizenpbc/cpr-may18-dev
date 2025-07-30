@@ -902,6 +902,12 @@ export const adminApi = {
     });
     return response;
   },
+  updateVendorInvoiceNotes: async (invoiceId: number, notes: string) => {
+    const response = await api.put(`/admin/vendor-invoices/${invoiceId}/notes`, {
+      notes
+    });
+    return response.data;
+  },
 
   // Accounting Vendor Invoice Management
   getAccountingVendorInvoices: async () => {
@@ -1112,6 +1118,16 @@ export const vendorApi = {
   
   resendToAdmin: async (invoiceId: number, notes: string) => {
     const response = await api.post(`/vendor/invoices/${invoiceId}/resend-to-admin`, { notes });
+    return response.data;
+  },
+  
+  getInvoicePaymentHistory: async (invoiceId: number) => {
+    const response = await api.get(`/vendor/invoices/${invoiceId}/payments`);
+    return response.data;
+  },
+  
+  getInvoiceDetailsWithPayments: async (invoiceId: number) => {
+    const response = await api.get(`/vendor/invoices/${invoiceId}/details`);
     return response.data;
   },
 };
