@@ -45,7 +45,6 @@ import { getBillingQueue, createInvoice, getInvoices } from '../../services/api'
 import { useAuth } from '../../contexts/AuthContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { NotificationProvider } from '../../contexts/NotificationContext';
-import { Navigate } from 'react-router-dom';
 
 // Billing Ready View Component
 const ReadyForBillingView: React.FC = () => {
