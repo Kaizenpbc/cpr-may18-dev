@@ -22,11 +22,13 @@ import {
   Business as OrganizationIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  CheckCircle as PaidIcon,
 } from '@mui/icons-material';
 import ErrorBoundary from '../common/ErrorBoundary';
 import AccountingDashboard from './accounting/AccountingDashboard';
 import PaymentRequestsDashboard from '../accounting/PaymentRequestsDashboard';
 import VendorInvoiceManagement from './accounting/VendorInvoiceManagement';
+import PaidVendorInvoices from './accounting/PaidVendorInvoices';
 
 import { NavLink, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
@@ -339,6 +341,12 @@ const menuGroups = [
         icon: <VendorIcon />, 
         path: 'vendor-invoices', 
         component: <VendorInvoiceManagement /> 
+      },
+      { 
+        label: 'Paid Vendor Invoices', 
+        icon: <PaidIcon />, 
+        path: 'paid-vendor-invoices', 
+        component: <PaidVendorInvoices /> 
       },
     ]
   },
