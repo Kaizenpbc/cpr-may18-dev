@@ -103,6 +103,14 @@ const InvoiceStatusView: React.FC = () => {
       setLoading(true);
       const response = await vendorApi.getInvoices();
       
+      // Check if response.data exists and is an array
+      if (!response.data || !Array.isArray(response.data)) {
+        console.error('Invalid response format:', response);
+        setError('Invalid response format from server');
+        setInvoices([]);
+        return;
+      }
+      
       const processedInvoices = response.data.map((invoice: any) => ({
         ...invoice,
         amount: typeof invoice.amount === 'string' ? parseFloat(invoice.amount) : invoice.amount || 0
@@ -113,6 +121,7 @@ const InvoiceStatusView: React.FC = () => {
     } catch (error) {
       console.error('Error fetching invoices:', error);
       setError('Failed to load invoices');
+      setInvoices([]);
     } finally {
       setLoading(false);
     }

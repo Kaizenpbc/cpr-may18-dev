@@ -95,8 +95,21 @@ const PaidVendorInvoices: React.FC = () => {
       setLoading(true);
       setError('');
       const response = await vendorApi.getInvoices();
+      
+      // Handle different response formats
+      let allInvoices = [];
+      if (Array.isArray(response)) {
+        allInvoices = response;
+      } else if (response && response.data && Array.isArray(response.data)) {
+        allInvoices = response.data;
+      } else {
+        console.error('Invalid response format:', response);
+        setError('Invalid response format from server');
+        setInvoices([]);
+        return;
+      }
+      
       // Filter to only show paid invoices
-      const allInvoices = Array.isArray(response) ? response : (response.data || []);
       const paidInvoices = allInvoices.filter((invoice: any) => 
         invoice.status === 'paid'
       );
