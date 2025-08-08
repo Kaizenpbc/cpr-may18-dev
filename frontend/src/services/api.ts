@@ -883,6 +883,10 @@ export const adminApi = {
     const response = await api.delete(`/admin/courses/${id}`);
     return response.data;
   },
+  getCourseStudents: async (courseId: number) => {
+    const response = await api.get(`/admin/courses/${courseId}/students`);
+    return response.data;
+  },
 
   // Vendor Invoice Approval
   getVendorInvoices: async () => {

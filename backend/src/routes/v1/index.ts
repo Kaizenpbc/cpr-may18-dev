@@ -4844,12 +4844,12 @@ router.get(
       const { courseId } = req.params;
       const userRole = req.user?.role;
 
-      // Only admin users can access this endpoint
-      if (userRole !== 'admin') {
+      // Only admin and courseadmin users can access this endpoint
+      if (userRole !== 'admin' && userRole !== 'courseadmin') {
         throw new AppError(
           403,
           errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
-          'Access denied. Admin role required.'
+          'Access denied. Admin or courseadmin role required.'
         );
       }
 
