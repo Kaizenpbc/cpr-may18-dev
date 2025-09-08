@@ -256,18 +256,37 @@ try {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for development
+          styleSrc: ["'self'", "'unsafe-inline'", "https:"], // Allow inline styles and external fonts
+          imgSrc: ["'self'", "data:", "https:"],
           connectSrc: ["'self'", 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174', 'ws://localhost:3001', 'ws://192.168.2.105:3001'],
+          fontSrc: ["'self'", "https:", "data:"],
+          objectSrc: ["'none'"],
+          mediaSrc: ["'self'"],
+          frameSrc: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+          upgradeInsecureRequests: [],
         },
       },
-      hsts: false,
-      frameguard: false,
+      hsts: {
+        maxAge: 31536000, // 1 year
+        includeSubDomains: true,
+        preload: true
+      },
+      frameguard: { action: 'deny' },
       noSniff: true,
       xssFilter: true,
-      referrerPolicy: false,
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
       hidePoweredBy: true,
-      crossOriginEmbedderPolicy: false,
-      crossOriginOpenerPolicy: false,
-      crossOriginResourcePolicy: false,
+      crossOriginEmbedderPolicy: false, // Disabled for development
+      crossOriginOpenerPolicy: { policy: 'same-origin' },
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      dnsPrefetchControl: { allow: false },
+      ieNoOpen: true,
+      noSniff: true,
+      originAgentCluster: true,
+      permittedCrossDomainPolicies: false,
     })
   );
   console.log('✅ Security headers configured');
