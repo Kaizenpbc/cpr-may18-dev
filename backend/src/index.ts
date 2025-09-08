@@ -16,6 +16,7 @@ import emailTemplatesRouter from './routes/v1/emailTemplates.js';
 import { initializeTokenBlacklist } from './utils/tokenBlacklist.js';
 import { apiLimiter, authLimiter, registerLimiter } from './middleware/rateLimiter.js';
 import { sanitizeInput } from './middleware/inputSanitizer.js';
+import { auditLogger } from './middleware/auditLogger.js';
 
 const execAsync = promisify(exec);
 
@@ -284,7 +285,6 @@ try {
       crossOriginResourcePolicy: { policy: 'cross-origin' },
       dnsPrefetchControl: { allow: false },
       ieNoOpen: true,
-      noSniff: true,
       originAgentCluster: true,
       permittedCrossDomainPolicies: false,
     })
@@ -317,6 +317,7 @@ console.log('✅ Input sanitization configured');
 writeToLog('🔧 Setting up logging middleware...', 'INFO');
 app.use(requestLogger);
 app.use(authLogger);
+app.use(auditLogger);
 writeToLog('✅ Logging middleware configured', 'INFO');
 
 // Basic health check route
