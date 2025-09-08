@@ -25,6 +25,7 @@ import payRatesRouter from './payRates.js';
 import notificationsRouter from './notifications.js';
 import vendorRouter from './vendor.js';
 import authRouter from './auth.js';
+import { roleBasedPasswordValidation, validatePasswordPolicy, getPasswordPolicyForRole } from '../../middleware/passwordPolicy.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import bcrypt from 'bcryptjs';
@@ -4119,11 +4120,6 @@ router.post(
       .isEmail()
       .normalizeEmail()
       .withMessage('Must be a valid email address'),
-    body('password')
-      .isLength({ min: 8 })
-      .withMessage('Password must be at least 8 characters long')
-      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-      .withMessage('Password must contain at least one lowercase letter, one uppercase letter, and one number'),
     body('role')
       .isIn(['admin', 'instructor', 'organization', 'accountant', 'hr', 'courseadmin', 'vendor', 'sysadmin'])
       .withMessage('Role must be one of: admin, instructor, organization, accountant, hr, courseadmin, vendor, sysadmin'),
@@ -4144,6 +4140,24 @@ router.post(
       .isInt({ min: 1 })
       .withMessage('Organization ID must be a positive integer')
   ],
+  // Add role-based password validation middleware
+  (req: Request, res: Response, next: NextFunction) => {
+    const { role } = req.body;
+    const passwordValidation = roleBasedPasswordValidation(role || 'user');
+    return passwordValidation.run(req).then(() => {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password validation failed',
+          errors: errors.array().map(e => e.msg)
+        });
+      }
+      next();
+    });
+  },
+  // Add password policy validation
+  validatePasswordPolicy(),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       // Check validation results
