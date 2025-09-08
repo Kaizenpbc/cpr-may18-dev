@@ -15,6 +15,7 @@ import cookieParser from 'cookie-parser';
 import emailTemplatesRouter from './routes/v1/emailTemplates.js';
 import { initializeTokenBlacklist } from './utils/tokenBlacklist.js';
 import { apiLimiter, authLimiter, registerLimiter } from './middleware/rateLimiter.js';
+import { sanitizeInput } from './middleware/inputSanitizer.js';
 
 const execAsync = promisify(exec);
 
@@ -287,6 +288,11 @@ app.use('/api/v1/auth/login', authLimiter);
 app.use('/api/v1/auth/register', registerLimiter);
 app.use('/api/v1', apiLimiter);
 console.log('✅ Rate limiting configured');
+
+// Input sanitization middleware
+console.log('8b. Setting up input sanitization...');
+app.use('/api/v1', sanitizeInput);
+console.log('✅ Input sanitization configured');
 
 // Add logging middleware
 writeToLog('🔧 Setting up logging middleware...', 'INFO');

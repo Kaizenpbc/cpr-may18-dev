@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { body, validationResult } from 'express-validator';
 import { asyncHandler } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
@@ -4108,8 +4109,53 @@ router.get(
 
 router.post(
   '/sysadmin/users',
+  [
+    body('username')
+      .isLength({ min: 3, max: 50 })
+      .withMessage('Username must be between 3 and 50 characters')
+      .matches(/^[a-zA-Z0-9_-]+$/)
+      .withMessage('Username can only contain letters, numbers, underscores, and hyphens'),
+    body('email')
+      .isEmail()
+      .normalizeEmail()
+      .withMessage('Must be a valid email address'),
+    body('password')
+      .isLength({ min: 8 })
+      .withMessage('Password must be at least 8 characters long')
+      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+      .withMessage('Password must contain at least one lowercase letter, one uppercase letter, and one number'),
+    body('role')
+      .isIn(['admin', 'instructor', 'organization', 'accountant', 'hr', 'courseadmin', 'vendor', 'sysadmin'])
+      .withMessage('Role must be one of: admin, instructor, organization, accountant, hr, courseadmin, vendor, sysadmin'),
+    body('first_name')
+      .optional()
+      .isLength({ max: 100 })
+      .withMessage('First name must be less than 100 characters'),
+    body('last_name')
+      .optional()
+      .isLength({ max: 100 })
+      .withMessage('Last name must be less than 100 characters'),
+    body('mobile')
+      .optional()
+      .isMobilePhone('any')
+      .withMessage('Mobile must be a valid phone number'),
+    body('organization_id')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('Organization ID must be a positive integer')
+  ],
   asyncHandler(async (req: Request, res: Response) => {
     try {
+      // Check validation results
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          `Validation failed: ${errors.array().map(e => e.msg).join(', ')}`
+        );
+      }
+
       const {
         username,
         email,
@@ -4123,14 +4169,6 @@ router.post(
         date_onboarded,
         user_comments,
       } = req.body;
-
-      if (!username || !email || !password || !role) {
-        throw new AppError(
-          400,
-          errorCodes.VALIDATION_ERROR,
-          'Username, email, password, and role are required'
-        );
-      }
 
       // Check if username already exists
       const existingUsername = await pool.query(
