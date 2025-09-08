@@ -18,6 +18,9 @@ import { apiLimiter, authLimiter, registerLimiter } from './middleware/rateLimit
 import { sanitizeInput } from './middleware/inputSanitizer.js';
 import { auditLogger } from './middleware/auditLogger.js';
 import { initializeSessionManagement, sessionManager } from './middleware/sessionManager.js';
+import { initializeDatabaseSecurity } from './config/databaseSecurity.js';
+import { initializeSecureDatabase } from './config/secureDatabase.js';
+import { initializeDatabaseEncryption } from './utils/databaseEncryption.js';
 
 const execAsync = promisify(exec);
 
@@ -332,6 +335,29 @@ app.get('/api/v1/health', (req: Request, res: Response) => {
   writeToLog('🏥 Health check requested', 'INFO');
   res.json({ status: 'ok' });
 });
+
+// Database security health check route
+app.get('/api/v1/health/database', async (req: Request, res: Response) => {
+  try {
+    const { getSecureDatabase } = await import('./config/secureDatabase.js');
+    const db = getSecureDatabase();
+    const health = await db.healthCheck();
+    
+    res.json({
+      status: health.healthy ? 'healthy' : 'unhealthy',
+      database: health.stats,
+      security: health.security,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 console.log('✅ Health check route configured');
 
 // Auth routes
@@ -517,11 +543,23 @@ const startServer = async () => {
     await initializeSessionManagement();
     console.log('14e. Session management initialized');
 
-    console.log('14g. Checking for existing processes on port...');
-    await killProcessOnPort(port);
-    console.log('14h. Port cleanup completed');
+    console.log('14f. Initializing database security...');
+    await initializeDatabaseSecurity();
+    console.log('14g. Database security initialized');
 
-    console.log('14i. Starting HTTP server...');
+    console.log('14h. Initializing secure database...');
+    await initializeSecureDatabase();
+    console.log('14i. Secure database initialized');
+
+    console.log('14j. Initializing database encryption...');
+    initializeDatabaseEncryption();
+    console.log('14k. Database encryption initialized');
+
+    console.log('14l. Checking for existing processes on port...');
+    await killProcessOnPort(port);
+    console.log('14m. Port cleanup completed');
+
+    console.log('14n. Starting HTTP server...');
     httpServer.listen(port, '0.0.0.0', () => {
       console.log(`✅ Server is now listening on http://0.0.0.0:${port}`);
       console.log(`Try accessing http://localhost:${port}/api/v1/health`);
