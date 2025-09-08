@@ -37,4 +37,7 @@ export default {
   },
   verbose: true,
   testTimeout: 10000,
+  forceExit: true,
+  detectOpenHandles: true,
+  detectLeaks: true,
 }; 

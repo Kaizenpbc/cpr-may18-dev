@@ -4,6 +4,7 @@ import setupTestDatabase from './testDbSetup';
 import seedTestData from './seedTestData';
 import * as path from 'path';
 import { server } from '../../server';
+import { closeDatabaseConnections } from '../../../backend/src/config/database';
 
 // Load environment variables from root directory
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
@@ -28,11 +29,25 @@ beforeAll(async () => {
 
 // Global teardown - runs once after all tests
 afterAll(async () => {
+  // Close test database connections
   await testPool.end();
+  
+  // Close main database connections
+  await closeDatabaseConnections();
+  
+  // Close server if it exists
   if (server) {
     server.close();
   }
-}, 10000);
+  
+  // Force close any remaining handles
+  if (global.gc) {
+    global.gc();
+  }
+  
+  // Give time for cleanup
+  await new Promise(resolve => setTimeout(resolve, 1000));
+}, 15000);
 
 // Reset database between tests
 beforeEach(async () => {

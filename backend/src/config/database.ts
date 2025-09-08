@@ -18,6 +18,17 @@ const poolConfig: PoolConfig = {
 // Create the connection pool
 const pool = new Pool(poolConfig);
 
+// Graceful shutdown function
+export const closeDatabaseConnections = async (): Promise<void> => {
+  try {
+    console.log('🔄 Closing database connections...');
+    await pool.end();
+    console.log('✅ Database connections closed');
+  } catch (error) {
+    console.error('❌ Error closing database connections:', error);
+  }
+};
+
 // After pool is created
 pool.query("SET TIME ZONE 'America/Toronto';").catch(err => {
   console.error('Failed to set timezone to America/Toronto:', err);
