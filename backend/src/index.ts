@@ -14,6 +14,7 @@ import path from 'path';
 import cookieParser from 'cookie-parser';
 import emailTemplatesRouter from './routes/v1/emailTemplates.js';
 import { initializeTokenBlacklist } from './utils/tokenBlacklist.js';
+import { apiLimiter, authLimiter, registerLimiter } from './middleware/rateLimiter.js';
 
 const execAsync = promisify(exec);
 
@@ -279,6 +280,13 @@ app.use(express.json());
 
 // Parse cookies
 app.use(cookieParser());
+
+// Rate limiting middleware
+console.log('8a. Setting up rate limiting...');
+app.use('/api/v1/auth/login', authLimiter);
+app.use('/api/v1/auth/register', registerLimiter);
+app.use('/api/v1', apiLimiter);
+console.log('✅ Rate limiting configured');
 
 // Add logging middleware
 writeToLog('🔧 Setting up logging middleware...', 'INFO');
