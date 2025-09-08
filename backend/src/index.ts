@@ -17,6 +17,7 @@ import { initializeTokenBlacklist } from './utils/tokenBlacklist.js';
 import { apiLimiter, authLimiter, registerLimiter } from './middleware/rateLimiter.js';
 import { sanitizeInput } from './middleware/inputSanitizer.js';
 import { auditLogger } from './middleware/auditLogger.js';
+import { initializeSessionManagement, sessionManager } from './middleware/sessionManager.js';
 
 const execAsync = promisify(exec);
 
@@ -320,6 +321,11 @@ app.use(authLogger);
 app.use(auditLogger);
 writeToLog('✅ Logging middleware configured', 'INFO');
 
+// Add session management middleware
+writeToLog('🔧 Setting up session management...', 'INFO');
+app.use(sessionManager);
+writeToLog('✅ Session management configured', 'INFO');
+
 // Basic health check route
 console.log('9. Setting up health check route...');
 app.get('/api/v1/health', (req: Request, res: Response) => {
@@ -507,11 +513,15 @@ const startServer = async () => {
     await initializeTokenBlacklist();
     console.log('14c. Token blacklist initialized');
 
-    console.log('14d. Checking for existing processes on port...');
-    await killProcessOnPort(port);
-    console.log('14e. Port cleanup completed');
+    console.log('14d. Initializing session management...');
+    await initializeSessionManagement();
+    console.log('14e. Session management initialized');
 
-    console.log('14f. Starting HTTP server...');
+    console.log('14g. Checking for existing processes on port...');
+    await killProcessOnPort(port);
+    console.log('14h. Port cleanup completed');
+
+    console.log('14i. Starting HTTP server...');
     httpServer.listen(port, '0.0.0.0', () => {
       console.log(`✅ Server is now listening on http://0.0.0.0:${port}`);
       console.log(`Try accessing http://localhost:${port}/api/v1/health`);
