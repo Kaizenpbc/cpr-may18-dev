@@ -25,6 +25,7 @@ import { initializeDatabaseEncryption } from './utils/databaseEncryption.js';
 import { apiSecurity, initializeApiSecurity } from './middleware/apiSecurity.js';
 import { requestValidator } from './middleware/requestValidator.js';
 import { initializeSSL, generateSSLOptions, getSSLSecurityHeaders, checkSSLHealth } from './config/sslConfig.js';
+import { initializeEnvironmentConfig, checkConfigurationHealth, getEnvironmentConfig } from './config/environmentConfig.js';
 
 const execAsync = promisify(exec);
 
@@ -390,6 +391,24 @@ app.get('/api/v1/health/ssl', (req: Request, res: Response) => {
   }
 });
 
+// Configuration health check route
+app.get('/api/v1/health/config', (req: Request, res: Response) => {
+  try {
+    const configHealth = checkConfigurationHealth();
+    res.json({
+      status: configHealth.valid ? 'healthy' : 'unhealthy',
+      config: configHealth,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 console.log('✅ Health check route configured');
 
 // Auth routes
@@ -591,18 +610,26 @@ const startServer = async () => {
     await initializeApiSecurity();
     console.log('14m. API security initialized');
 
-    console.log('14n. Initializing SSL/TLS...');
+    console.log('14n. Initializing environment configuration...');
+    const envInitialized = await initializeEnvironmentConfig();
+    if (!envInitialized) {
+      console.error('❌ Environment configuration initialization failed');
+      process.exit(1);
+    }
+    console.log('14o. Environment configuration initialized');
+
+    console.log('14p. Initializing SSL/TLS...');
     const sslInitialized = await initializeSSL();
     if (!sslInitialized) {
       console.warn('⚠️ SSL/TLS initialization failed, continuing with HTTP only');
     }
-    console.log('14o. SSL/TLS initialization completed');
+    console.log('14q. SSL/TLS initialization completed');
 
-    console.log('14p. Checking for existing processes on port...');
+    console.log('14r. Checking for existing processes on port...');
     await killProcessOnPort(port);
-    console.log('14q. Port cleanup completed');
+    console.log('14s. Port cleanup completed');
 
-    console.log('14r. Starting HTTP server...');
+    console.log('14t. Starting HTTP server...');
     httpServer.listen(port, '0.0.0.0', () => {
       console.log(`✅ Server is now listening on http://0.0.0.0:${port}`);
       console.log(`Try accessing http://localhost:${port}/api/v1/health`);

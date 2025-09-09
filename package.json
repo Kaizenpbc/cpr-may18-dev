@@ -28,6 +28,10 @@
     "security:ci": "audit-ci --config audit-ci.json",
     "ssl:generate": "node scripts/generate-ssl-certs.js",
     "ssl:check": "openssl x509 -in ssl/server.crt -text -noout",
+    "config:generate": "node scripts/config-manager.js generate",
+    "config:validate": "node scripts/config-manager.js validate",
+    "config:secrets": "node scripts/config-manager.js secrets",
+    "config:list": "node scripts/config-manager.js list",
     "prepare": "husky"
   },
   "workspaces": [
