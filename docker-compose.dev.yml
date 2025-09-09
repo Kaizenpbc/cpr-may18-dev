@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for Development
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: cpr-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cpr_may18
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: gtacpr
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
+    networks:
+      - cpr-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cpr_may18"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache for Development
+  redis-dev:
+    image: redis:7-alpine
+    container_name: cpr-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "6380:6379"
+    networks:
+      - cpr-dev-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # CPR Training System Backend (Development)
+  cpr-backend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: cpr-backend-dev
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DB_HOST: postgres-dev
+      DB_PORT: 5432
+      DB_NAME: cpr_may18
+      DB_USER: postgres
+      DB_PASSWORD: gtacpr
+      REDIS_HOST: redis-dev
+      REDIS_PORT: 6379
+      JWT_SECRET: dev_jwt_secret_key
+      DB_ENCRYPTION_KEY: dev_encryption_key_32_characters
+      LOG_LEVEL: debug
+    volumes:
+      - ./backend:/app/backend
+      - ./logs:/app/logs
+      - ./ssl:/app/ssl
+    ports:
+      - "3001:3001"
+    networks:
+      - cpr-dev-network
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+    command: ["npm", "run", "dev:backend"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+
+networks:
+  cpr-dev-network:
+    driver: bridge

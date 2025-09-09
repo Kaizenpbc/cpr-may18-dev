@@ -32,6 +32,18 @@
     "config:validate": "node scripts/config-manager.js validate",
     "config:secrets": "node scripts/config-manager.js secrets",
     "config:list": "node scripts/config-manager.js list",
+    "docker:build": "bash scripts/docker-build.sh",
+    "docker:deploy": "bash scripts/docker-deploy.sh",
+    "docker:deploy:dev": "bash scripts/docker-deploy.sh development",
+    "docker:deploy:prod": "bash scripts/docker-deploy.sh production",
+    "docker:up": "docker-compose up -d",
+    "docker:up:dev": "docker-compose -f docker-compose.dev.yml up -d",
+    "docker:down": "docker-compose down",
+    "docker:down:dev": "docker-compose -f docker-compose.dev.yml down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:logs:dev": "docker-compose -f docker-compose.dev.yml logs -f",
+    "docker:clean": "docker-compose down -v && docker system prune -f",
+    "docker:status": "docker-compose ps",
     "prepare": "husky"
   },
   "workspaces": [
