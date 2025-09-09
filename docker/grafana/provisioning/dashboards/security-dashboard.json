@@ -1,0 +1,239 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "CPR Training System - Security Dashboard",
+    "tags": ["cpr", "security", "monitoring"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Security Events Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(rate(security_events_total[5m]))",
+            "legendFormat": "Total Security Events/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 5
+                },
+                {
+                  "color": "red",
+                  "value": 10
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Failed Login Attempts",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(security_events_total{event_type=\"failed_login\"}[5m])",
+            "legendFormat": "Failed Logins/sec"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Events/sec"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Suspicious Requests",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(security_events_total{event_type=\"suspicious_request\"}[5m])",
+            "legendFormat": "Suspicious Requests/sec"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Events/sec"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        }
+      },
+      {
+        "id": 4,
+        "title": "Rate Limiting Events",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(security_events_total{event_type=\"rate_limit_exceeded\"}[5m])",
+            "legendFormat": "Rate Limit Exceeded/sec"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Events/sec"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        }
+      },
+      {
+        "id": 5,
+        "title": "Authentication Events",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(security_events_total{event_type=\"authentication_success\"}[5m])",
+            "legendFormat": "Successful Logins/sec"
+          },
+          {
+            "expr": "rate(security_events_total{event_type=\"authentication_failure\"}[5m])",
+            "legendFormat": "Failed Logins/sec"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Events/sec"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 16
+        }
+      },
+      {
+        "id": 6,
+        "title": "API Security Events",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(security_events_total{event_type=\"api_key_invalid\"}[5m])",
+            "legendFormat": "Invalid API Keys/sec"
+          },
+          {
+            "expr": "rate(security_events_total{event_type=\"request_size_exceeded\"}[5m])",
+            "legendFormat": "Oversized Requests/sec"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Events/sec"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 24
+        }
+      },
+      {
+        "id": 7,
+        "title": "SSL/TLS Health",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(ssl_certificate_expiry_timestamp_seconds - time()) / 86400",
+            "legendFormat": "Days until SSL expiry"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 30
+                },
+                {
+                  "color": "green",
+                  "value": 90
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 24
+        }
+      },
+      {
+        "id": 8,
+        "title": "Security Risk Score",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "avg(security_risk_score)",
+            "legendFormat": "Average Risk Score"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Risk Score",
+            "max": 100
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 32
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "schemaVersion": 27,
+    "version": 1,
+    "links": []
+  }
+}

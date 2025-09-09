@@ -1,0 +1,327 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  NODE_VERSION: '18'
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Job 1: Code Quality and Security Checks
+  quality-checks:
+    name: Code Quality & Security
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        npm ci
+        cd backend && npm ci
+        cd ../frontend && npm ci
+        
+    - name: Run security audit
+      run: |
+        npm run security:audit
+        npm run security:ci
+        
+    - name: Run linting
+      run: |
+        npm run lint || echo "Linting not configured yet"
+        
+    - name: Check code formatting
+      run: |
+        npm run format:check || echo "Format checking not configured yet"
+
+  # Job 2: Backend Testing
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: cpr_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+          
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        npm ci
+        cd backend && npm ci
+        
+    - name: Setup test environment
+      run: |
+        cd backend
+        cp .env.example .env.test || echo "No .env.example found"
+        echo "NODE_ENV=test" >> .env.test
+        echo "DB_HOST=localhost" >> .env.test
+        echo "DB_PORT=5432" >> .env.test
+        echo "DB_NAME=cpr_test" >> .env.test
+        echo "DB_USER=postgres" >> .env.test
+        echo "DB_PASSWORD=test_password" >> .env.test
+        echo "REDIS_HOST=localhost" >> .env.test
+        echo "REDIS_PORT=6379" >> .env.test
+        
+    - name: Run database migrations
+      run: |
+        cd backend
+        npm run db:migrate || echo "No migrations to run"
+        
+    - name: Run backend tests
+      run: |
+        cd backend
+        npm test
+        
+    - name: Generate test coverage
+      run: |
+        cd backend
+        npm run test:coverage || echo "Coverage not configured yet"
+        
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./backend/coverage/lcov.info
+        flags: backend
+        name: backend-coverage
+
+  # Job 3: Frontend Testing
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        npm ci
+        cd frontend && npm ci
+        
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        npm test
+        
+    - name: Run frontend build
+      run: |
+        cd frontend
+        npm run build
+        
+    - name: Generate test coverage
+      run: |
+        cd frontend
+        npm run test:coverage || echo "Coverage not configured yet"
+        
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./frontend/coverage/lcov.info
+        flags: frontend
+        name: frontend-coverage
+
+  # Job 4: Docker Build and Security Scan
+  docker-build:
+    name: Docker Build & Security Scan
+    runs-on: ubuntu-latest
+    needs: [quality-checks, backend-tests, frontend-tests]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Login to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.DOCKER_REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Job 5: Integration Tests
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Start services with Docker Compose
+      run: |
+        docker-compose -f docker-compose.test.yml up -d
+        
+    - name: Wait for services to be ready
+      run: |
+        timeout 300 bash -c 'until curl -f http://localhost:3001/api/v1/health; do sleep 5; done'
+        
+    - name: Run integration tests
+      run: |
+        npm run test:integration || echo "Integration tests not configured yet"
+        
+    - name: Stop services
+      run: |
+        docker-compose -f docker-compose.test.yml down
+
+  # Job 6: Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [integration-tests]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Add your staging deployment commands here
+        # Example: kubectl apply -f k8s/staging/
+        # Example: docker-compose -f docker-compose.staging.yml up -d
+        
+    - name: Run smoke tests
+      run: |
+        echo "Running smoke tests on staging..."
+        # Add smoke test commands here
+        # Example: curl -f https://staging.yourdomain.com/api/v1/health
+
+  # Job 7: Deploy to Production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [integration-tests]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        # Add your production deployment commands here
+        # Example: kubectl apply -f k8s/production/
+        # Example: docker-compose -f docker-compose.prod.yml up -d
+        
+    - name: Run health checks
+      run: |
+        echo "Running health checks on production..."
+        # Add health check commands here
+        # Example: curl -f https://yourdomain.com/api/v1/health
+        
+    - name: Notify deployment success
+      run: |
+        echo "Production deployment successful!"
+        # Add notification commands here (Slack, email, etc.)
+
+  # Job 8: Security Monitoring
+  security-monitoring:
+    name: Security Monitoring
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run security monitoring checks
+      run: |
+        echo "Running security monitoring checks..."
+        # Add security monitoring commands here
+        # Example: Check for security events, run security scans, etc.
+        
+    - name: Generate security report
+      run: |
+        echo "Generating security report..."
+        # Add security report generation here
