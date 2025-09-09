@@ -144,6 +144,15 @@ export function isSuspiciousRequest(req: Request, fingerprint: RequestFingerprin
     return false;
   }
   
+  // Allow curl and other common tools for health checks
+  if (req.url.includes('/health') && (
+    fingerprint.userAgent.toLowerCase().includes('curl') ||
+    fingerprint.userAgent.toLowerCase().includes('powershell') ||
+    fingerprint.userAgent.toLowerCase().includes('wget')
+  )) {
+    return false;
+  }
+  
   // Check blocked user agents
   if (config.blockedUserAgents.some(blocked => 
     fingerprint.userAgent.toLowerCase().includes(blocked.toLowerCase())
