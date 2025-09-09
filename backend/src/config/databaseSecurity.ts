@@ -21,8 +21,8 @@ export interface DatabaseSecurityConfig {
 
 // Default security configuration
 export const DEFAULT_DB_SECURITY_CONFIG: DatabaseSecurityConfig = {
-  ssl: true,
-  sslMode: 'require',
+  ssl: process.env.NODE_ENV === 'production', // Only use SSL in production
+  sslMode: process.env.NODE_ENV === 'production' ? 'require' : 'disable',
   connectionTimeout: 30000, // 30 seconds
   idleTimeout: 300000, // 5 minutes
   maxConnections: 20,
@@ -30,8 +30,8 @@ export const DEFAULT_DB_SECURITY_CONFIG: DatabaseSecurityConfig = {
   logQueries: false, // Set to true for debugging
   logSlowQueries: true,
   slowQueryThreshold: 1000, // 1 second
-  encryptConnections: true,
-  requireSSL: true,
+  encryptConnections: process.env.NODE_ENV === 'production',
+  requireSSL: process.env.NODE_ENV === 'production',
   connectionPooling: true,
   auditDatabaseAccess: true
 };
@@ -328,16 +328,13 @@ export const initializeDatabaseSecurity = async (): Promise<void> => {
     monitor.detectSuspiciousActivity();
   }, 60000); // Check every minute
   
-  // Log security initialization
-  logSecurityEvent(
-    'DATABASE_SECURITY_INITIALIZED',
-    AuditEventSeverity.LOW,
-    {} as any,
-    {
-      config: DEFAULT_DB_SECURITY_CONFIG,
-      timestamp: new Date().toISOString()
-    }
-  );
+  // Log security initialization (without request context)
+  console.log('🔐 Database security configuration:', {
+    ssl: DEFAULT_DB_SECURITY_CONFIG.ssl,
+    connectionTimeout: DEFAULT_DB_SECURITY_CONFIG.connectionTimeout,
+    maxConnections: DEFAULT_DB_SECURITY_CONFIG.maxConnections,
+    auditDatabaseAccess: DEFAULT_DB_SECURITY_CONFIG.auditDatabaseAccess
+  });
   
   console.log('✅ Database security initialized');
 };

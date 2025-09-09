@@ -253,17 +253,12 @@ export const initializeDatabaseEncryption = (): void => {
   
   const encryption = DatabaseEncryption.getInstance();
   
-  // Log encryption system initialization
-  logSecurityEvent(
-    'DATABASE_ENCRYPTION_INITIALIZED',
-    AuditEventSeverity.LOW,
-    {} as any,
-    {
-      algorithm: ENCRYPTION_ALGORITHM,
-      keyLength: KEY_LENGTH * 8,
-      timestamp: new Date().toISOString()
-    }
-  );
+  // Log encryption system initialization (without request context)
+  console.log('🔐 Database encryption configuration:', {
+    algorithm: ENCRYPTION_ALGORITHM,
+    keyLength: KEY_LENGTH * 8,
+    timestamp: new Date().toISOString()
+  });
   
   console.log('✅ Database encryption initialized');
   console.log(`📊 Encryption stats:`, encryption.getStats());

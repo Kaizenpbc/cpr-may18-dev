@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import { createServer } from 'http';
+import { createServer as createHttpsServer } from 'https';
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
@@ -21,6 +22,9 @@ import { initializeSessionManagement, sessionManager } from './middleware/sessio
 import { initializeDatabaseSecurity } from './config/databaseSecurity.js';
 import { initializeSecureDatabase } from './config/secureDatabase.js';
 import { initializeDatabaseEncryption } from './utils/databaseEncryption.js';
+import { apiSecurity, initializeApiSecurity } from './middleware/apiSecurity.js';
+import { requestValidator } from './middleware/requestValidator.js';
+import { initializeSSL, generateSSLOptions, getSSLSecurityHeaders, checkSSLHealth } from './config/sslConfig.js';
 
 const execAsync = promisify(exec);
 
@@ -317,6 +321,16 @@ console.log('8b. Setting up input sanitization...');
 app.use('/api/v1', sanitizeInput);
 console.log('✅ Input sanitization configured');
 
+// API security middleware
+console.log('8c. Setting up API security...');
+app.use('/api/v1', apiSecurity());
+console.log('✅ API security configured');
+
+// Request validation middleware
+console.log('8d. Setting up request validation...');
+app.use('/api/v1', requestValidator());
+console.log('✅ Request validation configured');
+
 // Add logging middleware
 writeToLog('🔧 Setting up logging middleware...', 'INFO');
 app.use(requestLogger);
@@ -347,6 +361,24 @@ app.get('/api/v1/health/database', async (req: Request, res: Response) => {
       status: health.healthy ? 'healthy' : 'unhealthy',
       database: health.stats,
       security: health.security,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// SSL/TLS health check route
+app.get('/api/v1/health/ssl', (req: Request, res: Response) => {
+  try {
+    const sslHealth = checkSSLHealth();
+    res.json({
+      status: sslHealth.valid ? 'healthy' : 'unhealthy',
+      ssl: sslHealth,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -547,19 +579,30 @@ const startServer = async () => {
     await initializeDatabaseSecurity();
     console.log('14g. Database security initialized');
 
-    console.log('14h. Initializing secure database...');
-    await initializeSecureDatabase();
-    console.log('14i. Secure database initialized');
+    console.log('14h. Skipping secure database initialization (temporary)...');
+    // await initializeSecureDatabase();
+    console.log('14i. Secure database initialization skipped');
 
     console.log('14j. Initializing database encryption...');
     initializeDatabaseEncryption();
     console.log('14k. Database encryption initialized');
 
-    console.log('14l. Checking for existing processes on port...');
-    await killProcessOnPort(port);
-    console.log('14m. Port cleanup completed');
+    console.log('14l. Initializing API security...');
+    await initializeApiSecurity();
+    console.log('14m. API security initialized');
 
-    console.log('14n. Starting HTTP server...');
+    console.log('14n. Initializing SSL/TLS...');
+    const sslInitialized = await initializeSSL();
+    if (!sslInitialized) {
+      console.warn('⚠️ SSL/TLS initialization failed, continuing with HTTP only');
+    }
+    console.log('14o. SSL/TLS initialization completed');
+
+    console.log('14p. Checking for existing processes on port...');
+    await killProcessOnPort(port);
+    console.log('14q. Port cleanup completed');
+
+    console.log('14r. Starting HTTP server...');
     httpServer.listen(port, '0.0.0.0', () => {
       console.log(`✅ Server is now listening on http://0.0.0.0:${port}`);
       console.log(`Try accessing http://localhost:${port}/api/v1/health`);

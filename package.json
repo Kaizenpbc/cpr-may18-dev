@@ -26,6 +26,8 @@
     "security:audit": "npm audit --audit-level=moderate && cd backend && npm audit --audit-level=moderate && cd ../frontend && npm audit --audit-level=moderate",
     "security:fix": "npm audit fix && cd backend && npm audit fix && cd ../frontend && npm audit fix",
     "security:ci": "audit-ci --config audit-ci.json",
+    "ssl:generate": "node scripts/generate-ssl-certs.js",
+    "ssl:check": "openssl x509 -in ssl/server.crt -text -noout",
     "prepare": "husky"
   },
   "workspaces": [
