@@ -26,6 +26,7 @@ import { apiSecurity, initializeApiSecurity } from './middleware/apiSecurity.js'
 import { requestValidator } from './middleware/requestValidator.js';
 import { initializeSSL, generateSSLOptions, getSSLSecurityHeaders, checkSSLHealth } from './config/sslConfig.js';
 import { initializeEnvironmentConfig, checkConfigurationHealth, getEnvironmentConfig } from './config/environmentConfig.js';
+import { initializeMFADatabase } from './config/mfaDatabase.js';
 
 const execAsync = promisify(exec);
 
@@ -409,6 +410,26 @@ app.get('/api/v1/health/config', (req: Request, res: Response) => {
   }
 });
 
+// MFA health check route
+app.get('/api/v1/health/mfa', async (req: Request, res: Response) => {
+  try {
+    const { getMFADatabaseHealth } = await import('./config/mfaDatabase.js');
+    const mfaHealth = await getMFADatabaseHealth();
+    
+    res.json({
+      status: mfaHealth.status,
+      mfa: mfaHealth,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 console.log('✅ Health check route configured');
 
 // Auth routes
@@ -445,6 +466,12 @@ console.log('11d. Setting up profile changes routes...');
 import profileChangesRoutes from './routes/v1/profile-changes.js';
 app.use('/api/v1/profile-changes', profileChangesRoutes);
 console.log('✅ Profile changes routes configured');
+
+// MFA routes
+console.log('11f. Setting up MFA routes...');
+import mfaRoutes from './routes/v1/mfa.js';
+app.use('/api/v1/mfa', mfaRoutes);
+console.log('✅ MFA routes configured');
 
 // Vendor routes are now handled in v1 routes
 console.log('11e. Vendor routes are handled in v1 routes...');
@@ -618,18 +645,22 @@ const startServer = async () => {
     }
     console.log('14o. Environment configuration initialized');
 
-    console.log('14p. Initializing SSL/TLS...');
+    console.log('14p. Initializing MFA database...');
+    await initializeMFADatabase();
+    console.log('14q. MFA database initialized');
+
+    console.log('14r. Initializing SSL/TLS...');
     const sslInitialized = await initializeSSL();
     if (!sslInitialized) {
       console.warn('⚠️ SSL/TLS initialization failed, continuing with HTTP only');
     }
-    console.log('14q. SSL/TLS initialization completed');
+    console.log('14s. SSL/TLS initialization completed');
 
-    console.log('14r. Checking for existing processes on port...');
+    console.log('14t. Checking for existing processes on port...');
     await killProcessOnPort(port);
-    console.log('14s. Port cleanup completed');
+    console.log('14u. Port cleanup completed');
 
-    console.log('14t. Starting HTTP server...');
+    console.log('14v. Starting HTTP server...');
     httpServer.listen(port, '0.0.0.0', () => {
       console.log(`✅ Server is now listening on http://0.0.0.0:${port}`);
       console.log(`Try accessing http://localhost:${port}/api/v1/health`);
