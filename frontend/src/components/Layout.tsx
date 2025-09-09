@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -12,6 +12,7 @@ import {
   ListItemText,
   Toolbar,
   Typography,
+  Tooltip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -20,6 +21,8 @@ import {
   Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import ThemeToggle from './common/ThemeToggle';
+import { useAccessibility } from '../hooks/useAccessibility';
 
 const drawerWidth = 240;
 
@@ -31,9 +34,11 @@ export default function Layout({ children }: LayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { announceToScreenReader } = useAccessibility();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+    announceToScreenReader(mobileOpen ? 'Navigation menu closed' : 'Navigation menu opened');
   };
 
   const menuItems = [
@@ -42,7 +47,7 @@ export default function Layout({ children }: LayoutProps) {
   ];
 
   const drawer = (
-    <div>
+    <nav role="navigation" aria-label="Main navigation" id="navigation">
       <Toolbar />
       <List>
         {menuItems.map(item => (
@@ -52,9 +57,11 @@ export default function Layout({ children }: LayoutProps) {
             onClick={() => {
               navigate(item.path);
               setMobileOpen(false);
+              announceToScreenReader(`Navigated to ${item.text}`);
             }}
+            aria-label={`Navigate to ${item.text}`}
           >
-            <ListItemIcon>{item.icon}</ListItemIcon>
+            <ListItemIcon aria-hidden="true">{item.icon}</ListItemIcon>
             <ListItemText primary={item.text} />
           </ListItem>
         ))}
@@ -63,15 +70,17 @@ export default function Layout({ children }: LayoutProps) {
           onClick={() => {
             logout();
             navigate('/login');
+            announceToScreenReader('Logged out successfully');
           }}
+          aria-label="Logout from application"
         >
-          <ListItemIcon>
+          <ListItemIcon aria-hidden="true">
             <LogoutIcon />
           </ListItemIcon>
           <ListItemText primary='Logout' />
         </ListItem>
       </List>
-    </div>
+    </nav>
   );
 
   return (
@@ -87,16 +96,18 @@ export default function Layout({ children }: LayoutProps) {
         <Toolbar>
           <IconButton
             color='inherit'
-            aria-label='open drawer'
+            aria-label={mobileOpen ? 'close navigation menu' : 'open navigation menu'}
+            aria-expanded={mobileOpen}
             edge='start'
             onClick={handleDrawerToggle}
             sx={{ mr: 2, display: { sm: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant='h6' noWrap component='div'>
+          <Typography variant='h6' noWrap component='div' sx={{ flexGrow: 1 }}>
             CPR Application
           </Typography>
+          <ThemeToggle size="small" />
         </Toolbar>
       </AppBar>
       <Box
@@ -136,6 +147,9 @@ export default function Layout({ children }: LayoutProps) {
       </Box>
       <Box
         component='main'
+        id="main-content"
+        role="main"
+        aria-label="Main content"
         sx={{
           flexGrow: 1,
           p: 3,

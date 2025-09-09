@@ -28,6 +28,7 @@ import {
   CheckCircle as PaidIcon,
 } from '@mui/icons-material';
 import ErrorBoundary from '../../common/ErrorBoundary';
+import ThemeToggle from '../../common/ThemeToggle';
 import InstructorManagement from './InstructorManagement';
 import CourseScheduling from './CourseScheduling';
 import EmailTemplateManager from './EmailTemplateManager';
@@ -115,6 +116,7 @@ const CourseAdminPortal: React.FC<CourseAdminPortalProps> = ({
             <Typography variant='body1' sx={{ mr: 2 }}>
               Welcome, {user?.first_name || user?.username || 'Admin'}!
             </Typography>
+            <ThemeToggle size="small" />
             <IconButton
               size='large'
               edge='end'

@@ -28,6 +28,7 @@ import {
   Logout as LogoutIcon,
   CheckCircle as PaidIcon,
 } from '@mui/icons-material';
+import ThemeToggle from '../common/ThemeToggle';
 
 const DRAWER_WIDTH = 240;
 
@@ -184,6 +185,7 @@ const VendorLayout: React.FC<VendorLayoutProps> = ({
           <Typography variant="body2" sx={{ mr: 2 }}>
             Welcome, {user?.username}
           </Typography>
+          <ThemeToggle size="small" />
           <Button color="inherit" onClick={handleLogout}>
             Logout
           </Button>

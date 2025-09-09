@@ -18,6 +18,7 @@ import TestCSV from './pages/TestCSV';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RealtimeProvider } from './contexts/RealtimeContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
+import { CustomThemeProvider } from './contexts/ThemeContext';
 import HRPortal from './components/portals/HRPortal';
 import VendorPortal from './components/portals/VendorPortal';
 import SessionWarning from './components/common/SessionWarning';
@@ -47,15 +48,16 @@ function App() {
   try {
     console.log('[DEEP TRACE] App.tsx - Starting to render providers and router');
     return (
-      <QueryClientProvider client={queryClient}>
-        <SnackbarProvider>
-          <RealtimeProvider>
-            <ErrorBoundary>
-              {/* Session Warning Component */}
-              <SessionWarning showAtMinutes={5} />
-              
-              {/* Location Tracker for preserving user location */}
-              <LocationTracker />
+      <CustomThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <SnackbarProvider>
+            <RealtimeProvider>
+              <ErrorBoundary>
+                {/* Session Warning Component */}
+                <SessionWarning showAtMinutes={5} />
+                
+                {/* Location Tracker for preserving user location */}
+                <LocationTracker />
               
               <Routes>
                 {/* Public routes */}
@@ -154,10 +156,11 @@ function App() {
                 {/* Fallback for unknown routes */}
                 <Route path='*' element={<NotFound />} />
               </Routes>
-            </ErrorBoundary>
-          </RealtimeProvider>
-        </SnackbarProvider>
-      </QueryClientProvider>
+              </ErrorBoundary>
+            </RealtimeProvider>
+          </SnackbarProvider>
+        </QueryClientProvider>
+      </CustomThemeProvider>
     );
   } catch (error) {
     console.error('[DEEP TRACE] App.tsx - Error during render:', error);

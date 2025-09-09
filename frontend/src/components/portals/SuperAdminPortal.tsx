@@ -26,6 +26,7 @@ import {
   VpnKey as PasswordIcon,
 } from '@mui/icons-material';
 import ErrorBoundary from '../common/ErrorBoundary';
+import ThemeToggle from '../common/ThemeToggle';
 import OrganizationManager from '../admin/OrganizationManager';
 import UserManager from '../admin/UserManager';
 import CourseManager from '../admin/CourseManager';
@@ -131,6 +132,7 @@ const SuperAdminPortal = () => {
             <Typography variant='body1' noWrap sx={{ mr: 2 }}>
               Welcome {user?.username || user?.first_name || 'Super Admin'}!
             </Typography>
+            <ThemeToggle size="small" />
           </Toolbar>
         </AppBar>
         <Drawer

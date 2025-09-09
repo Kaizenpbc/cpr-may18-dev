@@ -25,6 +25,7 @@ import {
   CheckCircle as PaidIcon,
 } from '@mui/icons-material';
 import ErrorBoundary from '../common/ErrorBoundary';
+import ThemeToggle from '../common/ThemeToggle';
 import AccountingDashboard from './accounting/AccountingDashboard';
 import PaymentRequestsDashboard from '../accounting/PaymentRequestsDashboard';
 import VendorInvoiceManagement from './accounting/VendorInvoiceManagement';
@@ -445,6 +446,7 @@ const AccountingPortal: React.FC = () => {
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <ThemeToggle size="small" />
               <Button
                 variant="outlined"
                 color="secondary"

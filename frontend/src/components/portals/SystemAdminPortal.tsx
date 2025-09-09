@@ -27,6 +27,7 @@ import {
   AttachMoney as PricingIcon,
 } from '@mui/icons-material';
 import ErrorBoundary from '../common/ErrorBoundary';
+import ThemeToggle from '../common/ThemeToggle';
 import SystemAdminDashboard from '../sysadmin/SystemAdminDashboard';
 import CourseManagement from '../sysadmin/CourseManagement';
 import UserManagement from '../sysadmin/UserManagement';
@@ -126,6 +127,7 @@ const SystemAdminPortal = () => {
             <Typography variant='body1' noWrap sx={{ mr: 2 }}>
               Welcome {user?.username || 'System Administrator'}!
             </Typography>
+            <ThemeToggle size="small" />
           </Toolbar>
         </AppBar>
 
