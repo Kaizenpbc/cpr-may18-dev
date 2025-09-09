@@ -27,6 +27,8 @@ import { requestValidator } from './middleware/requestValidator.js';
 import { initializeSSL, generateSSLOptions, getSSLSecurityHeaders, checkSSLHealth } from './config/sslConfig.js';
 import { initializeEnvironmentConfig, checkConfigurationHealth, getEnvironmentConfig } from './config/environmentConfig.js';
 import { initializeMFADatabase } from './config/mfaDatabase.js';
+import { initializeEncryptionDatabase } from './config/encryptionDatabase.js';
+import { initializeSecurityMonitoringDatabase } from './config/securityMonitoringDatabase.js';
 
 const execAsync = promisify(exec);
 
@@ -430,6 +432,46 @@ app.get('/api/v1/health/mfa', async (req: Request, res: Response) => {
   }
 });
 
+// Encryption health check route
+app.get('/api/v1/health/encryption', async (req: Request, res: Response) => {
+  try {
+    const { getEncryptionDatabaseHealth } = await import('./config/encryptionDatabase.js');
+    const encryptionHealth = await getEncryptionDatabaseHealth();
+    
+    res.json({
+      status: encryptionHealth.status,
+      encryption: encryptionHealth,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Security monitoring health check route
+app.get('/api/v1/health/security-monitoring', async (req: Request, res: Response) => {
+  try {
+    const { getSecurityMonitoringDatabaseHealth } = await import('./config/securityMonitoringDatabase.js');
+    const securityMonitoringHealth = await getSecurityMonitoringDatabaseHealth();
+    
+    res.json({
+      status: securityMonitoringHealth.status,
+      securityMonitoring: securityMonitoringHealth,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 console.log('✅ Health check route configured');
 
 // Auth routes
@@ -472,6 +514,18 @@ console.log('11f. Setting up MFA routes...');
 import mfaRoutes from './routes/v1/mfa.js';
 app.use('/api/v1/mfa', mfaRoutes);
 console.log('✅ MFA routes configured');
+
+// Encryption routes
+console.log('11g. Setting up encryption routes...');
+import encryptionRoutes from './routes/v1/encryption.js';
+app.use('/api/v1/encryption', encryptionRoutes);
+console.log('✅ Encryption routes configured');
+
+// Security monitoring routes
+console.log('11h. Setting up security monitoring routes...');
+import securityMonitoringRoutes from './routes/v1/securityMonitoring.js';
+app.use('/api/v1/security-monitoring', securityMonitoringRoutes);
+console.log('✅ Security monitoring routes configured');
 
 // Vendor routes are now handled in v1 routes
 console.log('11e. Vendor routes are handled in v1 routes...');
@@ -649,18 +703,26 @@ const startServer = async () => {
     await initializeMFADatabase();
     console.log('14q. MFA database initialized');
 
-    console.log('14r. Initializing SSL/TLS...');
+    console.log('14r. Initializing encryption database...');
+    await initializeEncryptionDatabase();
+    console.log('14s. Encryption database initialized');
+
+    console.log('14t. Initializing security monitoring database...');
+    await initializeSecurityMonitoringDatabase();
+    console.log('14u. Security monitoring database initialized');
+
+    console.log('14v. Initializing SSL/TLS...');
     const sslInitialized = await initializeSSL();
     if (!sslInitialized) {
       console.warn('⚠️ SSL/TLS initialization failed, continuing with HTTP only');
     }
-    console.log('14s. SSL/TLS initialization completed');
+    console.log('14w. SSL/TLS initialization completed');
 
-    console.log('14t. Checking for existing processes on port...');
+    console.log('14x. Checking for existing processes on port...');
     await killProcessOnPort(port);
-    console.log('14u. Port cleanup completed');
+    console.log('14y. Port cleanup completed');
 
-    console.log('14v. Starting HTTP server...');
+    console.log('14z. Starting HTTP server...');
     httpServer.listen(port, '0.0.0.0', () => {
       console.log(`✅ Server is now listening on http://0.0.0.0:${port}`);
       console.log(`Try accessing http://localhost:${port}/api/v1/health`);
