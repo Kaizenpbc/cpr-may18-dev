@@ -23,6 +23,7 @@ import HRPortal from './components/portals/HRPortal';
 import VendorPortal from './components/portals/VendorPortal';
 import SessionWarning from './components/common/SessionWarning';
 import LocationTracker from './components/LocationTracker';
+import TransitionWrapper from './components/common/TransitionWrapper';
 
 console.log('[DEEP TRACE] App.tsx - Starting to load dependencies');
 
@@ -59,14 +60,15 @@ function App() {
                 {/* Location Tracker for preserving user location */}
                 <LocationTracker />
               
-              <Routes>
-                {/* Public routes */}
-                <Route path='/login' element={<Login />} />
-                <Route path='/recover-password' element={<RecoverPassword />} />
-                <Route path='/forgot-password' element={<ForgotPassword />} />
-                <Route path='/reset-password' element={<ResetPassword />} />
-                <Route path='/test-csv' element={<TestCSV />} />
-                <Route path='/' element={<RoleBasedRouter />} />
+              <TransitionWrapper>
+                <Routes>
+                  {/* Public routes */}
+                  <Route path='/login' element={<Login />} />
+                  <Route path='/recover-password' element={<RecoverPassword />} />
+                  <Route path='/forgot-password' element={<ForgotPassword />} />
+                  <Route path='/reset-password' element={<ResetPassword />} />
+                  <Route path='/test-csv' element={<TestCSV />} />
+                  <Route path='/' element={<RoleBasedRouter />} />
 
                 {/* Protected routes */}
                 <Route
@@ -153,9 +155,10 @@ function App() {
                   }
                 />
 
-                {/* Fallback for unknown routes */}
-                <Route path='*' element={<NotFound />} />
-              </Routes>
+                  {/* Fallback for unknown routes */}
+                  <Route path='*' element={<NotFound />} />
+                </Routes>
+              </TransitionWrapper>
               </ErrorBoundary>
             </RealtimeProvider>
           </SnackbarProvider>

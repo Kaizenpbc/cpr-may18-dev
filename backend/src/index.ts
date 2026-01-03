@@ -45,10 +45,10 @@ const errorLogFile = path.join(logDir, 'error.log');
 function writeToLog(message: string, level: 'INFO' | 'ERROR' | 'WARN' | 'DEBUG' = 'INFO') {
   const timestamp = new Date().toISOString();
   const logEntry = `[${timestamp}] [${level}] ${message}\n`;
-  
+
   // Write to console
   console.log(logEntry.trim());
-  
+
   // Write to file
   try {
     fs.appendFileSync(logFile, logEntry);
@@ -62,10 +62,10 @@ function writeErrorToLog(error: any, context?: string) {
   const errorMessage = context ? `${context}: ${error.message || error}` : error.message || error;
   const stackTrace = error.stack || '';
   const logEntry = `[${timestamp}] [ERROR] ${errorMessage}\n${stackTrace}\n`;
-  
+
   // Write to console
   console.error(logEntry.trim());
-  
+
   // Write to error file
   try {
     fs.appendFileSync(errorLogFile, logEntry);
@@ -78,7 +78,7 @@ function writeErrorToLog(error: any, context?: string) {
 const requestLogger = (req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   const { method, url, ip, headers } = req;
-  
+
   // Log incoming request
   writeToLog(`📥 INCOMING REQUEST: ${method} ${url} from ${ip}`, 'INFO');
   writeToLog(`📋 Headers: ${JSON.stringify({
@@ -86,7 +86,7 @@ const requestLogger = (req: Request, res: Response, next: NextFunction) => {
     'content-type': headers['content-type'],
     'authorization': headers.authorization ? '[REDACTED]' : 'none'
   })}`, 'DEBUG');
-  
+
   // Log request body for non-GET requests (excluding sensitive data)
   if (method !== 'GET' && req.body) {
     const sanitizedBody = { ...req.body };
@@ -94,32 +94,32 @@ const requestLogger = (req: Request, res: Response, next: NextFunction) => {
     if (sanitizedBody.token) sanitizedBody.token = '[REDACTED]';
     writeToLog(`📦 Request body: ${JSON.stringify(sanitizedBody)}`, 'DEBUG');
   }
-  
+
   // Override res.json to log responses
   const originalJson = res.json;
-  res.json = function(data: any) {
+  res.json = function (data: any) {
     const duration = Date.now() - start;
     const statusCode = res.statusCode;
-    
+
     // Log response
     writeToLog(`📤 RESPONSE: ${method} ${url} - ${statusCode} (${duration}ms)`, 'INFO');
-    
+
     if (statusCode >= 400) {
       writeToLog(`❌ Error response: ${JSON.stringify(data)}`, 'ERROR');
     } else if (url.includes('/auth/login') || url.includes('/auth/register')) {
       writeToLog(`🔐 Auth response: ${JSON.stringify({ success: data.success || false, message: data.message || 'No message' })}`, 'INFO');
     }
-    
+
     return originalJson.call(this, data);
   };
-  
+
   next();
 };
 
 // Authentication logging middleware
 const authLogger = (req: Request, res: Response, next: NextFunction) => {
   const { url, method } = req;
-  
+
   // Log authentication attempts
   if (url.includes('/auth/login')) {
     writeToLog(`🔐 LOGIN ATTEMPT: ${method} ${url}`, 'INFO');
@@ -128,12 +128,12 @@ const authLogger = (req: Request, res: Response, next: NextFunction) => {
   } else if (url.includes('/auth/logout')) {
     writeToLog(`🚪 LOGOUT ATTEMPT: ${method} ${url}`, 'INFO');
   }
-  
+
   // Log protected route access
   if (req.user) {
     writeToLog(`👤 PROTECTED ROUTE ACCESS: ${method} ${url} by user ${req.user.userId} (${req.user.role})`, 'INFO');
   }
-  
+
   next();
 };
 
@@ -147,19 +147,19 @@ const errorLogger = (error: any, req: Request, res: Response, next: NextFunction
 async function killProcessOnPort(port: number): Promise<void> {
   try {
     console.log(`🔪 Attempting to kill process on port ${port}...`);
-    
+
     // For Windows - get all processes using the port
     const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
     const lines = stdout.split('\n').filter(line => line.trim());
-    
+
     if (lines.length === 0) {
       console.log(`ℹ️ No processes found on port ${port}`);
       return;
     }
-    
+
     let killedAny = false;
     const processedPids = new Set<string>();
-    
+
     for (const line of lines) {
       const parts = line.trim().split(/\s+/);
       if (parts.length >= 5) {
@@ -180,12 +180,12 @@ async function killProcessOnPort(port: number): Promise<void> {
         }
       }
     }
-    
+
     if (killedAny) {
       // Wait for the port to be released
       console.log(`⏳ Waiting 2 seconds for port ${port} to be released...`);
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       // Verify port is free
       try {
         const { stdout: checkOutput } = await execAsync(`netstat -ano | findstr :${port}`);
@@ -344,7 +344,7 @@ writeToLog('✅ Logging middleware configured', 'INFO');
 
 // Add session management middleware
 writeToLog('🔧 Setting up session management...', 'INFO');
-app.use(sessionManager);
+// app.use(sessionManager); // Temporarily disabled due to conflict between Redis and DB session stores
 writeToLog('✅ Session management configured', 'INFO');
 
 // Basic health check route
@@ -360,7 +360,7 @@ app.get('/api/v1/health/database', async (req: Request, res: Response) => {
     const { getSecureDatabase } = await import('./config/secureDatabase.js');
     const db = getSecureDatabase();
     const health = await db.healthCheck();
-    
+
     res.json({
       status: health.healthy ? 'healthy' : 'unhealthy',
       database: health.stats,
@@ -417,7 +417,7 @@ app.get('/api/v1/health/mfa', async (req: Request, res: Response) => {
   try {
     const { getMFADatabaseHealth } = await import('./config/mfaDatabase.js');
     const mfaHealth = await getMFADatabaseHealth();
-    
+
     res.json({
       status: mfaHealth.status,
       mfa: mfaHealth,
@@ -437,7 +437,7 @@ app.get('/api/v1/health/encryption', async (req: Request, res: Response) => {
   try {
     const { getEncryptionDatabaseHealth } = await import('./config/encryptionDatabase.js');
     const encryptionHealth = await getEncryptionDatabaseHealth();
-    
+
     res.json({
       status: encryptionHealth.status,
       encryption: encryptionHealth,
@@ -457,7 +457,7 @@ app.get('/api/v1/health/security-monitoring', async (req: Request, res: Response
   try {
     const { getSecurityMonitoringDatabaseHealth } = await import('./config/securityMonitoringDatabase.js');
     const securityMonitoringHealth = await getSecurityMonitoringDatabaseHealth();
-    
+
     res.json({
       status: securityMonitoringHealth.status,
       securityMonitoring: securityMonitoringHealth,
@@ -535,7 +535,7 @@ console.log('✅ Vendor routes configured');
 console.log('12. Setting up SSE endpoint...');
 app.get('/api/v1/events', (req: Request, res: Response) => {
   console.log('[SSE] Client attempting to connect to events endpoint');
-  
+
   try {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -586,7 +586,7 @@ writeToLog('✅ Error logging middleware configured', 'INFO');
 // Global error handler (must be last)
 app.use((error: any, req: Request, res: Response, next: NextFunction) => {
   writeErrorToLog(error, `Global error handler: ${req.method} ${req.url}`);
-  
+
   // Handle AppError instances
   if (error.name === 'AppError' || error.statusCode) {
     return res.status(error.statusCode || 500).json({
@@ -598,7 +598,7 @@ app.use((error: any, req: Request, res: Response, next: NextFunction) => {
       }
     });
   }
-  
+
   // Handle JWT errors
   if (error.name === 'JsonWebTokenError') {
     return res.status(401).json({
@@ -609,7 +609,7 @@ app.use((error: any, req: Request, res: Response, next: NextFunction) => {
       }
     });
   }
-  
+
   if (error.name === 'TokenExpiredError') {
     return res.status(401).json({
       success: false,
@@ -619,7 +619,7 @@ app.use((error: any, req: Request, res: Response, next: NextFunction) => {
       }
     });
   }
-  
+
   // Handle validation errors
   if (error.name === 'ValidationError') {
     return res.status(400).json({
@@ -630,7 +630,7 @@ app.use((error: any, req: Request, res: Response, next: NextFunction) => {
       }
     });
   }
-  
+
   // Default error response
   res.status(500).json({
     success: false,

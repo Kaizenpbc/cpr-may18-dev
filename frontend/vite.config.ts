@@ -22,13 +22,19 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      'src': path.resolve(__dirname, './src')
+      'src': path.resolve(__dirname, './src'),
+      'country-flag-icons/unicode': path.resolve(__dirname, 'node_modules/country-flag-icons/unicode/index.js'),
     }
   },
   build: {
     sourcemap: true
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom']
+    include: ['react', 'react-dom', 'react-router-dom', 'react-phone-number-input'],
+    esbuildOptions: {
+      alias: {
+        'country-flag-icons/unicode': path.resolve(__dirname, 'node_modules/country-flag-icons/unicode/index.js')
+      }
+    }
   }
 })

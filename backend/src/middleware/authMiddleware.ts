@@ -55,7 +55,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
     if (!token) {
       console.log('[TRACE] Auth middleware - No token provided');
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
         error: {
           code: errorCodes.AUTH_TOKEN_MISSING,
@@ -66,7 +66,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
     try {
       console.log('[TRACE] Auth middleware - Verifying token');
-      
+
       // Check if token is blacklisted
       console.log('[TRACE] Auth middleware - Checking blacklist for token:', token.substring(0, 20) + '...');
       let isBlacklisted = false;
@@ -77,10 +77,10 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
         console.error('[TRACE] Auth middleware - Blacklist check failed:', blacklistError);
         // Continue with token verification even if blacklist check fails
       }
-      
+
       if (isBlacklisted) {
         console.log('[TRACE] Auth middleware - Token is blacklisted');
-        return res.status(401).json({ 
+        return res.status(401).json({
           success: false,
           error: {
             code: errorCodes.AUTH_TOKEN_INVALID,
@@ -88,7 +88,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
           }
         });
       }
-      
+
       const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET) as TokenPayload;
       console.log('[TRACE] Auth middleware - Token verified, user:', {
         id: decoded.id,
@@ -109,16 +109,16 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       next();
     } catch (err) {
       console.log('[TRACE] Auth middleware - Token verification failed:', err);
-      
+
       // Check if it's a token expiration error
       if (err instanceof jwt.TokenExpiredError) {
         console.log('[TRACE] Auth middleware - Token expired, attempting refresh');
-        
+
         // Safely access cookies with null check
         const refreshToken = req.cookies?.refreshToken;
         if (!refreshToken) {
           console.log('[TRACE] Auth middleware - No refresh token available');
-          return res.status(401).json({ 
+          return res.status(401).json({
             success: false,
             error: {
               code: errorCodes.AUTH_TOKEN_INVALID,
@@ -154,7 +154,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
           next();
         } catch (refreshErr) {
           console.log('[TRACE] Auth middleware - Token refresh failed:', refreshErr);
-          return res.status(401).json({ 
+          return res.status(401).json({
             success: false,
             error: {
               code: errorCodes.AUTH_TOKEN_INVALID,
@@ -165,7 +165,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       } else {
         // Token is invalid for other reasons
         console.log('[TRACE] Auth middleware - Token invalid:', err);
-        return res.status(401).json({ 
+        return res.status(401).json({
           success: false,
           error: {
             code: errorCodes.AUTH_TOKEN_INVALID,
@@ -176,7 +176,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     }
   } catch (error) {
     console.error('[TRACE] Auth middleware - Unexpected error:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
       error: {
         code: errorCodes.INTERNAL_SERVER_ERROR,

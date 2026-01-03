@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 import logger from '../utils/logger';
-import config from '../config.js';
+import config from '../config';
 
 let socket = null;
 
