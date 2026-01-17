@@ -61,7 +61,6 @@
   "devDependencies": {
     "@faker-js/faker": "^9.9.0",
     "@playwright/test": "^1.49.0",
-    "@rollup/rollup-win32-x64-msvc": "^4.55.1",
     "@types/jest": "^29.5.12",
     "@types/supertest": "^6.0.2",
     "@vitejs/plugin-react": "^5.1.2",
