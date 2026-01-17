@@ -79,8 +79,9 @@
   "dependencies": {
     "@mui/system": "^5.15.15",
     "@mui/utils": "^7.3.7",
-    "country-flag-icons": "^1.5.11",
+    "@opentelemetry/semantic-conventions": "1.38.0",
     "@types/multer": "^2.0.0",
+    "country-flag-icons": "^1.5.11",
     "date-fns": "^4.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.1"
