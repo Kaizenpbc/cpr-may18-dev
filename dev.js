@@ -12,13 +12,13 @@ const createLogger = (name, color) => {
 };
 
 concurrently([
-  { 
+  {
     command: 'cd backend && npm run dev',
     name: 'backend',
     prefixColor: 'blue',
     onOutput: createLogger('Backend', 'blue')
   },
-  { 
+  {
     command: 'cd frontend && npm run dev',
     name: 'frontend',
     prefixColor: 'green',
@@ -33,7 +33,7 @@ concurrently([
   handleInput: true,
   raw: true,
   timestampFormat: 'HH:mm:ss',
-}).catch((error) => {
+}).result.catch((error) => {
   console.error(chalk.red('\n[Error] Process failed:'), error);
   process.exit(1);
 });

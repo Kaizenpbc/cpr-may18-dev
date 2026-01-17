@@ -40,7 +40,7 @@ export const apiLimiter = rateLimit({
 // Stricter limiter for auth routes
 export const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5, // Limit each IP to 5 failed attempts per hour
+  max: 100, // Increased from 5 to 100 for better dev experience
   message: {
     error: {
       code: 'AUTH_RATE_LIMIT_EXCEEDED',

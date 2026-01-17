@@ -62,7 +62,7 @@ const Login = () => {
         username: trimmedUsername,
         timestamp: new Date().toISOString()
       });
-      
+
       await login(trimmedUsername, password);
       console.log('[DEEP TRACE] Login successful:', {
         username: trimmedUsername,
@@ -79,10 +79,21 @@ const Login = () => {
         status: err.response?.status,
         timestamp: new Date().toISOString()
       });
-      
+
       const errorData = err.response?.data;
-      setError(errorData?.error || 'Failed to login. Please check your credentials.');
-      setErrorCode(errorData?.code);
+      let errorMessage = 'Failed to login. Please check your credentials.';
+
+      if (typeof errorData?.error === 'object') {
+        errorMessage = errorData.error.message;
+        if (errorData.error.retryAfter) {
+          errorMessage += ` Try again in ${errorData.error.retryAfter}.`;
+        }
+      } else if (typeof errorData?.error === 'string') {
+        errorMessage = errorData.error;
+      }
+
+      setError(errorMessage);
+      setErrorCode(errorData?.code || errorData?.error?.code);
       setSuggestions(errorData?.suggestions || []);
     } finally {
       setIsLoading(false);
@@ -105,7 +116,7 @@ const Login = () => {
       });
 
       setForgotPasswordMessage(response.data.message);
-      
+
       // In development, show the reset token
       if (response.data.resetToken) {
         setForgotPasswordMessage(
@@ -166,12 +177,12 @@ const Login = () => {
               TEST SYSTEM - Login
             </Typography>
           )}
-          
+
           {error && (
-            <Alert 
-              severity='error' 
-              sx={{ 
-                mb: 2, 
+            <Alert
+              severity='error'
+              sx={{
+                mb: 2,
                 width: '100%',
                 '& .MuiAlert-message': {
                   width: '100%'
@@ -190,7 +201,7 @@ const Login = () => {
                       <ListItemIcon sx={{ minWidth: 24 }}>
                         <CheckCircle fontSize="small" color="primary" />
                       </ListItemIcon>
-                      <ListItemText 
+                      <ListItemText
                         primary={suggestion}
                         primaryTypographyProps={{ variant: 'body2' }}
                       />
@@ -200,7 +211,7 @@ const Login = () => {
               )}
             </Alert>
           )}
-          
+
           <Box component='form' onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }} noValidate>
             <TextField
               margin='normal'
@@ -292,7 +303,7 @@ const Login = () => {
             >
               {isLoading ? <CircularProgress size={24} /> : 'Sign In'}
             </Button>
-            
+
             <Box sx={{ textAlign: 'center', mt: 2 }}>
               <Link
                 component="button"
@@ -308,8 +319,8 @@ const Login = () => {
       </Box>
 
       {/* Forgot Password Dialog */}
-      <Dialog 
-        open={showForgotPassword} 
+      <Dialog
+        open={showForgotPassword}
         onClose={() => setShowForgotPassword(false)}
         maxWidth="sm"
         fullWidth
@@ -319,14 +330,14 @@ const Login = () => {
           <Typography variant="body2" sx={{ mb: 2 }}>
             Enter your email address or username to receive password reset instructions.
           </Typography>
-          
+
           <TextField
             fullWidth
             label="Email Address"
             type="email"
             value={forgotPasswordEmail}
             onChange={(e) => setForgotPasswordEmail(e.target.value)}
-            sx={{ 
+            sx={{
               mb: 2,
               '& .MuiInputLabel-root': {
                 fontFamily: 'inherit',
@@ -343,17 +354,17 @@ const Login = () => {
             }}
             disabled={isForgotPasswordLoading}
           />
-          
+
           <Typography variant="body2" sx={{ mb: 1, textAlign: 'center' }}>
             OR
           </Typography>
-          
+
           <TextField
             fullWidth
             label="Username"
             value={forgotPasswordUsername}
             onChange={(e) => setForgotPasswordUsername(e.target.value)}
-            sx={{ 
+            sx={{
               mb: 2,
               '& .MuiInputLabel-root': {
                 fontFamily: 'inherit',
@@ -370,9 +381,9 @@ const Login = () => {
             }}
             disabled={isForgotPasswordLoading}
           />
-          
+
           {forgotPasswordMessage && (
-            <Alert 
+            <Alert
               severity={forgotPasswordMessage.includes('Development Reset Token') ? 'info' : 'success'}
               sx={{ mt: 2 }}
             >
@@ -383,13 +394,13 @@ const Login = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button 
+          <Button
             onClick={() => setShowForgotPassword(false)}
             disabled={isForgotPasswordLoading}
           >
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={handleForgotPassword}
             variant="contained"
             disabled={isForgotPasswordLoading}

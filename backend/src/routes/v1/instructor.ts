@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'path';
+import fs from 'fs';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
 import { pool } from '../../config/database.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
@@ -46,42 +48,42 @@ router.get('/dashboard/stats', authenticateToken, requireRole(['instructor']), a
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
-  
+
   const userId = req.user.id;
-  
+
   try {
     // Get current month stats
     const currentDate = new Date();
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    
+
     // Get total courses
     const totalCoursesResult = await pool.query(
       `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1`,
       [userId]
     );
-    
+
     // Get scheduled courses (confirmed but not completed)
     const scheduledCoursesResult = await pool.query(
       `SELECT COUNT(*) as count FROM course_requests 
        WHERE instructor_id = $1 AND status = 'confirmed'`,
       [userId]
     );
-    
+
     // Get completed courses
     const completedCoursesResult = await pool.query(
       `SELECT COUNT(*) as count FROM course_requests 
        WHERE instructor_id = $1 AND status = 'completed'`,
       [userId]
     );
-    
+
     // Get cancelled courses
     const cancelledCoursesResult = await pool.query(
       `SELECT COUNT(*) as count FROM course_requests 
        WHERE instructor_id = $1 AND status = 'cancelled'`,
       [userId]
     );
-    
+
     // Get total students across all courses
     const totalStudentsResult = await pool.query(
       `SELECT COALESCE(SUM(cs.student_count), 0) as total_students
@@ -94,7 +96,7 @@ router.get('/dashboard/stats', authenticateToken, requireRole(['instructor']), a
        WHERE cr.instructor_id = $1`,
       [userId]
     );
-    
+
     // Get recent classes (last 5 completed or confirmed)
     const recentClassesResult = await pool.query(
       `SELECT 
@@ -110,7 +112,7 @@ router.get('/dashboard/stats', authenticateToken, requireRole(['instructor']), a
        LIMIT 5`,
       [userId]
     );
-    
+
     const stats = {
       totalCourses: parseInt(totalCoursesResult.rows[0]?.count || 0),
       scheduledClasses: parseInt(scheduledCoursesResult.rows[0]?.count || 0),
@@ -124,7 +126,7 @@ router.get('/dashboard/stats', authenticateToken, requireRole(['instructor']), a
         students: parseInt(row.students || 0)
       }))
     };
-    
+
     console.log('[DEBUG] Instructor dashboard stats for user', userId, ':', stats);
     res.json({ success: true, data: stats });
   } catch (error) {
@@ -148,13 +150,13 @@ router.get('/availability', authenticateToken, requireRole(['instructor']), asyn
       [userId]
     );
     console.log('[DEBUG] Availability query result for user', userId, ':', JSON.stringify(result.rows, null, 2));
-    
+
     // Format dates to YYYY-MM-DD for frontend compatibility
     const formattedData = result.rows.map(row => ({
       ...row,
       date: row.date ? new Date(row.date).toISOString().split('T')[0] : null
     }));
-    
+
     console.log('[DEBUG] Formatted availability data:', JSON.stringify(formattedData, null, 2));
     res.json({ success: true, data: formattedData });
   } catch (error) {
@@ -241,7 +243,7 @@ router.get('/classes', authenticateToken, requireRole(['instructor']), async (re
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user.id;
-  
+
   // Get confirmed course requests from course_requests table
   const courseRequestsDbResult = await pool.query(
     `SELECT 
@@ -269,7 +271,7 @@ router.get('/classes', authenticateToken, requireRole(['instructor']), async (re
      ORDER BY cr.confirmed_date DESC`,
     [userId]
   );
-  
+
   const allData = courseRequestsDbResult.rows;
   const result = allData.map(row => {
     const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
@@ -287,7 +289,7 @@ router.get('/classes/active', authenticateToken, requireRole(['instructor']), as
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user.id;
-  
+
   const dbResult = await pool.query(
     `SELECT 
       cr.id,
@@ -314,7 +316,7 @@ router.get('/classes/active', authenticateToken, requireRole(['instructor']), as
      ORDER BY cr.confirmed_date ASC`,
     [userId]
   );
-  
+
   const result = dbResult.rows.map(row => {
     const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
     return {
@@ -331,7 +333,7 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor']),
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user.id;
-  
+
   const dbResult2 = await pool.query(
     `SELECT 
       cr.id,
@@ -358,7 +360,7 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor']),
      ORDER BY cr.confirmed_date DESC`,
     [userId]
   );
-  
+
   const result2 = dbResult2.rows.map(row => {
     const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
     return {
@@ -375,7 +377,7 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor']), asy
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user.id;
-  
+
   // Use database current date to avoid timezone issues
   const currentDateResult = await pool.query('SELECT CURRENT_DATE as current_date');
   const todayStr = currentDateResult.rows[0].current_date.toISOString().split('T')[0]; // YYYY-MM-DD format
@@ -407,10 +409,10 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor']), asy
      ORDER BY cr.confirmed_date ASC`,
     [userId, todayStr]
   );
-  
+
   // Use only course_requests data
   const allData = courseRequestsDbResult.rows;
-  
+
   console.log('[TRACE] Raw DB result (today):', JSON.stringify(allData, null, 2));
   const result3 = allData.map(row => {
     // Extract date from start_time for compatibility
@@ -475,10 +477,10 @@ router.get('/classes/:classId/students', authenticateToken, requireRole(['instru
   const userId = req.user.id;
   try {
     const { classId } = req.params;
-    
+
     // The frontend is sending course_request_id as classId, so use it directly
     const courseRequestId = classId;
-    
+
     // Verify this course request belongs to the instructor
     const courseRequestCheck = await pool.query(
       `SELECT id FROM course_requests 
@@ -642,13 +644,13 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
 
   // The frontend is sending course_request_id as classId, so use it directly
   const courseRequestId = classId;
-  
+
   // Verify this course request belongs to the instructor
   const courseRequestCheck = await pool.query(
     'SELECT id FROM course_requests WHERE id = $1 AND instructor_id = $2',
     [courseRequestId, userId]
   );
-  
+
   if (courseRequestCheck.rows.length === 0) {
     return res.status(403).json({ error: 'Not authorized or course request not found' });
   }
@@ -659,11 +661,11 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
       'SELECT id FROM course_students WHERE course_request_id = $1 AND email = $2',
       [courseRequestId, email]
     );
-    
+
     if (exists.rows.length > 0) {
       return res.status(400).json({ error: 'Student with this email already exists for this course' });
     }
-    
+
     // Insert student
     const insertResult = await pool.query(
       `INSERT INTO course_students (course_request_id, first_name, last_name, email, status, enrolled_at)
@@ -671,7 +673,7 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
        RETURNING id, first_name, last_name, email, status, enrolled_at`,
       [courseRequestId, firstName, lastName, email || null]
     );
-    
+
     // Transform the response to match frontend expectations
     const addedStudent = {
       studentid: insertResult.rows[0].id.toString(),
@@ -681,7 +683,7 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
       attendance: false,
       attendanceMarked: false,
     };
-    
+
     console.log('[Debug] Student added to course_request:', courseRequestId, 'student:', addedStudent);
     res.json({ success: true, data: addedStudent });
   } catch (error) {
@@ -784,7 +786,7 @@ router.post('/classes/:classId/complete', authenticateToken, requireRole(['instr
 
   // The frontend is sending course_request_id as classId, so use it directly
   const courseRequestId = classId;
-  
+
   // Verify this course request belongs to the instructor
   const courseRequestCheck = await pool.query(
     'SELECT id, status FROM course_requests WHERE id = $1 AND instructor_id = $2',
@@ -953,6 +955,23 @@ router.post('/classes/notes', authenticateToken, requireRole(['instructor']), as
   );
 
   res.json({ success: true, data: result.rows[0], message: 'Notes added successfully' });
+});
+
+// Serve the instructor manual (restricted to instructors)
+router.get('/manual', authenticateToken, requireRole(['instructor']), (req, res) => {
+  const manualPath = path.join(process.cwd(), 'src', 'static', 'instructor_manual', 'index.html');
+
+  if (fs.existsSync(manualPath)) {
+    res.sendFile(manualPath);
+  } else {
+    // Fallback search in case of different structure in production
+    const altPath = path.join(process.cwd(), 'dist', 'static', 'instructor_manual', 'index.html');
+    if (fs.existsSync(altPath)) {
+      res.sendFile(altPath);
+    } else {
+      res.status(404).json({ error: 'Instructor manual not found' });
+    }
+  }
 });
 
 export default router;

@@ -30,7 +30,10 @@ import {
   Refresh as RefreshIcon,
   Logout as LogoutIcon,
   HowToReg as AttendanceIcon,
+  MenuBook as ManualIcon,
 } from '@mui/icons-material';
+import { API_URL } from '../../config';
+import { tokenService } from '../../services/tokenService';
 import InstructorPortalHeader from '../headers/InstructorPortalHeader';
 
 const DRAWER_WIDTH = 240;
@@ -47,6 +50,7 @@ interface NavItem {
   icon: React.ReactNode;
   path: string;
   showInBottomNav: boolean;
+  isExternal?: boolean;
 }
 
 const InstructorLayout: React.FC<InstructorLayoutProps> = ({
@@ -110,10 +114,24 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
       path: '/instructor/profile',
       showInBottomNav: false,
     },
+    {
+      id: 'manual',
+      label: 'Teaching Manual',
+      icon: <ManualIcon />,
+      path: '/instructor/manual',
+      showInBottomNav: false,
+      isExternal: true,
+    },
   ];
 
-  const handleNavigation = (path: string) => {
-    navigate(path);
+  const handleNavigation = (item: NavItem) => {
+    if (item.isExternal) {
+      const token = tokenService.getAccessToken();
+      const url = `${API_URL}${item.path}?token=${encodeURIComponent(token || '')}`;
+      window.open(url, '_blank');
+    } else {
+      navigate(item.path);
+    }
     if (isMobile) {
       setMobileOpen(false);
     }
@@ -137,7 +155,7 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
           <ListItem
             button
             key={item.id}
-            onClick={() => handleNavigation(item.path)}
+            onClick={() => handleNavigation(item)}
             selected={currentView === item.id}
           >
             <ListItemIcon>{item.icon}</ListItemIcon>
@@ -225,7 +243,7 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
           onChange={(_, newValue) => {
             const item = navItems.find((item) => item.id === newValue);
             if (item) {
-              handleNavigation(item.path);
+              handleNavigation(item);
             }
           }}
           sx={{

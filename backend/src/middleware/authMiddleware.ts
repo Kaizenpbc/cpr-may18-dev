@@ -51,7 +51,16 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     });
 
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
+    let token = authHeader && authHeader.split(' ')[1];
+
+    if (!token && req.query.token) {
+      console.log('[TRACE] Auth middleware - Token found in query parameters');
+      let queryToken = req.query.token as string;
+      if (queryToken.startsWith('Bearer ')) {
+        queryToken = queryToken.substring(7);
+      }
+      token = queryToken;
+    }
 
     if (!token) {
       console.log('[TRACE] Auth middleware - No token provided');
