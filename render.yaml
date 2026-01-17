@@ -1,0 +1,48 @@
+services:
+  # Backend API Service
+  - type: web
+    name: cpr-training-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: cd backend && npm install && npm run build
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DB_HOST
+        fromDatabase:
+          name: cpr-training-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: cpr-training-db
+          property: port
+      - key: DB_USER
+        fromDatabase:
+          name: cpr-training-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: cpr-training-db
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: cpr-training-db
+          property: database
+      - key: CORS_ORIGIN
+        value: https://cpr-training-frontend.netlify.app
+
+databases:
+  - name: cpr-training-db
+    databaseName: cpr_training
+    user: cpr_user
+    plan: free
