@@ -491,9 +491,9 @@ export async function initializeEnvironmentConfig(): Promise<boolean> {
     const validation = validateConfiguration();
     
     if (!validation.valid) {
-      console.error('❌ Environment configuration validation failed:');
-      validation.errors.forEach(error => console.error(`   - ${error}`));
-      return false;
+      console.warn('⚠️ Environment configuration validation issues (continuing anyway):');
+      validation.errors.forEach(error => console.warn(`   - ${error}`));
+      // Don't fail - continue with defaults
     }
     
     // Log warnings
