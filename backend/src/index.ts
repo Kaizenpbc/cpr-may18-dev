@@ -679,6 +679,11 @@ console.log(`Attempting to start server on port ${port}...`);
 
 const startServer = async () => {
   try {
+    console.log('14a. Initializing database tables...');
+    const { initializeDatabase } = await import('./scripts/init-db.js');
+    await initializeDatabase();
+    console.log('14a. Database tables initialized');
+
     console.log('14b. Initializing token blacklist...');
     await initializeTokenBlacklist();
     console.log('14c. Token blacklist initialized');

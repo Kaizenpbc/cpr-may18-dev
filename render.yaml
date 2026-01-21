@@ -5,7 +5,7 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: cd backend && npm install --include=dev --ignore-scripts && npx knex migrate:latest --knexfile knexfile.cjs --env production && npx knex seed:run --knexfile knexfile.cjs --env production
+    buildCommand: cd backend && npm install --include=dev --ignore-scripts
     startCommand: cd backend && npx tsx src/index.ts
     envVars:
       - key: NODE_ENV
