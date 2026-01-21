@@ -212,14 +212,14 @@ async function killProcessOnPort(port: number): Promise<void> {
 
 console.log('1. Starting application...');
 
-// Load environment variables from root directory
+// Load environment variables from root directory (optional - Render provides env vars directly)
 console.log('2. Loading environment variables...');
 const result = dotenv.config({ path: path.join(process.cwd(), '..', '.env') });
 if (result.error) {
-  console.error('❌ Failed to load .env file:', result.error);
-  process.exit(1);
+  console.warn('⚠️ No .env file found - using environment variables from hosting platform');
+} else {
+  console.log('✅ Environment variables loaded from .env file');
 }
-console.log('✅ Environment variables loaded');
 
 // Log environment info
 console.log('3. Environment info:', {
