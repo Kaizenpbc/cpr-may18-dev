@@ -5,7 +5,7 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: cd backend && npm ci --ignore-scripts && npm run build
+    buildCommand: cd backend && npm install --include=dev --ignore-scripts && npx tsc --skipLibCheck
     startCommand: cd backend && npm start
     envVars:
       - key: NODE_ENV
