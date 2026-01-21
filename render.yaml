@@ -16,6 +16,10 @@ services:
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
+      - key: REFRESH_TOKEN_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
       - key: SESSION_SECRET
         generateValue: true
       - key: DB_HOST
