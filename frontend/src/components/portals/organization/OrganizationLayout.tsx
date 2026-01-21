@@ -23,6 +23,7 @@ import {
   AccountCircle as AccountIcon,
 } from '@mui/icons-material';
 import { NavLink } from 'react-router-dom';
+import ThemeToggle from '../../common/ThemeToggle';
 
 // TypeScript interfaces
 interface User {
@@ -146,9 +147,10 @@ const OrganizationLayout: React.FC<OrganizationLayoutProps> = ({
             {navigationItems.find(item => item.id === currentView)?.label || 'Organization Portal'}
           </Typography>
           
-          {/* User menu */}
+          {/* Theme toggle and User menu */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography variant="body2" sx={{ mr: 1 }}>
+            <ThemeToggle size="small" />
+            <Typography variant="body2" sx={{ mr: 1, ml: 1 }}>
               {user?.username}
             </Typography>
             <IconButton
