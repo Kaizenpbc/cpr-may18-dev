@@ -131,6 +131,68 @@ export async function initializeDatabase() {
       }
     }
 
+    // Create course_students table (for tracking students in course requests)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS course_students (
+        id SERIAL PRIMARY KEY,
+        course_request_id INTEGER NOT NULL REFERENCES course_requests(id),
+        first_name VARCHAR(255) NOT NULL,
+        last_name VARCHAR(255) NOT NULL,
+        email VARCHAR(255),
+        attendance_marked BOOLEAN DEFAULT false,
+        attended BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create classes table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS classes (
+        id SERIAL PRIMARY KEY,
+        class_type_id INTEGER REFERENCES class_types(id),
+        instructor_id INTEGER REFERENCES users(id),
+        organization_id INTEGER REFERENCES organizations(id),
+        start_time TIMESTAMP NOT NULL,
+        end_time TIMESTAMP NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'scheduled',
+        location TEXT,
+        max_students INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create class_students table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS class_students (
+        id SERIAL PRIMARY KEY,
+        class_id INTEGER REFERENCES classes(id),
+        student_id INTEGER REFERENCES users(id),
+        attendance VARCHAR(50) DEFAULT 'registered',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(class_id, student_id)
+      )
+    `);
+
+    // Create certifications table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS certifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        course_id INTEGER NOT NULL,
+        course_name VARCHAR(255) NOT NULL,
+        issue_date DATE NOT NULL,
+        expiration_date DATE NOT NULL,
+        certification_number VARCHAR(50) NOT NULL,
+        status VARCHAR(20) NOT NULL,
+        instructor_name VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS invoices (
         id SERIAL PRIMARY KEY,
@@ -141,6 +203,68 @@ export async function initializeDatabase() {
         due_date DATE NOT NULL,
         amount DECIMAL(10,2) NOT NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        course_type_name VARCHAR(255),
+        location VARCHAR(255),
+        date_completed DATE,
+        students_billed INTEGER,
+        rate_per_student DECIMAL(10,2),
+        notes TEXT,
+        email_sent_at TIMESTAMP,
+        posted_to_org BOOLEAN DEFAULT false,
+        posted_to_org_at TIMESTAMP,
+        paid_date DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create payments table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS payments (
+        id SERIAL PRIMARY KEY,
+        invoice_id INTEGER NOT NULL REFERENCES invoices(id),
+        amount DECIMAL(10,2) NOT NULL,
+        payment_date DATE NOT NULL,
+        payment_method VARCHAR(50),
+        reference_number VARCHAR(100),
+        notes TEXT,
+        status VARCHAR(50) DEFAULT 'verified',
+        submitted_by_org_at TIMESTAMP,
+        verified_by_accounting_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create course_pricing table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS course_pricing (
+        id SERIAL PRIMARY KEY,
+        organization_id INTEGER NOT NULL REFERENCES organizations(id),
+        course_type_id INTEGER NOT NULL REFERENCES class_types(id),
+        price_per_student DECIMAL(10,2) NOT NULL,
+        effective_date DATE NOT NULL,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(organization_id, course_type_id, is_active)
+      )
+    `);
+
+    // Create email_templates table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS email_templates (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        key VARCHAR(50) NOT NULL UNIQUE,
+        category VARCHAR(50) NOT NULL,
+        subject TEXT NOT NULL,
+        body TEXT NOT NULL,
+        is_active BOOLEAN DEFAULT true,
+        is_system BOOLEAN DEFAULT false,
+        created_by INTEGER REFERENCES users(id),
+        last_modified_by INTEGER REFERENCES users(id),
+        deleted_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
