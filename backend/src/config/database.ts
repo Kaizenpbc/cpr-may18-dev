@@ -12,7 +12,7 @@ const poolConfig: PoolConfig = {
   password: process.env.DB_PASSWORD || 'gtacpr',
   host: process.env.DB_HOST || '127.0.0.1',
   port: parseInt(process.env.DB_PORT || '5432'),
-  database: 'cpr_jun21', // FORCED: Always use cpr_jun21 for stability
+  database: process.env.DB_NAME || 'cpr_jun21',
 };
 
 // Create the connection pool
