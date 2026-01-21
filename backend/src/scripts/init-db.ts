@@ -87,10 +87,49 @@ export async function initializeDatabase() {
         notes TEXT,
         status VARCHAR(50) NOT NULL DEFAULT 'pending',
         instructor_id INTEGER REFERENCES users(id),
+        confirmed_date DATE,
+        confirmed_start_time TIME,
+        confirmed_end_time TIME,
+        completed_at TIMESTAMP,
+        ready_for_billing BOOLEAN DEFAULT false,
+        ready_for_billing_at TIMESTAMP,
+        invoiced BOOLEAN DEFAULT false,
+        invoiced_at TIMESTAMP,
+        last_reminder_at TIMESTAMP,
+        is_cancelled BOOLEAN DEFAULT false,
+        cancelled_at TIMESTAMP,
+        cancellation_reason TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Add missing columns to course_requests if they don't exist
+    const columnsToAdd = [
+      { name: 'confirmed_date', type: 'DATE' },
+      { name: 'confirmed_start_time', type: 'TIME' },
+      { name: 'confirmed_end_time', type: 'TIME' },
+      { name: 'completed_at', type: 'TIMESTAMP' },
+      { name: 'ready_for_billing', type: 'BOOLEAN DEFAULT false' },
+      { name: 'ready_for_billing_at', type: 'TIMESTAMP' },
+      { name: 'invoiced', type: 'BOOLEAN DEFAULT false' },
+      { name: 'invoiced_at', type: 'TIMESTAMP' },
+      { name: 'last_reminder_at', type: 'TIMESTAMP' },
+      { name: 'is_cancelled', type: 'BOOLEAN DEFAULT false' },
+      { name: 'cancelled_at', type: 'TIMESTAMP' },
+      { name: 'cancellation_reason', type: 'TEXT' }
+    ];
+
+    for (const col of columnsToAdd) {
+      try {
+        await pool.query(`ALTER TABLE course_requests ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`);
+      } catch (e: any) {
+        // Column might already exist, ignore error
+        if (!e.message.includes('already exists')) {
+          console.log(`Note: Could not add column ${col.name}: ${e.message}`);
+        }
+      }
+    }
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS invoices (
