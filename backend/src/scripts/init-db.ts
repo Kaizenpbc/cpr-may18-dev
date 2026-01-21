@@ -320,6 +320,31 @@ export async function initializeDatabase() {
       console.log('ℹ️ Database already has data');
     }
 
+    // Always ensure orguser exists (even if database already has data)
+    const orgUserCheck = await pool.query("SELECT id FROM users WHERE username = 'orguser'");
+    if (orgUserCheck.rows.length === 0) {
+      console.log('👤 Creating orguser account...');
+      const passwordHash = await bcrypt.hash('test123', 12);
+
+      // Ensure test organization exists
+      await pool.query(`
+        INSERT INTO organizations (name, contact_email)
+        VALUES ('Test Organization', 'test@org.com')
+        ON CONFLICT (name) DO NOTHING
+      `);
+
+      const orgResult = await pool.query(`SELECT id FROM organizations WHERE name = 'Test Organization'`);
+      const testOrgId = orgResult.rows[0]?.id || 1;
+
+      await pool.query(`
+        INSERT INTO users (username, email, password_hash, role, organization_id)
+        VALUES ('orguser', 'orguser@cpr.com', $1, 'organization', $2)
+        ON CONFLICT (username) DO NOTHING
+      `, [passwordHash, testOrgId]);
+
+      console.log('✅ orguser account created');
+    }
+
     console.log('✅ Database initialization complete');
   } catch (error) {
     console.error('❌ Database initialization error:', error);
