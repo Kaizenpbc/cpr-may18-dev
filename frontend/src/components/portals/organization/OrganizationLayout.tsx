@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material';
 import { NavLink } from 'react-router-dom';
 import ThemeToggle from '../../common/ThemeToggle';
+import NotificationBell from '../../common/NotificationBell';
 
 // TypeScript interfaces
 interface User {
@@ -147,9 +148,10 @@ const OrganizationLayout: React.FC<OrganizationLayoutProps> = ({
             {navigationItems.find(item => item.id === currentView)?.label || 'Organization Portal'}
           </Typography>
           
-          {/* Theme toggle and User menu */}
+          {/* Theme toggle, Notifications, and User menu */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <ThemeToggle size="small" />
+            <NotificationBell size="small" color="default" />
             <Typography variant="body2" sx={{ mr: 1, ml: 1 }}>
               {user?.username}
             </Typography>

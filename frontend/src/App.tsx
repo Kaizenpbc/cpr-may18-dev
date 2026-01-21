@@ -19,6 +19,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RealtimeProvider } from './contexts/RealtimeContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
 import { CustomThemeProvider } from './contexts/ThemeContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import HRPortal from './components/portals/HRPortal';
 import VendorPortal from './components/portals/VendorPortal';
 import SessionWarning from './components/common/SessionWarning';
@@ -53,6 +54,7 @@ function App() {
         <QueryClientProvider client={queryClient}>
           <SnackbarProvider>
             <RealtimeProvider>
+              <NotificationProvider>
               <ErrorBoundary>
                 {/* Session Warning Component */}
                 <SessionWarning showAtMinutes={5} />
@@ -160,6 +162,7 @@ function App() {
                 </Routes>
               </TransitionWrapper>
               </ErrorBoundary>
+              </NotificationProvider>
             </RealtimeProvider>
           </SnackbarProvider>
         </QueryClientProvider>

@@ -270,6 +270,44 @@ export async function initializeDatabase() {
       )
     `);
 
+    // Create notifications table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        type VARCHAR(20) NOT NULL DEFAULT 'info',
+        category VARCHAR(50) NOT NULL DEFAULT 'system',
+        link VARCHAR(500),
+        is_read BOOLEAN DEFAULT false,
+        read_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create index for faster notification queries
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read) WHERE is_read = false
+    `);
+
+    // Create notification_settings table for user preferences
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notification_settings (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+        course_notifications BOOLEAN DEFAULT true,
+        billing_notifications BOOLEAN DEFAULT true,
+        reminder_notifications BOOLEAN DEFAULT true,
+        system_notifications BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log('✅ Tables created');
 
     // Check if admin user exists
