@@ -44,7 +44,7 @@ router.get('/test-classes', async (req, res) => {
 });
 
 // Get instructor dashboard statistics
-router.get('/dashboard/stats', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.get('/dashboard/stats', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -136,7 +136,7 @@ router.get('/dashboard/stats', authenticateToken, requireRole(['instructor']), a
 });
 
 // Get instructor's availability
-router.get('/availability', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.get('/availability', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -166,7 +166,7 @@ router.get('/availability', authenticateToken, requireRole(['instructor']), asyn
 });
 
 // Add availability
-router.post('/availability', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.post('/availability', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -206,7 +206,7 @@ router.post('/availability', authenticateToken, requireRole(['instructor']), asy
 });
 
 // Remove availability
-router.delete('/availability/:date', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.delete('/availability/:date', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -238,7 +238,7 @@ router.delete('/availability/:date', authenticateToken, requireRole(['instructor
 });
 
 // Get instructor's classes (all confirmed course_requests)
-router.get('/classes', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.get('/classes', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -284,7 +284,7 @@ router.get('/classes', authenticateToken, requireRole(['instructor']), async (re
 });
 
 // Get instructor's active classes (confirmed course_requests)
-router.get('/classes/active', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.get('/classes/active', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -328,7 +328,7 @@ router.get('/classes/active', authenticateToken, requireRole(['instructor']), as
 });
 
 // Get instructor's completed classes (completed course_requests)
-router.get('/classes/completed', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.get('/classes/completed', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -372,7 +372,7 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor']),
 });
 
 // Get instructor's classes for today (use only course_requests)
-router.get('/classes/today', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.get('/classes/today', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -427,7 +427,7 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor']), asy
 });
 
 // Get instructor's schedule (all confirmed course_requests)
-router.get('/schedule', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.get('/schedule', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -470,7 +470,7 @@ router.get('/schedule', authenticateToken, requireRole(['instructor']), async (r
 });
 
 // Get students for a specific class
-router.get('/classes/:classId/students', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.get('/classes/:classId/students', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -526,7 +526,7 @@ router.get('/classes/:classId/students', authenticateToken, requireRole(['instru
 });
 
 // Get specific class details
-router.get('/classes/:classId', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.get('/classes/:classId', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -565,7 +565,7 @@ router.get('/classes/:classId', authenticateToken, requireRole(['instructor']), 
 });
 
 // Update student attendance
-router.put('/classes/:classId/students/:studentId/attendance', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.put('/classes/:classId/students/:studentId/attendance', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -630,7 +630,7 @@ router.put('/classes/:classId/students/:studentId/attendance', authenticateToken
 });
 
 // Add students to a class
-router.post('/classes/:classId/students', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.post('/classes/:classId/students', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -693,7 +693,7 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
 });
 
 // Update instructor availability (PUT method)
-router.put('/availability', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.put('/availability', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -750,7 +750,7 @@ router.put('/availability', authenticateToken, requireRole(['instructor']), asyn
 });
 
 // Update instructor profile
-router.put('/profile', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.put('/profile', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -776,7 +776,7 @@ router.put('/profile', authenticateToken, requireRole(['instructor']), async (re
 });
 
 // Mark class as completed
-router.post('/classes/:classId/complete', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.post('/classes/:classId/complete', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -838,7 +838,7 @@ router.post('/classes/:classId/complete', authenticateToken, requireRole(['instr
 });
 
 // Submit attendance for a class
-router.post('/classes/:classId/attendance', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.post('/classes/:classId/attendance', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -894,7 +894,7 @@ router.post('/classes/:classId/attendance', authenticateToken, requireRole(['ins
 });
 
 // Get attendance data
-router.get('/attendance', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.get('/attendance', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -924,7 +924,7 @@ router.get('/attendance', authenticateToken, requireRole(['instructor']), async 
 });
 
 // Add notes to classes
-router.post('/classes/notes', authenticateToken, requireRole(['instructor']), async (req, res) => {
+router.post('/classes/notes', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -958,7 +958,7 @@ router.post('/classes/notes', authenticateToken, requireRole(['instructor']), as
 });
 
 // Serve the instructor manual (restricted to instructors)
-router.get('/manual', authenticateToken, requireRole(['instructor']), (req, res) => {
+router.get('/manual', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), (req, res) => {
   const manualPath = path.join(process.cwd(), 'src', 'static', 'instructor_manual', 'index.html');
 
   if (fs.existsSync(manualPath)) {

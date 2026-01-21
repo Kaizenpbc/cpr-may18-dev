@@ -54,6 +54,9 @@ const DEFAULT_API_SECURITY_CONFIG: ApiSecurityConfig = {
     'http://localhost:3000',
     'http://localhost:5173',
     'http://localhost:5174',
+    'http://192.168.2.105:5173',
+    'http://192.168.2.105:5174',
+    'https://gta-cpr-course-admin.netlify.app',
     'https://yourdomain.com'
   ],
   blockedUserAgents: [
@@ -92,7 +95,7 @@ export async function validateApiKey(apiKey: string): Promise<ApiKey | null> {
     }
 
     const key = result.rows[0];
-    
+
     // Update last used timestamp
     await pool.query(
       'UPDATE api_keys SET last_used = NOW() WHERE id = $1',
@@ -138,12 +141,12 @@ export function generateRequestFingerprint(req: Request): RequestFingerprint {
 // Check if request is suspicious
 export function isSuspiciousRequest(req: Request, fingerprint: RequestFingerprint): boolean {
   const config = DEFAULT_API_SECURITY_CONFIG;
-  
+
   // Allow health check endpoints to bypass user agent checks
   if (req.url.startsWith('/api/v1/health')) {
     return false;
   }
-  
+
   // Allow curl and other common tools for health checks
   if (req.url.includes('/health') && (
     fingerprint.userAgent.toLowerCase().includes('curl') ||
@@ -152,9 +155,9 @@ export function isSuspiciousRequest(req: Request, fingerprint: RequestFingerprin
   )) {
     return false;
   }
-  
+
   // Check blocked user agents
-  if (config.blockedUserAgents.some(blocked => 
+  if (config.blockedUserAgents.some(blocked =>
     fingerprint.userAgent.toLowerCase().includes(blocked.toLowerCase())
   )) {
     return true;
@@ -172,8 +175,8 @@ export function isSuspiciousRequest(req: Request, fingerprint: RequestFingerprin
 
   const url = req.url.toLowerCase();
   const body = JSON.stringify(req.body || {}).toLowerCase();
-  
-  return suspiciousPatterns.some(pattern => 
+
+  return suspiciousPatterns.some(pattern =>
     pattern.test(url) || pattern.test(body)
   );
 }
@@ -182,7 +185,7 @@ export function isSuspiciousRequest(req: Request, fingerprint: RequestFingerprin
 export function checkRateLimit(identifier: string, limit: number = 100): boolean {
   const now = new Date();
   const windowStart = new Date(now.getTime() - 60 * 1000); // 1 minute window
-  
+
   if (!requestTracker.has(identifier)) {
     requestTracker.set(identifier, {
       count: 1,
@@ -193,7 +196,7 @@ export function checkRateLimit(identifier: string, limit: number = 100): boolean
   }
 
   const tracker = requestTracker.get(identifier)!;
-  
+
   // Reset counter if outside window
   if (tracker.lastRequest < windowStart) {
     tracker.count = 1;
@@ -215,7 +218,7 @@ export function checkRateLimit(identifier: string, limit: number = 100): boolean
 export function validateCors(req: Request): boolean {
   const config = DEFAULT_API_SECURITY_CONFIG;
   const origin = req.get('Origin');
-  
+
   if (!origin) {
     return true; // Allow requests without origin (e.g., mobile apps)
   }
@@ -249,7 +252,7 @@ export const apiSecurity = (config: Partial<ApiSecurityConfig> = {}) => {
 
       // 2. Generate request fingerprint
       const fingerprint = generateRequestFingerprint(req);
-      
+
       // 3. Check for suspicious activity
       if (securityConfig.enableRequestFingerprinting && isSuspiciousRequest(req, fingerprint)) {
         await logSecurityEvent(
@@ -305,7 +308,7 @@ export const apiSecurity = (config: Partial<ApiSecurityConfig> = {}) => {
       // 6. API Key validation (if required)
       if (securityConfig.enableApiKeyAuth && req.path.startsWith('/api/v1/external/')) {
         const apiKey = req.get('X-API-Key') || req.get('Authorization')?.replace('Bearer ', '');
-        
+
         if (!apiKey) {
           return res.status(401).json({
             success: false,
@@ -339,7 +342,7 @@ export const apiSecurity = (config: Partial<ApiSecurityConfig> = {}) => {
 
       // Add fingerprint to request for logging
       (req as any).fingerprint = fingerprint;
-      
+
       next();
     } catch (error) {
       console.error('API security middleware error:', error);
@@ -363,7 +366,7 @@ export async function createApiKey(
   expiresAt?: Date
 ): Promise<ApiKey> {
   const key = crypto.randomBytes(32).toString('hex');
-  
+
   const result = await pool.query(
     `INSERT INTO api_keys (key, name, organization_id, permissions, rate_limit, expires_at)
      VALUES ($1, $2, $3, $4, $5, $6)
@@ -433,7 +436,7 @@ export async function initializeApiSecurity(): Promise<void> {
 export function cleanupRequestTracking(): void {
   const now = new Date();
   const cutoff = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
-  
+
   for (const [key, tracker] of requestTracker.entries()) {
     if (tracker.lastRequest < cutoff) {
       requestTracker.delete(key);

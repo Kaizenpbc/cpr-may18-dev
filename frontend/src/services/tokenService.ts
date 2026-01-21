@@ -1,3 +1,4 @@
+import { API_URL } from '../config';
 console.log('Initializing tokenService');
 
 const ACCESS_TOKEN_KEY = 'accessToken';
@@ -41,31 +42,31 @@ class TokenService {
     try {
       const storedToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
       const storedExpiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
-      
+
       if (storedToken && storedExpiry) {
         const expiryTime = parseInt(storedExpiry);
-        
+
         // Check if token is expired
         if (Date.now() > expiryTime) {
           console.log('[TRACE] Token service - Stored token expired, clearing');
           this.clearTokens();
           return null;
         }
-        
+
         // Restore token to memory
         inMemoryToken = storedToken;
         tokenExpiry = expiryTime;
-        
+
         // Schedule refresh
         this.scheduleTokenRefresh();
-        
+
         console.log('[TRACE] Token service - Token restored from storage');
         return inMemoryToken;
       }
     } catch (error) {
       console.error('[TRACE] Token service - Error restoring token from storage:', error);
     }
-    
+
     return null;
   }
 
@@ -78,7 +79,7 @@ class TokenService {
     // Ensure token is properly formatted
     const formattedToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
     inMemoryToken = formattedToken;
-    
+
     // Calculate expiry time (default to 15 minutes if not provided)
     if (expiresIn) {
       tokenExpiry = Date.now() + (expiresIn * 1000);
@@ -94,10 +95,10 @@ class TokenService {
     } catch (error) {
       console.error('[TRACE] Token service - Error storing token:', error);
     }
-    
+
     // Schedule token refresh 5 minutes before expiry
     this.scheduleTokenRefresh();
-    
+
     console.log('[TRACE] Token service - Access token set, expires at:', new Date(tokenExpiry));
   }
 
@@ -130,12 +131,12 @@ class TokenService {
     if (!tokenExpiry) return;
 
     const timeUntilRefresh = tokenExpiry - Date.now() - (5 * 60 * 1000); // 5 minutes before expiry
-    
+
     if (timeUntilRefresh > 0) {
       refreshTimer = setTimeout(() => {
         this.refreshTokenSilently();
       }, timeUntilRefresh);
-      
+
       console.log('[TRACE] Token service - Token refresh scheduled in', Math.round(timeUntilRefresh / 1000), 'seconds');
     } else {
       // Token expires in less than 5 minutes, refresh immediately
@@ -148,13 +149,13 @@ class TokenService {
    */
   private async refreshTokenSilently(): Promise<void> {
     try {
-      console.log('[TRACE] Token service - Attempting silent token refresh');
-      
+      console.log('[TRACE] TokenService - Attempting silent token refresh');
+
       // Import authService dynamically to avoid circular dependencies
       const { authService } = await import('./authService');
-      
-      // Call the refresh endpoint
-      const response = await fetch('/api/v1/auth/refresh', {
+
+      // Call the refresh endpoint using the absolute API URL
+      const response = await fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include', // Include cookies
         headers: {
@@ -168,7 +169,7 @@ class TokenService {
           // Update the token
           this.setAccessToken(data.data.accessToken);
           console.log('[TRACE] Token service - Silent refresh successful');
-          
+
           // Notify other tabs
           this.broadcastSessionUpdate('tokenRefreshed');
         }
@@ -203,7 +204,7 @@ class TokenService {
    */
   saveCurrentFullLocation(): void {
     const fullLocation = window.location.pathname + window.location.search + window.location.hash;
-    
+
     // Don't save login/auth pages
     if (
       !fullLocation.includes('/login') &&
@@ -239,21 +240,21 @@ class TokenService {
   clearTokens(): void {
     inMemoryToken = null;
     tokenExpiry = null;
-    
+
     if (refreshTimer) {
       clearTimeout(refreshTimer);
       refreshTimer = null;
     }
-    
+
     // Clear from all storage locations
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
     sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-    
+
     // Clear any cached user data that might cause confusion
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('auth_user');
     sessionStorage.removeItem('currentUser');
-    
+
     console.log('[TRACE] Token service - All tokens cleared');
   }
 
@@ -305,7 +306,7 @@ class TokenService {
    */
   private handleSessionSync(data: any): void {
     console.log('[TRACE] Token service - Session sync received:', data);
-    
+
     switch (data.type) {
       case 'tokenRefreshed':
         // Another tab refreshed the token, update our local state
@@ -315,12 +316,12 @@ class TokenService {
           this.scheduleTokenRefresh();
         }
         break;
-        
+
       case 'logout':
         // Another tab logged out, clear our tokens
         this.clearTokens();
         break;
-        
+
       case 'heartbeat':
         // Another tab is active, extend our session
         if (data.token && data.expiry) {
@@ -346,10 +347,10 @@ class TokenService {
 
     // Broadcast to other tabs via localStorage
     localStorage.setItem(SESSION_SYNC_KEY, JSON.stringify(data));
-    
+
     // Broadcast to same tab via custom event
     window.dispatchEvent(new CustomEvent('sessionSync', { detail: data }));
-    
+
     // Clear the storage event after a short delay
     setTimeout(() => {
       localStorage.removeItem(SESSION_SYNC_KEY);
@@ -385,12 +386,12 @@ class TokenService {
     // Monitor user activity for session extension
     let activityTimer: NodeJS.Timeout | null = null;
     const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    
+
     const resetActivityTimer = () => {
       if (activityTimer) {
         clearTimeout(activityTimer);
       }
-      
+
       activityTimer = setTimeout(() => {
         if (this.hasTokens()) {
           // User is active, extend session if needed
@@ -411,7 +412,7 @@ class TokenService {
    */
   forceLogout(): void {
     console.log('[TRACE] Token service - Force logout');
-    
+
     // Save current location before clearing
     this.saveCurrentFullLocation();
 
@@ -420,7 +421,7 @@ class TokenService {
 
     // Clear all sessionStorage and localStorage auth-related items
     sessionStorage.clear();
-    
+
     // Clear specific localStorage items that might contain user data
     localStorage.removeItem('user');
     localStorage.removeItem('auth_user');

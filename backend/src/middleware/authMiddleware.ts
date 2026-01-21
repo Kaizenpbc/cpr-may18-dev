@@ -27,10 +27,12 @@ declare global {
 export const requireRole = (roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user?.role) {
+      console.log('[AUTH ERROR] No role specified for user:', req.user?.username);
       return res.status(403).json({ message: 'No role specified' });
     }
 
     if (!roles.includes(req.user.role)) {
+      console.log(`[AUTH ERROR] Insufficient permissions. User: ${req.user.username}, Role: ${req.user.role}, Required: ${roles.join(', ')}`);
       return res.status(403).json({ message: 'Insufficient permissions' });
     }
 

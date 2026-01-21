@@ -49,6 +49,8 @@ export function sanitizeString(input: string): string {
 /**
  * Sanitizes an object recursively
  */
+const SENSITIVE_FIELDS = ['password', 'currentPassword', 'newPassword', 'token', 'refreshToken', 'accessToken', 'confirmPassword'];
+
 export function sanitizeObject(obj: any): any {
   if (obj === null || obj === undefined) {
     return obj;
@@ -71,7 +73,13 @@ export function sanitizeObject(obj: any): any {
     for (const [key, value] of Object.entries(obj)) {
       // Sanitize the key as well
       const sanitizedKey = sanitizeString(key);
-      sanitized[sanitizedKey] = sanitizeObject(value);
+
+      // Skip sanitization for sensitive fields
+      if (SENSITIVE_FIELDS.includes(key)) {
+        sanitized[sanitizedKey] = value;
+      } else {
+        sanitized[sanitizedKey] = sanitizeObject(value);
+      }
     }
     return sanitized;
   }

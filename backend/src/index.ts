@@ -241,7 +241,13 @@ console.log('✅ HTTP server created');
 console.log('6. Creating Socket.IO server...');
 const io = new Server(httpServer, {
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://192.168.2.105:5173', 'http://192.168.2.105:5174'],
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://192.168.2.105:5173',
+      'http://192.168.2.105:5174',
+      'https://gta-cpr-course-admin.netlify.app'
+    ],
     methods: ['GET', 'POST'],
     credentials: true
   },
@@ -256,7 +262,13 @@ console.log('✅ Socket.IO server created');
 // Basic CORS
 console.log('7. Setting up CORS...');
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://192.168.2.105:5173', 'http://192.168.2.105:5174'],
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://192.168.2.105:5173',
+    'http://192.168.2.105:5174',
+    'https://gta-cpr-course-admin.netlify.app'
+  ],
   credentials: true
 }));
 console.log('✅ CORS configured');
@@ -272,7 +284,7 @@ try {
           scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for development
           styleSrc: ["'self'", "'unsafe-inline'", "https:"], // Allow inline styles and external fonts
           imgSrc: ["'self'", "data:", "https:"],
-          connectSrc: ["'self'", 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174', 'ws://localhost:3001', 'ws://192.168.2.105:3001'],
+          connectSrc: ["'self'", 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174', 'ws://localhost:3001', 'ws://192.168.2.105:3001', 'https://gta-cpr-course-admin.netlify.app'],
           fontSrc: ["'self'", "https:", "data:"],
           objectSrc: ["'none'"],
           mediaSrc: ["'self'"],

@@ -74,7 +74,7 @@ const processQueue = (error: any, token: string | null = null) => {
       resolve(token);
     }
   });
-  
+
   failedQueue = [];
 };
 
@@ -106,12 +106,19 @@ api.interceptors.response.use(
     // Handle 401 errors (unauthorized)
     if (error.response?.status === 401) {
       const errorCode = error.response?.data?.error?.code;
-      
-      // If it's a refresh token error, don't try to refresh - just redirect to login
-      if (errorCode === 'AUTH_1003' || error.response?.data?.error?.message?.includes('Refresh token')) {
-        console.log('🔐 [API] Refresh token error - redirecting to login');
+
+      // If it's a refresh token error OR a login attempt, don't try to refresh
+      if (
+        errorCode === 'AUTH_1003' ||
+        error.response?.data?.error?.message?.includes('Refresh token') ||
+        originalRequest.url?.includes('/auth/login')
+      ) {
+        console.log('🔐 [API] Auth error (refresh or login) - redirecting to login');
         tokenService.forceLogout();
-        window.location.href = '/login';
+        // Don't redirect if it's already the login page/request to avoid reload loops
+        if (!originalRequest.url?.includes('/auth/login')) {
+          window.location.href = '/login';
+        }
         return Promise.reject(error);
       }
 
@@ -122,11 +129,11 @@ api.interceptors.response.use(
         try {
           console.log('🔐 [API] Attempting token refresh...');
           const response = await tokenService.refreshTokenSilently();
-          
+
           if (response) {
             console.log('🔐 [API] Token refresh successful');
             processQueue(null, response);
-            
+
             // Retry the original request
             if (originalRequest) {
               originalRequest.headers.Authorization = response;
@@ -136,7 +143,7 @@ api.interceptors.response.use(
         } catch (refreshError) {
           console.error('🔐 [API] Token refresh failed:', refreshError);
           processQueue(refreshError, null);
-          
+
           // Clear tokens and redirect to login
           tokenService.forceLogout();
           window.location.href = '/login';
@@ -191,7 +198,7 @@ const extractLegacyData = <T>(response: { data: ApiResponse<T> }): T => {
 // Dashboard endpoints
 export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
   console.log('[Debug] api.ts - Fetching dashboard data');
-  
+
   try {
     // Get current user role from token service or auth context
     // For now, we'll use a more generic approach that works for all roles
@@ -205,7 +212,7 @@ export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
     try {
       const response = await api.get<ApiResponse<any>>('/dashboard');
       console.log('[Debug] api.ts - Generic dashboard data received:', response.data);
-      
+
       if (response.data.success && response.data.data) {
         const dashboardStats = response.data.data.instructorStats;
         return {
@@ -277,7 +284,7 @@ export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
       );
       console.error('[Debug] api.ts - Response data:', error.response?.data);
     }
-    
+
     // Return default data instead of throwing error
     return {
       upcomingClasses: 0,
@@ -291,7 +298,7 @@ export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
 // Role-specific dashboard data fetching
 export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<DashboardMetrics> => {
   console.log('[Debug] api.ts - Fetching role-specific dashboard data for role:', userRole);
-  
+
   try {
     const today = new Date();
     const year = today.getFullYear();
@@ -434,7 +441,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
     return dashboardData;
   } catch (error) {
     console.error('[Debug] api.ts - Error fetching role-specific dashboard data:', error);
-    
+
     // Return default data instead of throwing error
     return {
       upcomingClasses: 0,
@@ -456,9 +463,9 @@ export const authApi = {
 // SYSADMIN endpoints
 export const sysadminApi = {
   getConfigurations: () => api.get('/sysadmin/configurations'),
-  updateConfiguration: (key: string, value: string) => 
+  updateConfiguration: (key: string, value: string) =>
     api.put(`/sysadmin/configurations/${key}`, { value }),
-  getConfiguration: (key: string) => 
+  getConfiguration: (key: string) =>
     api.get(`/sysadmin/configurations/${key}`),
 };
 
@@ -515,7 +522,7 @@ export const organizationApi = {
     return extractData(response);
   },
   getInvoices: () => api.get('/organization/invoices'),
-  getBalanceCalculation: (invoiceId: string, paymentAmount: number) => 
+  getBalanceCalculation: (invoiceId: string, paymentAmount: number) =>
     api.get(`/organization/invoices/${invoiceId}/balance-calculation`, {
       params: { payment_amount: paymentAmount }
     }),
@@ -525,18 +532,18 @@ export const organizationApi = {
     return extractData(response);
   },
   requestCourse: (data: any) => api.post('/organization/course-request', data),
-  
+
   // Upload students for a course
   uploadStudents: async (courseRequestId: number, students: any[]) => {
     console.log('[TRACE] API - Uploading students for course:', courseRequestId);
     console.log('[TRACE] API - Students data:', students);
-    
+
     try {
       const response = await api.post('/organization/upload-students', {
         courseRequestId,
         students
       });
-      
+
       console.log('[TRACE] API - Upload response:', response.data);
       return response.data;
     } catch (error) {
@@ -562,33 +569,33 @@ export const instructorApi = {
   getAvailability: () => api.get('/instructor/availability'),
   updateAvailability: (data: any) =>
     api.put('/instructor/availability', data),
-  
+
   // Classes and courses
   getClasses: () => api.get('/instructor/classes'),
   getClassesToday: () => api.get('/instructor/classes/today'),
   getClassesCompleted: () => api.get('/instructor/classes/completed'),
   getClassesActive: () => api.get('/instructor/classes/active'),
   getClassStudents: (courseId: number) => api.get(`/instructor/classes/${courseId}/students`),
-  completeClass: (courseId: number, instructorComments?: string) => 
+  completeClass: (courseId: number, instructorComments?: string) =>
     api.post(`/instructor/classes/${courseId}/complete`, { instructor_comments: instructorComments || '' }),
-  updateAttendance: (courseId: number, students: any[]) => 
+  updateAttendance: (courseId: number, students: any[]) =>
     api.put(`/instructor/classes/${courseId}/attendance`, { students }),
   updateStudentAttendance: (courseId: number, studentId: string, attended: boolean) =>
     api.put(`/instructor/classes/${courseId}/students/${studentId}/attendance`, { attended }),
   addStudent: (courseId: number, studentData: any) =>
     api.post(`/instructor/classes/${courseId}/students`, studentData),
-  updateClassNotes: (courseId: number, notes: string) => 
+  updateClassNotes: (courseId: number, notes: string) =>
     api.post('/instructor/classes/notes', { courseId, notes }),
-  
+
   // Availability management
   addAvailability: (date: string) => api.post('/instructor/availability', { date }),
   removeAvailability: (date: string) => api.delete(`/instructor/availability/${date}`),
-  
+
   // Attendance
   getAttendance: () => api.get('/instructor/attendance'),
-  markAttendance: (courseId: number, students: any[]) => 
+  markAttendance: (courseId: number, students: any[]) =>
     api.post(`/instructor/classes/${courseId}/attendance`, { students }),
-  
+
   // Dashboard data
   getDashboardStats: () => api.get('/instructor/dashboard/stats'),
   getTodayClasses: () => api.get('/instructor/classes/today'),
@@ -1014,7 +1021,7 @@ export const getInstructorWorkloadReport = async (startDate: string, endDate: st
       params: { startDate, endDate }
     });
     const data = extractLegacyData(response);
-    
+
     console.log('[Debug] api.ts - Instructor workload report data received:', data);
     return data || [];
   } catch (error) {
@@ -1033,7 +1040,7 @@ export const fetchAccountingDashboardData = async () => {
   try {
     const response = await api.get<ApiResponse<any>>('/accounting/dashboard');
     const data = extractLegacyData(response);
-    
+
     console.log('[Debug] api.ts - Accounting dashboard data received:', data);
     return data;
   } catch (error) {
@@ -1081,7 +1088,7 @@ export const vendorApi = {
     for (let [key, value] of formData.entries()) {
       console.log(`  ${key}:`, value instanceof File ? `File(${value.name}, ${value.size} bytes)` : value);
     }
-    
+
     const response = await api.post('/vendor/invoices', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -1100,12 +1107,12 @@ export const vendorApi = {
     });
     return response.data;
   },
-  
+
   // OCR functions
   scanInvoice: async (file: File): Promise<any> => {
     const formData = new FormData();
     formData.append('invoice_pdf', file);
-    
+
     const response = await api.post('/vendor/invoices/scan', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -1119,17 +1126,17 @@ export const vendorApi = {
     const response = await api.post(`/vendor/invoices/${invoiceId}/submit-to-admin`);
     return response.data;
   },
-  
+
   resendToAdmin: async (invoiceId: number, notes: string) => {
     const response = await api.post(`/vendor/invoices/${invoiceId}/resend-to-admin`, { notes });
     return response.data;
   },
-  
+
   getInvoicePaymentHistory: async (invoiceId: number) => {
     const response = await api.get(`/vendor/invoices/${invoiceId}/payments`);
     return response.data;
   },
-  
+
   getInvoiceDetailsWithPayments: async (invoiceId: number) => {
     const response = await api.get(`/vendor/invoices/${invoiceId}/details`);
     return response.data;

@@ -30,10 +30,16 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { username, password } = req.body;
 
-    console.log('Login attempt:', { username });
+    console.log('---------------------------------------------------');
+    console.log('🔐 [AUTH] Login Request Received');
+    console.log('Headers:', JSON.stringify(req.headers));
+    console.log('Body keys:', Object.keys(req.body));
+    console.log('Username provided:', username);
+    console.log('Password provided:', password ? 'YES (masked)' : 'NO');
+    console.log('---------------------------------------------------');
 
     if (!username || !password) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Username and password are required',
         code: 'MISSING_CREDENTIALS'
       });
@@ -53,7 +59,7 @@ router.post(
 
       if (result.rows.length === 0) {
         console.log('User not found');
-        return res.status(401).json({ 
+        return res.status(401).json({
           error: `User '${username}' not found. Please check your username or contact your administrator.`,
           code: 'USER_NOT_FOUND',
           suggestions: [
@@ -67,6 +73,16 @@ router.post(
       const user = result.rows[0];
 
       console.log('Attempting password verification...');
+      console.log('Stored hash length:', user.password_hash?.length);
+      console.log('Received password length:', password?.length);
+      if (password && password.length > 0) {
+        console.log('Received password codes:',
+          password.charCodeAt(0),
+          password.length > 1 ? '...' : '',
+          password.charCodeAt(password.length - 1)
+        );
+      }
+
       const isValidPassword = await bcrypt.compare(
         password,
         user.password_hash
@@ -75,7 +91,7 @@ router.post(
 
       if (!isValidPassword) {
         console.log('Invalid password');
-        return res.status(401).json({ 
+        return res.status(401).json({
           error: `Incorrect password for user '${username}'. Please try again or use "Forgot Password".`,
           code: 'INVALID_PASSWORD',
           suggestions: [
@@ -205,7 +221,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     const { email, username } = req.body;
 
     if (!email && !username) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Email or username is required',
         code: 'MISSING_IDENTIFIER'
       });
@@ -239,8 +255,8 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 
       // In a real application, you would send an email here
       console.log('[AuthController] Password reset token generated for:', user.email || user.username);
-      
-      return res.json({ 
+
+      return res.json({
         message: 'Password reset instructions have been sent to your email address.',
         code: 'RESET_SENT',
         resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined // Only in dev
@@ -248,7 +264,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     }
 
     // Always return the same message for security
-    res.json({ 
+    res.json({
       message: 'If an account exists with this email/username, you will receive recovery instructions.',
       code: 'RESET_SENT'
     });
@@ -264,7 +280,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     const { token, newPassword } = req.body;
 
     if (!token || !newPassword) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Token and new password are required',
         code: 'MISSING_DATA'
       });
@@ -272,9 +288,9 @@ router.post('/reset-password', async (req: Request, res: Response) => {
 
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET || 'access_secret') as any;
-    
+
     if (decoded.type !== 'password_reset') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid reset token',
         code: 'INVALID_TOKEN'
       });
@@ -287,7 +303,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Reset token is invalid or expired',
         code: 'EXPIRED_TOKEN'
       });
@@ -302,7 +318,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       [hashedPassword, decoded.userId]
     );
 
-    res.json({ 
+    res.json({
       message: 'Password has been reset successfully. You can now log in with your new password.',
       code: 'PASSWORD_RESET'
     });
@@ -319,14 +335,14 @@ router.post('/change-password', authenticateToken, async (req: Request, res: Res
     const userId = (req as any).user?.id;
 
     if (!userId) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Authentication required',
         code: 'UNAUTHORIZED'
       });
     }
 
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Current password and new password are required',
         code: 'MISSING_PASSWORDS'
       });
@@ -337,7 +353,7 @@ router.post('/change-password', authenticateToken, async (req: Request, res: Res
     const user = userResult.rows[0];
 
     if (!user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: 'User not found',
         code: 'USER_NOT_FOUND'
       });
@@ -346,7 +362,7 @@ router.post('/change-password', authenticateToken, async (req: Request, res: Res
     // Verify current password
     const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
     if (!isValidPassword) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Current password is incorrect',
         code: 'INVALID_CURRENT_PASSWORD'
       });
@@ -358,7 +374,7 @@ router.post('/change-password', authenticateToken, async (req: Request, res: Res
     // Update password
     await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedPassword, userId]);
 
-    res.json({ 
+    res.json({
       message: 'Password changed successfully',
       code: 'PASSWORD_CHANGED'
     });
@@ -385,7 +401,7 @@ router.post(
           // Decode the token to get expiration time
           const decoded = jwt.decode(accessToken) as any;
           const expiresAt = decoded?.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 24 * 60 * 60 * 1000); // Default to 24 hours
-          
+
           await TokenBlacklist.addToBlacklist(accessToken, expiresAt);
           console.log('🔐 [AUTH] Access token added to blacklist');
         } catch (blacklistError) {
@@ -465,7 +481,7 @@ router.post(
     if (!refreshToken) {
       console.log('🔐 [AUTH] No refresh token provided');
       console.log('🔐 [AUTH] Available cookies:', Object.keys(req.cookies || {}));
-      
+
       // Return a more helpful error message
       return res.status(401).json({
         success: false,
