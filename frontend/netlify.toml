@@ -5,6 +5,7 @@
 
 [build.environment]
   VITE_API_URL = "https://cpr-training-backend.onrender.com/api/v1"
+  VITE_WS_URL = "https://cpr-training-backend.onrender.com"
 
 [[redirects]]
   from = "/*"

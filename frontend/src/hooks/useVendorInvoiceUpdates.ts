@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { WS_URL } from '../config';
 
 interface VendorInvoiceUpdate {
   invoiceId: number;
@@ -21,7 +22,7 @@ export const useVendorInvoiceUpdates = ({
   onNotesUpdate,
   onRefresh
 }: UseVendorInvoiceUpdatesProps = {}) => {
-  const socket: Socket = io('http://localhost:3001');
+  const socket: Socket = io(WS_URL);
 
   const handleStatusUpdate = useCallback((update: VendorInvoiceUpdate) => {
     console.log('🔄 Real-time status update received:', update);
