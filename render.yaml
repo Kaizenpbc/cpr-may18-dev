@@ -43,7 +43,7 @@ services:
           name: cpr-training-db
           property: database
       - key: CORS_ORIGIN
-        value: https://cpr-training-frontend.netlify.app
+        value: https://gta-cpr-course-admin.netlify.app
 
 databases:
   - name: cpr-training-db
