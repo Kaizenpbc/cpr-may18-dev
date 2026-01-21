@@ -15,6 +15,8 @@ import {
   Refresh as RefreshIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
+import ThemeToggle from '../common/ThemeToggle';
+import NotificationBell from '../common/NotificationBell';
 
 interface InstructorPortalHeaderProps {
   onMenuClick?: () => void;
@@ -92,9 +94,9 @@ const InstructorPortalHeader: React.FC<InstructorPortalHeaderProps> = ({
             : 'Instructor Portal'}
         </Typography>
         {!isMobile && (
-          <Typography 
-            variant="body1" 
-            sx={{ 
+          <Typography
+            variant="body1"
+            sx={{
               mr: 2,
               color: 'white',
               fontWeight: 500,
@@ -103,6 +105,8 @@ const InstructorPortalHeader: React.FC<InstructorPortalHeaderProps> = ({
             Welcome, {user?.username || 'Instructor'}
           </Typography>
         )}
+        <ThemeToggle size="small" />
+        <NotificationBell size="small" color="default" />
         {onRefresh && (
           <IconButton 
             color="inherit" 
