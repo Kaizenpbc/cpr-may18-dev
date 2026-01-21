@@ -285,7 +285,11 @@ export async function initializeDatabase() {
         ON CONFLICT (name) DO NOTHING
       `);
 
-      // Create default users
+      // Get the test organization ID
+      const orgResult = await pool.query(`SELECT id FROM organizations WHERE name = 'Test Organization'`);
+      const testOrgId = orgResult.rows[0]?.id || 1;
+
+      // Create default users (without organization)
       await pool.query(`
         INSERT INTO users (username, email, password_hash, role) VALUES
         ('admin', 'admin@cpr.com', $1, 'admin'),
@@ -294,6 +298,13 @@ export async function initializeDatabase() {
         ('accountant', 'accountant@cpr.com', $1, 'accountant')
         ON CONFLICT (username) DO NOTHING
       `, [passwordHash]);
+
+      // Create organization user linked to Test Organization
+      await pool.query(`
+        INSERT INTO users (username, email, password_hash, role, organization_id)
+        VALUES ('orguser', 'orguser@cpr.com', $1, 'organization', $2)
+        ON CONFLICT (username) DO NOTHING
+      `, [passwordHash, testOrgId]);
 
       // Create class types
       await pool.query(`
