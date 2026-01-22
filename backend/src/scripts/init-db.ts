@@ -138,6 +138,7 @@ export async function initializeDatabase() {
         cancellation_reason TEXT,
         archived BOOLEAN DEFAULT false,
         archived_at TIMESTAMP,
+        instructor_comments TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -158,7 +159,8 @@ export async function initializeDatabase() {
       { name: 'cancelled_at', type: 'TIMESTAMP' },
       { name: 'cancellation_reason', type: 'TEXT' },
       { name: 'archived', type: 'BOOLEAN DEFAULT false' },
-      { name: 'archived_at', type: 'TIMESTAMP' }
+      { name: 'archived_at', type: 'TIMESTAMP' },
+      { name: 'instructor_comments', type: 'TEXT' }
     ];
 
     for (const col of columnsToAdd) {
