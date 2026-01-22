@@ -204,6 +204,17 @@ export async function initializeDatabase() {
       END $$;
     `);
 
+    // Create colleges table (for external institutions)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS colleges (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Create classes table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS classes (

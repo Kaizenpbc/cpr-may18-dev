@@ -44,7 +44,7 @@ import {
   Comment as CommentIcon,
   Today as TodayIcon,
 } from '@mui/icons-material';
-import { instructorApi } from '../../../services/api';
+import { instructorApi, collegesApi } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { handleError } from '../../../services/errorHandler';
@@ -93,11 +93,22 @@ const ClassAttendanceView: React.FC = () => {
   });
   const [instructorComments, setInstructorComments] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [colleges, setColleges] = useState<{ id: number; name: string }[]>([]);
 
-  // Load today's classes on component mount
+  // Load today's classes and colleges on component mount
   useEffect(() => {
     loadTodaysClasses();
+    loadColleges();
   }, []);
+
+  const loadColleges = async () => {
+    try {
+      const response = await collegesApi.getAll();
+      setColleges(response.data?.data || response.data || []);
+    } catch (error) {
+      console.error('Error loading colleges:', error);
+    }
+  };
 
   // Load students when a class is selected
   useEffect(() => {
@@ -642,16 +653,25 @@ const ClassAttendanceView: React.FC = () => {
               type='tel'
               required
             />
-            <TextField
-              fullWidth
-              label='College/School (if from another institution)'
-              value={newStudent.college}
-              onChange={e =>
-                setNewStudent(prev => ({ ...prev, college: e.target.value }))
-              }
-              margin='normal'
-              placeholder='Leave blank if from same organization'
-            />
+            <FormControl fullWidth margin='normal'>
+              <InputLabel>College/School (if from another institution)</InputLabel>
+              <Select
+                value={newStudent.college}
+                label='College/School (if from another institution)'
+                onChange={e =>
+                  setNewStudent(prev => ({ ...prev, college: e.target.value }))
+                }
+              >
+                <MenuItem value=''>
+                  <em>Same organization</em>
+                </MenuItem>
+                {colleges.map(college => (
+                  <MenuItem key={college.id} value={college.name}>
+                    {college.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Box>
         </DialogContent>
         <DialogActions>

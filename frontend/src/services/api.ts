@@ -1198,6 +1198,15 @@ export const updateNotificationPreferences = async (type: string, preferences: a
   }
 };
 
+// Colleges API
+export const collegesApi = {
+  getAll: () => api.get('/colleges'),
+  getAllAdmin: () => api.get('/colleges/all'),
+  create: (name: string) => api.post('/colleges', { name }),
+  update: (id: number, data: { name?: string; is_active?: boolean }) => api.put(`/colleges/${id}`, data),
+  delete: (id: number) => api.delete(`/colleges/${id}`),
+};
+
 export default api;
 
 console.log('[Debug] api.ts - API service initialized');

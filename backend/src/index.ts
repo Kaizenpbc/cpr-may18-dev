@@ -502,6 +502,12 @@ import instructorRoutes from './routes/v1/instructor.js';
 app.use('/api/v1/instructor', instructorRoutes);
 console.log('✅ Instructor routes configured');
 
+// Colleges routes
+console.log('11a. Setting up colleges routes...');
+import collegesRoutes from './routes/v1/colleges.js';
+app.use('/api/v1/colleges', collegesRoutes);
+console.log('✅ Colleges routes configured');
+
 // V1 API routes (includes /instructors endpoint)
 console.log('11a. Setting up v1 API routes...');
 import v1Routes from './routes/v1/index.js';
