@@ -430,10 +430,17 @@ router.post(
       });
     } catch (error: any) {
       console.error('Error creating course request:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        detail: error.detail,
+        organizationId: req.user?.organizationId,
+        body: req.body
+      });
       throw new AppError(
         500,
         errorCodes.DB_QUERY_ERROR,
-        'Failed to create course request'
+        `Failed to create course request: ${error.message}`
       );
     }
   })
