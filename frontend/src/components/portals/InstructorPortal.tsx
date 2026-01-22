@@ -266,6 +266,7 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
                   <ErrorBoundary onError={handleError}>
                     <AvailabilityView
                       availableDates={availableDates}
+                      scheduledClasses={scheduledClasses}
                       onAddAvailability={onAddAvailability}
                       onRemoveAvailability={onRemoveAvailability}
                     />

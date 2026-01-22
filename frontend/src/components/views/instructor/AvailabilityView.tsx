@@ -32,19 +32,40 @@ import { PickersDay } from '@mui/x-date-pickers/PickersDay';
 import type { Class, Availability, ApiResponse } from '../../../types/api';
 import api, { instructorApi } from '../../../api/index';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useInstructorClasses, useInstructorAvailability, useAddAvailability, useRemoveAvailability } from '../../../services/instructorService';
 import { useNavigate } from 'react-router-dom';
-import { formatDisplayDate } from '../../utils/dateUtils';
+import { formatDisplayDate } from '../../../utils/dateUtils';
 import { handleError } from '../../../services/errorHandler';
+
+interface AvailabilitySlot {
+  id: number;
+  date: string;
+  status?: string;
+}
+
+interface ScheduledClassItem {
+  course_id?: number;
+  date: string;
+  datescheduled?: string;
+  organizationname?: string;
+  organization_name?: string;
+  location?: string;
+  course_name?: string;
+  course_type?: string;
+  studentcount?: number;
+  studentsattendance?: number;
+  status?: string;
+}
 
 interface AvailabilityViewProps {
   availableDates?: (string | AvailabilitySlot)[];
-  scheduledClasses?: any[];
+  scheduledClasses?: ScheduledClassItem[];
   onAddAvailability?: (
     date: string
-  ) => Promise<{ success: boolean; error?: string }>;
+  ) => Promise<{ success: boolean; error?: string } | void>;
   onRemoveAvailability?: (
     date: string
-  ) => Promise<{ success: boolean; error?: string }>;
+  ) => Promise<{ success: boolean; error?: string } | void>;
   onRefresh?: () => void;
   ontarioHolidays2024?: string[];
   isLoading?: boolean;
@@ -70,8 +91,27 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
   const navigate = useNavigate();
   const theme = useTheme();
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [scheduledClasses, setScheduledClasses] = useState<any[]>(propScheduledClasses);
   const [holidays, setHolidays] = useState<string[]>(ontarioHolidays2024);
+
+  // Fetch data using service hooks
+  const { data: rawFetchedClasses, isLoading: classesLoading } = useInstructorClasses();
+  const { data: rawFetchedAvailability, isLoading: availabilityLoading } = useInstructorAvailability();
+  const addAvailabilityMutation = useAddAvailability();
+  const removeAvailabilityMutation = useRemoveAvailability();
+
+  // Type cast the fetched data
+  const fetchedClasses = (Array.isArray(rawFetchedClasses) ? rawFetchedClasses : []) as ScheduledClassItem[];
+  const fetchedAvailability = (Array.isArray(rawFetchedAvailability) ? rawFetchedAvailability : []) as AvailabilitySlot[];
+
+  // Use fetched data if no props provided, otherwise use props
+  const scheduledClasses = (propScheduledClasses && propScheduledClasses.length > 0) ? propScheduledClasses : fetchedClasses;
+
+  // Debug logging
+  console.log('[AvailabilityView] Scheduled classes:', scheduledClasses);
+  console.log('[AvailabilityView] Fetched classes:', fetchedClasses);
+  console.log('[AvailabilityView] Fetched availability:', fetchedAvailability);
+  console.log('[AvailabilityView] Props availability:', propAvailableDates);
+
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<ConfirmationState>({
     open: false,
@@ -82,15 +122,25 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
   const [successMessage, setSuccessMessage] = useState<string>('');
 
   // Ensure availableDates is always an array and extract dates
+  // Use fetched availability if no props provided
+  const availabilitySource = (propAvailableDates && propAvailableDates.length > 0) ? propAvailableDates : fetchedAvailability;
+
   const availableDates = React.useMemo(() => {
-    return (Array.isArray(propAvailableDates) ? propAvailableDates : [])
+    console.log('[AvailabilityView] Computing availableDates from source:', availabilitySource);
+    const result = (Array.isArray(availabilitySource) ? availabilitySource : [])
       .map(item => {
         if (typeof item === 'string') return item;
-        if (item && typeof item === 'object' && 'date' in item) return item.date;
+        if (item && typeof item === 'object' && 'date' in item) {
+          // Handle both YYYY-MM-DD and ISO date formats
+          const dateStr = item.date;
+          return dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+        }
         return null;
       })
       .filter((date): date is string => date !== null);
-  }, [propAvailableDates]);
+    console.log('[AvailabilityView] Computed availableDates:', result);
+    return result;
+  }, [availabilitySource]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -142,14 +192,25 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
   const handleConfirmationConfirm = async () => {
     try {
       if (confirmation.action === 'add') {
-        await onAddAvailability?.(confirmation.date);
+        // Use prop callback if provided, otherwise use mutation hook
+        if (onAddAvailability) {
+          await onAddAvailability(confirmation.date);
+        } else {
+          await addAvailabilityMutation.mutateAsync(confirmation.date);
+        }
         setSuccessMessage('Availability added successfully');
       } else {
-        await onRemoveAvailability?.(confirmation.date);
+        // Use prop callback if provided, otherwise use mutation hook
+        if (onRemoveAvailability) {
+          await onRemoveAvailability(confirmation.date);
+        } else {
+          await removeAvailabilityMutation.mutateAsync(confirmation.date);
+        }
         setSuccessMessage('Availability removed successfully');
       }
     } catch (err: any) {
       handleError(err, { component: 'AvailabilityView', action: 'update availability' });
+      setError(err.message || 'Failed to update availability');
     } finally {
       handleConfirmationClose();
     }
@@ -254,7 +315,10 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
     );
   };
 
-  if (isLoading) {
+  // Combine loading states
+  const combinedLoading = isLoading || classesLoading || availabilityLoading;
+
+  if (combinedLoading) {
     return (
       <Box
         display='flex'
