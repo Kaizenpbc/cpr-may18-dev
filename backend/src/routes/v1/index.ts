@@ -397,6 +397,25 @@ router.post(
         );
       }
 
+      // Check for duplicate: same organization, same location, same date (non-cancelled)
+      const duplicateCheck = await pool.query(
+        `SELECT id, status FROM course_requests
+         WHERE organization_id = $1
+         AND location = $2
+         AND scheduled_date = $3
+         AND status NOT IN ('cancelled', 'completed')
+         AND COALESCE(is_cancelled, false) = false`,
+        [organizationId, location, scheduledDate]
+      );
+
+      if (duplicateCheck.rows.length > 0) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          `You already have a course request for this location on this date (Status: ${duplicateCheck.rows[0].status}). Please choose a different date or location.`
+        );
+      }
+
       const result = await pool.query(
         `INSERT INTO course_requests 
        (organization_id, course_type_id, date_requested, scheduled_date, location, registered_students, notes, status) 
