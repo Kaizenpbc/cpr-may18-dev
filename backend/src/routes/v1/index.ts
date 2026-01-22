@@ -836,19 +836,22 @@ router.put(
 
         // If instructor was assigned, remove the corresponding class and restore availability
         if (courseRequest.instructor_id && courseRequest.confirmed_date) {
-          // Remove the class from instructor's schedule
+          // Format confirmed_date as YYYY-MM-DD string for consistent comparison
+          const confirmedDateStr = new Date(courseRequest.confirmed_date).toISOString().split('T')[0];
+
+          // Remove the class from instructor's schedule (compare start_time date portion)
           await client.query(
-            `DELETE FROM classes 
-           WHERE instructor_id = $1 AND date = $2`,
-            [courseRequest.instructor_id, courseRequest.confirmed_date]
+            `DELETE FROM classes
+             WHERE instructor_id = $1 AND DATE(start_time) = $2`,
+            [courseRequest.instructor_id, confirmedDateStr]
           );
 
           // Restore instructor availability for that date
           await client.query(
             `INSERT INTO instructor_availability (instructor_id, date, status)
-           VALUES ($1, $2, 'available')
-           ON CONFLICT (instructor_id, date) DO UPDATE SET status = 'available'`,
-            [courseRequest.instructor_id, courseRequest.confirmed_date]
+             VALUES ($1, $2, 'available')
+             ON CONFLICT (instructor_id, date) DO UPDATE SET status = 'available'`,
+            [courseRequest.instructor_id, confirmedDateStr]
           );
         }
 
@@ -963,20 +966,23 @@ router.put(
         const updatedCourse = courseUpdateResult.rows[0];
 
         // If instructor changed or schedule changed, update classes table
-        if (currentCourse.instructor_id) {
+        if (currentCourse.instructor_id && currentCourse.confirmed_date) {
+          // Format old confirmed_date as YYYY-MM-DD string
+          const oldConfirmedDateStr = new Date(currentCourse.confirmed_date).toISOString().split('T')[0];
+
           // Remove old class entry
           await client.query(
-            `DELETE FROM classes 
-           WHERE instructor_id = $1 AND date = $2`,
-            [currentCourse.instructor_id, currentCourse.confirmed_date]
+            `DELETE FROM classes
+             WHERE instructor_id = $1 AND DATE(start_time) = $2`,
+            [currentCourse.instructor_id, oldConfirmedDateStr]
           );
 
           // Restore old instructor's availability
           await client.query(
             `INSERT INTO instructor_availability (instructor_id, date, status)
-           VALUES ($1, $2, 'available')
-           ON CONFLICT (instructor_id, date) DO UPDATE SET status = 'available'`,
-            [currentCourse.instructor_id, currentCourse.confirmed_date]
+             VALUES ($1, $2, 'available')
+             ON CONFLICT (instructor_id, date) DO UPDATE SET status = 'available'`,
+            [currentCourse.instructor_id, oldConfirmedDateStr]
           );
         }
 
@@ -1008,10 +1014,11 @@ router.put(
           );
 
           // Remove instructor's availability for the new scheduled date
+          const newConfirmedDateStr = new Date(updatedCourse.confirmed_date).toISOString().split('T')[0];
           await client.query(
-            `DELETE FROM instructor_availability 
-           WHERE instructor_id = $1 AND date = $2`,
-            [updatedCourse.instructor_id, updatedCourse.confirmed_date]
+            `DELETE FROM instructor_availability
+             WHERE instructor_id = $1 AND date = $2`,
+            [updatedCourse.instructor_id, newConfirmedDateStr]
           );
         }
 
@@ -1172,10 +1179,10 @@ router.put(
 
         const courseRequest = courseUpdateResult.rows[0];
 
-        // Remove instructor's availability for the scheduled date
+        // Remove instructor's availability for the scheduled date (use dateString for consistent format)
         await client.query(
           'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date = $2',
-          [instructorId, scheduledDate]
+          [instructorId, dateString]
         );
 
         // Create a new class entry

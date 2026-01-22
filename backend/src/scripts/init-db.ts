@@ -262,6 +262,7 @@ export async function initializeDatabase() {
         name VARCHAR(255) NOT NULL UNIQUE,
         key VARCHAR(50) NOT NULL UNIQUE,
         category VARCHAR(50) NOT NULL,
+        sub_category VARCHAR(50),
         subject TEXT NOT NULL,
         body TEXT NOT NULL,
         is_active BOOLEAN DEFAULT true,
@@ -273,6 +274,15 @@ export async function initializeDatabase() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Add sub_category column if it doesn't exist (for existing databases)
+    try {
+      await pool.query(`ALTER TABLE email_templates ADD COLUMN IF NOT EXISTS sub_category VARCHAR(50)`);
+    } catch (e: any) {
+      if (!e.message.includes('already exists')) {
+        console.log(`Note: Could not add sub_category column: ${e.message}`);
+      }
+    }
 
     // Create notifications table
     await pool.query(`

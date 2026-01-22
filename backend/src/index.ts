@@ -252,10 +252,14 @@ const io = new Server(httpServer, {
     credentials: true
   },
   path: '/socket.io',
-  transports: ['websocket', 'polling'],
+  // Use polling first for better compatibility with Render free tier
+  transports: ['polling', 'websocket'],
   allowEIO3: true,
   pingTimeout: 60000,
-  pingInterval: 25000
+  pingInterval: 25000,
+  // Allow upgrade from polling to websocket
+  allowUpgrades: true,
+  upgradeTimeout: 30000
 });
 console.log('✅ Socket.IO server created');
 

@@ -32,12 +32,15 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     const socketInstance = io(WS_URL, {
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
       path: '/socket.io',
-      transports: ['websocket', 'polling'],
+      // Use polling first (more reliable on Render free tier), then upgrade to websocket
+      transports: ['polling', 'websocket'],
       withCredentials: true,
-      autoConnect: true
+      autoConnect: true,
+      timeout: 20000
     });
 
     socketInstance.on('connect', () => {
