@@ -199,99 +199,77 @@ const extractLegacyData = <T>(response: { data: ApiResponse<T> }): T => {
 export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
   console.log('[Debug] api.ts - Fetching dashboard data');
 
+  const defaultData: DashboardMetrics = {
+    upcomingClasses: 0,
+    totalStudents: 0,
+    completedClasses: 0,
+    recentClasses: []
+  };
+
   try {
-    // Get current user role from token service or auth context
-    // For now, we'll use a more generic approach that works for all roles
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     const currentDate = `${year}-${month}-${day}`;
 
-    // Try to get dashboard data from the generic dashboard endpoint first
-    try {
-      const response = await api.get<ApiResponse<any>>('/dashboard');
-      console.log('[Debug] api.ts - Generic dashboard data received:', response.data);
+    // Try all dashboard endpoints in parallel and use the first successful one
+    // This is much faster than sequential fallbacks
+    const [genericResult, instructorResult, adminResult] = await Promise.allSettled([
+      api.get<ApiResponse<any>>('/dashboard'),
+      api.get<ApiResponse<any>>('/instructor/dashboard/stats'),
+      Promise.all([
+        api.get<ApiResponse<any>>(`/admin/instructor-stats?month=${currentDate}`),
+        api.get<ApiResponse<any>>(`/admin/dashboard-summary?month=${currentDate}`)
+      ])
+    ]);
 
-      if (response.data.success && response.data.data) {
-        const dashboardStats = response.data.data.instructorStats;
+    // Check generic dashboard first
+    if (genericResult.status === 'fulfilled' && genericResult.value.data.success && genericResult.value.data.data) {
+      const dashboardStats = genericResult.value.data.data.instructorStats;
+      if (dashboardStats) {
+        console.log('[Debug] api.ts - Using generic dashboard data');
         return {
-          upcomingClasses: dashboardStats?.scheduledClasses || 0,
-          totalStudents: 0, // This would need to be calculated from actual data
-          completedClasses: dashboardStats?.completedClasses || 0,
+          upcomingClasses: dashboardStats.scheduledClasses || 0,
+          totalStudents: 0,
+          completedClasses: dashboardStats.completedClasses || 0,
           recentClasses: []
         };
       }
-    } catch (dashboardError) {
-      console.log('[Debug] api.ts - Generic dashboard failed, trying role-specific endpoints');
     }
 
-    // Fallback: Try role-specific endpoints based on common patterns
-    // This is a more robust approach that doesn't assume admin role
-    const dashboardData: DashboardMetrics = {
-      upcomingClasses: 0,
-      totalStudents: 0,
-      completedClasses: 0,
-      recentClasses: []
-    };
-
-    // Try to get instructor-specific data if available
-    try {
-      const instructorResponse = await api.get<ApiResponse<any>>('/instructor/dashboard/stats');
-      if (instructorResponse.data.success) {
-        const stats = instructorResponse.data.data;
-        dashboardData.upcomingClasses = stats.scheduledClasses || 0;
-        dashboardData.completedClasses = stats.completedClasses || 0;
-        dashboardData.totalStudents = stats.totalStudents || 0;
-      }
-    } catch (instructorError) {
-      console.log('[Debug] api.ts - Instructor dashboard not available');
+    // Check instructor dashboard
+    if (instructorResult.status === 'fulfilled' && instructorResult.value.data.success) {
+      const stats = instructorResult.value.data.data;
+      console.log('[Debug] api.ts - Using instructor dashboard data');
+      return {
+        upcomingClasses: stats.scheduledClasses || 0,
+        totalStudents: stats.totalStudents || 0,
+        completedClasses: stats.completedClasses || 0,
+        recentClasses: stats.recentClasses || []
+      };
     }
 
-    // If we still don't have data, try the admin endpoints (but only if user has permission)
-    if (dashboardData.upcomingClasses === 0 && dashboardData.completedClasses === 0) {
-      try {
-        const [instructorStats, dashboardSummary] = await Promise.all([
-          api.get<ApiResponse<any>>(`/admin/instructor-stats?month=${currentDate}`),
-          api.get<ApiResponse<any>>(`/admin/dashboard-summary?month=${currentDate}`)
-        ]);
-
-        // Transform the data to match DashboardMetrics interface
-        const data: DashboardMetrics = {
-          upcomingClasses: extractLegacyData(dashboardSummary)?.upcomingClasses || 0,
-          totalStudents: extractLegacyData(dashboardSummary)?.totalStudents || 0,
-          completedClasses: extractLegacyData(dashboardSummary)?.completedClasses || 0,
-          recentClasses: extractLegacyData(dashboardSummary)?.recentClasses || []
+    // Check admin dashboard
+    if (adminResult.status === 'fulfilled') {
+      const [, dashboardSummary] = adminResult.value;
+      const summaryData = extractLegacyData(dashboardSummary);
+      if (summaryData) {
+        console.log('[Debug] api.ts - Using admin dashboard data');
+        return {
+          upcomingClasses: summaryData.upcomingClasses || 0,
+          totalStudents: summaryData.totalStudents || 0,
+          completedClasses: summaryData.completedClasses || 0,
+          recentClasses: summaryData.recentClasses || []
         };
-
-        console.log('[Debug] api.ts - Admin dashboard data received:', data);
-        return data;
-      } catch (adminError) {
-        console.log('[Debug] api.ts - Admin dashboard not available, returning default data');
-        // Return default data instead of throwing error
-        return dashboardData;
       }
     }
 
-    console.log('[Debug] api.ts - Dashboard data received:', dashboardData);
-    return dashboardData;
+    console.log('[Debug] api.ts - No dashboard data available, returning defaults');
+    return defaultData;
   } catch (error) {
     console.error('[Debug] api.ts - Error fetching dashboard data:', error);
-    if (axios.isAxiosError(error)) {
-      console.error(
-        '[Debug] api.ts - Response status:',
-        error.response?.status
-      );
-      console.error('[Debug] api.ts - Response data:', error.response?.data);
-    }
-
-    // Return default data instead of throwing error
-    return {
-      upcomingClasses: 0,
-      totalStudents: 0,
-      completedClasses: 0,
-      recentClasses: []
-    };
+    return defaultData;
   }
 };
 

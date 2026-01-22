@@ -54,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(null);
+  const [justLoggedIn, setJustLoggedIn] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -84,11 +85,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      // Only validate with backend if we don't have user data or if it's been a while
-      if (!user) {
+      // Only validate with backend if we don't have user data AND we didn't just log in
+      // Skip backend validation if we just logged in (user data is fresh from login response)
+      if (!user && !justLoggedIn) {
         console.log('[TOKEN VALIDATION] No user data, validating with backend');
         const userData = await authService.checkAuth();
-        
+
         if (!userData) {
           console.log('[TOKEN VALIDATION] Backend validation failed - no user data');
           return {
@@ -97,10 +99,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             error: 'Token validation failed'
           };
         }
-        
+
         // Set the user data
         setUser(userData);
         console.log('[TOKEN VALIDATION] User data set from backend validation');
+      } else if (justLoggedIn) {
+        console.log('[TOKEN VALIDATION] Skipping backend validation - just logged in');
       }
 
       // Use current user data (either from state or from backend validation)
@@ -368,11 +372,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       setUser(response.user);
-      
+
+      // Mark as just logged in to skip redundant /auth/me validation
+      setJustLoggedIn(true);
+      // Clear the flag after a short delay to allow normal validation on future page loads
+      setTimeout(() => setJustLoggedIn(false), 5000);
+
       // Update session status
       const status = authService.getSessionStatus();
       setSessionStatus(status);
-      
+
       console.log('[DEEP TRACE] AuthContext.login - User state updated');
 
       // Navigate based on user role
