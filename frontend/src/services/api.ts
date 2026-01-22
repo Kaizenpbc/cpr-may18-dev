@@ -808,6 +808,10 @@ export const sysAdminApi = {
     const response = await api.delete(`/sysadmin/courses/${id}`);
     return response.data;
   },
+  toggleCourseActive: async (id: number) => {
+    const response = await api.put(`/sysadmin/courses/${id}/toggle-active`);
+    return response.data;
+  },
 
   // Organization Management
   getOrganizations: async () => {

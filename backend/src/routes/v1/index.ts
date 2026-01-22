@@ -4046,16 +4046,18 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const result = await pool.query(`
-      SELECT 
-        id,
-        name,
-        description,
-        duration_minutes,
-        created_at,
-        updated_at
-      FROM class_types
-      ORDER BY name
-    `);
+        SELECT
+          id,
+          name,
+          description,
+          duration_minutes,
+          course_code,
+          COALESCE(is_active, true) as is_active,
+          created_at,
+          updated_at
+        FROM class_types
+        ORDER BY name
+      `);
 
       res.json({
         success: true,
@@ -4076,6 +4078,8 @@ router.post(
         name,
         description,
         duration_minutes,
+        course_code,
+        is_active = true,
       } = req.body;
 
       if (!name) {
@@ -4088,16 +4092,18 @@ router.post(
 
       const result = await pool.query(
         `
-      INSERT INTO class_types (
-        name, description, duration_minutes
-      )
-      VALUES ($1, $2, $3)
-      RETURNING *
-    `,
+        INSERT INTO class_types (
+          name, description, duration_minutes, course_code, is_active
+        )
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+        `,
         [
           name,
           description,
           duration_minutes,
+          course_code || null,
+          is_active,
         ]
       );
 
@@ -4122,23 +4128,29 @@ router.put(
         name,
         description,
         duration_minutes,
+        course_code,
+        is_active,
       } = req.body;
 
       const result = await pool.query(
         `
-      UPDATE class_types
-      SET 
-        name = COALESCE($1, name),
-        description = COALESCE($2, description),
-        duration_minutes = COALESCE($3, duration_minutes),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $4
-      RETURNING *
-    `,
+        UPDATE class_types
+        SET
+          name = COALESCE($1, name),
+          description = COALESCE($2, description),
+          duration_minutes = COALESCE($3, duration_minutes),
+          course_code = COALESCE($4, course_code),
+          is_active = COALESCE($5, is_active),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $6
+        RETURNING *
+        `,
         [
           name,
           description,
           duration_minutes,
+          course_code,
+          is_active,
           id,
         ]
       );
@@ -4163,18 +4175,22 @@ router.put(
   })
 );
 
-router.delete(
-  '/sysadmin/courses/:id',
+// Toggle course active/inactive status
+router.put(
+  '/sysadmin/courses/:id/toggle-active',
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
 
       const result = await pool.query(
         `
-      DELETE FROM class_types
-      WHERE id = $1
-      RETURNING *
-    `,
+        UPDATE class_types
+        SET
+          is_active = NOT COALESCE(is_active, true),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING *
+        `,
         [id]
       );
 
@@ -4186,11 +4202,84 @@ router.delete(
         );
       }
 
+      const course = result.rows[0];
+      const statusText = course.is_active ? 'activated' : 'deactivated';
+
       res.json({
         success: true,
-        message: 'Course deleted successfully',
-        data: result.rows[0],
+        message: `Course ${statusText} successfully`,
+        data: course,
       });
+    } catch (error) {
+      console.error('Error toggling course status:', error);
+      throw error;
+    }
+  })
+);
+
+// Soft delete course (set is_active to false)
+router.delete(
+  '/sysadmin/courses/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      // Check if course has any associated course requests
+      const usageCheck = await pool.query(
+        'SELECT COUNT(*) as count FROM course_requests WHERE course_type_id = $1',
+        [id]
+      );
+
+      const usageCount = parseInt(usageCheck.rows[0].count);
+
+      if (usageCount > 0) {
+        // Soft delete - set is_active to false
+        const result = await pool.query(
+          `
+          UPDATE class_types
+          SET is_active = false, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+          RETURNING *
+          `,
+          [id]
+        );
+
+        if (result.rows.length === 0) {
+          throw new AppError(
+            404,
+            errorCodes.RESOURCE_NOT_FOUND,
+            'Course not found'
+          );
+        }
+
+        res.json({
+          success: true,
+          message: `Course deactivated (${usageCount} course requests exist). Use toggle to reactivate.`,
+          data: result.rows[0],
+          softDeleted: true,
+        });
+      } else {
+        // Hard delete - no course requests reference this course
+        const result = await pool.query(
+          `DELETE FROM class_types WHERE id = $1 RETURNING *`,
+          [id]
+        );
+
+        if (result.rows.length === 0) {
+          throw new AppError(
+            404,
+            errorCodes.RESOURCE_NOT_FOUND,
+            'Course not found'
+          );
+        }
+
+        res.json({
+          success: true,
+          message: 'Course deleted permanently',
+          data: result.rows[0],
+          softDeleted: false,
+        });
+      }
     } catch (error) {
       console.error('Error deleting course:', error);
       throw error;

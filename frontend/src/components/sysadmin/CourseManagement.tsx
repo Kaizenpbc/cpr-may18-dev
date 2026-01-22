@@ -35,6 +35,7 @@ import {
   School as SchoolIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
+  Restore as RestoreIcon,
 } from '@mui/icons-material';
 import { sysAdminApi } from '../../services/api';
 import logger from '../../utils/logger';
@@ -144,6 +145,24 @@ const CourseManagement = ({ onShowSnackbar }) => {
       } catch (err) {
         logger.error('Error deactivating course:', err);
         onShowSnackbar?.('Failed to deactivate course', 'error');
+      }
+    }
+  };
+
+  const handleToggleActive = async course => {
+    const action = course.is_active ? 'deactivate' : 'reactivate';
+    if (
+      window.confirm(
+        `Are you sure you want to ${action} the course "${course.name}"?`
+      )
+    ) {
+      try {
+        await sysAdminApi.toggleCourseActive(course.id);
+        onShowSnackbar?.(`Course ${action}d successfully`, 'success');
+        loadCourses();
+      } catch (err) {
+        logger.error(`Error toggling course status:`, err);
+        onShowSnackbar?.(`Failed to ${action} course`, 'error');
       }
     }
   };
@@ -374,16 +393,27 @@ const CourseManagement = ({ onShowSnackbar }) => {
                           <EditIcon />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title='Deactivate Course'>
-                        <IconButton
-                          onClick={() => handleDelete(course)}
-                          color='error'
-                          size='small'
-                          disabled={!course.is_active}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
+                      {course.is_active ? (
+                        <Tooltip title='Deactivate Course'>
+                          <IconButton
+                            onClick={() => handleToggleActive(course)}
+                            color='error'
+                            size='small'
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip title='Reactivate Course'>
+                          <IconButton
+                            onClick={() => handleToggleActive(course)}
+                            color='success'
+                            size='small'
+                          >
+                            <RestoreIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </Box>
                   </TableCell>
                 </TableRow>

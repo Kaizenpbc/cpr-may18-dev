@@ -86,14 +86,14 @@ class CacheService {
   }
 
   /**
-   * Cache course types (rarely change)
+   * Cache course types (rarely change) - only returns active courses
    */
   async getCourseTypes(forceRefresh = false): Promise<any[]> {
     return this.cache(
       'course_types',
       async () => {
         const result = await pool.query(
-          'SELECT id, name, description, duration_minutes FROM class_types ORDER BY name'
+          'SELECT id, name, description, duration_minutes FROM class_types WHERE COALESCE(is_active, true) = true ORDER BY name'
         );
         return result.rows;
       },
