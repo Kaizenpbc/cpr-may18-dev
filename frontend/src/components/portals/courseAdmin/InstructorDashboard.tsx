@@ -266,14 +266,34 @@ const InstructorDashboard: React.FC = () => {
       {/* Instructor Statistics Table */}
       <Card>
         <CardContent>
-          <Typography
-            variant='h6'
-            gutterBottom
-            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              mb: 2,
+              p: 2,
+              borderRadius: 2,
+              background: (theme) =>
+                theme.palette.mode === 'dark'
+                  ? 'linear-gradient(135deg, #1a237e 0%, #283593 100%)'
+                  : 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
+              borderLeft: '4px solid',
+              borderColor: 'primary.main',
+            }}
           >
-            <AssessmentIcon />
-            Instructor Performance & Fairness Metrics
-          </Typography>
+            <AssessmentIcon color='primary' />
+            <Typography
+              variant='h6'
+              sx={{
+                fontWeight: 600,
+                color: (theme) =>
+                  theme.palette.mode === 'dark' ? 'white' : 'primary.dark'
+              }}
+            >
+              Instructor Performance & Fairness Metrics
+            </Typography>
+          </Box>
 
           {loading && <LinearProgress sx={{ mb: 2 }} />}
 
