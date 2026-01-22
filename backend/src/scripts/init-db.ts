@@ -182,11 +182,26 @@ export async function initializeDatabase() {
         first_name VARCHAR(255) NOT NULL,
         last_name VARCHAR(255) NOT NULL,
         email VARCHAR(255),
+        phone VARCHAR(50),
+        college VARCHAR(255),
         attendance_marked BOOLEAN DEFAULT false,
         attended BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Add phone and college columns if they don't exist (migration for existing tables)
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'course_students' AND column_name = 'phone') THEN
+          ALTER TABLE course_students ADD COLUMN phone VARCHAR(50);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'course_students' AND column_name = 'college') THEN
+          ALTER TABLE course_students ADD COLUMN college VARCHAR(255);
+        END IF;
+      END $$;
     `);
 
     // Create classes table

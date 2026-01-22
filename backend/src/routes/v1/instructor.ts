@@ -636,10 +636,10 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
   }
   const userId = req.user.id;
   const { classId } = req.params;
-  const { firstName, lastName, email } = req.body; // Frontend sends single student object
+  const { firstName, lastName, email, phone, college } = req.body;
 
-  if (!firstName || !lastName) {
-    return res.status(400).json({ error: 'First name and last name are required' });
+  if (!firstName || !lastName || !email || !phone) {
+    return res.status(400).json({ error: 'First name, last name, email, and phone are required' });
   }
 
   // The frontend is sending course_request_id as classId, so use it directly
@@ -668,10 +668,10 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
 
     // Insert student
     const insertResult = await pool.query(
-      `INSERT INTO course_students (course_request_id, first_name, last_name, email, status, enrolled_at)
-       VALUES ($1, $2, $3, $4, 'enrolled', NOW())
-       RETURNING id, first_name, last_name, email, status, enrolled_at`,
-      [courseRequestId, firstName, lastName, email || null]
+      `INSERT INTO course_students (course_request_id, first_name, last_name, email, phone, college, status, enrolled_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'enrolled', NOW())
+       RETURNING id, first_name, last_name, email, phone, college, status, enrolled_at`,
+      [courseRequestId, firstName, lastName, email, phone, college || null]
     );
 
     // Transform the response to match frontend expectations
@@ -680,6 +680,8 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
       firstname: insertResult.rows[0].first_name,
       lastname: insertResult.rows[0].last_name,
       email: insertResult.rows[0].email || '',
+      phone: insertResult.rows[0].phone || '',
+      college: insertResult.rows[0].college || '',
       attendance: false,
       attendanceMarked: false,
     };

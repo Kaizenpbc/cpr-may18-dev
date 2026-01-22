@@ -88,6 +88,8 @@ const ClassAttendanceView: React.FC = () => {
     firstName: '',
     lastName: '',
     email: '',
+    phone: '',
+    college: '',
   });
   const [instructorComments, setInstructorComments] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -167,8 +169,8 @@ const ClassAttendanceView: React.FC = () => {
   };
 
   const handleAddStudent = async () => {
-    if (!selectedClass || !newStudent.firstName || !newStudent.lastName) {
-      setError('Please fill in at least first and last name');
+    if (!selectedClass || !newStudent.firstName || !newStudent.lastName || !newStudent.email || !newStudent.phone) {
+      setError('Please fill in all required fields (First Name, Last Name, Email, Phone)');
       return;
     }
 
@@ -179,7 +181,7 @@ const ClassAttendanceView: React.FC = () => {
       setStudents(prev => [...prev, response.data?.data || response.data]);
 
       // Clear form and close dialog
-      setNewStudent({ firstName: '', lastName: '', email: '' });
+      setNewStudent({ firstName: '', lastName: '', email: '', phone: '', college: '' });
       setAddStudentDialog(false);
       setError('');
       setSuccessMessage('Student added successfully!');
@@ -620,13 +622,35 @@ const ClassAttendanceView: React.FC = () => {
             />
             <TextField
               fullWidth
-              label='Email (Optional)'
+              label='Email'
               value={newStudent.email}
               onChange={e =>
                 setNewStudent(prev => ({ ...prev, email: e.target.value }))
               }
               margin='normal'
               type='email'
+              required
+            />
+            <TextField
+              fullWidth
+              label='Phone'
+              value={newStudent.phone}
+              onChange={e =>
+                setNewStudent(prev => ({ ...prev, phone: e.target.value }))
+              }
+              margin='normal'
+              type='tel'
+              required
+            />
+            <TextField
+              fullWidth
+              label='College/School (if from another institution)'
+              value={newStudent.college}
+              onChange={e =>
+                setNewStudent(prev => ({ ...prev, college: e.target.value }))
+              }
+              margin='normal'
+              placeholder='Leave blank if from same organization'
             />
           </Box>
         </DialogContent>
