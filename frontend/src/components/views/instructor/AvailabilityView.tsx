@@ -106,12 +106,6 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
   // Use fetched data if no props provided, otherwise use props
   const scheduledClasses = (propScheduledClasses && propScheduledClasses.length > 0) ? propScheduledClasses : fetchedClasses;
 
-  // Debug logging
-  console.log('[AvailabilityView] Scheduled classes:', scheduledClasses);
-  console.log('[AvailabilityView] Fetched classes:', fetchedClasses);
-  console.log('[AvailabilityView] Fetched availability:', fetchedAvailability);
-  console.log('[AvailabilityView] Props availability:', propAvailableDates);
-
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<ConfirmationState>({
     open: false,
@@ -126,8 +120,7 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
   const availabilitySource = (propAvailableDates && propAvailableDates.length > 0) ? propAvailableDates : fetchedAvailability;
 
   const availableDates = React.useMemo(() => {
-    console.log('[AvailabilityView] Computing availableDates from source:', availabilitySource);
-    const result = (Array.isArray(availabilitySource) ? availabilitySource : [])
+    return (Array.isArray(availabilitySource) ? availabilitySource : [])
       .map(item => {
         if (typeof item === 'string') return item;
         if (item && typeof item === 'object' && 'date' in item) {
@@ -138,8 +131,6 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
         return null;
       })
       .filter((date): date is string => date !== null);
-    console.log('[AvailabilityView] Computed availableDates:', result);
-    return result;
   }, [availabilitySource]);
 
   useEffect(() => {
