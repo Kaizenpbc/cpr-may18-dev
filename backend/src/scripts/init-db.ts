@@ -18,6 +18,21 @@ export async function initializeDatabase() {
       )
     `);
 
+    // Create vendors table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS vendors (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        contact_email VARCHAR(255),
+        contact_phone VARCHAR(20),
+        address TEXT,
+        vendor_type VARCHAR(100),
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Create users table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -30,6 +45,7 @@ export async function initializeDatabase() {
         full_name VARCHAR(255),
         first_name VARCHAR(100),
         last_name VARCHAR(100),
+        phone VARCHAR(20),
         mobile VARCHAR(20),
         reset_token TEXT,
         reset_token_expires TIMESTAMP,
@@ -38,6 +54,15 @@ export async function initializeDatabase() {
       )
     `);
 
+    // Add phone column to users if it doesn't exist
+    try {
+      await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)`);
+    } catch (e: any) {
+      if (!e.message.includes('already exists')) {
+        console.log(`Note: Could not add phone column: ${e.message}`);
+      }
+    }
+
     // Create class_types table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS class_types (
@@ -45,10 +70,22 @@ export async function initializeDatabase() {
         name VARCHAR(255) NOT NULL UNIQUE,
         description TEXT,
         duration_minutes INTEGER NOT NULL,
+        course_code VARCHAR(50),
+        is_active BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Add missing columns to class_types if they don't exist
+    try {
+      await pool.query(`ALTER TABLE class_types ADD COLUMN IF NOT EXISTS course_code VARCHAR(50)`);
+      await pool.query(`ALTER TABLE class_types ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
+    } catch (e: any) {
+      if (!e.message.includes('already exists')) {
+        console.log(`Note: Could not add class_types columns: ${e.message}`);
+      }
+    }
 
     // Create sessions table for session management
     await pool.query(`
