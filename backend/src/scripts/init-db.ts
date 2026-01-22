@@ -359,6 +359,20 @@ export async function initializeDatabase() {
       )
     `);
 
+    // Create system_configurations table for sysadmin settings
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS system_configurations (
+        id SERIAL PRIMARY KEY,
+        config_key VARCHAR(100) NOT NULL UNIQUE,
+        config_value TEXT NOT NULL,
+        description TEXT,
+        category VARCHAR(50) NOT NULL DEFAULT 'general',
+        updated_by INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log('✅ Tables created');
 
     // Check if admin user exists
@@ -433,6 +447,22 @@ export async function initializeDatabase() {
 
       console.log('✅ orguser account created');
     }
+
+    // Insert default system configurations
+    await pool.query(`
+      INSERT INTO system_configurations (config_key, config_value, description, category) VALUES
+      ('invoice_due_days', '30', 'Number of days until invoice is due', 'billing'),
+      ('invoice_late_fee_percent', '1.5', 'Late fee percentage for overdue invoices', 'billing'),
+      ('email_smtp_host', '', 'SMTP server host', 'email'),
+      ('email_smtp_port', '587', 'SMTP server port', 'email'),
+      ('email_smtp_user', '', 'SMTP username', 'email'),
+      ('email_smtp_pass', '', 'SMTP password', 'email'),
+      ('email_from_address', 'noreply@cprtraining.com', 'Default from email address', 'email'),
+      ('company_name', 'CPR Training System', 'Company name', 'general'),
+      ('support_email', 'support@cprtraining.com', 'Support email address', 'general'),
+      ('session_timeout_minutes', '60', 'Session timeout in minutes', 'security')
+      ON CONFLICT (config_key) DO NOTHING
+    `);
 
     console.log('✅ Database initialization complete');
   } catch (error) {
