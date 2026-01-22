@@ -21,8 +21,6 @@ import {
   useTheme,
 } from '@mui/material';
 import {
-  Visibility as VisibilityIcon,
-  CheckCircle as CompleteIcon,
   EventAvailable as AvailableIcon,
   Delete as DeleteIcon,
   ArrowUpward as ArrowUpIcon,
@@ -357,18 +355,6 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
                       )}
                     </TableCell>
                     <TableCell align='center'>
-                      {item.type === 'class' && item.status !== 'completed' && (
-                        <Tooltip title={item.studentsattendance > 0 ? 'Mark as Complete' : 'Take attendance first'}>
-                          <span>
-                            <IconButton
-                              onClick={() => onCompleteClass(item)}
-                              disabled={!item.studentsattendance || item.studentsattendance === 0}
-                            >
-                              <CompleteIcon color={item.studentsattendance > 0 ? 'success' : 'disabled'} />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      )}
                       {item.type === 'availability' && onRemoveAvailability && (
                         <Tooltip title='Remove Availability'>
                           <IconButton 
