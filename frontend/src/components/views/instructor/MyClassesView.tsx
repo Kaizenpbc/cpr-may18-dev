@@ -358,10 +358,15 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
                     </TableCell>
                     <TableCell align='center'>
                       {item.type === 'class' && item.status !== 'completed' && (
-                        <Tooltip title='Mark as Complete'>
-                          <IconButton onClick={() => onCompleteClass(item)}>
-                            <CompleteIcon color='success' />
-                          </IconButton>
+                        <Tooltip title={item.studentsattendance > 0 ? 'Mark as Complete' : 'Take attendance first'}>
+                          <span>
+                            <IconButton
+                              onClick={() => onCompleteClass(item)}
+                              disabled={!item.studentsattendance || item.studentsattendance === 0}
+                            >
+                              <CompleteIcon color={item.studentsattendance > 0 ? 'success' : 'disabled'} />
+                            </IconButton>
+                          </span>
                         </Tooltip>
                       )}
                       {item.type === 'availability' && onRemoveAvailability && (
