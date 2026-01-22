@@ -16,7 +16,7 @@ import NotificationPanel from './NotificationPanel';
 
 interface NotificationBellProps {
   size?: 'small' | 'medium' | 'large';
-  color?: 'primary' | 'secondary' | 'default';
+  color?: 'primary' | 'secondary' | 'default' | 'inherit';
 }
 
 const NotificationBell: React.FC<NotificationBellProps> = ({ 

@@ -423,6 +423,35 @@ router.post(
         });
       }
 
+      // Create in-app notifications for admins asynchronously
+      (async () => {
+        try {
+          // Get course type name and organization name
+          const detailsResult = await pool.query(
+            `SELECT ct.name as course_type_name, o.name as organization_name
+             FROM class_types ct, organizations o
+             WHERE ct.id = $1 AND o.id = $2`,
+            [courseTypeId, organizationId]
+          );
+
+          if (detailsResult.rows.length > 0) {
+            const { course_type_name, organization_name } = detailsResult.rows[0];
+            const { notificationService } = await import('../../services/NotificationService.js');
+
+            await notificationService.notifyNewCourseRequest(
+              organization_name,
+              course_type_name,
+              new Date(scheduledDate).toLocaleDateString(),
+              newCourse.id
+            );
+
+            console.log('✅ [NOTIFICATION] In-app notifications created for new course request');
+          }
+        } catch (notifError) {
+          console.error('❌ [NOTIFICATION] Error creating new course request notifications:', notifError);
+        }
+      })();
+
       return res.json({
         success: true,
         message: 'Course request submitted successfully! Status: Pending',
@@ -870,6 +899,57 @@ router.put(
           console.log('📡 [WEBSOCKET] Emitted course cancellation event for course:', id);
         }
 
+        // Create in-app notifications asynchronously
+        (async () => {
+          try {
+            // Get course details for notification
+            const courseDetails = await pool.query(
+              `SELECT cr.*, ct.name as course_type_name, o.name as organization_name
+               FROM course_requests cr
+               JOIN class_types ct ON cr.course_type_id = ct.id
+               LEFT JOIN organizations o ON cr.organization_id = o.id
+               WHERE cr.id = $1`,
+              [id]
+            );
+
+            if (courseDetails.rows.length > 0) {
+              const course = courseDetails.rows[0];
+              const { notificationService } = await import('../../services/NotificationService.js');
+              const courseDate = course.confirmed_date
+                ? new Date(course.confirmed_date).toLocaleDateString()
+                : course.scheduled_date
+                  ? new Date(course.scheduled_date).toLocaleDateString()
+                  : 'N/A';
+
+              // Notify instructor if assigned
+              if (courseRequest.instructor_id) {
+                await notificationService.notifyCourseCancelledToInstructor(
+                  courseRequest.instructor_id,
+                  course.course_type_name,
+                  courseDate,
+                  reason,
+                  parseInt(id)
+                );
+              }
+
+              // Notify organization
+              if (courseRequest.organization_id) {
+                await notificationService.notifyCourseCancelledToOrganization(
+                  courseRequest.organization_id,
+                  course.course_type_name,
+                  courseDate,
+                  reason,
+                  parseInt(id)
+                );
+              }
+
+              console.log('✅ [NOTIFICATION] In-app notifications created for course cancellation');
+            }
+          } catch (notifError) {
+            console.error('❌ [NOTIFICATION] Error creating cancellation notifications:', notifError);
+          }
+        })();
+
         return res.json({
           success: true,
           message: 'Course cancelled successfully',
@@ -1281,6 +1361,34 @@ router.put(
           } catch (emailError) {
             console.error('❌ [EMAIL] Error sending email notifications:', emailError);
             // Don't fail the entire operation if email fails
+          }
+
+          // Create in-app notifications
+          try {
+            const { notificationService } = await import('../../services/NotificationService.js');
+
+            // Notify instructor
+            await notificationService.notifyCourseAssignedToInstructor(
+              instructorId,
+              courseRequest.course_type_name,
+              dateString,
+              courseRequest.organization_name,
+              courseRequest.location || 'TBD',
+              parseInt(id)
+            );
+
+            // Notify organization users
+            await notificationService.notifyCourseConfirmedToOrganization(
+              courseRequest.organization_id,
+              courseRequest.course_type_name,
+              dateString,
+              instructor.instructor_name,
+              parseInt(id)
+            );
+
+            console.log('✅ [NOTIFICATION] In-app notifications created for course assignment');
+          } catch (notifError) {
+            console.error('❌ [NOTIFICATION] Error creating in-app notifications:', notifError);
           }
         })();
 

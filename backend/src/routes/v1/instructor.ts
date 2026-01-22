@@ -834,6 +834,51 @@ router.post('/classes/:classId/complete', authenticateToken, requireRole(['instr
     console.log('📡 [WEBSOCKET] Emitted course completion event for course:', courseRequestId);
   }
 
+  // Create in-app notifications asynchronously
+  (async () => {
+    try {
+      // Get course details for notification
+      const courseDetails = await pool.query(
+        `SELECT cr.*, ct.name as course_type_name, o.id as org_id
+         FROM course_requests cr
+         JOIN class_types ct ON cr.course_type_id = ct.id
+         LEFT JOIN organizations o ON cr.organization_id = o.id
+         WHERE cr.id = $1`,
+        [courseRequestId]
+      );
+
+      if (courseDetails.rows.length > 0) {
+        const course = courseDetails.rows[0];
+        const { notificationService } = await import('../../services/NotificationService.js');
+        const courseDate = course.confirmed_date
+          ? new Date(course.confirmed_date).toLocaleDateString()
+          : 'N/A';
+
+        // Notify instructor
+        await notificationService.notifyCourseCompleted(
+          userId,
+          course.course_type_name,
+          courseDate,
+          parseInt(courseRequestId)
+        );
+
+        // Notify organization
+        if (course.org_id) {
+          await notificationService.notifyCourseCompletedToOrganization(
+            course.org_id,
+            course.course_type_name,
+            courseDate,
+            parseInt(courseRequestId)
+          );
+        }
+
+        console.log('✅ [NOTIFICATION] In-app notifications created for course completion');
+      }
+    } catch (notifError) {
+      console.error('❌ [NOTIFICATION] Error creating completion notifications:', notifError);
+    }
+  })();
+
   res.json({ success: true, data: result.rows[0], message: 'Class marked as completed' });
 });
 

@@ -151,7 +151,7 @@ const OrganizationLayout: React.FC<OrganizationLayoutProps> = ({
           {/* Theme toggle, Notifications, and User menu */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <ThemeToggle size="small" />
-            <NotificationBell size="small" color="default" />
+            <NotificationBell size="small" color="inherit" />
             <Typography variant="body2" sx={{ mr: 1, ml: 1 }}>
               {user?.username}
             </Typography>

@@ -4,42 +4,23 @@ import { pool } from '../config/database.js';
 export interface Notification {
   id: number;
   user_id: number;
-  type: NotificationType;
   title: string;
   message: string;
-  data: Record<string, any>;
+  type: string;
+  category: string;
+  link: string | null;
+  is_read: boolean;
   read_at: Date | null;
   created_at: Date;
-  updated_at: Date;
 }
-
-export interface NotificationPreference {
-  id: number;
-  user_id: number;
-  type: NotificationType;
-  email_enabled: boolean;
-  push_enabled: boolean;
-  sound_enabled: boolean;
-  created_at: Date;
-  updated_at: Date;
-}
-
-export type NotificationType = 
-  | 'payment_submitted'
-  | 'timesheet_submitted'
-  | 'invoice_status_change'
-  | 'payment_verification_needed'
-  | 'payment_verified'
-  | 'timesheet_approved'
-  | 'invoice_overdue'
-  | 'system_alert';
 
 export interface CreateNotificationData {
   user_id: number;
-  type: NotificationType;
   title: string;
   message: string;
-  data?: Record<string, any>;
+  type?: string;  // 'info' | 'success' | 'warning' | 'error'
+  category?: string;  // 'course' | 'billing' | 'system' | etc.
+  link?: string;
 }
 
 export class NotificationService {
@@ -53,22 +34,31 @@ export class NotificationService {
    * Create a new notification
    */
   async createNotification(data: CreateNotificationData): Promise<Notification> {
-    const { user_id, type, title, message, data: notificationData = {} } = data;
-    
-    const query = `
-      INSERT INTO notifications (user_id, type, title, message, data)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING *
-    `;
-    
-    const result = await this.pool.query(query, [
+    const {
       user_id,
-      type,
       title,
       message,
-      JSON.stringify(notificationData)
+      type = 'info',
+      category = 'system',
+      link = null
+    } = data;
+
+    const query = `
+      INSERT INTO notifications (user_id, title, message, type, category, link)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `;
+
+    const result = await this.pool.query(query, [
+      user_id,
+      title,
+      message,
+      type,
+      category,
+      link
     ]);
-    
+
+    console.log(`📬 [NOTIFICATION] Created for user ${user_id}: ${title}`);
     return result.rows[0];
   }
 
@@ -76,25 +66,25 @@ export class NotificationService {
    * Get notifications for a user
    */
   async getNotifications(
-    userId: number, 
-    limit: number = 50, 
+    userId: number,
+    limit: number = 50,
     offset: number = 0,
     unreadOnly: boolean = false
   ): Promise<Notification[]> {
     let query = `
-      SELECT * FROM notifications 
+      SELECT * FROM notifications
       WHERE user_id = $1
     `;
-    
+
     const params: any[] = [userId];
-    
+
     if (unreadOnly) {
-      query += ' AND read_at IS NULL';
+      query += ' AND is_read = false';
     }
-    
+
     query += ' ORDER BY created_at DESC LIMIT $2 OFFSET $3';
     params.push(limit, offset);
-    
+
     const result = await this.pool.query(query, params);
     return result.rows;
   }
@@ -104,11 +94,11 @@ export class NotificationService {
    */
   async getUnreadCount(userId: number): Promise<number> {
     const query = `
-      SELECT COUNT(*) as count 
-      FROM notifications 
-      WHERE user_id = $1 AND read_at IS NULL
+      SELECT COUNT(*) as count
+      FROM notifications
+      WHERE user_id = $1 AND is_read = false
     `;
-    
+
     const result = await this.pool.query(query, [userId]);
     return parseInt(result.rows[0].count);
   }
@@ -118,11 +108,11 @@ export class NotificationService {
    */
   async markAsRead(notificationId: number, userId: number): Promise<boolean> {
     const query = `
-      UPDATE notifications 
-      SET read_at = NOW(), updated_at = NOW()
+      UPDATE notifications
+      SET is_read = true, read_at = NOW()
       WHERE id = $1 AND user_id = $2
     `;
-    
+
     const result = await this.pool.query(query, [notificationId, userId]);
     return (result.rowCount ?? 0) > 0;
   }
@@ -132,11 +122,11 @@ export class NotificationService {
    */
   async markAllAsRead(userId: number): Promise<number> {
     const query = `
-      UPDATE notifications 
-      SET read_at = NOW(), updated_at = NOW()
-      WHERE user_id = $1 AND read_at IS NULL
+      UPDATE notifications
+      SET is_read = true, read_at = NOW()
+      WHERE user_id = $1 AND is_read = false
     `;
-    
+
     const result = await this.pool.query(query, [userId]);
     return result.rowCount ?? 0;
   }
@@ -146,162 +136,257 @@ export class NotificationService {
    */
   async deleteNotification(notificationId: number, userId: number): Promise<boolean> {
     const query = `
-      DELETE FROM notifications 
+      DELETE FROM notifications
       WHERE id = $1 AND user_id = $2
     `;
-    
+
     const result = await this.pool.query(query, [notificationId, userId]);
     return (result.rowCount ?? 0) > 0;
   }
 
+  // ============================================
+  // Course-related notification methods
+  // ============================================
+
   /**
-   * Get notification preferences for a user
+   * Notify instructor when assigned to a course
    */
-  async getPreferences(userId: number): Promise<NotificationPreference[]> {
-    const query = `
-      SELECT * FROM notification_preferences 
-      WHERE user_id = $1
-      ORDER BY type
-    `;
-    
-    const result = await this.pool.query(query, [userId]);
-    return result.rows;
+  async notifyCourseAssignedToInstructor(
+    instructorId: number,
+    courseName: string,
+    courseDate: string,
+    organizationName: string,
+    location: string,
+    courseId: number
+  ): Promise<Notification> {
+    return this.createNotification({
+      user_id: instructorId,
+      title: 'New Course Assignment',
+      message: `You have been assigned to teach "${courseName}" for ${organizationName} on ${courseDate} at ${location}.`,
+      type: 'success',
+      category: 'course',
+      link: `/instructor/classes`
+    });
   }
 
   /**
-   * Update notification preferences
+   * Notify organization when their course is confirmed
    */
-  async updatePreferences(
-    userId: number, 
-    type: NotificationType, 
-    preferences: Partial<Pick<NotificationPreference, 'email_enabled' | 'push_enabled' | 'sound_enabled'>>
-  ): Promise<NotificationPreference> {
-    const query = `
-      INSERT INTO notification_preferences (user_id, type, email_enabled, push_enabled, sound_enabled)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (user_id, type) 
-      DO UPDATE SET 
-        email_enabled = EXCLUDED.email_enabled,
-        push_enabled = EXCLUDED.push_enabled,
-        sound_enabled = EXCLUDED.sound_enabled,
-        updated_at = NOW()
-      RETURNING *
-    `;
-    
-    const result = await this.pool.query(query, [
-      userId,
-      type,
-      preferences.email_enabled ?? true,
-      preferences.push_enabled ?? true,
-      preferences.sound_enabled ?? true
-    ]);
-    
-    return result.rows[0];
-  }
-
-  /**
-   * Get all accountant users for bulk notifications
-   */
-  async getAccountantUsers(): Promise<{ id: number; username: string; email: string }[]> {
-    const query = `
-      SELECT id, username, email 
-      FROM users 
-      WHERE role = 'accountant' AND active = true
-    `;
-    
-    const result = await this.pool.query(query);
-    return result.rows;
-  }
-
-  /**
-   * Create notification for all accountants
-   */
-  async notifyAllAccountants(
-    type: NotificationType,
-    title: string,
-    message: string,
-    data?: Record<string, any>
+  async notifyCourseConfirmedToOrganization(
+    organizationId: number,
+    courseName: string,
+    courseDate: string,
+    instructorName: string,
+    courseId: number
   ): Promise<Notification[]> {
-    const accountants = await this.getAccountantUsers();
+    // Get all users belonging to this organization
+    const usersResult = await this.pool.query(
+      `SELECT id FROM users WHERE organization_id = $1`,
+      [organizationId]
+    );
+
     const notifications: Notification[] = [];
-    
-    for (const accountant of accountants) {
+    for (const user of usersResult.rows) {
       const notification = await this.createNotification({
-        user_id: accountant.id,
-        type,
-        title,
-        message,
-        data
+        user_id: user.id,
+        title: 'Course Confirmed',
+        message: `Your "${courseName}" course has been confirmed for ${courseDate}. Instructor: ${instructorName}`,
+        type: 'success',
+        category: 'course',
+        link: `/organization/courses`
       });
       notifications.push(notification);
     }
-    
     return notifications;
   }
 
   /**
-   * Create payment submitted notification
+   * Notify instructor when course is completed
    */
-  async notifyPaymentSubmitted(
-    invoiceId: number,
-    invoiceNumber: string,
+  async notifyCourseCompleted(
+    instructorId: number,
+    courseName: string,
+    courseDate: string,
+    courseId: number
+  ): Promise<Notification> {
+    return this.createNotification({
+      user_id: instructorId,
+      title: 'Course Completed',
+      message: `You have successfully completed "${courseName}" on ${courseDate}.`,
+      type: 'success',
+      category: 'course',
+      link: `/instructor/classes`
+    });
+  }
+
+  /**
+   * Notify organization when course is completed
+   */
+  async notifyCourseCompletedToOrganization(
+    organizationId: number,
+    courseName: string,
+    courseDate: string,
+    courseId: number
+  ): Promise<Notification[]> {
+    const usersResult = await this.pool.query(
+      `SELECT id FROM users WHERE organization_id = $1`,
+      [organizationId]
+    );
+
+    const notifications: Notification[] = [];
+    for (const user of usersResult.rows) {
+      const notification = await this.createNotification({
+        user_id: user.id,
+        title: 'Course Completed',
+        message: `Your "${courseName}" course on ${courseDate} has been completed. Certificates will be available soon.`,
+        type: 'success',
+        category: 'course',
+        link: `/organization/courses`
+      });
+      notifications.push(notification);
+    }
+    return notifications;
+  }
+
+  /**
+   * Notify instructor when course is cancelled
+   */
+  async notifyCourseCancelledToInstructor(
+    instructorId: number,
+    courseName: string,
+    courseDate: string,
+    reason: string,
+    courseId: number
+  ): Promise<Notification> {
+    return this.createNotification({
+      user_id: instructorId,
+      title: 'Course Cancelled',
+      message: `The "${courseName}" course scheduled for ${courseDate} has been cancelled. Reason: ${reason}`,
+      type: 'warning',
+      category: 'course',
+      link: `/instructor/classes`
+    });
+  }
+
+  /**
+   * Notify organization when course is cancelled
+   */
+  async notifyCourseCancelledToOrganization(
+    organizationId: number,
+    courseName: string,
+    courseDate: string,
+    reason: string,
+    courseId: number
+  ): Promise<Notification[]> {
+    const usersResult = await this.pool.query(
+      `SELECT id FROM users WHERE organization_id = $1`,
+      [organizationId]
+    );
+
+    const notifications: Notification[] = [];
+    for (const user of usersResult.rows) {
+      const notification = await this.createNotification({
+        user_id: user.id,
+        title: 'Course Cancelled',
+        message: `Your "${courseName}" course scheduled for ${courseDate} has been cancelled. Reason: ${reason}`,
+        type: 'warning',
+        category: 'course',
+        link: `/organization/courses`
+      });
+      notifications.push(notification);
+    }
+    return notifications;
+  }
+
+  /**
+   * Notify admins/courseadmins when new course request is submitted
+   */
+  async notifyNewCourseRequest(
     organizationName: string,
+    courseName: string,
+    requestedDate: string,
+    courseId: number
+  ): Promise<Notification[]> {
+    // Get all admin and courseadmin users
+    const adminsResult = await this.pool.query(
+      `SELECT id FROM users WHERE role IN ('admin', 'courseadmin', 'sysadmin')`
+    );
+
+    const notifications: Notification[] = [];
+    for (const admin of adminsResult.rows) {
+      const notification = await this.createNotification({
+        user_id: admin.id,
+        title: 'New Course Request',
+        message: `${organizationName} has requested a "${courseName}" course for ${requestedDate}.`,
+        type: 'info',
+        category: 'course',
+        link: `/admin/courses`
+      });
+      notifications.push(notification);
+    }
+    return notifications;
+  }
+
+  // ============================================
+  // Payment-related notification methods
+  // ============================================
+
+  /**
+   * Notify organization when payment is verified
+   */
+  async notifyPaymentVerified(
+    organizationId: number,
+    invoiceNumber: string,
     amount: number
   ): Promise<Notification[]> {
-    return this.notifyAllAccountants(
-      'payment_submitted',
-      'New Payment Submitted',
-      `Payment of $${amount.toFixed(2)} submitted for invoice ${invoiceNumber} by ${organizationName}`,
-      {
-        invoice_id: invoiceId,
-        invoice_number: invoiceNumber,
-        organization_name: organizationName,
-        amount: amount
-      }
+    const usersResult = await this.pool.query(
+      `SELECT id FROM users WHERE organization_id = $1`,
+      [organizationId]
     );
+
+    const notifications: Notification[] = [];
+    for (const user of usersResult.rows) {
+      const notification = await this.createNotification({
+        user_id: user.id,
+        title: 'Payment Verified',
+        message: `Your payment of $${amount.toFixed(2)} for invoice ${invoiceNumber} has been verified. Thank you!`,
+        type: 'success',
+        category: 'billing',
+        link: `/organization/billing`
+      });
+      notifications.push(notification);
+    }
+    return notifications;
   }
 
   /**
-   * Create timesheet submitted notification
+   * Notify organization when invoice is posted
    */
-  async notifyTimesheetSubmitted(
-    timesheetId: number,
-    instructorName: string,
-    courseDate: string
-  ): Promise<Notification[]> {
-    return this.notifyAllAccountants(
-      'timesheet_submitted',
-      'New Timesheet Submitted',
-      `Timesheet submitted by ${instructorName} for course on ${courseDate}`,
-      {
-        timesheet_id: timesheetId,
-        instructor_name: instructorName,
-        course_date: courseDate
-      }
-    );
-  }
-
-  /**
-   * Create invoice status change notification
-   */
-  async notifyInvoiceStatusChange(
-    invoiceId: number,
+  async notifyInvoicePosted(
+    organizationId: number,
     invoiceNumber: string,
-    oldStatus: string,
-    newStatus: string
+    amount: number,
+    dueDate: string
   ): Promise<Notification[]> {
-    return this.notifyAllAccountants(
-      'invoice_status_change',
-      'Invoice Status Updated',
-      `Invoice ${invoiceNumber} status changed from ${oldStatus} to ${newStatus}`,
-      {
-        invoice_id: invoiceId,
-        invoice_number: invoiceNumber,
-        old_status: oldStatus,
-        new_status: newStatus
-      }
+    const usersResult = await this.pool.query(
+      `SELECT id FROM users WHERE organization_id = $1`,
+      [organizationId]
     );
+
+    const notifications: Notification[] = [];
+    for (const user of usersResult.rows) {
+      const notification = await this.createNotification({
+        user_id: user.id,
+        title: 'New Invoice',
+        message: `Invoice ${invoiceNumber} for $${amount.toFixed(2)} has been posted. Due date: ${dueDate}`,
+        type: 'info',
+        category: 'billing',
+        link: `/organization/billing`
+      });
+      notifications.push(notification);
+    }
+    return notifications;
   }
 }
 
-export const notificationService = new NotificationService(); 
+export const notificationService = new NotificationService();

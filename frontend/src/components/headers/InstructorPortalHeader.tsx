@@ -106,7 +106,7 @@ const InstructorPortalHeader: React.FC<InstructorPortalHeaderProps> = ({
           </Typography>
         )}
         <ThemeToggle size="small" />
-        <NotificationBell size="small" color="default" />
+        <NotificationBell size="small" color="inherit" />
         {onRefresh && (
           <IconButton 
             color="inherit" 
