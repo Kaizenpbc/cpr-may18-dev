@@ -44,6 +44,9 @@ import {
   PersonAdd as PersonAddIcon,
   Filter as FilterIcon,
   Clear as ClearIcon,
+  HourglassEmpty as PendingIcon,
+  EventAvailable as ConfirmedIcon,
+  TaskAlt as CompletedIcon,
 } from '@mui/icons-material';
 import { api } from '../../../services/api';
 import InstructorDashboard from './InstructorDashboard';
@@ -970,9 +973,31 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
 
       {/* Pending Course Requests Section */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant='h6' gutterBottom>
-          Pending Course Requests
-        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            mb: 2,
+            p: 2,
+            borderRadius: 1,
+            backgroundColor: (theme) =>
+              theme.palette.mode === 'dark'
+                ? 'warning.dark'
+                : 'warning.main',
+          }}
+        >
+          <PendingIcon sx={{ color: 'white', fontSize: '1.8rem' }} />
+          <Typography
+            sx={{
+              fontWeight: 600,
+              fontSize: '1.25rem',
+              color: 'white',
+            }}
+          >
+            Pending Course Requests
+          </Typography>
+        </Box>
         <TableContainer component={Paper} sx={{ mb: 2 }}>
           <Table>
             <TableHead>
@@ -1264,9 +1289,31 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
 
       {/* Confirmed Courses Section */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant='h6' gutterBottom>
-          Confirmed Courses
-        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            mb: 2,
+            p: 2,
+            borderRadius: 1,
+            backgroundColor: (theme) =>
+              theme.palette.mode === 'dark'
+                ? 'info.dark'
+                : 'info.main',
+          }}
+        >
+          <ConfirmedIcon sx={{ color: 'white', fontSize: '1.8rem' }} />
+          <Typography
+            sx={{
+              fontWeight: 600,
+              fontSize: '1.25rem',
+              color: 'white',
+            }}
+          >
+            Confirmed Courses
+          </Typography>
+        </Box>
 
         {/* Filters Section */}
         <Paper sx={{ p: 3, mb: 3 }}>
@@ -1473,9 +1520,31 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
 
       {/* Completed Courses Section */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant='h6' gutterBottom>
-          Completed Courses
-        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            mb: 2,
+            p: 2,
+            borderRadius: 1,
+            backgroundColor: (theme) =>
+              theme.palette.mode === 'dark'
+                ? 'success.dark'
+                : 'success.main',
+          }}
+        >
+          <CompletedIcon sx={{ color: 'white', fontSize: '1.8rem' }} />
+          <Typography
+            sx={{
+              fontWeight: 600,
+              fontSize: '1.25rem',
+              color: 'white',
+            }}
+          >
+            Completed Courses
+          </Typography>
+        </Box>
         <TableContainer component={Paper} sx={{ mb: 2 }}>
           <Table>
             <TableHead>
