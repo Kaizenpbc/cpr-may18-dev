@@ -47,8 +47,12 @@ router.post(
 
     try {
       console.log('Attempting database query...');
+      // Combined query: fetch user and organization name in a single JOIN query for better performance
       const result = await pool.query(
-        'SELECT id, username, password_hash, role, organization_id FROM users WHERE username = $1',
+        `SELECT u.id, u.username, u.password_hash, u.role, u.organization_id, o.name as organization_name
+         FROM users u
+         LEFT JOIN organizations o ON u.organization_id = o.id
+         WHERE u.username = $1`,
         [username]
       );
 
@@ -71,6 +75,7 @@ router.post(
       }
 
       const user = result.rows[0];
+      const organizationName = user.organization_name || '';
 
       console.log('Attempting password verification...');
       console.log('Stored hash length:', user.password_hash?.length);
@@ -102,16 +107,6 @@ router.post(
         });
       }
 
-      // Fetch organization name
-      let organizationName = '';
-      if (user.organization_id) {
-        const orgResult = await pool.query(
-          'SELECT name FROM organizations WHERE id = $1',
-          [user.organization_id]
-        );
-        organizationName = orgResult.rows[0]?.name || '';
-      }
-
       // Extract request metadata for session management
       const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
       const userAgent = req.headers['user-agent'] || 'unknown';
@@ -138,64 +133,43 @@ router.post(
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
-      // Try to create Redis session, but don't fail if it doesn't work
-      try {
-        await ensureRedisConnection();
-        const sessionResult = await createUserSession({
-          userId: user.id.toString(),
-          username: user.username,
-          role: user.role,
-          organizationId: user.organization_id,
-          ipAddress,
-          userAgent,
-          deviceInfo,
-        });
-
-        console.log(
-          `🔐 [AUTH] Session created successfully: ${sessionResult.sessionId}`
-        );
-
-        console.log('Login successful for user:', user.username);
-        res.json(
-          ApiResponseBuilder.success(
-            {
-              user: {
-                id: user.id,
-                username: user.username,
-                role: user.role,
-                organizationId: user.organization_id,
-                organizationName,
-              },
-              accessToken: sessionResult.accessToken,
-              sessionId: sessionResult.sessionId,
+      // Return JWT response immediately for fast login
+      console.log('Login successful for user:', user.username);
+      res.json(
+        ApiResponseBuilder.success(
+          {
+            user: {
+              id: user.id,
+              username: user.username,
+              role: user.role,
+              organizationId: user.organization_id,
+              organizationName,
             },
-            'Login successful'
-          )
-        );
-      } catch (sessionError) {
-        console.error(
-          '❌ [AUTH] Session creation failed, using standard JWT:',
-          sessionError
-        );
+            accessToken: tokens.accessToken,
+          },
+          'Login successful'
+        )
+      );
 
-        // Use standard JWT authentication
-        console.log('Login successful for user (JWT):', user.username);
-        res.json(
-          ApiResponseBuilder.success(
-            {
-              user: {
-                id: user.id,
-                username: user.username,
-                role: user.role,
-                organizationId: user.organization_id,
-                organizationName,
-              },
-              accessToken: tokens.accessToken,
-            },
-            'Login successful'
-          )
-        );
-      }
+      // Create Redis session in background (non-blocking) for enhanced session tracking
+      // This doesn't affect the login response time
+      setImmediate(async () => {
+        try {
+          await ensureRedisConnection();
+          const sessionResult = await createUserSession({
+            userId: user.id.toString(),
+            username: user.username,
+            role: user.role,
+            organizationId: user.organization_id,
+            ipAddress,
+            userAgent,
+            deviceInfo,
+          });
+          console.log(`🔐 [AUTH] Background session created: ${sessionResult.sessionId}`);
+        } catch (sessionError) {
+          console.log('ℹ️ [AUTH] Background session creation skipped:', sessionError instanceof Error ? sessionError.message : 'Redis unavailable');
+        }
+      });
     } catch (error) {
       console.log('Login error:', error);
       console.error('Error:', {
@@ -539,9 +513,12 @@ router.post(
       const { verifyRefreshToken } = await import('../../utils/jwtUtils.js');
       const payload = verifyRefreshToken(refreshToken);
 
-      // Fetch fresh user data from database
+      // Fetch fresh user data from database with organization name in a single query
       const result = await pool.query(
-        'SELECT id, username, role, organization_id FROM users WHERE id = $1',
+        `SELECT u.id, u.username, u.role, u.organization_id, o.name as organization_name
+         FROM users u
+         LEFT JOIN organizations o ON u.organization_id = o.id
+         WHERE u.id = $1`,
         [parseInt(payload.userId, 10)]
       );
 
@@ -556,16 +533,7 @@ router.post(
       }
 
       const user = result.rows[0];
-
-      // Fetch organization name
-      let organizationName = '';
-      if (user.organization_id) {
-        const orgResult = await pool.query(
-          'SELECT name FROM organizations WHERE id = $1',
-          [user.organization_id]
-        );
-        organizationName = orgResult.rows[0]?.name || '';
-      }
+      const organizationName = user.organization_name || '';
 
       const tokens = generateTokens({
         id: user.id,

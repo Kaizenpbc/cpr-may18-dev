@@ -683,70 +683,71 @@ console.log(`Attempting to start server on port ${port}...`);
 
 const startServer = async () => {
   try {
+    // ========== CRITICAL INITIALIZATIONS (must complete before server starts) ==========
+    console.log('🚀 Starting critical initializations...');
+
     console.log('14a. Initializing database tables...');
     const { initializeDatabase } = await import('./scripts/init-db.js');
     await initializeDatabase();
-    console.log('14a. Database tables initialized');
+    console.log('✅ Database tables initialized');
 
     console.log('14b. Initializing token blacklist...');
     await initializeTokenBlacklist();
-    console.log('14c. Token blacklist initialized');
+    console.log('✅ Token blacklist initialized');
 
-    console.log('14d. Initializing session management...');
-    await initializeSessionManagement();
-    console.log('14e. Session management initialized');
-
-    console.log('14f. Initializing database security...');
-    await initializeDatabaseSecurity();
-    console.log('14g. Database security initialized');
-
-    console.log('14h. Skipping secure database initialization (temporary)...');
-    // await initializeSecureDatabase();
-    console.log('14i. Secure database initialization skipped');
-
-    console.log('14j. Initializing database encryption...');
-    initializeDatabaseEncryption();
-    console.log('14k. Database encryption initialized');
-
-    console.log('14l. Initializing API security...');
-    await initializeApiSecurity();
-    console.log('14m. API security initialized');
-
-    console.log('14n. Initializing environment configuration...');
+    console.log('14c. Initializing environment configuration...');
     const envInitialized = await initializeEnvironmentConfig();
     if (!envInitialized) {
       console.error('❌ Environment configuration initialization failed');
       process.exit(1);
     }
-    console.log('14o. Environment configuration initialized');
+    console.log('✅ Environment configuration initialized');
 
-    console.log('14p. Initializing MFA database...');
-    await initializeMFADatabase();
-    console.log('14q. MFA database initialized');
-
-    console.log('14r. Initializing encryption database...');
-    await initializeEncryptionDatabase();
-    console.log('14s. Encryption database initialized');
-
-    console.log('14t. Initializing security monitoring database...');
-    await initializeSecurityMonitoringDatabase();
-    console.log('14u. Security monitoring database initialized');
-
-    console.log('14v. Initializing SSL/TLS...');
-    const sslInitialized = await initializeSSL();
-    if (!sslInitialized) {
-      console.warn('⚠️ SSL/TLS initialization failed, continuing with HTTP only');
-    }
-    console.log('14w. SSL/TLS initialization completed');
-
-    console.log('14x. Checking for existing processes on port...');
+    console.log('14d. Checking for existing processes on port...');
     await killProcessOnPort(port);
-    console.log('14y. Port cleanup completed');
+    console.log('✅ Port cleanup completed');
 
-    console.log('14z. Starting HTTP server...');
+    // ========== START SERVER IMMEDIATELY ==========
+    console.log('14e. Starting HTTP server...');
     httpServer.listen(port, '0.0.0.0', () => {
       console.log(`✅ Server is now listening on http://0.0.0.0:${port}`);
       console.log(`Try accessing http://localhost:${port}/api/v1/health`);
+
+      // ========== NON-CRITICAL INITIALIZATIONS (run in background after server starts) ==========
+      console.log('🔄 Starting background initializations...');
+      setImmediate(async () => {
+        try {
+          // These run in background and don't block requests
+          console.log('[Background] Initializing session management...');
+          await initializeSessionManagement().catch(e => console.log('ℹ️ Session management init skipped:', e.message));
+
+          console.log('[Background] Initializing database security...');
+          await initializeDatabaseSecurity().catch(e => console.log('ℹ️ Database security init skipped:', e.message));
+
+          console.log('[Background] Initializing database encryption...');
+          initializeDatabaseEncryption();
+
+          console.log('[Background] Initializing API security...');
+          await initializeApiSecurity().catch(e => console.log('ℹ️ API security init skipped:', e.message));
+
+          console.log('[Background] Initializing MFA database...');
+          await initializeMFADatabase().catch(e => console.log('ℹ️ MFA database init skipped:', e.message));
+
+          console.log('[Background] Initializing encryption database...');
+          await initializeEncryptionDatabase().catch(e => console.log('ℹ️ Encryption database init skipped:', e.message));
+
+          console.log('[Background] Initializing security monitoring database...');
+          await initializeSecurityMonitoringDatabase().catch(e => console.log('ℹ️ Security monitoring init skipped:', e.message));
+
+          console.log('[Background] Initializing SSL/TLS...');
+          await initializeSSL().catch(e => console.log('ℹ️ SSL/TLS init skipped:', e.message));
+
+          console.log('✅ All background initializations completed');
+        } catch (bgError) {
+          console.error('⚠️ Some background initializations failed:', bgError);
+          // Don't exit - server is already running and can handle requests
+        }
+      });
     });
 
     httpServer.on('error', (error: Error) => {
