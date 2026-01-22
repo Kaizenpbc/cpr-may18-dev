@@ -99,6 +99,8 @@ export async function initializeDatabase() {
         is_cancelled BOOLEAN DEFAULT false,
         cancelled_at TIMESTAMP,
         cancellation_reason TEXT,
+        archived BOOLEAN DEFAULT false,
+        archived_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -117,7 +119,9 @@ export async function initializeDatabase() {
       { name: 'last_reminder_at', type: 'TIMESTAMP' },
       { name: 'is_cancelled', type: 'BOOLEAN DEFAULT false' },
       { name: 'cancelled_at', type: 'TIMESTAMP' },
-      { name: 'cancellation_reason', type: 'TEXT' }
+      { name: 'cancellation_reason', type: 'TEXT' },
+      { name: 'archived', type: 'BOOLEAN DEFAULT false' },
+      { name: 'archived_at', type: 'TIMESTAMP' }
     ];
 
     for (const col of columnsToAdd) {
