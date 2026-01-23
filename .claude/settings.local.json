@@ -12,7 +12,9 @@
       "Bash(npm audit fix:*)",
       "Bash(grep:*)",
       "Bash(find:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git tag:*)",
+      "Bash(git branch:*)"
     ]
   }
 }

@@ -1,7 +1,6 @@
 import express from 'express';
 import { authenticateToken } from '../../middleware/authMiddleware';
-import { asyncHandler } from '../../middleware/asyncHandler';
-import { AppError } from '../../utils/errorHandler';
+import { asyncHandler, AppError } from '../../utils/errorHandler.js';
 import { pool } from '../../config/database';
 
 const router = express.Router();

@@ -81,17 +81,13 @@ router.get('/:requestId', authenticateToken, requireAccountantRole, asyncHandler
 // Get Detailed Payment Request Information
 router.get('/:requestId/detail', authenticateToken, requireAccountantRole, asyncHandler(async (req, res) => {
   const { requestId } = req.params;
-  
-  try {
-    const paymentRequestDetail = await PaymentRequestService.getPaymentRequestDetail(parseInt(requestId));
-    
-    res.json({
-      success: true,
-      data: paymentRequestDetail
-    });
-  } catch (error) {
-    throw error;
-  }
+
+  const paymentRequestDetail = await PaymentRequestService.getPaymentRequestDetail(parseInt(requestId));
+
+  res.json({
+    success: true,
+    data: paymentRequestDetail
+  });
 }));
 
 // Process Payment Request (approve/return to HR)

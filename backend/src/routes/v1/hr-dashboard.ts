@@ -1,7 +1,7 @@
 import express from 'express';
 import { authenticateToken } from '../../middleware/authMiddleware';
 import { asyncHandler } from '../../middleware/asyncHandler';
-import { AppError } from '../../utils/errorHandler';
+import { AppError, errorCodes } from '../../utils/errorHandler';
 import { pool } from '../../config/database';
 
 const router = express.Router();
@@ -9,7 +9,7 @@ const router = express.Router();
 // Middleware to ensure HR role
 const requireHRRole = (req: any, res: any, next: any) => {
   if (req.user.role !== 'hr') {
-    throw new AppError('Access denied. HR role required.', 403);
+    throw new AppError(403, errorCodes.ACCESS_DENIED, 'Access denied. HR role required.');
   }
   next();
 };
@@ -258,7 +258,7 @@ router.post('/approve-change/:changeId', authenticateToken, requireHRRole, async
   const { action, comment } = req.body; // action: 'approve' or 'reject'
   
   if (!['approve', 'reject'].includes(action)) {
-    throw new AppError('Invalid action. Must be "approve" or "reject".', 400);
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid action. Must be "approve" or "reject".');
   }
   
   const client = await pool.connect();
@@ -272,7 +272,7 @@ router.post('/approve-change/:changeId', authenticateToken, requireHRRole, async
     `, [changeId]);
     
     if (changeResult.rows.length === 0) {
-      throw new AppError('Profile change not found or already processed.', 404);
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Profile change not found or already processed.');
     }
     
     const change = changeResult.rows[0];
@@ -325,7 +325,7 @@ router.get('/user/:userId', authenticateToken, requireHRRole, asyncHandler(async
     `, [userId]);
     
     if (userResult.rows.length === 0) {
-      throw new AppError('User not found.', 404);
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'User not found.');
     }
     
     const user = userResult.rows[0];
