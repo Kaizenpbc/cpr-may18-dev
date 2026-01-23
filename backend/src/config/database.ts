@@ -7,9 +7,21 @@ import bcrypt from 'bcryptjs';
 dotenv.config();
 
 // Database configuration
+const getDbPassword = (): string => {
+  const password = process.env.DB_PASSWORD;
+  if (!password) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('DB_PASSWORD environment variable is required in production');
+    }
+    console.warn('WARNING: DB_PASSWORD not set, using development fallback');
+    return 'gtacpr';
+  }
+  return password;
+};
+
 const poolConfig: PoolConfig = {
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'gtacpr',
+  password: getDbPassword(),
   host: process.env.DB_HOST || '127.0.0.1',
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME || 'cpr_jun21',

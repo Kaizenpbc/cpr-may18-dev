@@ -65,9 +65,18 @@ let failedQueue: Array<{
   resolve: (value?: any) => void;
   reject: (error?: any) => void;
 }> = [];
+let isProcessingQueue = false;
 
 const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach(({ resolve, reject }) => {
+  // Prevent re-entrancy during queue processing
+  if (isProcessingQueue) return;
+  isProcessingQueue = true;
+
+  // Copy and clear queue atomically to prevent race conditions
+  const queueToProcess = [...failedQueue];
+  failedQueue = [];
+
+  queueToProcess.forEach(({ resolve, reject }) => {
     if (error) {
       reject(error);
     } else {
@@ -75,7 +84,7 @@ const processQueue = (error: any, token: string | null = null) => {
     }
   });
 
-  failedQueue = [];
+  isProcessingQueue = false;
 };
 
 // Add response interceptor

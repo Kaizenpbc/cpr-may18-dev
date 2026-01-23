@@ -7,7 +7,12 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nFix instructor availability calendar to show scheduled classes\n\n- Add useInstructorClasses and useInstructorAvailability hooks to AvailabilityView\n- Pass scheduledClasses prop from InstructorPortal to AvailabilityView\n- Scheduled classes now display as blue circles on the calendar\n- Available dates display as green circles\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git commit --no-verify -m \"$\\(cat <<''EOF''\nFix instructor availability calendar to show scheduled classes\n\n- Add useInstructorClasses and useInstructorAvailability hooks to AvailabilityView\n- Pass scheduledClasses prop from InstructorPortal to AvailabilityView\n- Scheduled classes now display as blue circles on the calendar\n- Available dates display as green circles\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git push)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npm audit fix:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

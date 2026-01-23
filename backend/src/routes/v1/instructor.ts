@@ -930,23 +930,38 @@ router.post('/classes/:classId/attendance', authenticateToken, requireRole(['ins
   }
 
   const courseRequestId = courseRequestResult.rows[0].id;
-  const updatedStudents = [];
+  const updatedStudents: any[] = [];
 
-  // Update attendance for each student
-  for (const student of students) {
-    if (student.id && typeof student.attended === 'boolean') {
-      const result = await pool.query(
-        `UPDATE course_students 
-         SET attended = $1, attendance_marked = true, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $2 AND course_request_id = $3
-         RETURNING id, first_name, last_name, email, attended, attendance_marked`,
-        [student.attended, student.id, courseRequestId]
-      );
+  // Batch update attendance - separate attended and not attended IDs
+  const attendedIds = students
+    .filter((s: any) => s.id && s.attended === true)
+    .map((s: any) => s.id);
+  const notAttendedIds = students
+    .filter((s: any) => s.id && s.attended === false)
+    .map((s: any) => s.id);
 
-      if (result.rows.length > 0) {
-        updatedStudents.push(result.rows[0]);
-      }
-    }
+  // Update attended students in batch
+  if (attendedIds.length > 0) {
+    const attendedResult = await pool.query(
+      `UPDATE course_students
+       SET attended = true, attendance_marked = true, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ANY($1) AND course_request_id = $2
+       RETURNING id, first_name, last_name, email, attended, attendance_marked`,
+      [attendedIds, courseRequestId]
+    );
+    updatedStudents.push(...attendedResult.rows);
+  }
+
+  // Update not attended students in batch
+  if (notAttendedIds.length > 0) {
+    const notAttendedResult = await pool.query(
+      `UPDATE course_students
+       SET attended = false, attendance_marked = true, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ANY($1) AND course_request_id = $2
+       RETURNING id, first_name, last_name, email, attended, attendance_marked`,
+      [notAttendedIds, courseRequestId]
+    );
+    updatedStudents.push(...notAttendedResult.rows);
   }
 
   res.json({ success: true, data: updatedStudents, message: 'Attendance submitted successfully' });

@@ -4,10 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import { createServer } from 'http';
-import { createServer as createHttpsServer } from 'https';
 import { Server } from 'socket.io';
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
@@ -18,14 +15,13 @@ import { initializeTokenBlacklist } from './utils/tokenBlacklist.js';
 import { apiLimiter, authLimiter, registerLimiter } from './middleware/rateLimiter.js';
 import { sanitizeInput } from './middleware/inputSanitizer.js';
 import { auditLogger } from './middleware/auditLogger.js';
-import { initializeSessionManagement, sessionManager } from './middleware/sessionManager.js';
+import { initializeSessionManagement } from './middleware/sessionManager.js';
 import { initializeDatabaseSecurity } from './config/databaseSecurity.js';
-import { initializeSecureDatabase } from './config/secureDatabase.js';
 import { initializeDatabaseEncryption } from './utils/databaseEncryption.js';
 import { apiSecurity, initializeApiSecurity } from './middleware/apiSecurity.js';
 import { requestValidator } from './middleware/requestValidator.js';
-import { initializeSSL, generateSSLOptions, getSSLSecurityHeaders, checkSSLHealth } from './config/sslConfig.js';
-import { initializeEnvironmentConfig, checkConfigurationHealth, getEnvironmentConfig } from './config/environmentConfig.js';
+import { initializeSSL, checkSSLHealth } from './config/sslConfig.js';
+import { initializeEnvironmentConfig, checkConfigurationHealth } from './config/environmentConfig.js';
 import { initializeMFADatabase } from './config/mfaDatabase.js';
 import { initializeEncryptionDatabase } from './config/encryptionDatabase.js';
 import { initializeSecurityMonitoringDatabase } from './config/securityMonitoringDatabase.js';
@@ -360,7 +356,6 @@ writeToLog('✅ Logging middleware configured', 'INFO');
 
 // Add session management middleware
 writeToLog('🔧 Setting up session management...', 'INFO');
-// app.use(sessionManager); // Temporarily disabled due to conflict between Redis and DB session stores
 writeToLog('✅ Session management configured', 'INFO');
 
 // Basic health check route

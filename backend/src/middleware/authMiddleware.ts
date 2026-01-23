@@ -12,8 +12,27 @@ import { AppError } from '../utils/errorHandler.js';
 import { TokenBlacklist } from '../utils/tokenBlacklist.js';
 import jwt from 'jsonwebtoken';
 
-const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'access_secret';
-const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh_secret';
+const MIN_SECRET_LENGTH = 32;
+
+const validateSecret = (secret: string | undefined, name: string): string => {
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`${name} environment variable is required in production`);
+    }
+    console.warn(`WARNING: ${name} not set, using insecure development fallback`);
+    return name === 'JWT_ACCESS_SECRET' ? 'dev_access_secret_not_for_production!' : 'dev_refresh_secret_not_for_production';
+  }
+  if (secret.length < MIN_SECRET_LENGTH) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`${name} must be at least ${MIN_SECRET_LENGTH} characters in production`);
+    }
+    console.warn(`WARNING: ${name} is less than ${MIN_SECRET_LENGTH} characters, this is insecure`);
+  }
+  return secret;
+};
+
+const ACCESS_TOKEN_SECRET = validateSecret(process.env.JWT_ACCESS_SECRET, 'JWT_ACCESS_SECRET');
+const REFRESH_TOKEN_SECRET = validateSecret(process.env.JWT_REFRESH_SECRET, 'JWT_REFRESH_SECRET');
 
 declare global {
   namespace Express {
@@ -53,16 +72,9 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     });
 
     const authHeader = req.headers.authorization;
-    let token = authHeader && authHeader.split(' ')[1];
+    const token = authHeader && authHeader.split(' ')[1];
 
-    if (!token && req.query.token) {
-      console.log('[TRACE] Auth middleware - Token found in query parameters');
-      let queryToken = req.query.token as string;
-      if (queryToken.startsWith('Bearer ')) {
-        queryToken = queryToken.substring(7);
-      }
-      token = queryToken;
-    }
+    // Security: Tokens should only come from Authorization headers, not query parameters
 
     if (!token) {
       console.log('[TRACE] Auth middleware - No token provided');

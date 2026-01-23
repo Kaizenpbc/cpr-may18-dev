@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import {
   Box,
   Typography,
@@ -1129,13 +1130,15 @@ const EmailTemplateManager: React.FC = () => {
                 <Typography variant='subtitle2'>Body:</Typography>
                 <Box
                   dangerouslySetInnerHTML={{
-                    __html: (
-                      selectedTemplate.htmlContent ||
-                      selectedTemplate.body ||
-                      ''
-                    ).replace(
-                      /\{\{(\w+)\}\}/g,
-                      (_, key) => previewVariables[key] || `{{${key}}}`
+                    __html: DOMPurify.sanitize(
+                      (
+                        selectedTemplate.htmlContent ||
+                        selectedTemplate.body ||
+                        ''
+                      ).replace(
+                        /\{\{(\w+)\}\}/g,
+                        (_, key) => previewVariables[key] || `{{${key}}}`
+                      )
                     ),
                   }}
                 />

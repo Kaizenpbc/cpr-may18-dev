@@ -83,8 +83,6 @@ console.log('✅ Vendor routes mounted');
 router.use('/auth', authRouter);
 console.log('✅ Auth routes mounted');
 
-console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
-
 // Get available instructors for a specific date (needs to be before auth middleware)
 router.get(
   '/instructors/available/:date',

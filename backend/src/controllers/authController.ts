@@ -5,6 +5,28 @@ import { pool } from '../config/database.js';
 
 const router = express.Router();
 
+const MIN_SECRET_LENGTH = 32;
+
+const validateSecret = (secret: string | undefined, name: string): string => {
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`${name} environment variable is required in production`);
+    }
+    console.warn(`WARNING: ${name} not set, using insecure development fallback`);
+    return name === 'JWT_ACCESS_SECRET' ? 'dev_access_secret_not_for_production!' : 'dev_refresh_secret_not_for_production';
+  }
+  if (secret.length < MIN_SECRET_LENGTH) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`${name} must be at least ${MIN_SECRET_LENGTH} characters in production`);
+    }
+    console.warn(`WARNING: ${name} is less than ${MIN_SECRET_LENGTH} characters, this is insecure`);
+  }
+  return secret;
+};
+
+const ACCESS_TOKEN_SECRET = validateSecret(process.env.JWT_ACCESS_SECRET, 'JWT_ACCESS_SECRET');
+const REFRESH_TOKEN_SECRET = validateSecret(process.env.JWT_REFRESH_SECRET, 'JWT_REFRESH_SECRET');
+
 // Login endpoint
 router.post('/login', async (req: Request, res: Response) => {
   try {
@@ -69,7 +91,7 @@ router.post('/login', async (req: Request, res: Response) => {
         role: user.role,
         organizationId: user.organization_id
       },
-      process.env.JWT_ACCESS_SECRET || 'access_secret',
+      ACCESS_TOKEN_SECRET,
       { expiresIn: '15m' }
     );
 
@@ -81,7 +103,7 @@ router.post('/login', async (req: Request, res: Response) => {
         role: user.role,
         organizationId: user.organization_id
       },
-      process.env.JWT_REFRESH_SECRET || 'refresh_secret',
+      REFRESH_TOKEN_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -136,7 +158,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       // Generate reset token
       const resetToken = jwt.sign(
         { userId: user.id, type: 'password_reset' },
-        process.env.JWT_ACCESS_SECRET || 'access_secret',
+        ACCESS_TOKEN_SECRET,
         { expiresIn: '1h' }
       );
 
@@ -180,7 +202,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET || 'access_secret') as any;
+    const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET) as any;
     
     if (decoded.type !== 'password_reset') {
       return res.status(400).json({ 

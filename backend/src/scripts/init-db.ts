@@ -863,6 +863,44 @@ export async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_enrollments_course_request ON enrollments(course_request_id)
     `);
 
+    // Create indexes for improved query performance on frequently queried columns
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_course_requests_instructor_id ON course_requests(instructor_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_course_requests_organization_id ON course_requests(organization_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_course_requests_status ON course_requests(status)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_course_students_course_request_id ON course_students(course_request_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_course_students_attended ON course_students(course_request_id, attended)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_classes_instructor_id ON classes(instructor_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_classes_organization_id ON classes(organization_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_invoices_organization_id ON invoices(organization_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_payments_invoice_id ON payments(invoice_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_users_organization_id ON users(organization_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)
+    `);
+
     console.log('✅ Tables created');
 
     // Create views for common queries

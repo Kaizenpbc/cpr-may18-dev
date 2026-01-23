@@ -47,21 +47,21 @@ export class DatabaseEncryption {
   public encrypt(plaintext: string, userId?: string): string {
     try {
       this.encryptionCount++;
-      
+
       // Generate random IV
       const iv = crypto.randomBytes(IV_LENGTH);
-      
-      // Create cipher
-      const cipher = crypto.createCipher(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY);
+
+      // Create cipher with IV (using createCipheriv instead of deprecated createCipher)
+      const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY, iv);
       cipher.setAAD(Buffer.from('database-encryption', 'utf8'));
-      
+
       // Encrypt data
       let encrypted = cipher.update(plaintext, 'utf8', 'hex');
       encrypted += cipher.final('hex');
-      
+
       // Get authentication tag
       const tag = cipher.getAuthTag();
-      
+
       // Combine IV, tag, and encrypted data
       const result = iv.toString('hex') + ':' + tag.toString('hex') + ':' + encrypted;
       
@@ -108,9 +108,9 @@ export class DatabaseEncryption {
       const iv = Buffer.from(parts[0], 'hex');
       const tag = Buffer.from(parts[1], 'hex');
       const encrypted = parts[2];
-      
-      // Create decipher
-      const decipher = crypto.createDecipher(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY);
+
+      // Create decipher with IV (using createDecipheriv instead of deprecated createDecipher)
+      const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY, iv);
       decipher.setAAD(Buffer.from('database-encryption', 'utf8'));
       decipher.setAuthTag(tag);
       
@@ -206,15 +206,16 @@ export class BackupEncryption {
   public static async encryptBackup(backupData: Buffer): Promise<Buffer> {
     try {
       const iv = crypto.randomBytes(IV_LENGTH);
-      const cipher = crypto.createCipher(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY);
-      
+      // Use createCipheriv instead of deprecated createCipher
+      const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY, iv);
+
       const encrypted = Buffer.concat([
         cipher.update(backupData),
         cipher.final()
       ]);
-      
+
       const tag = cipher.getAuthTag();
-      
+
       // Combine IV, tag, and encrypted data
       return Buffer.concat([iv, tag, encrypted]);
       
@@ -229,15 +230,16 @@ export class BackupEncryption {
       const iv = encryptedBackup.subarray(0, IV_LENGTH);
       const tag = encryptedBackup.subarray(IV_LENGTH, IV_LENGTH + TAG_LENGTH);
       const encrypted = encryptedBackup.subarray(IV_LENGTH + TAG_LENGTH);
-      
-      const decipher = crypto.createDecipher(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY);
+
+      // Use createDecipheriv instead of deprecated createDecipher
+      const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY, iv);
       decipher.setAuthTag(tag);
-      
+
       const decrypted = Buffer.concat([
         decipher.update(encrypted),
         decipher.final()
       ]);
-      
+
       return decrypted;
       
     } catch (error) {
