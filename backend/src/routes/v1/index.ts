@@ -25,6 +25,7 @@ import payRatesRouter from './payRates.js';
 import notificationsRouter from './notifications.js';
 import vendorRouter from './vendor.js';
 import authRouter from './auth.js';
+import holidaysRouter from '../holidays.js';
 import { roleBasedPasswordValidation, validatePasswordPolicy, getPasswordPolicyForRole } from '../../middleware/passwordPolicy.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
@@ -82,6 +83,10 @@ console.log('✅ Vendor routes mounted');
 // Mount auth routes
 router.use('/auth', authRouter);
 console.log('✅ Auth routes mounted');
+
+// Mount holidays routes
+router.use('/holidays', holidaysRouter);
+console.log('✅ Holidays routes mounted');
 
 // Get available instructors for a specific date (needs to be before auth middleware)
 router.get(

@@ -116,16 +116,6 @@ const categoryOptions: Record<string, string[]> = {
 };
 
 const EmailTemplateManager: React.FC = () => {
-  console.log('[EmailTemplateManager] Component initializing');
-  console.log(
-    '[EmailTemplateManager] emailTemplateApi available:',
-    !!emailTemplateApi
-  );
-  console.log(
-    '[EmailTemplateManager] emailTemplateApi methods:',
-    emailTemplateApi ? Object.keys(emailTemplateApi) : 'undefined'
-  );
-
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -166,27 +156,16 @@ const EmailTemplateManager: React.FC = () => {
   });
 
   useEffect(() => {
-    console.log(
-      '[EmailTemplateManager] Component mounted - useEffect triggered'
-    );
-    console.log('[EmailTemplateManager] About to call fetchTemplates');
     fetchTemplates('all', '').catch(error => {
-      console.error(
-        '[EmailTemplateManager] Error calling fetchTemplates from useEffect:',
-        error
-      );
+      console.error('[EmailTemplateManager] Error loading templates:', error);
       showToast({
         type: 'error',
         message: 'Failed to load email templates on initial load.',
         priority: 'normal',
       });
     });
-    console.log('[EmailTemplateManager] About to call fetchMetadata');
     fetchMetadata().catch(error => {
-      console.error(
-        '[EmailTemplateManager] Error calling fetchMetadata from useEffect:',
-        error
-      );
+      console.error('[EmailTemplateManager] Error loading metadata:', error);
       showToast({
         type: 'error',
         message: 'Failed to load template metadata.',
@@ -195,19 +174,10 @@ const EmailTemplateManager: React.FC = () => {
     });
   }, []);
 
-  // Add useEffect to refetch templates when filters change
+  // Refetch templates when filters change
   useEffect(() => {
-    console.log('[EmailTemplateManager] Filters changed, refetching templates');
-    console.log(
-      '[EmailTemplateManager] Current categoryFilter:',
-      categoryFilter
-    );
-    console.log('[EmailTemplateManager] Current searchTerm:', searchTerm);
     fetchTemplates(categoryFilter, searchTerm).catch(error => {
-      console.error(
-        '[EmailTemplateManager] Error refetching templates on filter change:',
-        error
-      );
+      console.error('[EmailTemplateManager] Error refetching templates:', error);
       showToast({
         type: 'error',
         message: 'Failed to refetch templates after filter change.',
@@ -215,20 +185,6 @@ const EmailTemplateManager: React.FC = () => {
       });
     });
   }, [categoryFilter, searchTerm]);
-
-  // Monitor sorting changes
-  useEffect(() => {
-    console.log('[EmailTemplateManager] Sort changed:', { sortBy, sortOrder });
-  }, [sortBy, sortOrder]);
-
-  // Monitor templates state changes
-  useEffect(() => {
-    console.log('[EmailTemplateManager] Templates state updated:', templates);
-    console.log(
-      '[EmailTemplateManager] Templates count in state:',
-      templates.length
-    );
-  }, [templates]);
 
   const fetchTemplates = async (
     currentCategoryFilter?: string,
@@ -243,49 +199,19 @@ const EmailTemplateManager: React.FC = () => {
       const effectiveSearchTerm =
         currentSearchTerm !== undefined ? currentSearchTerm : searchTerm;
 
-      console.log('[EmailTemplateManager] fetchTemplates called');
-      console.log('[EmailTemplateManager] Effective filters:', {
-        effectiveCategoryFilter,
-        effectiveSearchTerm,
-        originalCategoryFilter: categoryFilter,
-        originalSearchTerm: searchTerm,
-      });
-
       try {
         const params: any = {
-          active: 'true', // Explicitly request active templates
+          active: 'true',
         };
         if (effectiveCategoryFilter !== 'all') {
           params.category = effectiveCategoryFilter;
-          console.log(
-            '[EmailTemplateManager] Adding category filter:',
-            effectiveCategoryFilter
-          );
         }
         if (effectiveSearchTerm) {
           params.search = effectiveSearchTerm;
-          console.log(
-            '[EmailTemplateManager] Adding search filter:',
-            effectiveSearchTerm
-          );
         }
 
-        console.log('[EmailTemplateManager] Final API params:', params);
-
         const response = await emailTemplateApi.getAll(params);
-        console.log('[EmailTemplateManager] API response:', response);
-        console.log('[EmailTemplateManager] API response.data:', response.data);
-        console.log(
-          '[EmailTemplateManager] API response.data type:',
-          typeof response.data
-        );
-        console.log(
-          '[EmailTemplateManager] API response.data keys:',
-          response.data ? Object.keys(response.data) : 'null'
-        );
-
         const rawTemplates = response.data.templates || response.data.data || [];
-        console.log('[EmailTemplateManager] Raw templates from API:', rawTemplates);
 
         const mappedTemplates = rawTemplates.map((t: any) => ({
           ...t,
@@ -294,34 +220,13 @@ const EmailTemplateManager: React.FC = () => {
           availableVariables: t.availableVariables || [],
         }));
 
-        console.log(
-          '[EmailTemplateManager] Mapped templates:',
-          mappedTemplates
-        );
-        console.log(
-          '[EmailTemplateManager] First mapped template:',
-          mappedTemplates[0]
-        );
-
         setTemplates(mappedTemplates);
       } catch (error) {
-        console.error(
-          '[EmailTemplateManager] Error fetching templates:',
-          error
-        );
+        console.error('[EmailTemplateManager] Error fetching templates:', error);
         showToast({ type: 'error', message: 'Failed to fetch templates', priority: 'normal' });
       }
     } catch (outerError) {
-      console.error(
-        '[EmailTemplateManager] Unexpected error in fetchTemplates:',
-        outerError
-      );
-      console.error('[EmailTemplateManager] Error type:', typeof outerError);
-      console.error('[EmailTemplateManager] Error details:', {
-        message: (outerError as any)?.message,
-        stack: (outerError as any)?.stack,
-        name: (outerError as any)?.name,
-      });
+      console.error('[EmailTemplateManager] Unexpected error in fetchTemplates:', outerError);
     } finally {
       setLoading(false);
     }
@@ -329,7 +234,6 @@ const EmailTemplateManager: React.FC = () => {
 
   const fetchMetadata = async () => {
     try {
-      console.log('[EmailTemplateManager] Fetching metadata...');
       const [triggersResponse, variablesResponse] = await Promise.all([
         emailTemplateApi.getEventTriggers(),
         emailTemplateApi.getTemplateVariables(),
@@ -393,11 +297,6 @@ const EmailTemplateManager: React.FC = () => {
         body: formData.htmlContent, // Backend expects 'body' not 'htmlContent'
         isActive: formData.isActive !== undefined ? formData.isActive : true,
       };
-
-      console.log(
-        '[EmailTemplateManager] Saving template with data:',
-        requestData
-      );
 
       if (selectedTemplate?.id) {
         // Update existing template

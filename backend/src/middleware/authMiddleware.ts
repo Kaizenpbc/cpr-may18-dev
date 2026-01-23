@@ -66,18 +66,12 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
   }
 
   try {
-    console.log('[TRACE] Auth middleware - Request headers:', {
-      authorization: req.headers.authorization ? 'present' : 'missing',
-      cookie: req.headers.cookie ? 'present' : 'missing'
-    });
-
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
 
     // Security: Tokens should only come from Authorization headers, not query parameters
 
     if (!token) {
-      console.log('[TRACE] Auth middleware - No token provided');
       return res.status(401).json({
         success: false,
         error: {
@@ -88,21 +82,15 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     }
 
     try {
-      console.log('[TRACE] Auth middleware - Verifying token');
-
       // Check if token is blacklisted
-      console.log('[TRACE] Auth middleware - Checking blacklist for token:', token.substring(0, 20) + '...');
       let isBlacklisted = false;
       try {
         isBlacklisted = await TokenBlacklist.isBlacklisted(token);
-        console.log('[TRACE] Auth middleware - Blacklist check result:', isBlacklisted);
       } catch (blacklistError) {
-        console.error('[TRACE] Auth middleware - Blacklist check failed:', blacklistError);
         // Continue with token verification even if blacklist check fails
       }
 
       if (isBlacklisted) {
-        console.log('[TRACE] Auth middleware - Token is blacklisted');
         return res.status(401).json({
           success: false,
           error: {
@@ -113,12 +101,6 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       }
 
       const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET) as TokenPayload;
-      console.log('[TRACE] Auth middleware - Token verified, user:', {
-        id: decoded.id,
-        userId: decoded.userId,
-        username: decoded.username,
-        role: decoded.role
-      });
 
       req.user = {
         id: decoded.id,
@@ -131,16 +113,11 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       };
       next();
     } catch (err) {
-      console.log('[TRACE] Auth middleware - Token verification failed:', err);
-
       // Check if it's a token expiration error
       if (err instanceof jwt.TokenExpiredError) {
-        console.log('[TRACE] Auth middleware - Token expired, attempting refresh');
-
         // Safely access cookies with null check
         const refreshToken = req.cookies?.refreshToken;
         if (!refreshToken) {
-          console.log('[TRACE] Auth middleware - No refresh token available');
           return res.status(401).json({
             success: false,
             error: {
@@ -151,7 +128,6 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
         }
 
         try {
-          console.log('[TRACE] Auth middleware - Attempting token refresh');
           const decoded = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET) as TokenPayload;
           const { accessToken, refreshToken: newRefreshToken } = generateTokens(decoded);
 
@@ -164,7 +140,6 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
           });
 
-          console.log('[TRACE] Auth middleware - Token refresh successful');
           req.user = {
             id: decoded.id,
             userId: decoded.userId,
@@ -176,7 +151,6 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
           };
           next();
         } catch (refreshErr) {
-          console.log('[TRACE] Auth middleware - Token refresh failed:', refreshErr);
           return res.status(401).json({
             success: false,
             error: {
@@ -187,7 +161,6 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
         }
       } else {
         // Token is invalid for other reasons
-        console.log('[TRACE] Auth middleware - Token invalid:', err);
         return res.status(401).json({
           success: false,
           error: {
@@ -198,7 +171,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       }
     }
   } catch (error) {
-    console.error('[TRACE] Auth middleware - Unexpected error:', error);
+    console.error('[AUTH] Middleware error:', error);
     return res.status(500).json({
       success: false,
       error: {
@@ -211,20 +184,12 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
 // Helper function to extract token from headers
 const extractTokenFromHeaders = (req: Request): string | null => {
-  console.log('[Debug] jwtUtils - Extracting token from headers');
   const authHeader = req.headers['authorization'];
-  console.log('[Debug] jwtUtils - Authorization header:', authHeader);
 
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    console.log(
-      '[Debug] jwtUtils - Token extracted:',
-      token ? 'present' : 'missing'
-    );
-    return token;
+    return authHeader.substring(7);
   }
 
-  console.log('[Debug] jwtUtils - No valid token found in headers');
   return null;
 };
 

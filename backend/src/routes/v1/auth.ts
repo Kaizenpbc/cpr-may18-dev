@@ -30,14 +30,6 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { username, password } = req.body;
 
-    console.log('---------------------------------------------------');
-    console.log('🔐 [AUTH] Login Request Received');
-    console.log('Headers:', JSON.stringify(req.headers));
-    console.log('Body keys:', Object.keys(req.body));
-    console.log('Username provided:', username);
-    console.log('Password provided:', password ? 'YES (masked)' : 'NO');
-    console.log('---------------------------------------------------');
-
     if (!username || !password) {
       return res.status(400).json({
         error: 'Username and password are required',
@@ -46,7 +38,6 @@ router.post(
     }
 
     try {
-      console.log('Attempting database query...');
       // Combined query: fetch user and organization name in a single JOIN query for better performance
       const result = await pool.query(
         `SELECT u.id, u.username, u.password_hash, u.role, u.organization_id, o.name as organization_name
@@ -56,13 +47,7 @@ router.post(
         [username]
       );
 
-      console.log(
-        'Query result:',
-        result.rows.length > 0 ? 'User found' : 'User not found'
-      );
-
       if (result.rows.length === 0) {
-        console.log('User not found');
         return res.status(401).json({
           error: `User '${username}' not found. Please check your username or contact your administrator.`,
           code: 'USER_NOT_FOUND',
@@ -77,25 +62,12 @@ router.post(
       const user = result.rows[0];
       const organizationName = user.organization_name || '';
 
-      console.log('Attempting password verification...');
-      console.log('Stored hash length:', user.password_hash?.length);
-      console.log('Received password length:', password?.length);
-      if (password && password.length > 0) {
-        console.log('Received password codes:',
-          password.charCodeAt(0),
-          password.length > 1 ? '...' : '',
-          password.charCodeAt(password.length - 1)
-        );
-      }
-
       const isValidPassword = await bcrypt.compare(
         password,
         user.password_hash
       );
-      console.log('Password verification result:', isValidPassword);
 
       if (!isValidPassword) {
-        console.log('Invalid password');
         return res.status(401).json({
           error: `Incorrect password for user '${username}'. Please try again or use "Forgot Password".`,
           code: 'INVALID_PASSWORD',
@@ -111,8 +83,6 @@ router.post(
       const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
       const userAgent = req.headers['user-agent'] || 'unknown';
       const deviceInfo = extractDeviceInfo(userAgent);
-
-      console.log('🔐 [AUTH] Creating session for successful login');
 
       // Generate tokens first
       const tokens = generateTokens({
@@ -135,7 +105,6 @@ router.post(
       });
 
       // Return JWT response immediately for fast login
-      console.log('Login successful for user:', user.username);
       res.json(
         ApiResponseBuilder.success(
           {
@@ -157,7 +126,7 @@ router.post(
       setImmediate(async () => {
         try {
           await ensureRedisConnection();
-          const sessionResult = await createUserSession({
+          await createUserSession({
             userId: user.id.toString(),
             username: user.username,
             role: user.role,
@@ -166,19 +135,12 @@ router.post(
             userAgent,
             deviceInfo,
           });
-          console.log(`🔐 [AUTH] Background session created: ${sessionResult.sessionId}`);
         } catch (sessionError) {
-          console.log('ℹ️ [AUTH] Background session creation skipped:', sessionError instanceof Error ? sessionError.message : 'Redis unavailable');
+          // Session creation is non-blocking; ignore failures
         }
       });
     } catch (error) {
-      console.log('Login error:', error);
-      console.error('Error:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        details: error instanceof AppError ? error.details : undefined,
-      });
+      console.error('[AUTH] Login error:', error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   })
@@ -186,12 +148,6 @@ router.post(
 
 // Password reset request endpoint
 router.post('/forgot-password', asyncHandler(async (req: Request, res: Response) => {
-  console.log('[AuthController] Password reset request:', {
-    headers: {
-      authorization: req.headers.authorization ? '[REDACTED]' : undefined
-    }
-  });
-
   const { email, username } = req.body;
 
   if (!email && !username) {
@@ -228,7 +184,6 @@ router.post('/forgot-password', asyncHandler(async (req: Request, res: Response)
     );
 
     // In a real application, you would send an email here
-    console.log('[AuthController] Password reset token generated for:', user.email || user.username);
 
     return res.json({
       message: 'Password reset instructions have been sent to your email address.',
@@ -348,8 +303,6 @@ router.post('/change-password', authenticateToken, asyncHandler(async (req: Requ
 router.post(
   '/logout',
   asyncHandler(async (req: Request, res: Response) => {
-    console.log('🔐 [AUTH] Processing logout request');
-
     try {
       // Get the access token from the Authorization header
       const authHeader = req.headers.authorization;
@@ -363,9 +316,7 @@ router.post(
           const expiresAt = decoded?.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 24 * 60 * 60 * 1000); // Default to 24 hours
 
           await TokenBlacklist.addToBlacklist(accessToken, expiresAt);
-          console.log('🔐 [AUTH] Access token added to blacklist');
         } catch (blacklistError) {
-          console.error('❌ [AUTH] Failed to blacklist access token:', blacklistError);
           // Continue with logout even if blacklisting fails
         }
       }
@@ -373,10 +324,6 @@ router.post(
       const refreshToken = req.cookies.refreshToken;
 
       if (refreshToken) {
-        console.log(
-          '🔐 [AUTH] Refresh token found, attempting session invalidation'
-        );
-
         try {
           await ensureRedisConnection();
 
@@ -398,13 +345,9 @@ router.post(
 
             if (decoded.sessionId) {
               await invalidateUserSession(decoded.sessionId);
-              console.log(
-                `🔐 [AUTH] Session ${decoded.sessionId} invalidated successfully`
-              );
             }
           }
         } catch (sessionError) {
-          console.error('❌ [AUTH] Session invalidation failed:', sessionError);
           // Continue with logout even if session invalidation fails
         }
       }
@@ -412,10 +355,9 @@ router.post(
       // Clear the refresh token cookie
       res.clearCookie('refreshToken');
 
-      console.log('✅ [AUTH] Logout completed successfully');
       res.json(ApiResponseBuilder.success(null, 'Logged out successfully'));
     } catch (error) {
-      console.error('❌ [AUTH] Logout error:', error);
+      console.error('[AUTH] Logout error:', error);
 
       // Even if logout fails, clear the cookie
       res.clearCookie('refreshToken');
@@ -429,20 +371,9 @@ router.post(
 router.post(
   '/refresh',
   asyncHandler(async (req: Request, res: Response) => {
-    console.log('🔐 [AUTH] Processing token refresh request');
-    console.log('🔐 [AUTH] Cookies received:', req.cookies);
-    console.log('🔐 [AUTH] Headers:', {
-      cookie: req.headers.cookie ? 'present' : 'missing',
-      'user-agent': req.headers['user-agent']
-    });
-
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
-      console.log('🔐 [AUTH] No refresh token provided');
-      console.log('🔐 [AUTH] Available cookies:', Object.keys(req.cookies || {}));
-
-      // Return a more helpful error message
       return res.status(401).json({
         success: false,
         error: {
@@ -468,8 +399,6 @@ router.post(
         );
 
         if (sessionResult) {
-          console.log('🔐 [AUTH] Session refresh successful');
-
           // Update refresh token cookie
           res.cookie('refreshToken', sessionResult.refreshToken, {
             httpOnly: true,
@@ -489,10 +418,7 @@ router.post(
           );
         }
       } catch (sessionError) {
-        console.error(
-          '❌ [AUTH] Enhanced session refresh failed, falling back to standard JWT:',
-          sessionError
-        );
+        // Fall back to standard JWT refresh
       }
 
       // Fall back to standard JWT refresh
@@ -509,7 +435,6 @@ router.post(
       );
 
       if (result.rows.length === 0) {
-        console.log('🔐 [AUTH] User not found in database');
         res.clearCookie('refreshToken');
         throw new AppError(
           401,
@@ -539,7 +464,6 @@ router.post(
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
-      console.log('🔐 [AUTH] Standard JWT token refresh successful');
       res.json(
         ApiResponseBuilder.success(
           {
@@ -556,7 +480,7 @@ router.post(
         )
       );
     } catch (error) {
-      console.error('🔐 [AUTH] Token refresh failed:', error);
+      console.error('[AUTH] Token refresh failed:', error);
       res.clearCookie('refreshToken');
       throw new AppError(
         401,
@@ -659,9 +583,6 @@ router.post(
       // Clear current refresh token
       res.clearCookie('refreshToken');
 
-      console.log(
-        `🔐 [AUTH] Invalidated ${invalidatedCount} sessions for user ${decoded.username}`
-      );
       res.json(
         ApiResponseBuilder.success(
           {
@@ -671,7 +592,7 @@ router.post(
         )
       );
     } catch (error) {
-      console.error('❌ [AUTH] Failed to invalidate all sessions:', error);
+      console.error('[AUTH] Failed to invalidate all sessions:', error);
       // Clear cookie even if session invalidation fails
       res.clearCookie('refreshToken');
       res.json(ApiResponseBuilder.success(null, 'Logged out successfully'));
@@ -719,11 +640,6 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { email } = req.body;
 
-    console.log('🔐 [AUTH] Password recovery attempt:', {
-      email,
-      timestamp: new Date().toISOString()
-    });
-
     try {
       const result = await pool.query(
         'SELECT id, username, email FROM users WHERE email = $1',
@@ -732,7 +648,6 @@ router.post(
 
       if (result.rows.length === 0) {
         // Don't reveal that the user doesn't exist
-        console.log('ℹ️ [AUTH] No user found for email:', email);
         return res.json(
           ApiResponseBuilder.success(
             null,
@@ -744,11 +659,6 @@ router.post(
       const user = result.rows[0];
 
       // TODO: Implement actual email sending
-      console.log('📧 [AUTH] Would send recovery email to:', {
-        userId: user.id,
-        email: user.email,
-        timestamp: new Date().toISOString()
-      });
 
       res.json(
         ApiResponseBuilder.success(
@@ -757,11 +667,7 @@ router.post(
         )
       );
     } catch (error) {
-      console.error('❌ [AUTH] Password recovery error:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        timestamp: new Date().toISOString()
-      });
+      console.error('[AUTH] Password recovery error:', error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   })
