@@ -287,6 +287,22 @@ export async function initializeDatabase() {
       )
     `);
 
+    // Add columns to invoices table if they don't exist (migration for existing tables)
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'posted_to_org') THEN
+          ALTER TABLE invoices ADD COLUMN posted_to_org BOOLEAN DEFAULT false;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'posted_to_org_at') THEN
+          ALTER TABLE invoices ADD COLUMN posted_to_org_at TIMESTAMP;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'paid_date') THEN
+          ALTER TABLE invoices ADD COLUMN paid_date DATE;
+        END IF;
+      END $$;
+    `);
+
     // Create payments table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS payments (
