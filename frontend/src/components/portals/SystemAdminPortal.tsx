@@ -160,12 +160,12 @@ const SystemAdminPortal = () => {
                         : 'transparent',
                     color:
                       location.pathname === item.path
-                        ? 'primary.contrastText'
+                        ? 'primary.dark'
                         : 'inherit',
                     '& .MuiListItemIcon-root': {
                       color:
                         location.pathname === item.path
-                          ? 'primary.contrastText'
+                          ? 'primary.dark'
                           : 'inherit',
                     },
                     '&:hover': {
