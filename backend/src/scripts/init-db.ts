@@ -401,6 +401,112 @@ export async function initializeDatabase() {
       )
     `);
 
+    // Create profile_changes table for HR workflow
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS profile_changes (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        change_type VARCHAR(50) NOT NULL,
+        field_name VARCHAR(100) NOT NULL,
+        old_value TEXT,
+        new_value TEXT NOT NULL,
+        status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+        hr_comment TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create index for profile_changes
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_profile_changes_status ON profile_changes(status)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_profile_changes_user_id ON profile_changes(user_id)
+    `);
+
+    // Create instructor_certifications table for tracking instructor credentials
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS instructor_certifications (
+        id SERIAL PRIMARY KEY,
+        instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        certification_type VARCHAR(100) NOT NULL,
+        certification_number VARCHAR(100),
+        issue_date DATE,
+        expiration_date DATE,
+        issuing_authority VARCHAR(255),
+        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'expired', 'revoked')),
+        document_path VARCHAR(500),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create index for instructor_certifications
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_instructor_certifications_instructor ON instructor_certifications(instructor_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_instructor_certifications_expiration ON instructor_certifications(expiration_date)
+    `);
+
+    // Create vendor_invoices table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS vendor_invoices (
+        id SERIAL PRIMARY KEY,
+        vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+        invoice_number VARCHAR(255) NOT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        description TEXT,
+        invoice_date DATE NOT NULL,
+        due_date DATE,
+        manual_type VARCHAR(100),
+        quantity INTEGER,
+        pdf_filename VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'submitted',
+        notes TEXT,
+        payment_date DATE,
+        sent_to_accounting_at TIMESTAMP,
+        paid_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create indexes for vendor_invoices
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_vendor_invoices_vendor_id ON vendor_invoices(vendor_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_vendor_invoices_status ON vendor_invoices(status)
+    `);
+
+    // Create vendor_payments table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS vendor_payments (
+        id SERIAL PRIMARY KEY,
+        vendor_invoice_id INTEGER NOT NULL REFERENCES vendor_invoices(id) ON DELETE CASCADE,
+        amount DECIMAL(10,2) NOT NULL,
+        payment_date DATE NOT NULL,
+        payment_method VARCHAR(50) NOT NULL,
+        reference_number VARCHAR(100),
+        notes TEXT,
+        status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processed', 'reversed')),
+        processed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        processed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create indexes for vendor_payments
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_vendor_payments_invoice ON vendor_payments(vendor_invoice_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_vendor_payments_status ON vendor_payments(status)
+    `);
+
     console.log('✅ Tables created');
 
     // Create views for common queries
