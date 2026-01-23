@@ -332,9 +332,28 @@ export async function initializeDatabase() {
         status VARCHAR(50) DEFAULT 'verified',
         submitted_by_org_at TIMESTAMP,
         verified_by_accounting_at TIMESTAMP,
+        reversed_at TIMESTAMP,
+        reversed_by INTEGER REFERENCES users(id),
+        reversal_reason TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Add columns to payments table if they don't exist (migration for existing tables)
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'reversed_at') THEN
+          ALTER TABLE payments ADD COLUMN reversed_at TIMESTAMP;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'reversed_by') THEN
+          ALTER TABLE payments ADD COLUMN reversed_by INTEGER REFERENCES users(id);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'reversal_reason') THEN
+          ALTER TABLE payments ADD COLUMN reversal_reason TEXT;
+        END IF;
+      END $$;
     `);
 
     // Create course_pricing table
@@ -500,9 +519,28 @@ export async function initializeDatabase() {
         payment_date DATE,
         sent_to_accounting_at TIMESTAMP,
         paid_at TIMESTAMP,
+        approved_by INTEGER REFERENCES users(id),
+        approved_at TIMESTAMP,
+        rejection_reason TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Add columns to vendor_invoices if they don't exist (migration for existing tables)
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'approved_by') THEN
+          ALTER TABLE vendor_invoices ADD COLUMN approved_by INTEGER REFERENCES users(id);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'approved_at') THEN
+          ALTER TABLE vendor_invoices ADD COLUMN approved_at TIMESTAMP;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'rejection_reason') THEN
+          ALTER TABLE vendor_invoices ADD COLUMN rejection_reason TEXT;
+        END IF;
+      END $$;
     `);
 
     // Create indexes for vendor_invoices
