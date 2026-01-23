@@ -528,9 +528,13 @@ export async function initializeDatabase() {
     // Create views for common queries
     console.log('📊 Creating database views...');
 
+    // Drop existing views first (required when column structure changes)
+    await pool.query(`DROP VIEW IF EXISTS invoice_with_breakdown CASCADE`);
+    await pool.query(`DROP VIEW IF EXISTS course_request_details CASCADE`);
+
     // Invoice breakdown view for consistent cost calculations
     await pool.query(`
-      CREATE OR REPLACE VIEW invoice_with_breakdown AS
+      CREATE VIEW invoice_with_breakdown AS
       SELECT
         i.*,
         (i.amount / 1.13) as base_cost,
@@ -540,7 +544,7 @@ export async function initializeDatabase() {
 
     // Course request details view
     await pool.query(`
-      CREATE OR REPLACE VIEW course_request_details AS
+      CREATE VIEW course_request_details AS
       SELECT
         cr.id,
         cr.organization_id,
