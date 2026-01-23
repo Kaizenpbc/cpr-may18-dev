@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../services/api';
+import { useAuth } from './AuthContext';
 
 export interface Notification {
   id: number;
@@ -56,32 +57,70 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { isAuthenticated } = useAuth();
+
+  // Track in-flight requests to prevent concurrent fetches
+  const isFetchingNotifications = useRef(false);
+  const isFetchingUnreadCount = useRef(false);
+
+  // Track backoff for rate limiting
+  const backoffDelay = useRef(0);
+  const maxBackoff = 300000; // 5 minutes max backoff
+
   const fetchNotifications = useCallback(async () => {
+    // Skip if not authenticated or already fetching
+    if (!isAuthenticated || isFetchingNotifications.current) {
+      return;
+    }
+
     try {
+      isFetchingNotifications.current = true;
       setIsLoading(true);
       setError(null);
       const response = await api.get('/notifications');
       if (response.data.success) {
         setNotifications(response.data.data);
+        backoffDelay.current = 0; // Reset backoff on success
       }
     } catch (err: any) {
       console.error('Error fetching notifications:', err);
-      setError(err.response?.data?.message || 'Failed to fetch notifications');
+      // Handle rate limiting
+      if (err.response?.status === 429) {
+        backoffDelay.current = Math.min(backoffDelay.current * 2 || 60000, maxBackoff);
+        console.log(`Rate limited. Backing off for ${backoffDelay.current / 1000}s`);
+      } else {
+        setError(err.response?.data?.message || 'Failed to fetch notifications');
+      }
     } finally {
       setIsLoading(false);
+      isFetchingNotifications.current = false;
     }
-  }, []);
+  }, [isAuthenticated]);
 
   const fetchUnreadCount = useCallback(async () => {
+    // Skip if not authenticated, already fetching, or in backoff period
+    if (!isAuthenticated || isFetchingUnreadCount.current) {
+      return;
+    }
+
     try {
+      isFetchingUnreadCount.current = true;
       const response = await api.get('/notifications/unread-count');
       if (response.data.success) {
         setUnreadCount(response.data.data.count);
+        backoffDelay.current = 0; // Reset backoff on success
       }
     } catch (err: any) {
       console.error('Error fetching unread count:', err);
+      // Handle rate limiting with exponential backoff
+      if (err.response?.status === 429) {
+        backoffDelay.current = Math.min(backoffDelay.current * 2 || 60000, maxBackoff);
+        console.log(`Rate limited. Backing off for ${backoffDelay.current / 1000}s`);
+      }
+    } finally {
+      isFetchingUnreadCount.current = false;
     }
-  }, []);
+  }, [isAuthenticated]);
 
   const markAsRead = useCallback(async (notificationId: number) => {
     try {
@@ -140,20 +179,58 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     fetchUnreadCount();
   }, [fetchNotifications, fetchUnreadCount]);
 
-  // Initial load
+  // Initial load - only when authenticated
   useEffect(() => {
-    fetchNotifications();
-    fetchUnreadCount();
-  }, [fetchNotifications, fetchUnreadCount]);
-
-  // Set up polling for real-time updates (every 30 seconds)
-  useEffect(() => {
-    const interval = setInterval(() => {
+    if (isAuthenticated) {
+      fetchNotifications();
       fetchUnreadCount();
-    }, 30000);
+    } else {
+      // Reset state when logged out
+      setNotifications([]);
+      setUnreadCount(0);
+      backoffDelay.current = 0;
+    }
+  }, [isAuthenticated, fetchNotifications, fetchUnreadCount]);
 
-    return () => clearInterval(interval);
-  }, [fetchUnreadCount]);
+  // Set up polling for real-time updates (every 60 seconds, respects backoff)
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let isVisible = !document.hidden;
+
+    const poll = () => {
+      // Only poll if tab is visible and not in backoff
+      if (isVisible && backoffDelay.current === 0) {
+        fetchUnreadCount();
+      }
+
+      // Schedule next poll (use backoff delay if rate limited, otherwise 60 seconds)
+      const nextDelay = backoffDelay.current > 0 ? backoffDelay.current : 60000;
+      timeoutId = setTimeout(poll, nextDelay);
+    };
+
+    // Handle visibility changes to pause/resume polling
+    const handleVisibilityChange = () => {
+      isVisible = !document.hidden;
+      if (isVisible && backoffDelay.current === 0) {
+        // Tab became visible, fetch immediately if not rate limited
+        fetchUnreadCount();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Start polling
+    timeoutId = setTimeout(poll, 60000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isAuthenticated, fetchUnreadCount]);
 
   const value: NotificationContextType = {
     notifications,
