@@ -612,6 +612,7 @@ const ClassAttendanceView: React.FC = () => {
         <DialogContent>
           <Box sx={{ pt: 1 }}>
             <TextField
+              autoFocus
               fullWidth
               label='First Name'
               value={newStudent.firstName}
@@ -715,6 +716,7 @@ const ClassAttendanceView: React.FC = () => {
               Final Comments:
             </Typography>
             <TextField
+              autoFocus
               fullWidth
               multiline
               rows={3}
