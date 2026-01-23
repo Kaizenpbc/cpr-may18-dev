@@ -586,14 +586,10 @@ export async function initializeDatabase() {
     await pool.query(`DROP VIEW IF EXISTS invoice_with_breakdown CASCADE`);
     await pool.query(`DROP VIEW IF EXISTS course_request_details CASCADE`);
 
-    // Invoice breakdown view for consistent cost calculations
+    // Invoice breakdown view - now just a pass-through since base_cost and tax_amount are stored columns
     await pool.query(`
       CREATE VIEW invoice_with_breakdown AS
-      SELECT
-        i.*,
-        (i.amount / 1.13) as base_cost,
-        (i.amount - (i.amount / 1.13)) as tax_amount
-      FROM invoices i
+      SELECT * FROM invoices
     `);
 
     // Course request details view
