@@ -271,6 +271,8 @@ export async function initializeDatabase() {
         invoice_date DATE NOT NULL DEFAULT CURRENT_DATE,
         due_date DATE NOT NULL,
         amount DECIMAL(10,2) NOT NULL,
+        base_cost DECIMAL(10,2),
+        tax_amount DECIMAL(10,2),
         status VARCHAR(20) NOT NULL DEFAULT 'pending',
         course_type_name VARCHAR(255),
         location VARCHAR(255),
@@ -282,6 +284,8 @@ export async function initializeDatabase() {
         posted_to_org BOOLEAN DEFAULT false,
         posted_to_org_at TIMESTAMP,
         paid_date DATE,
+        approved_by INTEGER REFERENCES users(id),
+        approved_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -299,6 +303,18 @@ export async function initializeDatabase() {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'paid_date') THEN
           ALTER TABLE invoices ADD COLUMN paid_date DATE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'base_cost') THEN
+          ALTER TABLE invoices ADD COLUMN base_cost DECIMAL(10,2);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'tax_amount') THEN
+          ALTER TABLE invoices ADD COLUMN tax_amount DECIMAL(10,2);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'approved_by') THEN
+          ALTER TABLE invoices ADD COLUMN approved_by INTEGER REFERENCES users(id);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'approved_at') THEN
+          ALTER TABLE invoices ADD COLUMN approved_at TIMESTAMP;
         END IF;
       END $$;
     `);
