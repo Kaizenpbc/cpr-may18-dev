@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
 import { pool } from '../../config/database.js';
 import { asyncHandler, AppError, errorCodes } from '../../utils/errorHandler.js';
@@ -6,7 +6,7 @@ import { asyncHandler, AppError, errorCodes } from '../../utils/errorHandler.js'
 const router = express.Router();
 
 // Get student's classes
-router.get('/classes', authenticateToken, requireRole(['student']), asyncHandler(async (req, res) => {
+router.get('/classes', authenticateToken, requireRole(['student']), asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?.id;
   const result = await pool.query(
     `SELECT c.*, ct.name as type, ct.description,
@@ -20,7 +20,7 @@ router.get('/classes', authenticateToken, requireRole(['student']), asyncHandler
 }));
 
 // Get student's upcoming classes
-router.get('/upcoming-classes', authenticateToken, requireRole(['student']), asyncHandler(async (req, res) => {
+router.get('/upcoming-classes', authenticateToken, requireRole(['student']), asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?.id;
   const result = await pool.query(
     `SELECT c.*, ct.name as type, ct.description,
@@ -35,7 +35,7 @@ router.get('/upcoming-classes', authenticateToken, requireRole(['student']), asy
 }));
 
 // Get student's completed classes
-router.get('/completed-classes', authenticateToken, requireRole(['student']), asyncHandler(async (req, res) => {
+router.get('/completed-classes', authenticateToken, requireRole(['student']), asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?.id;
   const result = await pool.query(
     `SELECT c.*, ct.name as type, ct.description,
@@ -49,7 +49,7 @@ router.get('/completed-classes', authenticateToken, requireRole(['student']), as
   res.json(result.rows);
 }));
 
-router.get('/profile', authenticateToken, requireRole(['student']), asyncHandler(async (req, res) => {
+router.get('/profile', authenticateToken, requireRole(['student']), asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -61,7 +61,7 @@ router.get('/profile', authenticateToken, requireRole(['student']), asyncHandler
   res.json({ success: true, data: result.rows[0] });
 }));
 
-router.put('/profile', authenticateToken, requireRole(['student']), asyncHandler(async (req, res) => {
+router.put('/profile', authenticateToken, requireRole(['student']), asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -74,7 +74,7 @@ router.put('/profile', authenticateToken, requireRole(['student']), asyncHandler
   res.json({ success: true, data: result.rows[0] });
 }));
 
-router.get('/enrollments', authenticateToken, requireRole(['student']), asyncHandler(async (req, res) => {
+router.get('/enrollments', authenticateToken, requireRole(['student']), asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }

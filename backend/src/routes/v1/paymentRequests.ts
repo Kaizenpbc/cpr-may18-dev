@@ -1,24 +1,24 @@
-import express from 'express';
-import { authenticateToken } from '../../middleware/authMiddleware';
-import { asyncHandler } from '../../middleware/asyncHandler';
-import { AppError, errorCodes } from '../../utils/errorHandler';
-import { PaymentRequestService } from '../../services/paymentRequestService';
-import { pool } from '../../config/database';
+import express, { Request, Response, NextFunction } from 'express';
+import { authenticateToken } from '../../middleware/authMiddleware.js';
+import { asyncHandler } from '../../middleware/asyncHandler.js';
+import { AppError, errorCodes } from '../../utils/errorHandler.js';
+import { PaymentRequestService } from '../../services/paymentRequestService.js';
+import { pool } from '../../config/database.js';
 
 const router = express.Router();
 
 // Middleware to ensure accountant role
-const requireAccountantRole = (req: any, res: any, next: any) => {
-  if (req.user.role !== 'accountant') {
+const requireAccountantRole = (req: Request, res: Response, next: NextFunction) => {
+  if ((req as any).user.role !== 'accountant') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Accountant role required.');
   }
   next();
 };
 
 // Get Payment Request Statistics
-router.get('/stats', authenticateToken, requireAccountantRole, asyncHandler(async (req, res) => {
+router.get('/stats', authenticateToken, requireAccountantRole, asyncHandler(async (req: Request, res: Response) => {
   const stats = await PaymentRequestService.getPaymentRequestStats();
-  
+
   res.json({
     success: true,
     data: stats
@@ -26,7 +26,7 @@ router.get('/stats', authenticateToken, requireAccountantRole, asyncHandler(asyn
 }));
 
 // Get Payment Requests (with filtering)
-router.get('/', authenticateToken, requireAccountantRole, asyncHandler(async (req, res) => {
+router.get('/', authenticateToken, requireAccountantRole, asyncHandler(async (req: Request, res: Response) => {
   const { page = 1, limit = 10, status = '', instructor_id = '' } = req.query;
   
   const filters = {
@@ -45,7 +45,7 @@ router.get('/', authenticateToken, requireAccountantRole, asyncHandler(async (re
 }));
 
 // Get Payment Request Details
-router.get('/:requestId', authenticateToken, requireAccountantRole, asyncHandler(async (req, res) => {
+router.get('/:requestId', authenticateToken, requireAccountantRole, asyncHandler(async (req: Request, res: Response) => {
   const { requestId } = req.params;
   const client = await pool.connect();
   
@@ -79,7 +79,7 @@ router.get('/:requestId', authenticateToken, requireAccountantRole, asyncHandler
 }));
 
 // Get Detailed Payment Request Information
-router.get('/:requestId/detail', authenticateToken, requireAccountantRole, asyncHandler(async (req, res) => {
+router.get('/:requestId/detail', authenticateToken, requireAccountantRole, asyncHandler(async (req: Request, res: Response) => {
   const { requestId } = req.params;
 
   const paymentRequestDetail = await PaymentRequestService.getPaymentRequestDetail(parseInt(requestId));
@@ -91,7 +91,7 @@ router.get('/:requestId/detail', authenticateToken, requireAccountantRole, async
 }));
 
 // Process Payment Request (approve/return to HR)
-router.post('/:requestId/process', authenticateToken, requireAccountantRole, asyncHandler(async (req, res) => {
+router.post('/:requestId/process', authenticateToken, requireAccountantRole, asyncHandler(async (req: Request, res: Response) => {
   const { requestId } = req.params;
   const { action, payment_method, notes } = req.body; // action: 'approve' or 'return_to_hr'
   
@@ -102,9 +102,9 @@ router.post('/:requestId/process', authenticateToken, requireAccountantRole, asy
   if (action === 'return_to_hr' && !notes?.trim()) {
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Notes are required when returning to HR.');
   }
-  
-  await PaymentRequestService.processPaymentRequest(requestId, action, payment_method, notes);
-  
+
+  await PaymentRequestService.processPaymentRequest(parseInt(requestId), action, payment_method, notes);
+
   res.json({
     success: true,
     message: `Payment request ${action === 'approve' ? 'approved' : 'returned to HR'} successfully.`
@@ -112,7 +112,7 @@ router.post('/:requestId/process', authenticateToken, requireAccountantRole, asy
 }));
 
 // Bulk Process Payment Requests
-router.post('/bulk-process', authenticateToken, requireAccountantRole, asyncHandler(async (req, res) => {
+router.post('/bulk-process', authenticateToken, requireAccountantRole, asyncHandler(async (req: Request, res: Response) => {
   const { requestIds, action, payment_method, notes } = req.body;
   
   if (!Array.isArray(requestIds) || requestIds.length === 0) {
@@ -135,7 +135,7 @@ router.post('/bulk-process', authenticateToken, requireAccountantRole, asyncHand
       await PaymentRequestService.processPaymentRequest(requestId, action, payment_method, notes);
       results.push({ requestId, status: 'success' });
     } catch (error) {
-      errors.push({ requestId, status: 'error', message: error.message });
+      errors.push({ requestId, status: 'error', message: (error as Error).message });
     }
   }
   
@@ -150,7 +150,7 @@ router.post('/bulk-process', authenticateToken, requireAccountantRole, asyncHand
 }));
 
 // Get Payment Request History for Instructor
-router.get('/instructor/:instructorId/history', authenticateToken, requireAccountantRole, asyncHandler(async (req, res) => {
+router.get('/instructor/:instructorId/history', authenticateToken, requireAccountantRole, asyncHandler(async (req: Request, res: Response) => {
   const { instructorId } = req.params;
   const { page = 1, limit = 10 } = req.query;
   

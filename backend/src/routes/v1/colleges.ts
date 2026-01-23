@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { pool } from '../../config/database.js';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
 import { asyncHandler, AppError } from '../../utils/errorHandler.js';
@@ -6,7 +6,7 @@ import { asyncHandler, AppError } from '../../utils/errorHandler.js';
 const router = express.Router();
 
 // Get all active colleges (for dropdown)
-router.get('/', authenticateToken, asyncHandler(async (req, res) => {
+router.get('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const result = await pool.query(
     'SELECT id, name FROM colleges WHERE is_active = true ORDER BY name ASC'
   );
@@ -14,7 +14,7 @@ router.get('/', authenticateToken, asyncHandler(async (req, res) => {
 }));
 
 // Get all colleges including inactive (admin only)
-router.get('/all', authenticateToken, requireRole(['admin', 'sysadmin']), asyncHandler(async (req, res) => {
+router.get('/all', authenticateToken, requireRole(['admin', 'sysadmin']), asyncHandler(async (req: Request, res: Response) => {
   const result = await pool.query(
     'SELECT id, name, is_active, created_at, updated_at FROM colleges ORDER BY name ASC'
   );
@@ -22,7 +22,7 @@ router.get('/all', authenticateToken, requireRole(['admin', 'sysadmin']), asyncH
 }));
 
 // Add a new college (admin only)
-router.post('/', authenticateToken, requireRole(['admin', 'sysadmin']), asyncHandler(async (req, res) => {
+router.post('/', authenticateToken, requireRole(['admin', 'sysadmin']), asyncHandler(async (req: Request, res: Response) => {
   const { name } = req.body;
 
   if (!name || !name.trim()) {
@@ -45,7 +45,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'sysadmin']), asyncHan
 }));
 
 // Update a college (admin only)
-router.put('/:id', authenticateToken, requireRole(['admin', 'sysadmin']), asyncHandler(async (req, res) => {
+router.put('/:id', authenticateToken, requireRole(['admin', 'sysadmin']), asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, is_active } = req.body;
 
@@ -89,7 +89,7 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'sysadmin']), asyncH
 }));
 
 // Delete a college (admin only)
-router.delete('/:id', authenticateToken, requireRole(['admin', 'sysadmin']), asyncHandler(async (req, res) => {
+router.delete('/:id', authenticateToken, requireRole(['admin', 'sysadmin']), asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
   const result = await pool.query(

@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { authenticateToken } from '../../middleware/authMiddleware.js';
 import { pool } from '../../config/database.js';
 import multer from 'multer';
@@ -12,7 +12,7 @@ import { asyncHandler, AppError, errorCodes } from '../../utils/errorHandler.js'
 const router = express.Router();
 
 // Get all vendors for dropdown selection
-router.get('/vendors', authenticateToken, asyncHandler(async (req, res) => {
+router.get('/vendors', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const result = await pool.query(
     'SELECT id, name as vendor_name, vendor_type FROM vendors WHERE is_active = true ORDER BY name'
   );
@@ -40,7 +40,7 @@ const upload = multer({
     if (file.mimetype === 'application/pdf' || file.mimetype === 'text/html') {
       cb(null, true);
     } else {
-      cb(new Error('Only PDF and HTML files are allowed'), false);
+      cb(null, false);
     }
   },
   limits: {
@@ -49,11 +49,11 @@ const upload = multer({
 });
 
 // Get vendor profile
-router.get('/profile', authenticateToken, asyncHandler(async (req, res) => {
+router.get('/profile', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   // Get user email from database using user ID
   const userResult = await pool.query(
     'SELECT email FROM users WHERE id = $1',
-    [req.user.id]
+    [req.user!.id]
   );
 
   if (userResult.rows.length === 0) {
@@ -75,7 +75,7 @@ router.get('/profile', authenticateToken, asyncHandler(async (req, res) => {
 }));
 
 // Update vendor profile
-router.put('/profile', authenticateToken, asyncHandler(async (req, res) => {
+router.put('/profile', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const {
     vendor_name,
     contact_first_name,
@@ -91,7 +91,7 @@ router.put('/profile', authenticateToken, asyncHandler(async (req, res) => {
   // Get user email from database using user ID
   const userResult = await pool.query(
     'SELECT email FROM users WHERE id = $1',
-    [req.user.id]
+    [req.user!.id]
   );
 
   if (userResult.rows.length === 0) {
@@ -140,13 +140,13 @@ router.put('/profile', authenticateToken, asyncHandler(async (req, res) => {
 }));
 
 // Get vendor dashboard stats
-router.get('/dashboard', authenticateToken, asyncHandler(async (req, res) => {
+router.get('/dashboard', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   console.log('[VENDOR DEBUG] User object:', req.user);
 
   // Get user email and role from database using user ID
   const userResult = await pool.query(
     'SELECT email, role FROM users WHERE id = $1',
-    [req.user.id]
+    [req.user!.id]
   );
 
   if (userResult.rows.length === 0) {
@@ -211,11 +211,11 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req, res) => {
 }));
 
 // Get vendor invoices
-router.get('/invoices', authenticateToken, asyncHandler(async (req, res) => {
+router.get('/invoices', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   // Get user email and role from database using user ID
   const userResult = await pool.query(
     'SELECT email, role FROM users WHERE id = $1',
-    [req.user.id]
+    [req.user!.id]
   );
 
   if (userResult.rows.length === 0) {
@@ -226,7 +226,7 @@ router.get('/invoices', authenticateToken, asyncHandler(async (req, res) => {
   const userRole = userResult.rows[0].role;
 
   console.log('🔍 [VENDOR INVOICES] User info:', {
-    id: req.user.id,
+    id: req.user!.id,
     email: userEmail,
     role: userRole
   });
@@ -313,7 +313,7 @@ router.get('/invoices', authenticateToken, asyncHandler(async (req, res) => {
 }));
 
 // Submit new invoice
-router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncHandler(async (req, res) => {
+router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncHandler(async (req: Request, res: Response) => {
   const {
     invoice_number,
     amount,
@@ -335,7 +335,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncH
   // Get user email from database using user ID
   const userResult = await pool.query(
     'SELECT email FROM users WHERE id = $1',
-    [req.user.id]
+    [req.user!.id]
   );
 
   if (userResult.rows.length === 0) {
@@ -409,7 +409,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncH
       parseFloat(req.body.subtotal) || parseFloat(amount),
       parseFloat(req.body.hst) || 0,
       parseFloat(req.body.total) || parseFloat(amount),
-      req.user.id // submitted_by - user ID who submitted the invoice
+      req.user!.id // submitted_by - user ID who submitted the invoice
     ]
   );
 
@@ -421,7 +421,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncH
 }));
 
 // OCR endpoint for scanning invoices
-router.post('/invoices/scan', authenticateToken, upload.single('invoice_pdf'), asyncHandler(async (req, res) => {
+router.post('/invoices/scan', authenticateToken, upload.single('invoice_pdf'), asyncHandler(async (req: Request, res: Response) => {
   console.log('🔍 [VENDOR OCR] Starting invoice scan request');
 
   if (!req.file) {
@@ -467,11 +467,11 @@ router.post('/invoices/scan', authenticateToken, upload.single('invoice_pdf'), a
 }));
 
 // Get specific invoice
-router.get('/invoices/:id', authenticateToken, asyncHandler(async (req, res) => {
+router.get('/invoices/:id', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   // Get user email from database using user ID
   const userResult = await pool.query(
     'SELECT email FROM users WHERE id = $1',
-    [req.user.id]
+    [req.user!.id]
   );
 
   if (userResult.rows.length === 0) {
@@ -516,11 +516,11 @@ router.get('/invoices/:id', authenticateToken, asyncHandler(async (req, res) => 
 }));
 
 // Get vendor invoice details with payment history
-router.get('/invoices/:id/details', authenticateToken, asyncHandler(async (req, res) => {
+router.get('/invoices/:id/details', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   // Get user email from database using user ID
   const userResult = await pool.query(
     'SELECT email FROM users WHERE id = $1',
-    [req.user.id]
+    [req.user!.id]
   );
 
   if (userResult.rows.length === 0) {
@@ -581,7 +581,7 @@ router.get('/invoices/:id/details', authenticateToken, asyncHandler(async (req, 
 }));
 
 // Submit invoice to admin
-router.post('/invoices/:id/submit-to-admin', authenticateToken, asyncHandler(async (req, res) => {
+router.post('/invoices/:id/submit-to-admin', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
   const result = await pool.query(
@@ -601,7 +601,7 @@ router.post('/invoices/:id/submit-to-admin', authenticateToken, asyncHandler(asy
 }));
 
 // Resend rejected invoice to admin
-router.post('/invoices/:id/resend-to-admin', authenticateToken, asyncHandler(async (req, res) => {
+router.post('/invoices/:id/resend-to-admin', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { notes } = req.body;
 
@@ -630,11 +630,11 @@ router.post('/invoices/:id/resend-to-admin', authenticateToken, asyncHandler(asy
 }));
 
 // Download invoice PDF
-router.get('/invoices/:id/download', authenticateToken, asyncHandler(async (req, res) => {
+router.get('/invoices/:id/download', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   // Get user email from database using user ID
   const userResult = await pool.query(
     'SELECT email FROM users WHERE id = $1',
-    [req.user.id]
+    [req.user!.id]
   );
 
   if (userResult.rows.length === 0) {

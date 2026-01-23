@@ -1,21 +1,21 @@
-import express from 'express';
-import { authenticateToken } from '../../middleware/authMiddleware';
-import { asyncHandler } from '../../middleware/asyncHandler';
-import { AppError, errorCodes } from '../../utils/errorHandler';
-import { pool } from '../../config/database';
+import express, { Request, Response, NextFunction } from 'express';
+import { authenticateToken } from '../../middleware/authMiddleware.js';
+import { asyncHandler } from '../../middleware/asyncHandler.js';
+import { AppError, errorCodes } from '../../utils/errorHandler.js';
+import { pool } from '../../config/database.js';
 
 const router = express.Router();
 
 // Middleware to ensure HR role
-const requireHRRole = (req: any, res: any, next: any) => {
-  if (req.user.role !== 'hr') {
+const requireHRRole = (req: Request, res: Response, next: NextFunction) => {
+  if ((req as any).user.role !== 'hr') {
     throw new AppError(403, errorCodes.ACCESS_DENIED, 'Access denied. HR role required.');
   }
   next();
 };
 
 // Get HR Dashboard Statistics
-router.get('/stats', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.get('/stats', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const client = await pool.connect();
   
   try {
@@ -81,7 +81,7 @@ router.get('/stats', authenticateToken, requireHRRole, asyncHandler(async (req, 
 }));
 
 // Get Instructor Profiles
-router.get('/instructors', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.get('/instructors', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const client = await pool.connect();
   
   try {
@@ -142,7 +142,7 @@ router.get('/instructors', authenticateToken, requireHRRole, asyncHandler(async 
 }));
 
 // Get Organization Profiles
-router.get('/organizations', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.get('/organizations', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const client = await pool.connect();
   
   try {
@@ -206,7 +206,7 @@ router.get('/organizations', authenticateToken, requireHRRole, asyncHandler(asyn
 }));
 
 // Get Pending Profile Changes
-router.get('/pending-changes', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.get('/pending-changes', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const client = await pool.connect();
   
   try {
@@ -253,7 +253,7 @@ router.get('/pending-changes', authenticateToken, requireHRRole, asyncHandler(as
 }));
 
 // Approve/Reject Profile Change
-router.post('/approve-change/:changeId', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.post('/approve-change/:changeId', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const { changeId } = req.params;
   const { action, comment } = req.body; // action: 'approve' or 'reject'
   
@@ -309,7 +309,7 @@ router.post('/approve-change/:changeId', authenticateToken, requireHRRole, async
 }));
 
 // Get User Profile Details
-router.get('/user/:userId', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.get('/user/:userId', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
   const client = await pool.connect();
   
@@ -369,7 +369,7 @@ router.get('/user/:userId', authenticateToken, requireHRRole, asyncHandler(async
 }));
 
 // Get returned payment requests for HR review
-router.get('/returned-payment-requests', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.get('/returned-payment-requests', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const { page = 1, limit = 10 } = req.query;
   const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
   
@@ -436,7 +436,7 @@ router.get('/returned-payment-requests', authenticateToken, requireHRRole, async
 }));
 
 // HR process returned payment request (override/final reject)
-router.post('/returned-payment-requests/:requestId/process', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.post('/returned-payment-requests/:requestId/process', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const { requestId } = req.params;
   const { action, notes } = req.body; // action: 'override_approve' or 'final_reject'
   

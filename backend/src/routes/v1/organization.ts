@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
 import { pool } from '../../config/database.js';
 import { asyncHandler, AppError } from '../../utils/errorHandler.js';
@@ -7,7 +7,7 @@ import { errorCodes } from '../../utils/errorHandler.js';
 const router = express.Router();
 
 // Get organization details
-router.get('/', authenticateToken, requireRole(['admin', 'organization']), asyncHandler(async (req, res) => {
+router.get('/', authenticateToken, requireRole(['admin', 'organization']), asyncHandler(async (req: Request, res: Response) => {
   const result = await pool.query(
     'SELECT * FROM organizations WHERE id = $1',
     [req.user?.organizationId]
@@ -21,7 +21,7 @@ router.get('/', authenticateToken, requireRole(['admin', 'organization']), async
 }));
 
 // Update organization details
-router.put('/', authenticateToken, requireRole(['admin']), asyncHandler(async (req, res) => {
+router.put('/', authenticateToken, requireRole(['admin']), asyncHandler(async (req: Request, res: Response) => {
   const { name, address, contact_phone, contact_email } = req.body;
   const result = await pool.query(
     `UPDATE organizations
@@ -39,7 +39,7 @@ router.put('/', authenticateToken, requireRole(['admin']), asyncHandler(async (r
 }));
 
 // Get organization profile for the logged-in user
-router.get('/profile', authenticateToken, requireRole(['organization']), asyncHandler(async (req, res) => {
+router.get('/profile', authenticateToken, requireRole(['organization']), asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -50,7 +50,7 @@ router.get('/profile', authenticateToken, requireRole(['organization']), asyncHa
   res.json({ success: true, data: result.rows[0] });
 }));
 
-router.put('/profile', authenticateToken, requireRole(['organization']), asyncHandler(async (req, res) => {
+router.put('/profile', authenticateToken, requireRole(['organization']), asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -62,7 +62,7 @@ router.put('/profile', authenticateToken, requireRole(['organization']), asyncHa
   res.json({ success: true, data: result.rows[0] });
 }));
 
-router.get('/courses', authenticateToken, requireRole(['organization']), asyncHandler(async (req, res) => {
+router.get('/courses', authenticateToken, requireRole(['organization']), asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -137,7 +137,7 @@ router.get('/courses', authenticateToken, requireRole(['organization']), asyncHa
 }));
 
 // Get archived courses for the organization
-router.get('/archive', authenticateToken, requireRole(['organization']), asyncHandler(async (req, res) => {
+router.get('/archive', authenticateToken, requireRole(['organization']), asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
