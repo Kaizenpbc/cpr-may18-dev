@@ -9,10 +9,12 @@ import type {
 } from '../types/api';
 import { API_URL } from '../config';
 
-console.log('🌐 [API] Initializing API service with base URL:', API_URL);
+// Development-only logging utility - prevents sensitive data from being logged in production
+const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development';
+const devLog = (...args: unknown[]) => { if (isDev) console.log(...args); };
+const devWarn = (...args: unknown[]) => { if (isDev) console.warn(...args); };
 
-// Initialize API service with single base URL
-console.log('[TRACE] Initializing API service at:', API_URL);
+devLog('🌐 [API] Initializing API service with base URL:', API_URL);
 
 // Create axios instance
 const api = axios.create({
@@ -43,7 +45,7 @@ api.interceptors.request.use(
       }
     }
 
-    console.log('\n🚀 [API REQUEST]', {
+    devLog('\n🚀 [API REQUEST]', {
       method: config.method?.toUpperCase(),
       url: config.url,
       baseURL: config.baseURL,
@@ -90,7 +92,7 @@ const processQueue = (error: any, token: string | null = null) => {
 // Add response interceptor
 api.interceptors.response.use(
   (response) => {
-    console.log('\n✅ [API RESPONSE]', {
+    devLog('\n✅ [API RESPONSE]', {
       status: response.status,
       statusText: response.statusText,
       headers: response.headers,
@@ -122,7 +124,7 @@ api.interceptors.response.use(
         error.response?.data?.error?.message?.includes('Refresh token') ||
         originalRequest.url?.includes('/auth/login')
       ) {
-        console.log('🔐 [API] Auth error (refresh or login) - redirecting to login');
+        devLog('🔐 [API] Auth error (refresh or login) - redirecting to login');
         tokenService.forceLogout();
         // Don't redirect if it's already the login page/request to avoid reload loops
         if (!originalRequest.url?.includes('/auth/login')) {
@@ -136,11 +138,11 @@ api.interceptors.response.use(
         isRefreshing = true;
 
         try {
-          console.log('🔐 [API] Attempting token refresh...');
+          devLog('🔐 [API] Attempting token refresh...');
           const response = await tokenService.refreshTokenSilently();
 
           if (response) {
-            console.log('🔐 [API] Token refresh successful');
+            devLog('🔐 [API] Token refresh successful');
             processQueue(null, response);
 
             // Retry the original request
@@ -176,7 +178,7 @@ api.interceptors.response.use(
 
     // Handle 403 errors (forbidden)
     if (error.response?.status === 403) {
-      console.log('🔐 [API] Access denied - insufficient permissions');
+      devLog('🔐 [API] Access denied - insufficient permissions');
       // Don't redirect for 403 errors, just show the error
     }
 
@@ -206,7 +208,7 @@ const extractLegacyData = <T>(response: { data: ApiResponse<T> }): T => {
 
 // Dashboard endpoints
 export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
-  console.log('[Debug] api.ts - Fetching dashboard data');
+  devLog('[Debug] api.ts - Fetching dashboard data');
 
   const defaultData: DashboardMetrics = {
     upcomingClasses: 0,
@@ -237,7 +239,7 @@ export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
     if (genericResult.status === 'fulfilled' && genericResult.value.data.success && genericResult.value.data.data) {
       const dashboardStats = genericResult.value.data.data.instructorStats;
       if (dashboardStats) {
-        console.log('[Debug] api.ts - Using generic dashboard data');
+        devLog('[Debug] api.ts - Using generic dashboard data');
         return {
           upcomingClasses: dashboardStats.scheduledClasses || 0,
           totalStudents: 0,
@@ -250,7 +252,7 @@ export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
     // Check instructor dashboard
     if (instructorResult.status === 'fulfilled' && instructorResult.value.data.success) {
       const stats = instructorResult.value.data.data;
-      console.log('[Debug] api.ts - Using instructor dashboard data');
+      devLog('[Debug] api.ts - Using instructor dashboard data');
       return {
         upcomingClasses: stats.scheduledClasses || 0,
         totalStudents: stats.totalStudents || 0,
@@ -264,7 +266,7 @@ export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
       const [, dashboardSummary] = adminResult.value;
       const summaryData = extractLegacyData(dashboardSummary);
       if (summaryData) {
-        console.log('[Debug] api.ts - Using admin dashboard data');
+        devLog('[Debug] api.ts - Using admin dashboard data');
         return {
           upcomingClasses: summaryData.upcomingClasses || 0,
           totalStudents: summaryData.totalStudents || 0,
@@ -274,17 +276,17 @@ export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
       }
     }
 
-    console.log('[Debug] api.ts - No dashboard data available, returning defaults');
+    devLog('[Debug] api.ts - No dashboard data available, returning defaults');
     return defaultData;
   } catch (error) {
-    console.error('[Debug] api.ts - Error fetching dashboard data:', error);
+    devLog('[Debug] api.ts - Error fetching dashboard data:', error);
     return defaultData;
   }
 };
 
 // Role-specific dashboard data fetching
 export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<DashboardMetrics> => {
-  console.log('[Debug] api.ts - Fetching role-specific dashboard data for role:', userRole);
+  devLog('[Debug] api.ts - Fetching role-specific dashboard data for role:', userRole);
 
   try {
     const today = new Date();
@@ -314,7 +316,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
             };
           }
         } catch (error) {
-          console.log('[Debug] api.ts - Instructor dashboard not available, using fallback');
+          devLog('[Debug] api.ts - Instructor dashboard not available, using fallback');
         }
         break;
 
@@ -333,7 +335,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
             recentClasses: extractLegacyData(dashboardSummary)?.recentClasses || []
           };
         } catch (error) {
-          console.log('[Debug] api.ts - Admin dashboard not available, using fallback');
+          devLog('[Debug] api.ts - Admin dashboard not available, using fallback');
         }
         break;
 
@@ -350,7 +352,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
             };
           }
         } catch (error) {
-          console.log('[Debug] api.ts - Organization dashboard not available, using fallback');
+          devLog('[Debug] api.ts - Organization dashboard not available, using fallback');
         }
         break;
 
@@ -367,7 +369,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
             };
           }
         } catch (error) {
-          console.log('[Debug] api.ts - Accounting dashboard not available, using fallback');
+          devLog('[Debug] api.ts - Accounting dashboard not available, using fallback');
         }
         break;
 
@@ -384,7 +386,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
             };
           }
         } catch (error) {
-          console.log('[Debug] api.ts - HR dashboard not available, using fallback');
+          devLog('[Debug] api.ts - HR dashboard not available, using fallback');
         }
         break;
 
@@ -401,7 +403,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
             };
           }
         } catch (error) {
-          console.log('[Debug] api.ts - Sysadmin dashboard not available, using fallback');
+          devLog('[Debug] api.ts - Sysadmin dashboard not available, using fallback');
         }
         break;
 
@@ -419,15 +421,15 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
             };
           }
         } catch (error) {
-          console.log('[Debug] api.ts - Generic dashboard not available, using default data');
+          devLog('[Debug] api.ts - Generic dashboard not available, using default data');
         }
         break;
     }
 
-    console.log('[Debug] api.ts - Role-specific dashboard data received:', dashboardData);
+    devLog('[Debug] api.ts - Role-specific dashboard data received:', dashboardData);
     return dashboardData;
   } catch (error) {
-    console.error('[Debug] api.ts - Error fetching role-specific dashboard data:', error);
+    devLog('[Debug] api.ts - Error fetching role-specific dashboard data:', error);
 
     // Return default data instead of throwing error
     return {
@@ -522,8 +524,8 @@ export const organizationApi = {
 
   // Upload students for a course
   uploadStudents: async (courseRequestId: number, students: any[]) => {
-    console.log('[TRACE] API - Uploading students for course:', courseRequestId);
-    console.log('[TRACE] API - Students data:', students);
+    devLog('[TRACE] API - Uploading students for course:', courseRequestId);
+    devLog('[TRACE] API - Students data:', students);
 
     try {
       const response = await api.post('/organization/upload-students', {
@@ -531,10 +533,10 @@ export const organizationApi = {
         students
       });
 
-      console.log('[TRACE] API - Upload response:', response.data);
+      devLog('[TRACE] API - Upload response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('[TRACE] API - Upload error:', error);
+      devLog('[TRACE] API - Upload error:', error);
       throw error;
     }
   },
@@ -958,12 +960,12 @@ export const adminApi = {
 // Email Template endpoints
 export const emailTemplateApi = {
   getAll: (params?: any) => {
-    console.log('[emailTemplateApi.getAll] Called with params:', params);
+    devLog('[emailTemplateApi.getAll] Called with params:', params);
     const queryString = params
       ? `?${new URLSearchParams(params).toString()}`
       : '';
     const url = `/email-templates${queryString}`;
-    console.log('[emailTemplateApi.getAll] Making request to:', url);
+    devLog('[emailTemplateApi.getAll] Making request to:', url);
     return api.get(url);
   },
   getById: (id: number) => api.get(`/email-templates/${id}`),
@@ -987,7 +989,7 @@ export const emailTemplateApi = {
 
 // Course Admin Dashboard endpoints
 export const fetchCourseAdminDashboardData = async (month: string) => {
-  console.log('[Debug] api.ts - Fetching course admin dashboard data for month:', month);
+  devLog('[Debug] api.ts - Fetching course admin dashboard data for month:', month);
   try {
     const [statsResponse, summaryResponse] = await Promise.all([
       api.get<ApiResponse<any>>(`/admin/instructor-stats?month=${month}`),
@@ -999,13 +1001,13 @@ export const fetchCourseAdminDashboardData = async (month: string) => {
       dashboardSummary: extractLegacyData(summaryResponse) || null
     };
 
-    console.log('[Debug] api.ts - Course admin dashboard data received:', data);
+    devLog('[Debug] api.ts - Course admin dashboard data received:', data);
     return data;
   } catch (error) {
-    console.error('[Debug] api.ts - Error fetching course admin dashboard data:', error);
+    devLog('[Debug] api.ts - Error fetching course admin dashboard data:', error);
     if (axios.isAxiosError(error)) {
-      console.error('[Debug] api.ts - Response status:', error.response?.status);
-      console.error('[Debug] api.ts - Response data:', error.response?.data);
+      devLog('[Debug] api.ts - Response status:', error.response?.status);
+      devLog('[Debug] api.ts - Response data:', error.response?.data);
     }
     throw error;
   }
@@ -1013,20 +1015,20 @@ export const fetchCourseAdminDashboardData = async (month: string) => {
 
 // Instructor Workload Report endpoint
 export const getInstructorWorkloadReport = async (startDate: string, endDate: string) => {
-  console.log('[Debug] api.ts - Fetching instructor workload report for:', { startDate, endDate });
+  devLog('[Debug] api.ts - Fetching instructor workload report for:', { startDate, endDate });
   try {
     const response = await api.get<ApiResponse<any>>('/admin/instructor-workload-report', {
       params: { startDate, endDate }
     });
     const data = extractLegacyData(response);
 
-    console.log('[Debug] api.ts - Instructor workload report data received:', data);
+    devLog('[Debug] api.ts - Instructor workload report data received:', data);
     return data || [];
   } catch (error) {
-    console.error('[Debug] api.ts - Error fetching instructor workload report:', error);
+    devLog('[Debug] api.ts - Error fetching instructor workload report:', error);
     if (axios.isAxiosError(error)) {
-      console.error('[Debug] api.ts - Response status:', error.response?.status);
-      console.error('[Debug] api.ts - Response data:', error.response?.data);
+      devLog('[Debug] api.ts - Response status:', error.response?.status);
+      devLog('[Debug] api.ts - Response data:', error.response?.data);
     }
     throw error;
   }
@@ -1034,18 +1036,18 @@ export const getInstructorWorkloadReport = async (startDate: string, endDate: st
 
 // Accounting Dashboard endpoints
 export const fetchAccountingDashboardData = async () => {
-  console.log('[Debug] api.ts - Fetching accounting dashboard data');
+  devLog('[Debug] api.ts - Fetching accounting dashboard data');
   try {
     const response = await api.get<ApiResponse<any>>('/accounting/dashboard');
     const data = extractLegacyData(response);
 
-    console.log('[Debug] api.ts - Accounting dashboard data received:', data);
+    devLog('[Debug] api.ts - Accounting dashboard data received:', data);
     return data;
   } catch (error) {
-    console.error('[Debug] api.ts - Error fetching accounting dashboard data:', error);
+    devLog('[Debug] api.ts - Error fetching accounting dashboard data:', error);
     if (axios.isAxiosError(error)) {
-      console.error('[Debug] api.ts - Response status:', error.response?.status);
-      console.error('[Debug] api.ts - Response data:', error.response?.data);
+      devLog('[Debug] api.ts - Response status:', error.response?.status);
+      devLog('[Debug] api.ts - Response data:', error.response?.data);
     }
     throw error;
   }
@@ -1081,10 +1083,10 @@ export const vendorApi = {
     return response.data;
   },
   uploadInvoice: async (formData: FormData) => {
-    console.log('🚀 [VENDOR API] uploadInvoice called with FormData:', formData);
-    console.log('📁 [VENDOR API] FormData entries:');
+    devLog('🚀 [VENDOR API] uploadInvoice called with FormData:', formData);
+    devLog('📁 [VENDOR API] FormData entries:');
     for (let [key, value] of formData.entries()) {
-      console.log(`  ${key}:`, value instanceof File ? `File(${value.name}, ${value.size} bytes)` : value);
+      devLog(`  ${key}:`, value instanceof File ? `File(${value.name}, ${value.size} bytes)` : value);
     }
 
     const response = await api.post('/vendor/invoices', formData, {
@@ -1092,7 +1094,7 @@ export const vendorApi = {
         'Content-Type': 'multipart/form-data',
       },
     });
-    console.log('✅ [VENDOR API] uploadInvoice response:', response.data);
+    devLog('✅ [VENDOR API] uploadInvoice response:', response.data);
     return response.data;
   },
   getInvoice: async (invoiceId: number) => {
@@ -1219,10 +1221,10 @@ export const collegesApi = {
   getAll: () => api.get('/colleges'),
   getAllAdmin: () => api.get('/colleges/all'),
   create: (name: string) => api.post('/colleges', { name }),
-  update: (id: number, data: { name?: string; is_active?: boolean }) => api.put(`/colleges/${id}`, data),
+  update: (id: number, data: { name?: string; isActive?: boolean }) => api.put(`/colleges/${id}`, data),
   delete: (id: number) => api.delete(`/colleges/${id}`),
 };
 
 export default api;
 
-console.log('[Debug] api.ts - API service initialized');
+devLog('[Debug] api.ts - API service initialized');

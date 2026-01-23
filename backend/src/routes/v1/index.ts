@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { asyncHandler } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
+import { keysToCamel } from '../../utils/caseConverter.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
 import { pool } from '../../config/database.js';
 import { generateTokens } from '../../utils/jwtUtils.js';
@@ -130,7 +131,7 @@ router.get(
       );
       console.log('[Available Instructors] Results:', result.rows);
 
-      return res.json(ApiResponseBuilder.success(result.rows));
+      return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
     } catch (error: any) {
       console.error('Error fetching available instructors:', error);
       throw new AppError(
@@ -183,7 +184,7 @@ router.get(
     const user = { id: 1, name: 'John Doe' };
 
     return res.json(
-      ApiResponseBuilder.success(user, {
+      ApiResponseBuilder.success(keysToCamel(user), {
         version: '1.0.0',
       })
     );
@@ -320,7 +321,7 @@ router.get(
         instructorName: row.instructor_name,
       }));
 
-      return res.json(ApiResponseBuilder.success(schedule));
+      return res.json(ApiResponseBuilder.success(keysToCamel(schedule)));
     } catch (error) {
       console.error('Error fetching schedule:', error);
       throw new AppError(
@@ -551,11 +552,11 @@ router.get(
       );
 
       return res.json(
-        ApiResponseBuilder.success({
+        ApiResponseBuilder.success(keysToCamel({
           summary: basicStats.rows[0],
           courseTypes: courseTypeStats.rows,
           timeframe: `${timeframe} months`,
-        })
+        }))
       );
     } catch (error: any) {
       console.error('Error fetching course request analytics:', error);
@@ -615,10 +616,10 @@ router.get(
       );
 
       return res.json(
-        ApiResponseBuilder.success({
+        ApiResponseBuilder.success(keysToCamel({
           summary: studentStats.rows[0],
           timeframe: `${timeframe} months`,
-        })
+        }))
       );
     } catch (error: any) {
       console.error('Error fetching student participation analytics:', error);
@@ -674,10 +675,10 @@ router.get(
       );
 
       return res.json(
-        ApiResponseBuilder.success({
+        ApiResponseBuilder.success(keysToCamel({
           summary: billingStats.rows[0],
           timeframe: `${timeframe} months`,
-        })
+        }))
       );
     } catch (error: any) {
       console.error('Error fetching billing analytics:', error);
@@ -709,7 +710,7 @@ router.get(
           END,
           cr.scheduled_date ASC
       `);
-      return res.json(ApiResponseBuilder.success(result.rows));
+      return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
     } catch (error) {
       console.error('Error fetching pending courses:', error);
       throw new AppError(
@@ -744,7 +745,7 @@ router.post(
         );
       }
 
-      return res.json(ApiResponseBuilder.success(result.rows[0]));
+      return res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
     } catch (error: any) {
       console.error('Error updating reminder timestamp:', error);
       throw new AppError(
@@ -771,7 +772,7 @@ router.get(
          ORDER BY cr.confirmed_date ASC, cr.confirmed_start_time ASC`
       );
 
-      return res.json(ApiResponseBuilder.success(result.rows));
+      return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
     } catch (error: any) {
       console.error('Error fetching confirmed courses:', error);
       throw new AppError(
@@ -798,7 +799,7 @@ router.get(
          ORDER BY cr.completed_at DESC`
       );
 
-      return res.json(ApiResponseBuilder.success(result.rows));
+      return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
     } catch (error: any) {
       console.error('Error fetching completed courses:', error);
       throw new AppError(
@@ -825,7 +826,7 @@ router.get(
          ORDER BY cr.updated_at DESC`
       );
 
-      return res.json(ApiResponseBuilder.success(result.rows));
+      return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
     } catch (error: any) {
       console.error('Error fetching cancelled courses:', error);
       throw new AppError(
@@ -1441,15 +1442,15 @@ router.get(
     try {
       const { emailQueueService } = await import('../../services/emailQueue.js');
       const status = await emailQueueService.getQueueLength();
-      res.json(ApiResponseBuilder.success(status, 'Email queue status retrieved'));
+      res.json(ApiResponseBuilder.success(keysToCamel(status), 'Email queue status retrieved'));
     } catch (error) {
       console.error('❌ [EMAIL QUEUE] Error getting queue status:', error);
-      res.json(ApiResponseBuilder.success({
+      res.json(ApiResponseBuilder.success(keysToCamel({
         pendingJobs: 0,
         failedJobs: 0,
         isProcessing: false,
         error: 'Queue service unavailable'
-      }, 'Email queue status (fallback)'));
+      }), 'Email queue status (fallback)'));
     }
   })
 );
@@ -1489,7 +1490,7 @@ router.get(
        WHERE u.role = 'instructor' 
        ORDER BY u.username, ia.date`
       );
-      return res.json(ApiResponseBuilder.success(result.rows));
+      return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
     } catch (error: any) {
       console.error('Error fetching instructors:', error);
       throw new AppError(
@@ -1575,7 +1576,7 @@ router.get(
       );
 
       console.log('[ORG STUDENTS] Students found:', result.rows.length);
-      return res.json(ApiResponseBuilder.success(result.rows));
+      return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
     } catch (error: any) {
       console.error('[ORG STUDENTS] Error fetching course students:', error);
       throw new AppError(
@@ -1811,7 +1812,7 @@ router.get(
         status: row.status || 'scheduled',
       }));
 
-      return res.json(ApiResponseBuilder.success(schedule));
+      return res.json(ApiResponseBuilder.success(keysToCamel(schedule)));
     } catch (error: any) {
       console.error('Error fetching instructor schedule:', error);
       throw new AppError(
@@ -1843,7 +1844,7 @@ router.get(
         status: row.status || 'available',
       }));
 
-      return res.json(ApiResponseBuilder.success(availability));
+      return res.json(ApiResponseBuilder.success(keysToCamel(availability)));
     } catch (error: any) {
       console.error('Error fetching instructor availability:', error);
       throw new AppError(
@@ -1908,7 +1909,7 @@ router.get(
       `, [instructorId, startDate, endDateStr]);
 
       console.log('[Instructor Stats] Query result:', result.rows[0]);
-      return res.json(ApiResponseBuilder.success(result.rows[0]));
+      return res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
     } catch (error) {
       console.error('[Instructor Stats] Detailed error:', error);
       throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch instructor stats');
@@ -2022,7 +2023,7 @@ router.get(
       }
 
       console.log('[Dashboard Summary] Query result:', result.rows[0]);
-      return res.json(ApiResponseBuilder.success(result.rows[0]));
+      return res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
     } catch (error) {
       console.error('[Dashboard Summary] Detailed error:', error);
       throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch dashboard summary');
@@ -2088,7 +2089,7 @@ router.get(
       `, [startDate, endDate]);
 
       console.log('[Instructor Workload Report] Query result:', result.rows);
-      return res.json(ApiResponseBuilder.success(result.rows));
+      return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
     } catch (error) {
       console.error('[Instructor Workload Report] Detailed error:', error);
       throw new AppError(500, errorCodes.DB_QUERY_ERROR, 'Failed to fetch instructor workload report');
@@ -2380,11 +2381,11 @@ router.delete(
         await client.query('COMMIT');
 
         return res.json(
-          ApiResponseBuilder.success({
+          ApiResponseBuilder.success(keysToCamel({
             message: 'Availability removed successfully',
             deletedAvailability: deleteAvailabilityResult.rows.length,
             deletedClasses: deleteClassesResult.rows.length,
-          })
+          }))
         );
       } catch (error) {
         await client.query('ROLLBACK');
@@ -5169,7 +5170,7 @@ router.get(
         [courseId]
       );
 
-      return res.json(ApiResponseBuilder.success(result.rows));
+      return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
     } catch (error: any) {
       console.error('Error fetching course students:', error);
       if (error instanceof AppError) {
@@ -7018,10 +7019,10 @@ router.get('/hr/dashboard', authenticateToken, asyncHandler(async (req: Request,
       expiringCertifications: expiringCertificationsResult.rows[0]?.count || 0,
     };
 
-    res.json({ success: true, data: dashboardData });
+    res.json(ApiResponseBuilder.success(keysToCamel(dashboardData)));
   } catch (error) {
     console.error('HR Dashboard Error:', error);
-    res.status(500).json({ success: false, message: 'Failed to load HR dashboard data' });
+    res.status(500).json(ApiResponseBuilder.error('HR_DASHBOARD_ERROR', 'Failed to load HR dashboard data'));
   }
 }));
 
@@ -7059,10 +7060,10 @@ router.get('/hr/profile-changes', authenticateToken, asyncHandler(async (req: Re
       ORDER BY pc.created_at ASC
     `);
 
-    res.json({ success: true, data: result.rows });
+    res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
   } catch (error) {
     console.error('Profile Changes Error:', error);
-    res.status(500).json({ success: false, message: 'Failed to load profile changes' });
+    res.status(500).json(ApiResponseBuilder.error('PROFILE_CHANGES_ERROR', 'Failed to load profile changes'));
   }
 }));
 
@@ -7189,7 +7190,7 @@ router.get(
         [courseId]
       );
 
-      return res.json(ApiResponseBuilder.success(result.rows));
+      return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
     } catch (error: any) {
       console.error('Error fetching course students for accounting:', error);
       if (error instanceof AppError) {

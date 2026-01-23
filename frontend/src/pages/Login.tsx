@@ -117,8 +117,9 @@ const Login = () => {
 
       setForgotPasswordMessage(response.data.message);
 
-      // In development, show the reset token
-      if (response.data.resetToken) {
+      // Only show reset token in development mode (double-check on frontend)
+      const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development';
+      if (isDev && response.data.resetToken) {
         setForgotPasswordMessage(
           `${response.data.message}\n\nDevelopment Reset Token: ${response.data.resetToken}`
         );

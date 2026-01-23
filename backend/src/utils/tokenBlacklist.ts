@@ -1,4 +1,5 @@
 import { pool } from '../config/database.js';
+import { createHash } from 'crypto';
 
 /**
  * Token blacklist utility for invalidating JWT tokens on logout
@@ -21,9 +22,7 @@ export class TokenBlacklist {
       const tokenHash = this.hashToken(token);
       
       await pool.query(query, [tokenHash, expiresAt]);
-      console.log('🔐 [BLACKLIST] Token added to blacklist');
     } catch (error) {
-      console.error('❌ [BLACKLIST] Failed to add token to blacklist:', error);
       throw error;
     }
   }
@@ -44,14 +43,8 @@ export class TokenBlacklist {
       const tokenHash = this.hashToken(token);
       const result = await pool.query(query, [tokenHash]);
       
-      const isBlacklisted = parseInt(result.rows[0].count) > 0;
-      if (isBlacklisted) {
-        console.log('🔐 [BLACKLIST] Token found in blacklist');
-      }
-      
-      return isBlacklisted;
+      return parseInt(result.rows[0].count) > 0;
     } catch (error) {
-      console.error('❌ [BLACKLIST] Failed to check token blacklist:', error);
       // If we can't check the blacklist, assume the token is valid
       return false;
     }
@@ -67,28 +60,19 @@ export class TokenBlacklist {
         WHERE expires_at < NOW()
       `;
       
-      const result = await pool.query(query);
-      console.log(`🔐 [BLACKLIST] Cleaned up ${result.rowCount} expired tokens`);
+      await pool.query(query);
     } catch (error) {
-      console.error('❌ [BLACKLIST] Failed to cleanup expired tokens:', error);
+      // Cleanup failure is non-critical, continue silently
     }
   }
 
   /**
-   * Hash a token for storage (using a simple hash for now)
-   * In production, use a proper cryptographic hash
+   * Hash a token for storage using SHA-256
    * @param token - The JWT token to hash
-   * @returns The hashed token
+   * @returns The hashed token (hex string)
    */
   private static hashToken(token: string): string {
-    // Simple hash function - in production, use crypto.createHash('sha256')
-    let hash = 0;
-    for (let i = 0; i < token.length; i++) {
-      const char = token.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return hash.toString(36);
+    return createHash('sha256').update(token).digest('hex');
   }
 }
 
@@ -107,20 +91,18 @@ export async function initializeTokenBlacklist(): Promise<void> {
     `;
     
     await pool.query(createTableQuery);
-    console.log('✅ [BLACKLIST] Token blacklist table initialized');
-    
+
     // Create indexes separately to avoid PostgreSQL syntax issues
     try {
       await pool.query('CREATE INDEX IF NOT EXISTS idx_token_blacklist_hash ON token_blacklist (token_hash)');
       await pool.query('CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires ON token_blacklist (expires_at)');
-      console.log('✅ [BLACKLIST] Indexes created');
-    } catch (indexError) {
-      console.log('⚠️ [BLACKLIST] Index creation failed (non-critical):', indexError);
+    } catch {
+      // Index creation failure is non-critical
     }
-    
+
     // Clean up expired tokens on startup
     await TokenBlacklist.cleanupExpiredTokens();
-  } catch (error) {
-    console.error('❌ [BLACKLIST] Failed to initialize token blacklist:', error);
+  } catch {
+    // Initialization failure - table may already exist or DB unavailable
   }
 } 

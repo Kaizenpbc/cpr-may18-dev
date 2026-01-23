@@ -147,6 +147,14 @@ export function isSuspiciousRequest(req: Request, fingerprint: RequestFingerprin
     return false;
   }
 
+  // In development mode, allow curl, wget, and other CLI tools for all endpoints
+  if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV !== 'production') {
+    const devTools = ['curl', 'wget', 'powershell', 'insomnia', 'postman', 'httpie'];
+    if (devTools.some(tool => fingerprint.userAgent.toLowerCase().includes(tool))) {
+      return false;
+    }
+  }
+
   // Allow curl and other common tools for health checks
   if (req.url.includes('/health') && (
     fingerprint.userAgent.toLowerCase().includes('curl') ||
@@ -156,8 +164,8 @@ export function isSuspiciousRequest(req: Request, fingerprint: RequestFingerprin
     return false;
   }
 
-  // Check blocked user agents
-  if (config.blockedUserAgents.some(blocked =>
+  // Check blocked user agents (only in production)
+  if (process.env.NODE_ENV === 'production' && config.blockedUserAgents.some(blocked =>
     fingerprint.userAgent.toLowerCase().includes(blocked.toLowerCase())
   )) {
     return true;

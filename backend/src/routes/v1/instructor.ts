@@ -6,42 +6,10 @@ import { pool } from '../../config/database.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { AppError } from '../../utils/errorHandler.js';
 import { errorCodes } from '../../utils/errorHandler.js';
+import { ApiResponseBuilder } from '../../utils/apiResponse.js';
+import { keysToCamel } from '../../utils/caseConverter.js';
 
 const router = express.Router();
-
-// Test endpoint to check database connection
-router.get('/test', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT 1 as test');
-    res.json({ success: true, data: result.rows[0] });
-  } catch (error: any) {
-    console.error('Database test error:', error);
-    res.status(500).json({ error: 'Database connection failed', details: error.message });
-  }
-});
-
-// Test endpoint for classes
-router.get('/test-classes', async (req, res) => {
-  try {
-    const dbResult = await pool.query(
-      `SELECT 
-        c.id,
-        c.instructor_id,
-        c.start_time,
-        c.end_time,
-        c.status,
-        ct.name as course_name
-       FROM classes c
-       JOIN class_types ct ON c.class_type_id = ct.id
-       WHERE c.instructor_id = 2
-       LIMIT 3`
-    );
-    res.json({ success: true, data: dbResult.rows });
-  } catch (error: any) {
-    console.error('Classes test error:', error);
-    res.status(500).json({ error: 'Classes query failed', details: error.message });
-  }
-});
 
 // Get instructor dashboard statistics
 router.get('/dashboard/stats', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
@@ -128,7 +96,7 @@ router.get('/dashboard/stats', authenticateToken, requireRole(['instructor', 'ad
     };
 
     console.log('[DEBUG] Instructor dashboard stats for user', userId, ':', stats);
-    res.json({ success: true, data: stats });
+    res.json(ApiResponseBuilder.success(keysToCamel(stats)));
   } catch (error) {
     console.error('Error fetching instructor dashboard stats:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -158,7 +126,7 @@ router.get('/availability', authenticateToken, requireRole(['instructor', 'admin
     }));
 
     console.log('[DEBUG] Formatted availability data:', JSON.stringify(formattedData, null, 2));
-    res.json({ success: true, data: formattedData });
+    res.json(ApiResponseBuilder.success(keysToCamel(formattedData)));
   } catch (error) {
     console.error('Error fetching instructor availability:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -198,7 +166,7 @@ router.post('/availability', authenticateToken, requireRole(['instructor', 'admi
       [userId, date]
     );
 
-    res.json({ success: true, data: result.rows[0] });
+    res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
   } catch (error) {
     console.error('Error adding instructor availability:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -280,7 +248,7 @@ router.get('/classes', authenticateToken, requireRole(['instructor', 'admin', 's
       date: date
     };
   });
-  res.json({ success: true, data: result });
+  res.json(ApiResponseBuilder.success(keysToCamel(result)));
 });
 
 // Get instructor's active classes (confirmed course_requests)
@@ -324,7 +292,7 @@ router.get('/classes/active', authenticateToken, requireRole(['instructor', 'adm
       date: date
     };
   });
-  res.json({ success: true, data: result });
+  res.json(ApiResponseBuilder.success(keysToCamel(result)));
 });
 
 // Get instructor's completed classes (completed course_requests)
@@ -368,7 +336,7 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor', '
       date: date
     };
   });
-  res.json({ success: true, data: result2 });
+  res.json(ApiResponseBuilder.success(keysToCamel(result2)));
 });
 
 // Get instructor's classes for today (use only course_requests)
@@ -435,7 +403,7 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor', 'admi
     };
   });
   console.log('[TRACE] API response data (today):', JSON.stringify(result3, null, 2));
-  res.json({ success: true, data: result3 });
+  res.json(ApiResponseBuilder.success(keysToCamel(result3)));
 });
 
 // Get instructor's schedule (all confirmed course_requests)
@@ -478,7 +446,7 @@ router.get('/schedule', authenticateToken, requireRole(['instructor', 'admin', '
       date: date
     };
   });
-  res.json({ success: true, data: formattedData });
+  res.json(ApiResponseBuilder.success(keysToCamel(formattedData)));
 });
 
 // Get students for a specific class
@@ -501,7 +469,7 @@ router.get('/classes/:classId/students', authenticateToken, requireRole(['instru
     );
 
     if (courseRequestCheck.rows.length === 0) {
-      return res.json({ success: true, data: [] });
+      return res.json(ApiResponseBuilder.success([]));
     }
 
     // Now get students from course_students table
@@ -530,7 +498,7 @@ router.get('/classes/:classId/students', authenticateToken, requireRole(['instru
     }));
 
     console.log('[Debug] Students loaded for course_request:', courseRequestId, 'count:', students.length);
-    res.json({ success: true, data: students });
+    res.json(ApiResponseBuilder.success(keysToCamel(students)));
   } catch (error) {
     console.error('Error fetching class students:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -573,7 +541,7 @@ router.get('/classes/:classId', authenticateToken, requireRole(['instructor', 'a
     return res.status(404).json({ error: 'Class not found or not authorized' });
   }
 
-  res.json({ success: true, data: result.rows[0] });
+  res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
 });
 
 // Update student attendance
@@ -638,7 +606,7 @@ router.put('/classes/:classId/students/:studentId/attendance', authenticateToken
     attendanceMarked: result.rows[0].attendance_marked || false,
   };
 
-  res.json({ success: true, data: updatedStudent, message: 'Attendance updated successfully' });
+  res.json(ApiResponseBuilder.success(keysToCamel(updatedStudent)));
 });
 
 // Add students to a class
@@ -699,7 +667,7 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
     };
 
     console.log('[Debug] Student added to course_request:', courseRequestId, 'student:', addedStudent);
-    res.json({ success: true, data: addedStudent });
+    res.json(ApiResponseBuilder.success(keysToCamel(addedStudent)));
   } catch (error) {
     console.error('Error adding student:', error);
     res.status(500).json({ error: 'Failed to add student' });
@@ -754,7 +722,7 @@ router.put('/availability', authenticateToken, requireRole(['instructor', 'admin
       [userId]
     );
 
-    res.json({ success: true, data: result.rows });
+    res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -786,7 +754,7 @@ router.put('/profile', authenticateToken, requireRole(['instructor', 'admin', 's
     return res.status(404).json({ error: 'User not found' });
   }
 
-  res.json({ success: true, data: result.rows[0] });
+  res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
 });
 
 // Mark class as completed
@@ -893,7 +861,7 @@ router.post('/classes/:classId/complete', authenticateToken, requireRole(['instr
     }
   })();
 
-  res.json({ success: true, data: result.rows[0], message: 'Class marked as completed' });
+  res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
 });
 
 // Submit attendance for a class
@@ -964,7 +932,7 @@ router.post('/classes/:classId/attendance', authenticateToken, requireRole(['ins
     updatedStudents.push(...notAttendedResult.rows);
   }
 
-  res.json({ success: true, data: updatedStudents, message: 'Attendance submitted successfully' });
+  res.json(ApiResponseBuilder.success(keysToCamel(updatedStudents)));
 });
 
 // Get attendance data
@@ -994,7 +962,7 @@ router.get('/attendance', authenticateToken, requireRole(['instructor', 'admin',
     [userId]
   );
 
-  res.json({ success: true, data: result.rows });
+  res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
 });
 
 // Add notes to classes
@@ -1028,7 +996,7 @@ router.post('/classes/notes', authenticateToken, requireRole(['instructor', 'adm
     [notes, classId, userId]
   );
 
-  res.json({ success: true, data: result.rows[0], message: 'Notes added successfully' });
+  res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
 });
 
 // Serve the instructor manual (restricted to instructors)

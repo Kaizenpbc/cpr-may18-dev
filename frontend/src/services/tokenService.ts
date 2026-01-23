@@ -1,5 +1,10 @@
 import { API_URL } from '../config';
-console.log('Initializing tokenService');
+
+// Development-only logging utility
+const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development';
+const devLog = (...args: unknown[]) => { if (isDev) console.log(...args); };
+
+devLog('Initializing tokenService');
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const LAST_LOCATION_KEY = 'lastLocation';
@@ -31,7 +36,7 @@ class TokenService {
     if (inMemoryToken) {
       // Check if token is expired
       if (tokenExpiry && Date.now() > tokenExpiry) {
-        console.log('[TRACE] Token service - Token expired, clearing');
+        devLog('[TRACE] Token service - Token expired, clearing');
         this.clearTokens();
         return null;
       }
@@ -41,14 +46,14 @@ class TokenService {
     // If not in memory, try to restore from sessionStorage
     try {
       const storedToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
-      const storedExpiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
+      const storedExpiry = sessionStorage.getItem(TOKEN_EXPIRY_KEY);
 
       if (storedToken && storedExpiry) {
         const expiryTime = parseInt(storedExpiry);
 
         // Check if token is expired
         if (Date.now() > expiryTime) {
-          console.log('[TRACE] Token service - Stored token expired, clearing');
+          devLog('[TRACE] Token service - Stored token expired, clearing');
           this.clearTokens();
           return null;
         }
@@ -60,11 +65,11 @@ class TokenService {
         // Schedule refresh
         this.scheduleTokenRefresh();
 
-        console.log('[TRACE] Token service - Token restored from storage');
+        devLog('[TRACE] Token service - Token restored from storage');
         return inMemoryToken;
       }
     } catch (error) {
-      console.error('[TRACE] Token service - Error restoring token from storage:', error);
+      devLog('[TRACE] Token service - Error restoring token from storage:', error);
     }
 
     return null;
@@ -88,18 +93,19 @@ class TokenService {
       tokenExpiry = Date.now() + (15 * 60 * 1000);
     }
 
-    // Store token in sessionStorage for persistence across page refreshes
+    // Store token and expiry in sessionStorage for persistence across page refreshes
+    // Using sessionStorage for both to ensure consistent behavior (both clear when tab closes)
     try {
       sessionStorage.setItem(ACCESS_TOKEN_KEY, formattedToken);
-      localStorage.setItem(TOKEN_EXPIRY_KEY, tokenExpiry.toString());
+      sessionStorage.setItem(TOKEN_EXPIRY_KEY, tokenExpiry.toString());
     } catch (error) {
-      console.error('[TRACE] Token service - Error storing token:', error);
+      devLog('[TRACE] Token service - Error storing token:', error);
     }
 
     // Schedule token refresh 5 minutes before expiry
     this.scheduleTokenRefresh();
 
-    console.log('[TRACE] Token service - Access token set, expires at:', new Date(tokenExpiry));
+    devLog('[TRACE] Token service - Access token set, expires at:', new Date(tokenExpiry));
   }
 
   /**
@@ -116,7 +122,7 @@ class TokenService {
    * Note: This is handled by the backend via HTTP-only cookies.
    */
   setRefreshToken(): void {
-    console.log('[TRACE] Token service - Setting refresh token (HTTP-only cookie)');
+    devLog('[TRACE] Token service - Setting refresh token (HTTP-only cookie)');
     // No-op: refresh token is managed by HTTP-only cookies
   }
 
@@ -137,7 +143,7 @@ class TokenService {
         this.refreshTokenSilently();
       }, timeUntilRefresh);
 
-      console.log('[TRACE] Token service - Token refresh scheduled in', Math.round(timeUntilRefresh / 1000), 'seconds');
+      devLog('[TRACE] Token service - Token refresh scheduled in', Math.round(timeUntilRefresh / 1000), 'seconds');
     } else {
       // Token expires in less than 5 minutes, refresh immediately
       this.refreshTokenSilently();
@@ -149,7 +155,7 @@ class TokenService {
    */
   private async refreshTokenSilently(): Promise<void> {
     try {
-      console.log('[TRACE] TokenService - Attempting silent token refresh');
+      devLog('[TRACE] TokenService - Attempting silent token refresh');
 
       // Import authService dynamically to avoid circular dependencies
       const { authService } = await import('./authService');
@@ -168,16 +174,16 @@ class TokenService {
         if (data.success && data.data?.accessToken) {
           // Update the token
           this.setAccessToken(data.data.accessToken);
-          console.log('[TRACE] Token service - Silent refresh successful');
+          devLog('[TRACE] Token service - Silent refresh successful');
 
           // Notify other tabs
           this.broadcastSessionUpdate('tokenRefreshed');
         }
       } else {
-        console.warn('[TRACE] Token service - Silent refresh failed, will retry on next request');
+        devLog('[TRACE] Token service - Silent refresh failed, will retry on next request');
       }
     } catch (error) {
-      console.error('[TRACE] Token service - Silent refresh error:', error);
+      devLog('[TRACE] Token service - Silent refresh error:', error);
       // Don't clear tokens here, let the next API call handle it
     }
   }
@@ -193,7 +199,7 @@ class TokenService {
       !location.includes('/forgot-password') &&
       !location.includes('/reset-password')
     ) {
-      console.log('[TRACE] Token service - Saving current location:', location);
+      devLog('[TRACE] Token service - Saving current location:', location);
       sessionStorage.setItem(LAST_LOCATION_KEY, location);
     }
   }
@@ -211,7 +217,7 @@ class TokenService {
       !fullLocation.includes('/forgot-password') &&
       !fullLocation.includes('/reset-password')
     ) {
-      console.log('[TRACE] Token service - Saving full location:', fullLocation);
+      devLog('[TRACE] Token service - Saving full location:', fullLocation);
       sessionStorage.setItem(LAST_LOCATION_KEY, fullLocation);
     }
   }
@@ -222,7 +228,7 @@ class TokenService {
    */
   getSavedLocation(): string | null {
     const location = sessionStorage.getItem(LAST_LOCATION_KEY);
-    console.log('[TRACE] Token service - Getting saved location:', location);
+    devLog('[TRACE] Token service - Getting saved location:', location);
     return location;
   }
 
@@ -230,7 +236,7 @@ class TokenService {
    * Clears the saved location
    */
   clearSavedLocation(): void {
-    console.log('[TRACE] Token service - Clearing saved location');
+    devLog('[TRACE] Token service - Clearing saved location');
     sessionStorage.removeItem(LAST_LOCATION_KEY);
   }
 
@@ -247,7 +253,7 @@ class TokenService {
     }
 
     // Clear from all storage locations
-    localStorage.removeItem(TOKEN_EXPIRY_KEY);
+    sessionStorage.removeItem(TOKEN_EXPIRY_KEY);
     sessionStorage.removeItem(ACCESS_TOKEN_KEY);
 
     // Clear any cached user data that might cause confusion
@@ -255,7 +261,7 @@ class TokenService {
     sessionStorage.removeItem('auth_user');
     sessionStorage.removeItem('currentUser');
 
-    console.log('[TRACE] Token service - All tokens cleared');
+    devLog('[TRACE] Token service - All tokens cleared');
   }
 
   /**
@@ -285,7 +291,7 @@ class TokenService {
           const data = JSON.parse(event.newValue || '{}');
           this.handleSessionSync(data);
         } catch (error) {
-          console.error('[TRACE] Token service - Session sync parse error:', error);
+          devLog('[TRACE] Token service - Session sync parse error:', error);
         }
       }
     });
@@ -305,7 +311,7 @@ class TokenService {
    * Handles session synchronization events
    */
   private handleSessionSync(data: any): void {
-    console.log('[TRACE] Token service - Session sync received:', data);
+    devLog('[TRACE] Token service - Session sync received:', data);
 
     switch (data.type) {
       case 'tokenRefreshed':
@@ -362,7 +368,7 @@ class TokenService {
    */
   private initializeTokenRefresh(): void {
     // Check for existing token on page load
-    const storedExpiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
+    const storedExpiry = sessionStorage.getItem(TOKEN_EXPIRY_KEY);
     if (storedExpiry) {
       const expiry = parseInt(storedExpiry);
       if (expiry > Date.now()) {
@@ -371,7 +377,7 @@ class TokenService {
         this.scheduleTokenRefresh();
       } else {
         // Token is expired, clear it
-        localStorage.removeItem(TOKEN_EXPIRY_KEY);
+        sessionStorage.removeItem(TOKEN_EXPIRY_KEY);
       }
     }
 
@@ -411,7 +417,7 @@ class TokenService {
    * This is the only method that should force navigation
    */
   forceLogout(): void {
-    console.log('[TRACE] Token service - Force logout');
+    devLog('[TRACE] Token service - Force logout');
 
     // Save current location before clearing
     this.saveCurrentFullLocation();
@@ -447,9 +453,9 @@ class TokenService {
    * Can be called from browser console: tokenService.debugLocation()
    */
   debugLocation(): void {
-    console.log('[DEBUG] Token service - Current location:', window.location.href);
-    console.log('[DEBUG] Token service - Saved location:', this.getSavedLocation());
-    console.log('[DEBUG] Token service - Has token:', !!this.getAccessToken());
+    devLog('[DEBUG] Token service - Current location:', window.location.href);
+    devLog('[DEBUG] Token service - Saved location:', this.getSavedLocation());
+    devLog('[DEBUG] Token service - Has token:', !!this.getAccessToken());
   }
 
   /**
@@ -477,7 +483,7 @@ class TokenService {
 
 export const tokenService = new TokenService();
 
-console.log('TokenService initialized');
+devLog('TokenService initialized');
 
 // Make tokenService globally available for debugging
 (window as any).tokenService = tokenService;

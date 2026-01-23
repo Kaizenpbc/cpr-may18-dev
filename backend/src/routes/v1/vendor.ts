@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { authenticateToken } from '../../middleware/authMiddleware.js';
+import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
 import { pool } from '../../config/database.js';
 import multer from 'multer';
 import path from 'path';
@@ -8,6 +8,8 @@ import { ocrService } from '../../services/ocrService.js';
 import { vendorDetectionService } from '../../services/vendorDetectionService.js';
 import pdfGenerationService from '../../services/pdfGenerationService.js';
 import { asyncHandler, AppError, errorCodes } from '../../utils/errorHandler.js';
+import { ApiResponseBuilder } from '../../utils/apiResponse.js';
+import { keysToCamel } from '../../utils/caseConverter.js';
 
 const router = express.Router();
 
@@ -16,7 +18,7 @@ router.get('/vendors', authenticateToken, asyncHandler(async (req: Request, res:
   const result = await pool.query(
     'SELECT id, name as vendor_name, vendor_type FROM vendors WHERE is_active = true ORDER BY name'
   );
-  res.json(result.rows);
+  res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
 }));
 
 // Configure multer for file uploads
@@ -71,7 +73,7 @@ router.get('/profile', authenticateToken, asyncHandler(async (req: Request, res:
     throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Vendor not found');
   }
 
-  res.json(result.rows[0]);
+  res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
 }));
 
 // Update vendor profile
@@ -309,7 +311,7 @@ router.get('/invoices', authenticateToken, asyncHandler(async (req: Request, res
   const result = await pool.query(query, params);
   console.log('🔍 [VENDOR INVOICES] Result rows:', result.rows.length);
 
-  res.json(result.rows);
+  res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
 }));
 
 // Submit new invoice
@@ -512,7 +514,7 @@ router.get('/invoices/:id', authenticateToken, asyncHandler(async (req: Request,
     throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found');
   }
 
-  res.json(result.rows[0]);
+  res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
 }));
 
 // Get vendor invoice details with payment history
@@ -631,23 +633,17 @@ router.post('/invoices/:id/resend-to-admin', authenticateToken, asyncHandler(asy
 
 // Download invoice PDF
 router.get('/invoices/:id/download', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  // Get user email from database using user ID
-  const userResult = await pool.query(
-    'SELECT email FROM users WHERE id = $1',
-    [req.user!.id]
-  );
+  const userRole = req.user?.role;
+  const userId = req.user?.id;
+  const staffRoles = ['admin', 'sysadmin', 'accounting'];
 
-  if (userResult.rows.length === 0) {
-    throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'User not found');
-  }
-
-  // 🔍 PHASE 3: Allow GTACPR staff to download any invoice (not just their own vendor's invoices)
-  // This allows GTACPR staff to download all invoices they uploaded on behalf of any vendor
+  // Get invoice with vendor info
   const result = await pool.query(`
     SELECT
       vi.*,
       v.name as company,
       v.name as billing_company,
+      v.contact_email as vendor_email,
       COALESCE(vi.rate, 0) as rate,
       COALESCE(vi.amount, 0) as amount,
       COALESCE(vi.subtotal, vi.amount) as subtotal,
@@ -663,6 +659,20 @@ router.get('/invoices/:id/download', authenticateToken, asyncHandler(async (req:
   }
 
   const invoice = result.rows[0];
+
+  // Authorization check: staff can access any invoice, vendors only their own
+  if (!staffRoles.includes(userRole || '')) {
+    // For non-staff, verify they own this invoice
+    const userResult = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'User not found');
+    }
+    const userEmail = userResult.rows[0].email;
+
+    if (invoice.vendor_email !== userEmail) {
+      throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'You can only download your own invoices');
+    }
+  }
 
   // Generate PDF from database data
   const pdfBuffer = await pdfGenerationService.generateInvoicePDF(invoice);

@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { asyncHandler } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
+import { keysToCamel } from '../../utils/caseConverter.js';
 import {
   authenticateToken,
   requireRole,
@@ -81,12 +82,12 @@ router.post(
     );
 
     res.json(
-      ApiResponseBuilder.success({
+      ApiResponseBuilder.success(keysToCamel({
         message: 'Database optimization completed',
         successful,
         failed,
         results: results.slice(-20), // Show last 20 results
-      })
+      }))
     );
   })
 );
@@ -103,12 +104,12 @@ router.get(
       await queryOptimizer.getMaintenanceRecommendations();
 
     res.json(
-      ApiResponseBuilder.success({
+      ApiResponseBuilder.success(keysToCamel({
         performance_recommendations: recommendations,
         database_statistics: dbStats,
         maintenance_recommendations: maintenanceRecommendations,
         analysis_timestamp: new Date().toISOString(),
-      })
+      }))
     );
   })
 );
@@ -138,11 +139,11 @@ router.get(
     `);
 
     res.json(
-      ApiResponseBuilder.success({
+      ApiResponseBuilder.success(keysToCamel({
         ...stats,
         connection_stats: connectionStats.rows[0],
         size_stats: sizeStats.rows[0],
-      })
+      }))
     );
   })
 );
@@ -244,7 +245,7 @@ router.get(
     const totalTests = results.length;
 
     res.json(
-      ApiResponseBuilder.success({
+      ApiResponseBuilder.success(keysToCamel({
         summary: {
           total_tests: totalTests,
           successful_tests: successfulTests,
@@ -252,7 +253,7 @@ router.get(
         },
         test_results: results,
         test_timestamp: new Date().toISOString(),
-      })
+      }))
     );
   })
 );
@@ -333,11 +334,11 @@ router.post(
     }
 
     res.json(
-      ApiResponseBuilder.success({
+      ApiResponseBuilder.success(keysToCamel({
         operation,
         results,
         completed_at: new Date().toISOString(),
-      })
+      }))
     );
   })
 );
@@ -384,12 +385,12 @@ router.post(
     const plan = result.rows[0]['QUERY PLAN'][0];
 
     res.json(
-      ApiResponseBuilder.success({
+      ApiResponseBuilder.success(keysToCamel({
         query,
         execution_plan: plan,
         analyzed: analyze,
         timestamp: new Date().toISOString(),
-      })
+      }))
     );
   })
 );
@@ -405,14 +406,14 @@ router.get(
 
     if (extensionCheck.rows.length === 0) {
       return res.json(
-        ApiResponseBuilder.success({
+        ApiResponseBuilder.success(keysToCamel({
           message: 'pg_stat_statements extension not available',
           recommendations: [
             'Enable pg_stat_statements extension for detailed query analysis',
             "Add shared_preload_libraries = 'pg_stat_statements' to postgresql.conf",
             'CREATE EXTENSION pg_stat_statements;',
           ],
-        })
+        }))
       );
     }
 
@@ -432,10 +433,10 @@ router.get(
     `);
 
     res.json(
-      ApiResponseBuilder.success({
+      ApiResponseBuilder.success(keysToCamel({
         slow_queries: slowQueriesResult.rows,
         analysis_timestamp: new Date().toISOString(),
-      })
+      }))
     );
   })
 );
@@ -449,10 +450,10 @@ router.post(
     await cacheService.invalidate(pattern);
 
     res.json(
-      ApiResponseBuilder.success({
+      ApiResponseBuilder.success(keysToCamel({
         message: `Cache invalidated for pattern: ${pattern}`,
         timestamp: new Date().toISOString(),
-      })
+      }))
     );
   })
 );
@@ -462,7 +463,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const stats = await cacheService.getStats();
 
-    res.json(ApiResponseBuilder.success(stats));
+    res.json(ApiResponseBuilder.success(keysToCamel(stats)));
   })
 );
 
@@ -545,7 +546,7 @@ router.get(
       generated_at: new Date().toISOString(),
     };
 
-    res.json(ApiResponseBuilder.success(report));
+    res.json(ApiResponseBuilder.success(keysToCamel(report)));
   })
 );
 

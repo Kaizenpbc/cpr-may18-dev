@@ -2,8 +2,18 @@ import jwt, { Secret } from 'jsonwebtoken';
 import type { Request } from 'express';
 import { AppError, errorCodes } from './errorHandler.js';
 
-const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'access_secret';
-const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh_secret';
+// JWT secrets - require env vars in production, allow fallbacks only in development
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction && !process.env.JWT_ACCESS_SECRET) {
+  throw new Error('FATAL: JWT_ACCESS_SECRET environment variable is required in production');
+}
+if (isProduction && !process.env.JWT_REFRESH_SECRET) {
+  throw new Error('FATAL: JWT_REFRESH_SECRET environment variable is required in production');
+}
+
+const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'dev_access_secret_not_for_production!';
+const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret_not_for_production';
 const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY || '15m';
 const REFRESH_TOKEN_EXPIRY = process.env.REFRESH_TOKEN_EXPIRY || '7d';
 
@@ -126,7 +136,7 @@ export const extractTokenFromHeader = (req: Request): string | null => {
 };
 
 export const generateToken = (user: TokenPayload): string => {
-  const secret = process.env.JWT_SECRET || 'your-secret-key';
+  // Use the same secret as ACCESS_TOKEN_SECRET for consistency
   const accessToken = jwt.sign(
     {
       id: user.id,
@@ -135,7 +145,7 @@ export const generateToken = (user: TokenPayload): string => {
       role: user.role,
       organizationId: user.organizationId,
     },
-    secret,
+    ACCESS_TOKEN_SECRET,
     { expiresIn: '24h' }
   );
   return accessToken;

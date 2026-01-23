@@ -9,7 +9,7 @@ import {
   CircularProgress,
   Grid,
 } from '@mui/material';
-import axios from 'axios';
+import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 interface ProfileData {
@@ -37,12 +37,12 @@ export default function Profile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await axios.get('/api/instructor/profile');
-        setProfile(response.data);
-        setFormData(response.data);
+        const response = await api.get('/instructor/profile');
+        const data = response.data?.data || response.data;
+        setProfile(data);
+        setFormData(data);
       } catch (err) {
         setError('Failed to load profile information');
-        console.error('Error fetching profile:', err);
       } finally {
         setLoading(false);
       }
@@ -54,12 +54,12 @@ export default function Profile() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await axios.put('/api/instructor/profile', formData);
-      setProfile(response.data);
+      const response = await api.put('/instructor/profile', formData);
+      const data = response.data?.data || response.data;
+      setProfile(data);
       setIsEditing(false);
     } catch (err) {
       setError('Failed to update profile');
-      console.error('Error updating profile:', err);
     }
   };
 

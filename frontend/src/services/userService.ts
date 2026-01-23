@@ -1,43 +1,33 @@
 import api from './api';
 
-export const createUser = async userData => {
-  try {
-    // Placeholder - return success for now
-    return { success: true, userId: Date.now() };
-  } catch (error) {
-    console.error('Error creating user:', error);
-    throw error;
-  }
+interface UserData {
+  username?: string;
+  email?: string;
+  password?: string;
+  role?: string;
+  full_name?: string;
+  phone?: string;
+  organization_id?: number;
+}
+
+export const createUser = async (userData: UserData) => {
+  const response = await api.post('/sysadmin/users', userData);
+  return response.data;
 };
 
-export const updateUser = async (userId, userData) => {
-  try {
-    // Placeholder - return success for now
-    return { success: true };
-  } catch (error) {
-    console.error('Error updating user:', error);
-    throw error;
-  }
+export const updateUser = async (userId: number | string, userData: Partial<UserData>) => {
+  const response = await api.put(`/sysadmin/users/${userId}`, userData);
+  return response.data;
 };
 
 export const getUsers = async () => {
-  try {
-    // Placeholder - return empty array for now
-    return [];
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    throw error;
-  }
+  const response = await api.get('/sysadmin/users');
+  return response.data?.data || response.data || [];
 };
 
-export const deleteUser = async userId => {
-  try {
-    // Placeholder - return success for now
-    return { success: true };
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    throw error;
-  }
+export const deleteUser = async (userId: number | string) => {
+  const response = await api.delete(`/sysadmin/users/${userId}`);
+  return response.data;
 };
 
 export default {

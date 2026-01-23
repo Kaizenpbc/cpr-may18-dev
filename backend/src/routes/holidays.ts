@@ -1,4 +1,5 @@
 import express from 'express';
+import { ApiResponseBuilder } from '../utils/apiResponse.js';
 
 const router = express.Router();
 
@@ -17,10 +18,7 @@ const ONTARIO_HOLIDAYS_2024 = [
 ];
 
 router.get('/', (_req, res) => {
-  res.json({
-    success: true,
-    holidays: ONTARIO_HOLIDAYS_2024,
-  });
+  res.json(ApiResponseBuilder.success(ONTARIO_HOLIDAYS_2024));
 });
 
 export default router;

@@ -8,6 +8,7 @@ import {
   verifyRefreshToken,
 } from '../../utils/jwtUtils.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
+import { keysToCamel } from '../../utils/caseConverter.js';
 import { AppError, errorCodes, asyncHandler } from '../../utils/errorHandler.js';
 import { validateSchema, commonSchemas } from '../../middleware/inputSanitizer.js';
 import { TokenBlacklist } from '../../utils/tokenBlacklist.js';
@@ -22,6 +23,13 @@ import { cacheService } from '../../services/cacheService.js';
 import { authenticateToken } from '../../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+// Separate secret for password reset tokens (different from access tokens for security)
+const isProduction = process.env.NODE_ENV === 'production';
+if (isProduction && !process.env.JWT_RESET_SECRET) {
+  throw new Error('FATAL: JWT_RESET_SECRET environment variable is required in production');
+}
+const RESET_TOKEN_SECRET = process.env.JWT_RESET_SECRET || 'dev_reset_secret_not_for_production!';
 
 // Login endpoint with enhanced session management and better error messages
 router.post(
@@ -47,16 +55,19 @@ router.post(
         [username]
       );
 
+      // Use same error message for both cases to prevent username enumeration
+      const invalidCredentialsResponse = {
+        error: 'Invalid username or password. Please check your credentials and try again.',
+        code: 'INVALID_CREDENTIALS',
+        suggestions: [
+          'Check your username and password spelling',
+          'Use "Forgot Password" to reset your password',
+          'Contact your administrator for assistance'
+        ]
+      };
+
       if (result.rows.length === 0) {
-        return res.status(401).json({
-          error: `User '${username}' not found. Please check your username or contact your administrator.`,
-          code: 'USER_NOT_FOUND',
-          suggestions: [
-            'Check your username spelling',
-            'Contact your administrator to create an account',
-            'Use the "Forgot Password" option if you have an email account'
-          ]
-        });
+        return res.status(401).json(invalidCredentialsResponse);
       }
 
       const user = result.rows[0];
@@ -68,15 +79,7 @@ router.post(
       );
 
       if (!isValidPassword) {
-        return res.status(401).json({
-          error: `Incorrect password for user '${username}'. Please try again or use "Forgot Password".`,
-          code: 'INVALID_PASSWORD',
-          suggestions: [
-            'Check your password spelling',
-            'Use "Forgot Password" to reset your password',
-            'Contact your administrator for assistance'
-          ]
-        });
+        return res.status(401).json(invalidCredentialsResponse);
       }
 
       // Extract request metadata for session management
@@ -170,10 +173,10 @@ router.post('/forgot-password', asyncHandler(async (req: Request, res: Response)
   const user = result.rows[0];
 
   if (user) {
-    // Generate reset token
+    // Generate reset token with separate secret
     const resetToken = jwt.sign(
       { userId: user.id, type: 'password_reset' },
-      process.env.JWT_ACCESS_SECRET || 'access_secret',
+      RESET_TOKEN_SECRET,
       { expiresIn: '1h' }
     );
 
@@ -210,8 +213,8 @@ router.post('/reset-password', asyncHandler(async (req: Request, res: Response) 
     });
   }
 
-  // Verify token
-  const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET || 'access_secret') as any;
+  // Verify token with separate secret
+  const decoded = jwt.verify(token, RESET_TOKEN_SECRET) as { userId: number; type: string };
 
   if (decoded.type !== 'password_reset') {
     return res.status(400).json({

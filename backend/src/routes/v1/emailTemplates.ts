@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { AppError, asyncHandler } from '../../utils/errorHandler.js';
+import { keysToCamel } from '../../utils/caseConverter.js';
 import { EmailTemplateService } from '../../models/EmailTemplate.js';
 import { authorizeRoles } from '../../middleware/authMiddleware.js';
 import { errorCodes } from '../../utils/errorHandler.js';
@@ -61,7 +62,7 @@ router.get(
         templates.map(t => `${t.name}: ${t.category}`)
       );
 
-      const response = ApiResponseBuilder.success(templates);
+      const response = ApiResponseBuilder.success(keysToCamel(templates));
       console.log(
         '[EMAIL TEMPLATES] Sending response with',
         templates.length,
@@ -85,7 +86,7 @@ router.get(
       throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Template not found');
     }
 
-    return res.json(ApiResponseBuilder.success(template));
+    return res.json(ApiResponseBuilder.success(keysToCamel(template)));
   })
 );
 
@@ -116,7 +117,7 @@ router.post(
         lastModifiedBy: parseInt(req.user?.userId || '0'),
       } as any); // Temporarily bypass type checking to fix the runtime issue
 
-      return res.status(201).json(ApiResponseBuilder.success(template));
+      return res.status(201).json(ApiResponseBuilder.success(keysToCamel(template)));
     }
   )
 );
@@ -157,7 +158,7 @@ router.put(
         } as any
       ); // Temporarily bypass type checking to fix the runtime issue
 
-      return res.json(ApiResponseBuilder.success(updatedTemplate));
+      return res.json(ApiResponseBuilder.success(keysToCamel(updatedTemplate)));
     }
   )
 );
@@ -369,7 +370,7 @@ router.get(
       { value: 'custom', label: 'Custom Event', category: 'custom' },
     ];
 
-    return res.json(ApiResponseBuilder.success(eventTriggers));
+    return res.json(ApiResponseBuilder.success(keysToCamel(eventTriggers)));
   })
 );
 
@@ -405,7 +406,7 @@ router.get(
       },
     ];
 
-    return res.json(ApiResponseBuilder.success(eventTriggers));
+    return res.json(ApiResponseBuilder.success(keysToCamel(eventTriggers)));
   })
 );
 
@@ -516,7 +517,7 @@ router.get(
       },
     ];
 
-    return res.json(ApiResponseBuilder.success(commonVariables));
+    return res.json(ApiResponseBuilder.success(keysToCamel(commonVariables)));
   })
 );
 
