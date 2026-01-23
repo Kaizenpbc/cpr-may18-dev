@@ -550,7 +550,14 @@ export const instructorApi = {
 
   // Classes and courses
   getClasses: () => api.get('/instructor/classes'),
-  getClassesToday: () => api.get('/instructor/classes/today'),
+  getClassesToday: () => {
+    // Send client's local date to handle timezone differences between frontend and backend
+    const today = new Date();
+    const localDate = today.getFullYear() + '-' +
+      String(today.getMonth() + 1).padStart(2, '0') + '-' +
+      String(today.getDate()).padStart(2, '0');
+    return api.get(`/instructor/classes/today?date=${localDate}`);
+  },
   getClassesCompleted: () => api.get('/instructor/classes/completed'),
   getClassesActive: () => api.get('/instructor/classes/active'),
   getClassStudents: (courseId: number) => api.get(`/instructor/classes/${courseId}/students`),

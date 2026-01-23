@@ -378,13 +378,25 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor', 'admi
   }
   const userId = req.user.id;
 
-  // Use database current date to avoid timezone issues
-  const currentDateResult = await pool.query('SELECT CURRENT_DATE as current_date');
-  const todayStr = currentDateResult.rows[0].current_date.toISOString().split('T')[0]; // YYYY-MM-DD format
+  // Accept optional date parameter from client, or use client's timezone-aware "today"
+  // The client can pass ?date=YYYY-MM-DD to specify which day's classes to show
+  const clientDate = req.query.date as string;
+
+  let todayStr: string;
+  if (clientDate && /^\d{4}-\d{2}-\d{2}$/.test(clientDate)) {
+    // Use client-provided date if valid
+    todayStr = clientDate;
+  } else {
+    // Fallback to database current date
+    const currentDateResult = await pool.query('SELECT CURRENT_DATE as current_date');
+    todayStr = currentDateResult.rows[0].current_date.toISOString().split('T')[0];
+  }
+
+  console.log('[TRACE] /classes/today - Using date:', todayStr, 'Client provided:', clientDate || 'none');
 
   // Get confirmed course requests from course_requests table for today with actual student counts
   const courseRequestsDbResult = await pool.query(
-    `SELECT 
+    `SELECT
       cr.id,
       cr.id as course_id,
       cr.instructor_id,
