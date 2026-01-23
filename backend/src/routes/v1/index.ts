@@ -2786,15 +2786,15 @@ router.get(
         cp.price_per_student as rate_per_student,
         ((SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) * cp.price_per_student * 1.13) as total_amount,
         COALESCE(
-          -- First try to get full name from course_students table (most reliable)
-          (SELECT DISTINCT cs.first_name || ' ' || cs.last_name 
-           FROM course_students cs 
-           WHERE LOWER(cs.email) = LOWER(u.email) 
-           AND cs.first_name IS NOT NULL 
-           AND cs.last_name IS NOT NULL 
+          -- First try to get full name from users table
+          NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''),
+          -- Fallback to course_students table
+          (SELECT DISTINCT cs.first_name || ' ' || cs.last_name
+           FROM course_students cs
+           WHERE LOWER(cs.email) = LOWER(u.email)
+           AND cs.first_name IS NOT NULL
+           AND cs.last_name IS NOT NULL
            LIMIT 1),
-          -- Fallback to instructor table if it exists
-          (SELECT i.name FROM instructors i WHERE i.user_id = u.id LIMIT 1),
           -- Final fallback to username if no full name found
           u.username
         ) as instructor_name,
@@ -2857,15 +2857,15 @@ router.post(
           (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as students_attended,
           cp.price_per_student,
           COALESCE(
-            -- First try to get full name from course_students table (most reliable)
-            (SELECT DISTINCT cs.first_name || ' ' || cs.last_name 
-             FROM course_students cs 
-             WHERE LOWER(cs.email) = LOWER(u.email) 
-             AND cs.first_name IS NOT NULL 
-             AND cs.last_name IS NOT NULL 
+            -- First try to get full name from users table
+            NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''),
+            -- Fallback to course_students table
+            (SELECT DISTINCT cs.first_name || ' ' || cs.last_name
+             FROM course_students cs
+             WHERE LOWER(cs.email) = LOWER(u.email)
+             AND cs.first_name IS NOT NULL
+             AND cs.last_name IS NOT NULL
              LIMIT 1),
-            -- Fallback to instructor table if it exists
-            (SELECT i.name FROM instructors i WHERE i.user_id = u.id LIMIT 1),
             -- Final fallback to username if no full name found
             u.username
           ) as instructor_name
@@ -3387,15 +3387,15 @@ router.get(
         i.updated_at,
         cr.completed_at as datecompleted,
         COALESCE(
-          -- First try to get full name from course_students table (most reliable)
-          (SELECT DISTINCT cs.first_name || ' ' || cs.last_name 
-           FROM course_students cs 
-           WHERE LOWER(cs.email) = LOWER(u.email) 
-           AND cs.first_name IS NOT NULL 
-           AND cs.last_name IS NOT NULL 
+          -- First try to get full name from users table
+          NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''),
+          -- Fallback to course_students table
+          (SELECT DISTINCT cs.first_name || ' ' || cs.last_name
+           FROM course_students cs
+           WHERE LOWER(cs.email) = LOWER(u.email)
+           AND cs.first_name IS NOT NULL
+           AND cs.last_name IS NOT NULL
            LIMIT 1),
-          -- Fallback to instructor table if it exists
-          (SELECT i.name FROM instructors i WHERE i.user_id = u.id LIMIT 1),
           -- Final fallback to username if no full name found
           u.username
         ) as instructor_name,
@@ -7044,15 +7044,14 @@ router.get('/hr/profile-changes', authenticateToken, asyncHandler(async (req: Re
         pc.updated_at,
         u.username,
         u.role,
-        CASE 
-          WHEN u.role = 'instructor' THEN i.name
-          WHEN u.role = 'organization' THEN o.name
+        CASE
+          WHEN u.role = 'instructor' THEN COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), u.username)
+          WHEN u.role = 'organization' THEN COALESCE(o.name, u.username)
           ELSE u.username
         END as display_name
       FROM profile_changes pc
       JOIN users u ON pc.user_id = u.id
-      LEFT JOIN instructors i ON u.id = i.user_id
-      LEFT JOIN organizations o ON u.id = o.user_id
+      LEFT JOIN organizations o ON u.organization_id = o.id
       WHERE pc.status = 'pending'
       ORDER BY pc.created_at ASC
     `);
