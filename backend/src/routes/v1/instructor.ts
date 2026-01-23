@@ -680,9 +680,9 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
 
     // Insert student
     const insertResult = await pool.query(
-      `INSERT INTO course_students (course_request_id, first_name, last_name, email, phone, college, status, enrolled_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'enrolled', NOW())
-       RETURNING id, first_name, last_name, email, phone, college, status, enrolled_at`,
+      `INSERT INTO course_students (course_request_id, first_name, last_name, email, phone, college)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, first_name, last_name, email, phone, college, attended, attendance_marked, created_at`,
       [courseRequestId, firstName, lastName, email, phone, college || null]
     );
 
@@ -694,8 +694,8 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
       email: insertResult.rows[0].email || '',
       phone: insertResult.rows[0].phone || '',
       college: insertResult.rows[0].college || '',
-      attendance: false,
-      attendanceMarked: false,
+      attendance: insertResult.rows[0].attended || false,
+      attendanceMarked: insertResult.rows[0].attendance_marked || false,
     };
 
     console.log('[Debug] Student added to course_request:', courseRequestId, 'student:', addedStudent);
