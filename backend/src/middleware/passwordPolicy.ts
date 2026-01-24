@@ -223,7 +223,7 @@ export const validatePasswordPolicy = (policy: PasswordPolicy = DEFAULT_PASSWORD
     }
 
     // Add strength info to request for logging
-    (req as any).passwordStrength = strength;
+    req.passwordStrength = strength;
     next();
   };
 };

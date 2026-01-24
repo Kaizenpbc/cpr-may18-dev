@@ -28,13 +28,7 @@ export interface TokenPayload {
   sessionId?: string;
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: TokenPayload;
-    }
-  }
-}
+// Express Request augmentation is centralized in types/index.ts
 
 export const generateTokens = (payload: TokenPayload) => {
   const accessToken = jwt.sign(

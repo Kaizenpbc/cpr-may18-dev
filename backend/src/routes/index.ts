@@ -2,14 +2,7 @@ import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import v1Routes from './v1/index.js';
 
-// Extend Express Request type to include apiVersion
-declare global {
-  namespace Express {
-    interface Request {
-      apiVersion: string;
-    }
-  }
-}
+// Express Request augmentation is centralized in types/index.ts
 
 const router = Router();
 

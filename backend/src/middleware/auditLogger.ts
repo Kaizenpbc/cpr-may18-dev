@@ -96,9 +96,9 @@ export function createAuditEvent(
     timestamp: new Date().toISOString(),
     eventType,
     severity,
-    userId: (req as any).user?.userId,
-    userRole: (req as any).user?.role,
-    sessionId: (req as any).sessionID,
+    userId: req.user?.userId,
+    userRole: req.user?.role,
+    sessionId: req.sessionID,
     ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
     userAgent: req.get('User-Agent') || 'unknown',
     action,
@@ -134,7 +134,7 @@ export const auditLogger = (req: Request, res: Response, next: NextFunction) => 
   
   // Override res.json to capture response details
   const originalJson = res.json;
-  res.json = function(data: any) {
+  res.json = function(data: unknown) {
     const duration = Date.now() - startTime;
     const statusCode = res.statusCode;
     

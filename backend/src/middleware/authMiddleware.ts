@@ -34,13 +34,7 @@ const validateSecret = (secret: string | undefined, name: string): string => {
 const ACCESS_TOKEN_SECRET = validateSecret(process.env.JWT_ACCESS_SECRET, 'JWT_ACCESS_SECRET');
 const REFRESH_TOKEN_SECRET = validateSecret(process.env.JWT_REFRESH_SECRET, 'JWT_REFRESH_SECRET');
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: TokenPayload;
-    }
-  }
-}
+// Express Request augmentation is centralized in types/index.ts
 
 // Role-based authentication middleware
 export const requireRole = (roles: string[]) => {
@@ -196,7 +190,7 @@ const extractTokenFromHeaders = (req: Request): string | null => {
 // Middleware to authorize specific roles
 export const authorizeRoles = (allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const user = (req as any).user;
+    const user = req.user;
 
     if (!user) {
       return res.status(401).json({

@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { Request } from 'express';
 import { logSecurityEvent, AuditEventSeverity } from './auditLogger.js';
 
 // Base32 encoding/decoding helpers (RFC 4648)
@@ -273,13 +274,13 @@ export function logMFASecurityEvent(
   event: string,
   severity: AuditEventSeverity,
   userId: string,
-  details: any,
-  req?: any
+  details: Record<string, unknown>,
+  req?: Request
 ): void {
   logSecurityEvent(
     `MFA_${event}`,
     severity,
-    req || {} as any,
+    req || {} as Request,
     {
       userId,
       ...details

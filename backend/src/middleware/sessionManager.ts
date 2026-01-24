@@ -207,7 +207,7 @@ export async function validateSession(
         await logSecurityEvent(
           'SUSPICIOUS_SESSION_ACTIVITY',
           AuditEventSeverity.HIGH,
-          { ipAddress, userAgent } as any,
+          { ip: ipAddress, get: () => userAgent, url: '/session' } as unknown as Request,
           {
             sessionId,
             originalIp: session.ip_address,
@@ -337,8 +337,8 @@ export const sessionManager = async (req: Request, res: Response, next: NextFunc
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.decode(token) as any;
-    
+    const decoded = jwt.decode(token) as { sessionId?: string } | null;
+
     if (!decoded || !decoded.sessionId) {
       return next();
     }
@@ -360,8 +360,8 @@ export const sessionManager = async (req: Request, res: Response, next: NextFunc
       });
     }
 
-    // Add session info to request
-    (req as any).session = session;
+    // Add session info to request (using sessionInfo to avoid conflict with express-session)
+    req.sessionInfo = session;
     next();
   } catch (error) {
     console.error('Session management error:', error);
@@ -371,8 +371,8 @@ export const sessionManager = async (req: Request, res: Response, next: NextFunc
 
 // Middleware to require active session
 export const requireActiveSession = (req: Request, res: Response, next: NextFunction) => {
-  const session = (req as any).session;
-  
+  const session = req.sessionInfo;
+
   if (!session) {
     return res.status(401).json({
       success: false,

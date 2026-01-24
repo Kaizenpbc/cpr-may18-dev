@@ -71,15 +71,44 @@ export interface MFAStatus {
   lastVerified?: Date;
 }
 
-// Re-export the global Express augmentation
+// Note: SessionData is defined in services/sessionManager.ts
+// Import it there if needed: import { SessionData } from '../services/sessionManager.js'
+
+// Centralized Express Request augmentation
+// All Request extensions should be added here to avoid duplicate declarations
 declare global {
   namespace Express {
     interface Request {
+      // Authentication
       user?: TokenPayload;
+
+      // MFA
       mfaVerified?: boolean;
       mfaType?: string;
       mfaTime?: Date;
       mfaStatus?: MFAStatus;
+
+      // Session data (from sessionAuth.ts / services/sessionManager.ts)
+      // Using any due to circular dependency issues with SessionData type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sessionData?: any;
+      ipAddress?: string;
+      userAgent?: string;
+
+      // Session info from middleware/sessionManager.ts (distinct from express-session's session)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sessionInfo?: any;
+
+      // API versioning (from routes/index.ts)
+      apiVersion?: string;
+
+      // API Security (complex types - using any with eslint-disable)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      apiKey?: any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fingerprint?: any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      passwordStrength?: any;
     }
   }
 }

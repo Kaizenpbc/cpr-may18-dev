@@ -8,16 +8,7 @@ import { validateUserSession, SessionData } from '../services/sessionManager.js'
 import { AppError, errorCodes } from '../utils/errorHandler.js';
 import { redisManager } from '../config/redis.js';
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: TokenPayload;
-      sessionData?: SessionData;
-      ipAddress?: string;
-      userAgent?: string;
-    }
-  }
-}
+// Express Request augmentation is centralized in types/index.ts
 
 interface AuthOptions {
   requireSession?: boolean;

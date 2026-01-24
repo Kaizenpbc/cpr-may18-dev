@@ -345,11 +345,11 @@ export const apiSecurity = (config: Partial<ApiSecurityConfig> = {}) => {
         }
 
         // Add API key info to request
-        (req as any).apiKey = validKey;
+        req.apiKey = validKey;
       }
 
       // Add fingerprint to request for logging
-      (req as any).fingerprint = fingerprint;
+      req.fingerprint = fingerprint;
 
       next();
     } catch (error) {
