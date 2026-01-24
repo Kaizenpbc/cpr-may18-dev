@@ -68,14 +68,19 @@ router.get('/dashboard/stats', authenticateToken, requireRole(['instructor', 'ad
 
     // Get recent classes (last 5 completed or confirmed)
     const recentClassesResult = await pool.query(
-      `SELECT 
+      `SELECT
         cr.id,
         cr.confirmed_date as date,
         ct.name as type,
-        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as students
+        COALESCE(cs_counts.student_count, 0) as students
        FROM course_requests cr
        JOIN class_types ct ON cr.course_type_id = ct.id
-       WHERE cr.instructor_id = $1 
+       LEFT JOIN (
+         SELECT course_request_id, COUNT(*) as student_count
+         FROM course_students
+         GROUP BY course_request_id
+       ) cs_counts ON cs_counts.course_request_id = cr.id
+       WHERE cr.instructor_id = $1
        AND cr.status IN ('confirmed', 'completed')
        ORDER BY cr.confirmed_date DESC
        LIMIT 5`,
@@ -214,8 +219,9 @@ router.get('/classes', authenticateToken, requireRole(['instructor', 'admin', 's
   const userId = req.user.id;
 
   // Get confirmed course requests from course_requests table
+  // Uses LEFT JOIN with pre-aggregated counts for better performance
   const courseRequestsDbResult = await pool.query(
-    `SELECT 
+    `SELECT
       cr.id,
       cr.id as course_id,
       cr.instructor_id,
@@ -231,11 +237,18 @@ router.get('/classes', authenticateToken, requireRole(['instructor', 'admin', 's
       ct.name as coursetypename,
       COALESCE(o.name, 'Unassigned') as organizationname,
       COALESCE(cr.location, '') as notes,
-      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as studentcount,
-      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as studentsattendance
+      COALESCE(cs_counts.studentcount, 0) as studentcount,
+      COALESCE(cs_counts.studentsattendance, 0) as studentsattendance
      FROM course_requests cr
      JOIN class_types ct ON cr.course_type_id = ct.id
      LEFT JOIN organizations o ON cr.organization_id = o.id
+     LEFT JOIN (
+       SELECT course_request_id,
+              COUNT(*) as studentcount,
+              COUNT(*) FILTER (WHERE attended = true) as studentsattendance
+       FROM course_students
+       GROUP BY course_request_id
+     ) cs_counts ON cs_counts.course_request_id = cr.id
      WHERE cr.instructor_id = $1 AND cr.status = 'confirmed'
      ORDER BY cr.confirmed_date DESC`,
     [userId]
@@ -260,7 +273,7 @@ router.get('/classes/active', authenticateToken, requireRole(['instructor', 'adm
   const userId = req.user.id;
 
   const dbResult = await pool.query(
-    `SELECT 
+    `SELECT
       cr.id,
       cr.id as course_id,
       cr.instructor_id,
@@ -276,11 +289,18 @@ router.get('/classes/active', authenticateToken, requireRole(['instructor', 'adm
       ct.name as coursetypename,
       COALESCE(o.name, 'Unassigned') as organizationname,
       COALESCE(cr.location, '') as notes,
-      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as studentcount,
-      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as studentsattendance
+      COALESCE(cs_counts.studentcount, 0) as studentcount,
+      COALESCE(cs_counts.studentsattendance, 0) as studentsattendance
      FROM course_requests cr
      JOIN class_types ct ON cr.course_type_id = ct.id
      LEFT JOIN organizations o ON cr.organization_id = o.id
+     LEFT JOIN (
+       SELECT course_request_id,
+              COUNT(*) as studentcount,
+              COUNT(*) FILTER (WHERE attended = true) as studentsattendance
+       FROM course_students
+       GROUP BY course_request_id
+     ) cs_counts ON cs_counts.course_request_id = cr.id
      WHERE cr.instructor_id = $1 AND cr.status = 'confirmed' AND cr.status != 'completed'
      ORDER BY cr.confirmed_date ASC`,
     [userId]
@@ -304,7 +324,7 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor', '
   const userId = req.user.id;
 
   const dbResult2 = await pool.query(
-    `SELECT 
+    `SELECT
       cr.id,
       cr.id as course_id,
       cr.instructor_id,
@@ -320,11 +340,18 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor', '
       ct.name as coursetypename,
       COALESCE(o.name, 'Unassigned') as organizationname,
       COALESCE(cr.location, '') as notes,
-      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as studentcount,
-      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as studentsattendance
+      COALESCE(cs_counts.studentcount, 0) as studentcount,
+      COALESCE(cs_counts.studentsattendance, 0) as studentsattendance
      FROM course_requests cr
      JOIN class_types ct ON cr.course_type_id = ct.id
      LEFT JOIN organizations o ON cr.organization_id = o.id
+     LEFT JOIN (
+       SELECT course_request_id,
+              COUNT(*) as studentcount,
+              COUNT(*) FILTER (WHERE attended = true) as studentsattendance
+       FROM course_students
+       GROUP BY course_request_id
+     ) cs_counts ON cs_counts.course_request_id = cr.id
      WHERE cr.instructor_id = $1 AND cr.status = 'completed'
      ORDER BY cr.confirmed_date DESC`,
     [userId]
@@ -381,11 +408,18 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor', 'admi
       ct.name as coursetypename,
       COALESCE(o.name, 'Unassigned') as organizationname,
       COALESCE(cr.location, '') as notes,
-      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as studentcount,
-      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as studentsattendance
+      COALESCE(cs_counts.studentcount, 0) as studentcount,
+      COALESCE(cs_counts.studentsattendance, 0) as studentsattendance
      FROM course_requests cr
      JOIN class_types ct ON cr.course_type_id = ct.id
      LEFT JOIN organizations o ON cr.organization_id = o.id
+     LEFT JOIN (
+       SELECT course_request_id,
+              COUNT(*) as studentcount,
+              COUNT(*) FILTER (WHERE attended = true) as studentsattendance
+       FROM course_students
+       GROUP BY course_request_id
+     ) cs_counts ON cs_counts.course_request_id = cr.id
      WHERE cr.instructor_id = $1 AND cr.status = 'confirmed' AND cr.confirmed_date::date = $2::date
      ORDER BY cr.confirmed_date ASC`,
     [userId, todayStr]
@@ -414,7 +448,7 @@ router.get('/schedule', authenticateToken, requireRole(['instructor', 'admin', '
   }
   const userId = req.user.id;
   const courseRequestsDbResult = await pool.query(
-    `SELECT 
+    `SELECT
       cr.id,
       cr.id as course_id,
       cr.instructor_id,
@@ -430,11 +464,18 @@ router.get('/schedule', authenticateToken, requireRole(['instructor', 'admin', '
       ct.name as coursetypename,
       COALESCE(o.name, 'Unassigned') as organizationname,
       COALESCE(cr.location, '') as notes,
-      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as studentcount,
-      (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as studentsattendance
+      COALESCE(cs_counts.studentcount, 0) as studentcount,
+      COALESCE(cs_counts.studentsattendance, 0) as studentsattendance
      FROM course_requests cr
      JOIN class_types ct ON cr.course_type_id = ct.id
      LEFT JOIN organizations o ON cr.organization_id = o.id
+     LEFT JOIN (
+       SELECT course_request_id,
+              COUNT(*) as studentcount,
+              COUNT(*) FILTER (WHERE attended = true) as studentsattendance
+       FROM course_students
+       GROUP BY course_request_id
+     ) cs_counts ON cs_counts.course_request_id = cr.id
      WHERE cr.instructor_id = $1 AND cr.status = 'confirmed'
      ORDER BY cr.confirmed_date ASC`,
     [userId]

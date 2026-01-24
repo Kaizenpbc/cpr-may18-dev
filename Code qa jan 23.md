@@ -55,13 +55,15 @@
 ## HIGH PRIORITY ISSUES
 
 ### Backend
-- [ ] **60+ console.log statements expose sensitive data**
+- [x] **60+ console.log statements expose sensitive data**
   - Files: `auth.ts`, `vendor.ts`, `organization.ts`, `instructor.ts`
   - Risk: Sensitive data leakage in logs
+  - **FIXED:** Created devLog utility, replaced 150+ console.log statements in route files
 
-- [ ] **N+1 query patterns** - Subqueries in SELECT for each row
+- [x] **N+1 query patterns** - Subqueries in SELECT for each row
   - File: `backend/src/routes/v1/instructor.ts:267-268, 312-313, 356-357`
   - Impact: 100-1000x slower with large datasets
+  - **FIXED:** Replaced scalar subqueries with LEFT JOIN aggregations using COUNT(*) FILTER
 
 - [ ] **173 instances of `any` type** bypass TypeScript
   - Files: Multiple middleware, routes, utilities
@@ -242,6 +244,7 @@
 10. **Placeholder userService** - Implemented actual API calls
 11. **Username enumeration** - Now returns same error message for both user not found and invalid password
 12. **Direct axios usage** - Profile.tsx now uses api wrapper with proper auth handling
+13. **N+1 query patterns** - Replaced scalar subqueries with LEFT JOIN aggregations in instructor.ts
 
 **Build Error Fixes (required for type checking):**
 13. **encryptionConfig.ts** - Added missing `getActiveKey()` method to EncryptionService class
