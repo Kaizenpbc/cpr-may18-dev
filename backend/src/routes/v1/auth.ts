@@ -9,7 +9,7 @@ import {
 } from '../../utils/jwtUtils.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { keysToCamel } from '../../utils/caseConverter.js';
-import { AppError, errorCodes, asyncHandler } from '../../utils/errorHandler.js';
+import { AppError, errorCodes, asyncHandler, getSafeErrorMessage } from '../../utils/errorHandler.js';
 import { validateSchema, commonSchemas } from '../../middleware/inputSanitizer.js';
 import { TokenBlacklist } from '../../utils/tokenBlacklist.js';
 import {

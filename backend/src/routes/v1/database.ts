@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import pg from 'pg';
 import { asyncHandler } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
@@ -13,6 +14,16 @@ import { cacheService } from '../../services/cacheService.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { devLog } from '../../utils/devLog.js';
+
+// Use pg's built-in escapeIdentifier for safe SQL identifier interpolation
+const escapeIdentifier = (identifier: string): string => {
+  // Validate identifier against PostgreSQL naming rules
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(identifier)) {
+    throw new Error(`Invalid SQL identifier: ${identifier}`);
+  }
+  // Double-quote and escape any double quotes inside
+  return '"' + identifier.replace(/"/g, '""') + '"';
+};
 
 const router = express.Router();
 
@@ -311,16 +322,18 @@ router.post(
       for (const table of tablesResult.rows) {
         if (table.tablename && typeof table.tablename === 'string') {
           try {
+            // Use safe identifier escaping to prevent SQL injection
+            const safeTableName = escapeIdentifier(table.tablename);
             let query: string | null = null;
             switch (operation) {
               case 'vacuum':
-                query = `VACUUM ANALYZE ${table.tablename}`;
+                query = `VACUUM ANALYZE ${safeTableName}`;
                 break;
               case 'analyze':
-                query = `ANALYZE ${table.tablename}`;
+                query = `ANALYZE ${safeTableName}`;
                 break;
               case 'reindex':
-                query = `REINDEX TABLE ${table.tablename}`;
+                query = `REINDEX TABLE ${safeTableName}`;
                 break;
             }
 
@@ -351,31 +364,52 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { query, analyze = false } = req.body;
 
-    if (!query) {
+    if (!query || typeof query !== 'string') {
       throw new AppError(
         400,
         errorCodes.VALIDATION_ERROR,
-        'Query is required'
+        'Query is required and must be a string'
       );
     }
 
-    // Prevent dangerous operations
-    const dangerousKeywords = [
-      'DROP',
-      'DELETE',
-      'UPDATE',
-      'INSERT',
-      'ALTER',
-      'CREATE',
-      'TRUNCATE',
-    ];
-    const upperQuery = query.toUpperCase();
+    // Normalize query for security checks
+    const normalizedQuery = query
+      .replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
+      .replace(/--.*$/gm, '')           // Remove line comments
+      .replace(/\s+/g, ' ')             // Normalize whitespace
+      .trim()
+      .toUpperCase();
 
-    if (dangerousKeywords.some(keyword => upperQuery.includes(keyword))) {
+    // Query must start with SELECT (after normalization)
+    if (!normalizedQuery.startsWith('SELECT')) {
       throw new AppError(
         400,
         errorCodes.VALIDATION_ERROR,
         'Only SELECT queries are allowed for analysis'
+      );
+    }
+
+    // Prevent dangerous operations - check for any occurrence
+    const dangerousPatterns = [
+      /\bDROP\b/i,
+      /\bDELETE\b/i,
+      /\bUPDATE\b/i,
+      /\bINSERT\b/i,
+      /\bALTER\b/i,
+      /\bCREATE\b/i,
+      /\bTRUNCATE\b/i,
+      /\bEXEC(UTE)?\b/i,
+      /\bCALL\b/i,
+      /\bGRANT\b/i,
+      /\bREVOKE\b/i,
+      /;\s*\w/i,          // Prevent multiple statements
+    ];
+
+    if (dangerousPatterns.some(pattern => pattern.test(query))) {
+      throw new AppError(
+        400,
+        errorCodes.VALIDATION_ERROR,
+        'Query contains forbidden operations. Only simple SELECT queries are allowed.'
       );
     }
 

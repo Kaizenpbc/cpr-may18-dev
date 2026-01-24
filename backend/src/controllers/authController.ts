@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../config/database.js';
+import { devLog } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -71,7 +72,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!isValidPassword) {
-      console.log('[AuthController] Invalid password for user:', username);
+      devLog('[AuthController] Invalid password attempt');
       return res.status(401).json({ 
         error: `Incorrect password for user '${username}'. Please try again or use "Forgot Password".`,
         code: 'INVALID_PASSWORD',
@@ -127,11 +128,7 @@ router.post('/login', async (req: Request, res: Response) => {
 // Password reset request endpoint
 router.post('/forgot-password', async (req: Request, res: Response) => {
   try {
-    console.log('[AuthController] Password reset request:', {
-      headers: {
-        authorization: req.headers.authorization ? '[REDACTED]' : undefined
-      }
-    });
+    devLog('[AuthController] Password reset request received');
 
     const { email, username } = req.body;
 
@@ -169,7 +166,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       );
 
       // In a real application, you would send an email here
-      console.log('[AuthController] Password reset token generated for:', user.email || user.username);
+      devLog('[AuthController] Password reset token generated');
       
       return res.json({ 
         message: 'Password reset instructions have been sent to your email address.',

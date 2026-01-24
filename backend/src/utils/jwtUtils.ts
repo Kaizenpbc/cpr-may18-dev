@@ -1,6 +1,7 @@
 import jwt, { Secret } from 'jsonwebtoken';
 import type { Request } from 'express';
 import { AppError, errorCodes } from './errorHandler.js';
+import { devLog } from './logger.js';
 
 // JWT secrets - require env vars in production, allow fallbacks only in development
 const isProduction = process.env.NODE_ENV === 'production';
@@ -56,20 +57,12 @@ export const verifyToken = (token: string, secret: string = ACCESS_TOKEN_SECRET)
 
 export const verifyAccessToken = (token: string): TokenPayload => {
   try {
-    console.log('[Debug] jwtUtils - Verifying access token');
+    devLog('[jwtUtils] Verifying access token');
     const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET) as TokenPayload;
-    console.log(
-      '[Debug] jwtUtils - Access token verified for user:',
-      decoded.username,
-      'session:',
-      decoded.sessionId
-    );
+    devLog('[jwtUtils] Access token verified for user:', decoded.username);
     return decoded;
   } catch (error) {
-    console.error(
-      '[Debug] jwtUtils - Access token verification failed:',
-      error
-    );
+    devLog('[jwtUtils] Access token verification failed');
     throw new AppError(
       401,
       errorCodes.AUTH_TOKEN_INVALID,
@@ -80,20 +73,12 @@ export const verifyAccessToken = (token: string): TokenPayload => {
 
 export const verifyRefreshToken = (token: string): TokenPayload => {
   try {
-    console.log('[Debug] jwtUtils - Verifying refresh token');
+    devLog('[jwtUtils] Verifying refresh token');
     const decoded = jwt.verify(token, REFRESH_TOKEN_SECRET) as TokenPayload;
-    console.log(
-      '[Debug] jwtUtils - Refresh token verified for user:',
-      decoded.username,
-      'session:',
-      decoded.sessionId
-    );
+    devLog('[jwtUtils] Refresh token verified for user:', decoded.username);
     return decoded;
   } catch (error) {
-    console.error(
-      '[Debug] jwtUtils - Refresh token verification failed:',
-      error
-    );
+    devLog('[jwtUtils] Refresh token verification failed');
     throw new AppError(
       401,
       errorCodes.AUTH_TOKEN_INVALID,
@@ -103,30 +88,19 @@ export const verifyRefreshToken = (token: string): TokenPayload => {
 };
 
 export const extractTokenFromHeader = (req: Request): string | null => {
-  console.log('[Debug] jwtUtils - Extracting token from headers');
-  console.log(
-    '[Debug] jwtUtils - Authorization header:',
-    req.headers.authorization
-  );
-
   const authHeader = req.headers.authorization;
   if (!authHeader) {
-    console.log('[Debug] jwtUtils - No Authorization header found');
+    devLog('[jwtUtils] No Authorization header found');
     return null;
   }
 
   if (!authHeader.startsWith('Bearer ')) {
-    console.log(
-      '[Debug] jwtUtils - Authorization header does not start with Bearer'
-    );
+    devLog('[jwtUtils] Authorization header does not start with Bearer');
     return null;
   }
 
   const token = authHeader.split(' ')[1];
-  console.log(
-    '[Debug] jwtUtils - Token extracted:',
-    token ? 'present' : 'not present'
-  );
+  devLog('[jwtUtils] Token extracted:', token ? 'present' : 'not present');
   return token;
 };
 

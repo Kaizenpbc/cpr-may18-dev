@@ -3,9 +3,22 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Require DB_PASSWORD in production
+const getDbPassword = (): string => {
+  const password = process.env.DB_PASSWORD;
+  if (!password) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('DB_PASSWORD environment variable is required in production');
+    }
+    console.warn('⚠️  WARNING: DB_PASSWORD not set. This script should only run in development.');
+    return '';
+  }
+  return password;
+};
+
 const pool = new Pool({
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'gtacpr',
+  password: getDbPassword(),
   host: process.env.DB_HOST || '127.0.0.1',
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME || 'cpr_jun21',

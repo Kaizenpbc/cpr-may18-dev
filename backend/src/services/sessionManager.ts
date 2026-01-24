@@ -391,7 +391,8 @@ class SessionManager {
         console.log(
           `✅ [SESSION] Session ${sessionId} invalidated successfully`
         );
-        // TODO: Log security event for audit trail
+        // Note: Security event logging requires request context which is not available here.
+        // The audit trail is logged at the route level where the request is available.
         return true;
       } else {
         console.log(

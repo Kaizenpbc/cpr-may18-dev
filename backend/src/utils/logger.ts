@@ -1,7 +1,13 @@
 import winston from 'winston';
 
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
+// Production: only warnings and errors
+// Development: info and above
+const logLevel = process.env.LOG_LEVEL || (isDevelopment ? 'info' : 'warn');
+
 const logger = winston.createLogger({
-    level: 'info',
+    level: logLevel,
     format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.json()
@@ -16,4 +22,12 @@ const logger = winston.createLogger({
     ]
 });
 
-export { logger }; 
+// Development-only logging helper
+const devLog = (...args: unknown[]) => {
+    if (isDevelopment) {
+        console.log(...args);
+    }
+};
+
+// Export both logger and devLog utility
+export { logger, devLog }; 

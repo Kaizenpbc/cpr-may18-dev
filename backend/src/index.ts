@@ -20,6 +20,7 @@ import { initializeDatabaseSecurity } from './config/databaseSecurity.js';
 import { initializeDatabaseEncryption } from './utils/databaseEncryption.js';
 import { apiSecurity, initializeApiSecurity } from './middleware/apiSecurity.js';
 import { requestValidator } from './middleware/requestValidator.js';
+import { getSafeErrorMessage } from './utils/errorHandler.js';
 import { initializeSSL, checkSSLHealth } from './config/sslConfig.js';
 import { initializeEnvironmentConfig, checkConfigurationHealth } from './config/environmentConfig.js';
 import { initializeMFADatabase } from './config/mfaDatabase.js';
@@ -385,7 +386,7 @@ app.get('/api/v1/health/database', async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({
       status: 'error',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: getSafeErrorMessage(error),
       timestamp: new Date().toISOString()
     });
   }
@@ -403,7 +404,7 @@ app.get('/api/v1/health/ssl', (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({
       status: 'error',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: getSafeErrorMessage(error),
       timestamp: new Date().toISOString()
     });
   }
@@ -421,7 +422,7 @@ app.get('/api/v1/health/config', (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({
       status: 'error',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: getSafeErrorMessage(error),
       timestamp: new Date().toISOString()
     });
   }
@@ -441,7 +442,7 @@ app.get('/api/v1/health/mfa', async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({
       status: 'error',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: getSafeErrorMessage(error),
       timestamp: new Date().toISOString()
     });
   }
@@ -461,7 +462,7 @@ app.get('/api/v1/health/encryption', async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({
       status: 'error',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: getSafeErrorMessage(error),
       timestamp: new Date().toISOString()
     });
   }
@@ -481,7 +482,7 @@ app.get('/api/v1/health/security-monitoring', async (req: Request, res: Response
   } catch (error) {
     res.status(500).json({
       status: 'error',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: getSafeErrorMessage(error),
       timestamp: new Date().toISOString()
     });
   }

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Pool } from 'pg';
 import { devLog } from '../../utils/devLog.js';
+import { getSafeErrorMessage } from '../../utils/errorHandler.js';
 
 const router = Router();
 
@@ -41,7 +42,7 @@ router.get('/', async (req, res) => {
         console.error('❌ [HEALTH] Basic health check failed:', error);
         res.status(500).json({
             status: 'DOWN',
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: getSafeErrorMessage(error, 'Health check failed'),
             timestamp: new Date().toISOString()
         });
     }

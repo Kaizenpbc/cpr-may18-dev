@@ -22,6 +22,7 @@ import {
   Paper,
 } from '@mui/material';
 import api, { getInvoiceDetails, postInvoiceToOrganization } from '../../services/api';
+import { tokenService } from '../../services/tokenService';
 import EmailIcon from '@mui/icons-material/Email';
 import PostAddIcon from '@mui/icons-material/PostAdd';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -147,7 +148,7 @@ const InvoiceDetailDialog = ({
     if (open && invoiceId) {
       const fetchInvoiceDetails = async () => {
         // Check if user is authenticated before making API call
-        const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+        const token = tokenService.getAccessToken();
         if (!token) {
           setError('Please log in to view invoice details. Redirecting to login...');
           setTimeout(() => {
@@ -293,8 +294,8 @@ const InvoiceDetailDialog = ({
     try {
       logger.info(`[PDF Download] Starting download for invoice ${invoice.id}`);
 
-      // Get the auth token
-      const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+      // Get the auth token from tokenService (secure in-memory storage)
+      const token = tokenService.getAccessToken();
       
       const response = await fetch(
         `${API_URL}/accounting/invoices/${invoice.id}/pdf`,

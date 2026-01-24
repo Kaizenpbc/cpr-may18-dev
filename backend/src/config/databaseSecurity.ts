@@ -36,11 +36,24 @@ export const DEFAULT_DB_SECURITY_CONFIG: DatabaseSecurityConfig = {
   auditDatabaseAccess: true
 };
 
+// Get database password securely - require in production
+const getSecureDbPassword = (): string => {
+  const password = process.env.DB_PASSWORD;
+  if (!password) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SECURITY ERROR: DB_PASSWORD environment variable is required in production');
+    }
+    console.warn('⚠️  WARNING: DB_PASSWORD not set. Using empty password - ONLY for development!');
+    return '';
+  }
+  return password;
+};
+
 // Enhanced database configuration with security
 export const createSecureDatabaseConfig = (): PoolConfig => {
   const config: PoolConfig = {
     user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || 'gtacpr',
+    password: getSecureDbPassword(),
     host: process.env.DB_HOST || '127.0.0.1',
     port: parseInt(process.env.DB_PORT || '5432'),
     database: process.env.DB_NAME || 'cpr_jun21',

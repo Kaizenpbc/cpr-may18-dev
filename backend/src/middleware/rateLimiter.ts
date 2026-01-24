@@ -1,6 +1,8 @@
 import rateLimit from 'express-rate-limit';
 import type { Request, Response, NextFunction } from 'express';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 // Rate limit violation logger
 const logRateLimitViolation = (req: Request, limitType: string) => {
   console.warn(`🚦 [RATE LIMIT] ${limitType} violation:`);
@@ -14,7 +16,7 @@ const logRateLimitViolation = (req: Request, limitType: string) => {
 // General API rate limiter
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Limit each IP to 1000 requests per windowMs (increased for dev)
+  max: isProduction ? 100 : 1000, // Stricter in production (100), relaxed for development (1000)
   message: {
     error: {
       code: 'RATE_LIMIT_EXCEEDED',
@@ -40,7 +42,7 @@ export const apiLimiter = rateLimit({
 // Stricter limiter for auth routes
 export const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 100, // Increased from 5 to 100 for better dev experience
+  max: isProduction ? 10 : 100, // Strict in production (10), relaxed for development (100)
   message: {
     error: {
       code: 'AUTH_RATE_LIMIT_EXCEEDED',

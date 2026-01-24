@@ -16,6 +16,7 @@ import {
   Receipt as InvoiceIcon,
 } from '@mui/icons-material';
 import { API_URL } from '../../config';
+import { tokenService } from '../../services/tokenService';
 
 const PDFDemo = () => {
   const handlePreview = () => {
@@ -26,8 +27,8 @@ const PDFDemo = () => {
 
   const handleDownloadPDF = async () => {
     try {
-      // Get the auth token from localStorage
-      const token = localStorage.getItem('accessToken');
+      // Get the auth token from tokenService (secure in-memory storage)
+      const token = tokenService.getAccessToken();
 
       const response = await fetch(
         `${API_URL}/accounting/invoices/1/pdf`,
@@ -197,11 +198,12 @@ const PDFDemo = () => {
               <Button
                 variant='outlined'
                 onClick={() => {
-                  const token = localStorage.getItem('accessToken');
-                  console.log('Current token:', token);
-                  console.log('Token length:', token ? token.length : 0);
+                  const token = tokenService.getAccessToken();
+                  const status = tokenService.getSessionStatus();
+                  console.log('Current token:', token ? '[PRESENT]' : '[NONE]');
+                  console.log('Session status:', status);
                   alert(
-                    `Token available: ${token ? 'Yes' : 'No'}\nLength: ${token ? token.length : 0}`
+                    `Token available: ${token ? 'Yes' : 'No'}\nExpires: ${status.expiresAt?.toLocaleString() || 'N/A'}`
                   );
                 }}
                 size='small'

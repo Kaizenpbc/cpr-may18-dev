@@ -122,3 +122,15 @@ export function asyncHandler(fn: AsyncRequestHandler) {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 }
+
+/**
+ * Returns a sanitized error message - shows details only in development
+ * Prevents leaking sensitive error details to production users
+ */
+export function getSafeErrorMessage(error: unknown, fallback = 'An unexpected error occurred'): string {
+  if (process.env.NODE_ENV === 'development') {
+    return error instanceof Error ? error.message : String(error);
+  }
+  // In production, return generic message to avoid leaking sensitive details
+  return fallback;
+}

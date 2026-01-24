@@ -7,6 +7,7 @@ import {
 import { validateUserSession, SessionData } from '../services/sessionManager.js';
 import { AppError, errorCodes } from '../utils/errorHandler.js';
 import { redisManager } from '../config/redis.js';
+import { devLog } from '../utils/logger.js';
 
 // Express Request augmentation is centralized in types/index.ts
 
@@ -36,7 +37,7 @@ export const authenticateSession = (options: AuthOptions = {}) => {
       // Extract and verify JWT token
       const token = extractTokenFromHeader(req);
       if (!token) {
-        console.log('🔐 [SESSION AUTH] No token provided');
+        devLog('[SESSION AUTH] No token provided');
         throw new AppError(
           401,
           errorCodes.AUTH_TOKEN_MISSING,
@@ -48,7 +49,7 @@ export const authenticateSession = (options: AuthOptions = {}) => {
       try {
         decoded = verifyAccessToken(token);
       } catch (error) {
-        console.log('🔐 [SESSION AUTH] Token verification failed:', error);
+        devLog('[SESSION AUTH] Token verification failed');
         throw new AppError(
           401,
           errorCodes.AUTH_TOKEN_INVALID,
