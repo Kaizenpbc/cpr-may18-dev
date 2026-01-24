@@ -31,14 +31,16 @@
   - Risk: Vendors could download other vendors' invoices
   - **FIXED:** Added role-based authorization (staff can access all, vendors only their own)
 
-- [ ] **User-Agent security checks easily bypassed**
+- [x] **User-Agent security checks easily bypassed**
   - File: `backend/src/middleware/apiSecurity.ts:142-190`
   - Risk: Attackers can spoof headers
+  - **NOTE:** This is an inherent limitation, not a bug. UA checks are defense-in-depth against unsophisticated bots. Primary security relies on auth, CSRF, rate limiting.
 
 ### Frontend Security
-- [ ] **XSS via dangerouslySetInnerHTML** in email templates
+- [x] **XSS via dangerouslySetInnerHTML** in email templates
   - File: `frontend/src/components/portals/courseAdmin/EmailTemplateManager.tsx`
   - Risk: Script injection
+  - **ALREADY MITIGATED:** DOMPurify.sanitize() is used to sanitize HTML before rendering
 
 - [x] **Token storage mismatch** - sessionStorage vs localStorage mixed
   - File: `frontend/src/services/tokenService.ts:93-94`
