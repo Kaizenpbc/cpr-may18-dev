@@ -88,9 +88,10 @@
   - Risk: Auth tokens logged to browser console
   - **FIXED:** Replaced with devLog() utility that only logs in development
 
-- [ ] **Race condition in token refresh**
+- [x] **Race condition in token refresh**
   - File: `frontend/src/services/api.ts:62-88, 135-161`
   - Risk: Queue processing race conditions
+  - **FIXED:** Added shared refreshPromise, atomic queue swap, proper async/await handling
 
 - [x] **Placeholder services return mock data**
   - File: `frontend/src/services/userService.ts`
@@ -106,9 +107,10 @@
   - File: `frontend/src/components/PrivateRoute.tsx:21-34, 37-74`
   - Risk: Memory leaks, stale closures
 
-- [ ] **Unhandled promise rejections in token queue**
+- [x] **Unhandled promise rejections in token queue**
   - File: `frontend/src/services/api.ts:140, 166-173`
   - Risk: Application crashes
+  - **FIXED:** Properly wrap all promise chains in try/catch with explicit error handling
 
 ---
 
@@ -245,6 +247,8 @@
 11. **Username enumeration** - Now returns same error message for both user not found and invalid password
 12. **Direct axios usage** - Profile.tsx now uses api wrapper with proper auth handling
 13. **N+1 query patterns** - Replaced scalar subqueries with LEFT JOIN aggregations in instructor.ts
+14. **Token refresh race condition** - Added shared refreshPromise and atomic queue processing
+15. **Unhandled promise rejections** - Proper try/catch wrapping in token queue handlers
 
 **Build Error Fixes (required for type checking):**
 13. **encryptionConfig.ts** - Added missing `getActiveKey()` method to EncryptionService class

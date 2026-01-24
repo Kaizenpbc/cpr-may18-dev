@@ -63,30 +63,26 @@ api.interceptors.request.use(
 
 // Track refresh attempts to prevent infinite loops
 let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
 let failedQueue: Array<{
-  resolve: (value?: any) => void;
-  reject: (error?: any) => void;
+  resolve: (value: string) => void;
+  reject: (error: Error) => void;
 }> = [];
-let isProcessingQueue = false;
 
-const processQueue = (error: any, token: string | null = null) => {
-  // Prevent re-entrancy during queue processing
-  if (isProcessingQueue) return;
-  isProcessingQueue = true;
-
-  // Copy and clear queue atomically to prevent race conditions
-  const queueToProcess = [...failedQueue];
+const processQueue = (error: Error | null, token: string | null = null) => {
+  // Atomically swap out the queue to prevent race conditions
+  const queueToProcess = failedQueue;
   failedQueue = [];
 
   queueToProcess.forEach(({ resolve, reject }) => {
     if (error) {
       reject(error);
-    } else {
+    } else if (token) {
       resolve(token);
+    } else {
+      reject(new Error('Token refresh failed'));
     }
   });
-
-  isProcessingQueue = false;
 };
 
 // Add response interceptor
@@ -137,42 +133,56 @@ api.interceptors.response.use(
       if (!isRefreshing) {
         isRefreshing = true;
 
-        try {
-          devLog('🔐 [API] Attempting token refresh...');
-          const response = await tokenService.refreshTokenSilently();
+        // Create a shared promise for all concurrent 401 requests
+        refreshPromise = (async () => {
+          try {
+            devLog('🔐 [API] Attempting token refresh...');
+            const response = await tokenService.refreshTokenSilently();
 
-          if (response) {
-            devLog('🔐 [API] Token refresh successful');
-            processQueue(null, response);
-
-            // Retry the original request
-            if (originalRequest) {
-              originalRequest.headers.Authorization = response;
-              return api(originalRequest);
+            if (response) {
+              devLog('🔐 [API] Token refresh successful');
+              processQueue(null, response);
+              return response;
             }
-          }
-        } catch (refreshError) {
-          console.error('🔐 [API] Token refresh failed:', refreshError);
-          processQueue(refreshError, null);
+            throw new Error('Token refresh returned null');
+          } catch (refreshError) {
+            console.error('🔐 [API] Token refresh failed:', refreshError);
+            const error = refreshError instanceof Error ? refreshError : new Error('Token refresh failed');
+            processQueue(error, null);
 
-          // Clear tokens and redirect to login
-          tokenService.forceLogout();
-          window.location.href = '/login';
-        } finally {
-          isRefreshing = false;
+            // Clear tokens and redirect to login
+            tokenService.forceLogout();
+            window.location.href = '/login';
+            throw error;
+          } finally {
+            isRefreshing = false;
+            refreshPromise = null;
+          }
+        })();
+
+        try {
+          const token = await refreshPromise;
+          // Retry the original request
+          if (originalRequest && token) {
+            originalRequest.headers.Authorization = token;
+            return api(originalRequest);
+          }
+        } catch (err) {
+          return Promise.reject(err);
         }
       } else {
         // If refresh is already in progress, queue this request
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then(token => {
+        try {
+          const token = await new Promise<string>((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          });
           if (originalRequest) {
             originalRequest.headers.Authorization = token;
             return api(originalRequest);
           }
-        }).catch(err => {
+        } catch (err) {
           return Promise.reject(err);
-        });
+        }
       }
     }
 
