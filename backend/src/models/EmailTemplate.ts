@@ -47,7 +47,7 @@ export class EmailTemplateService {
         search,
       });
 
-      const params: any[] = [];
+      const params: (string | number | boolean | string[])[] = [];
       let query = `
         SELECT 
           id,
@@ -214,19 +214,20 @@ export class EmailTemplateService {
 
       await client.query('COMMIT');
       return result.rows[0];
-    } catch (error: any) {
+    } catch (error) {
       await client.query('ROLLBACK');
       console.error('Database error in EmailTemplate.create:', error);
+      const dbError = error as { message?: string; code?: string; detail?: string; constraint?: string };
       console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        detail: error.detail,
-        constraint: error.constraint,
+        message: dbError.message,
+        code: dbError.code,
+        detail: dbError.detail,
+        constraint: dbError.constraint,
       });
       throw new AppError(
         500,
         'DATABASE_ERROR',
-        `Failed to create email template: ${error.message}`
+        `Failed to create email template: ${dbError.message || 'Unknown error'}`
       );
     } finally {
       client.release();

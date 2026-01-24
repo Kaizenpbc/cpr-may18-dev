@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import https from 'https';
 import { logSecurityEvent, AuditEventSeverity } from '../middleware/auditLogger.js';
 
 // SSL/TLS Configuration
@@ -162,12 +163,12 @@ export function validateSSLCertificates(config: SSLConfig): boolean {
 }
 
 // Generate SSL options for Node.js
-export function generateSSLOptions(config: SSLConfig): any {
+export function generateSSLOptions(config: SSLConfig): Record<string, unknown> | null {
   if (!config.enabled) {
     return null;
   }
 
-  const sslOptions: any = {
+  const sslOptions: Record<string, unknown> = {
     key: fs.readFileSync(config.keyPath),
     cert: fs.readFileSync(config.certPath),
     secureProtocol: config.secureProtocol,
