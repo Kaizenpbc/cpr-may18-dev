@@ -164,7 +164,7 @@ const InstructorDashboard: React.FC = () => {
                   </Avatar>
                   <Box>
                     <Typography variant='h6' sx={{ color: 'white', fontWeight: 600 }}>
-                      {dashboardSummary.total_instructors}
+                      {dashboardSummary.totalInstructors}
                     </Typography>
                     <Typography variant='body2' sx={{ color: 'rgba(255,255,255,0.8)' }}>
                       Active Instructors
@@ -192,7 +192,7 @@ const InstructorDashboard: React.FC = () => {
                   </Avatar>
                   <Box>
                     <Typography variant='h6' sx={{ color: 'white', fontWeight: 600 }}>
-                      {dashboardSummary.total_courses_this_month}
+                      {dashboardSummary.totalCoursesThisMonth}
                     </Typography>
                     <Typography variant='body2' sx={{ color: 'rgba(255,255,255,0.8)' }}>
                       Total Courses
@@ -220,7 +220,7 @@ const InstructorDashboard: React.FC = () => {
                   </Avatar>
                   <Box>
                     <Typography variant='h6' sx={{ color: 'white', fontWeight: 600 }}>
-                      {dashboardSummary.total_completed_this_month}
+                      {dashboardSummary.totalCompletedThisMonth}
                     </Typography>
                     <Typography variant='body2' sx={{ color: 'rgba(255,255,255,0.8)' }}>
                       Completed Courses
@@ -249,7 +249,7 @@ const InstructorDashboard: React.FC = () => {
                   <Box>
                     <Typography variant='h6' sx={{ color: 'white', fontWeight: 600 }}>
                       {Number(
-                        dashboardSummary.avg_courses_per_instructor
+                        dashboardSummary.avgCoursesPerInstructor
                       ).toFixed(1)}
                     </Typography>
                     <Typography variant='body2' sx={{ color: 'rgba(255,255,255,0.8)' }}>
@@ -327,16 +327,16 @@ const InstructorDashboard: React.FC = () => {
               <TableBody>
                 {instructorStats.map(instructor => {
                   const workloadStatus = getWorkloadStatus(
-                    Number(instructor.total_courses),
-                    Number(dashboardSummary?.avg_courses_per_instructor || 1)
+                    Number(instructor.totalCourses),
+                    Number(dashboardSummary?.avgCoursesPerInstructor || 1)
                   );
 
                   return (
-                    <TableRow key={instructor.instructor_id}>
+                    <TableRow key={instructor.instructorId}>
                       <TableCell>
                         <Box>
                           <Typography variant='body2' fontWeight='medium'>
-                            {instructor.instructor_name}
+                            {instructor.instructorName}
                           </Typography>
                           <Typography variant='caption' color='textSecondary'>
                             {instructor.email}
@@ -345,7 +345,7 @@ const InstructorDashboard: React.FC = () => {
                       </TableCell>
                       <TableCell align='center'>
                         <Chip
-                          label={instructor.courses_completed}
+                          label={instructor.coursesCompleted}
                           color='success'
                           size='small'
                           icon={<CompletedIcon />}
@@ -353,7 +353,7 @@ const InstructorDashboard: React.FC = () => {
                       </TableCell>
                       <TableCell align='center'>
                         <Chip
-                          label={instructor.courses_scheduled}
+                          label={instructor.coursesScheduled}
                           color='info'
                           size='small'
                           icon={<ScheduleIcon />}
@@ -361,7 +361,7 @@ const InstructorDashboard: React.FC = () => {
                       </TableCell>
                       <TableCell align='center'>
                         <Typography variant='body2' fontWeight='bold'>
-                          {instructor.total_courses}
+                          {instructor.totalCourses}
                         </Typography>
                       </TableCell>
                       <TableCell align='center'>
@@ -391,7 +391,7 @@ const InstructorDashboard: React.FC = () => {
                       </TableCell>
                       <TableCell align='center'>
                         <Typography variant='body2'>
-                          {Number(instructor.avg_students_per_course).toFixed(
+                          {Number(instructor.avgStudentsPerCourse).toFixed(
                             1
                           )}
                         </Typography>

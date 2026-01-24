@@ -13,6 +13,27 @@ import type { User } from '../../types/api';
 import type { Student, ScheduledClass } from '../../types/instructor';
 import type { CombinedScheduleItem } from '../../types/instructor';
 
+interface AvailabilityDate {
+  id: number;
+  date: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+interface StudentAttendance {
+  studentid: string;
+  attendance: boolean;
+}
+
+// Extended class item for accessing additional properties
+interface ExtendedClassItem extends ScheduledClass {
+  completed?: boolean;
+  organizationname?: string;
+  course_name?: string;
+  studentcount?: number;
+  studentsattendance?: number;
+}
+
 // Lazy load components
 const InstructorDashboard = lazy(
   () => import('../instructor/InstructorDashboard')
@@ -54,7 +75,7 @@ const LoadingFallback = () => (
 
 interface InstructorPortalProps {
   user: User | null;
-  availableDates: any[];
+  availableDates: AvailabilityDate[];
   scheduledClasses: ScheduledClass[];
   completedClasses: ScheduledClass[];
   todayClasses?: ScheduledClass[];
@@ -63,7 +84,7 @@ interface InstructorPortalProps {
   onAddAvailability: (date: string) => Promise<void>;
   onRemoveAvailability: (date: string) => Promise<void>;
   onCompleteClass: (courseId: number) => Promise<void>;
-  onUpdateAttendance: (courseId: number, students: any[]) => Promise<void>;
+  onUpdateAttendance: (courseId: number, students: StudentAttendance[]) => Promise<void>;
   onRefreshData: () => void;
 }
 
@@ -94,44 +115,46 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
     scheduledClasses
       .filter((classItem) => {
         // Filter out completed classes
-        const isCompleted = classItem.status === 'completed' || 
-                          (classItem as any).completed === true ||
+        const extClass = classItem as ExtendedClassItem;
+        const isCompleted = classItem.status === 'completed' ||
+                          extClass.completed === true ||
                           classItem.status === 'Completed';
         console.log('[InstructorPortal] Filtering class:', {
-          course_id: classItem.course_id,
+          courseId: classItem.courseId,
           status: classItem.status,
-          completed: (classItem as any).completed,
+          completed: extClass.completed,
           isCompleted: isCompleted
         });
         return !isCompleted;
       })
       .forEach((classItem) => {
+        const extClass = classItem as ExtendedClassItem;
         console.log('[InstructorPortal] Processing scheduled class:', {
-          course_id: classItem.course_id,
+          courseId: classItem.courseId,
           date: classItem.date,
-          organization_name: (classItem as any).organizationname || classItem.organization_name,
-          course_name: (classItem as any).course_name || classItem.course_type,
+          organization_name: extClass.organizationname || classItem.organizationName,
+          course_name: extClass.course_name || classItem.courseType,
           location: classItem.location,
           status: classItem.status
         });
-        const dateStr = classItem.date.includes('T') 
-          ? classItem.date.split('T')[0] 
+        const dateStr = classItem.date.includes('T')
+          ? classItem.date.split('T')[0]
           : classItem.date;
-        
+
         combined.push({
-          key: `class-${classItem.course_id}`,
+          key: `class-${classItem.courseId}`,
           type: 'class',
           displayDate: formatDisplayDate(dateStr),
-          organizationname: (classItem as any).organizationname || classItem.organization_name || 'Unassigned',
+          organizationname: extClass.organizationname || classItem.organizationName || 'Unassigned',
           location: classItem.location || 'TBD',
-          coursenumber: classItem.course_id?.toString() || '',
-          coursetypename: (classItem as any).course_name || classItem.course_type || 'CPR Class',
-          studentsregistered: (classItem as any).studentcount || classItem.registered_students || 0,
-          studentsattendance: (classItem as any).studentsattendance || classItem.students_attended || 0,
+          coursenumber: classItem.courseId?.toString() || '',
+          coursetypename: extClass.course_name || classItem.courseType || 'CPR Class',
+          studentsregistered: extClass.studentcount || classItem.registeredStudents || 0,
+          studentsattendance: extClass.studentsattendance || classItem.studentsAttended || 0,
           notes: classItem.notes,
           status: classItem.status || 'scheduled',
-          course_id: classItem.course_id,
-          originalData: classItem as any
+          courseId: classItem.courseId,
+          originalData: classItem as unknown as Record<string, unknown>
         });
       });
 
@@ -244,8 +267,8 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
                     <MyClassesView
                       combinedSchedule={combinedSchedule}
                       onCompleteClass={(item) => {
-                        if (item.course_id) {
-                          onCompleteClass(item.course_id);
+                        if (item.courseId) {
+                          onCompleteClass(item.courseId);
                         }
                       }}
                       onRemoveAvailability={async (date: string) => {
