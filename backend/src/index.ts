@@ -53,10 +53,11 @@ function writeToLog(message: string, level: 'INFO' | 'ERROR' | 'WARN' | 'DEBUG' 
   }
 }
 
-function writeErrorToLog(error: any, context?: string) {
+function writeErrorToLog(error: unknown, context?: string) {
   const timestamp = new Date().toISOString();
-  const errorMessage = context ? `${context}: ${error.message || error}` : error.message || error;
-  const stackTrace = error.stack || '';
+  const errMsg = error instanceof Error ? error.message : String(error);
+  const errorMessage = context ? `${context}: ${errMsg}` : errMsg;
+  const stackTrace = error instanceof Error ? error.stack || '' : '';
   const logEntry = `[${timestamp}] [ERROR] ${errorMessage}\n${stackTrace}\n`;
 
   // Write to console
@@ -93,7 +94,7 @@ const requestLogger = (req: Request, res: Response, next: NextFunction) => {
 
   // Override res.json to log responses
   const originalJson = res.json;
-  res.json = function (data: any) {
+  res.json = function (data: unknown) {
     const duration = Date.now() - start;
     const statusCode = res.statusCode;
 
@@ -103,7 +104,8 @@ const requestLogger = (req: Request, res: Response, next: NextFunction) => {
     if (statusCode >= 400) {
       writeToLog(`❌ Error response: ${JSON.stringify(data)}`, 'ERROR');
     } else if (url.includes('/auth/login') || url.includes('/auth/register')) {
-      writeToLog(`🔐 Auth response: ${JSON.stringify({ success: data.success || false, message: data.message || 'No message' })}`, 'INFO');
+      const respData = data as { success?: boolean; message?: string };
+      writeToLog(`🔐 Auth response: ${JSON.stringify({ success: respData.success || false, message: respData.message || 'No message' })}`, 'INFO');
     }
 
     return originalJson.call(this, data);
@@ -134,7 +136,7 @@ const authLogger = (req: Request, res: Response, next: NextFunction) => {
 };
 
 // Error logging middleware
-const errorLogger = (error: any, req: Request, res: Response, next: NextFunction) => {
+const errorLogger = (error: unknown, req: Request, res: Response, next: NextFunction) => {
   writeErrorToLog(error, `Request failed: ${req.method} ${req.url}`);
   next(error);
 };
@@ -167,10 +169,11 @@ async function killProcessOnPort(port: number): Promise<void> {
             await execAsync(`taskkill /F /PID ${pid}`);
             console.log(`✅ Successfully killed process ${pid}`);
             killedAny = true;
-          } catch (killError: any) {
+          } catch (killError) {
             // Only log if it's not a "process not found" error
-            if (!killError.message?.includes('not found')) {
-              console.log(`⚠️ Could not kill process ${pid}: ${killError.message || killError}`);
+            const errMsg = killError instanceof Error ? killError.message : String(killError);
+            if (!errMsg.includes('not found')) {
+              console.log(`⚠️ Could not kill process ${pid}: ${errMsg}`);
             }
           }
         }
@@ -196,10 +199,11 @@ async function killProcessOnPort(port: number): Promise<void> {
     } else {
       console.log(`ℹ️ No processes needed to be killed on port ${port}`);
     }
-  } catch (error: any) {
+  } catch (error) {
     // Only log if it's not a "no processes found" error
-    if (!error.message?.includes('not found')) {
-      console.log(`ℹ️ Error checking port ${port}: ${error.message || error}`);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    if (!errMsg.includes('not found')) {
+      console.log(`ℹ️ Error checking port ${port}: ${errMsg}`);
     } else {
       console.log(`ℹ️ No process found on port ${port}`);
     }
@@ -560,7 +564,7 @@ app.get('/api/v1/events', (req: Request, res: Response) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Cache-Control');
 
-    const sendEvent = (data: any) => {
+    const sendEvent = (data: Record<string, unknown>) => {
       try {
         res.write(`data: ${JSON.stringify(data)}\n\n`);
       } catch (error) {
@@ -601,7 +605,12 @@ app.use(errorLogger);
 writeToLog('✅ Error logging middleware configured', 'INFO');
 
 // Global error handler (must be last)
-app.use((error: any, req: Request, res: Response, next: NextFunction) => {
+interface AppErrorLike extends Error {
+  statusCode?: number;
+  code?: string;
+}
+
+app.use((error: AppErrorLike, req: Request, res: Response, _next: NextFunction) => {
   writeErrorToLog(error, `Global error handler: ${req.method} ${req.url}`);
 
   // Handle AppError instances
