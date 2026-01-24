@@ -20,6 +20,10 @@ services:
         generateValue: true
       - key: JWT_ACCESS_SECRET
         generateValue: true
+      - key: JWT_RESET_SECRET
+        generateValue: true
+      - key: DB_ENCRYPTION_KEY
+        generateValue: true
       - key: SESSION_SECRET
         generateValue: true
       - key: DB_HOST
