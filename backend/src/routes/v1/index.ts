@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { asyncHandler } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { keysToCamel } from '../../utils/caseConverter.js';
+import { AuthenticatedRequest, isDatabaseError, getErrorMessage } from '../../types/index.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
 import { pool } from '../../config/database.js';
 import { generateTokens } from '../../utils/jwtUtils.js';
@@ -133,7 +134,7 @@ router.get(
       devLog('[Available Instructors] Results:', result.rows);
 
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching available instructors:', error);
       throw new AppError(
         500,
@@ -258,7 +259,7 @@ router.get(
     devLog('[Debug] Getting dashboard data with cache');
 
     try {
-      const user = (req as any).user;
+      const user = req.user!;
 
       // Use cached dashboard stats
       const dashboardStats = await cacheService.getDashboardStats(
@@ -481,19 +482,22 @@ router.post(
         message: 'Course request submitted successfully! Status: Pending',
         course: newCourse,
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating course request:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        detail: error.detail,
-        organizationId: req.user?.organizationId,
-        body: req.body
-      });
+      const errorMsg = getErrorMessage(error);
+      if (isDatabaseError(error)) {
+        console.error('Error details:', {
+          message: errorMsg,
+          code: error.code,
+          detail: error.detail,
+          organizationId: req.user?.organizationId,
+          body: req.body
+        });
+      }
       throw new AppError(
         500,
         errorCodes.DB_QUERY_ERROR,
-        `Failed to create course request: ${error.message}`
+        `Failed to create course request: ${errorMsg}`
       );
     }
   })
@@ -559,16 +563,14 @@ router.get(
           timeframe: `${timeframe} months`,
         }))
       );
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching course request analytics:', error);
-      if (error instanceof Error && error.stack) {
+      if (error instanceof Error) {
         console.error('Stack trace:', error.stack);
+        console.error('Error message:', error.message);
       }
-      if (error?.detail) {
+      if (isDatabaseError(error) && error.detail) {
         console.error('DB error detail:', error.detail);
-      }
-      if (error?.message) {
-        console.error('DB error message:', error.message);
       }
       throw new AppError(
         500,
@@ -622,16 +624,14 @@ router.get(
           timeframe: `${timeframe} months`,
         }))
       );
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching student participation analytics:', error);
-      if (error instanceof Error && error.stack) {
+      if (error instanceof Error) {
         console.error('Stack trace:', error.stack);
+        console.error('Error message:', error.message);
       }
-      if (error?.detail) {
+      if (isDatabaseError(error) && error.detail) {
         console.error('DB error detail:', error.detail);
-      }
-      if (error?.message) {
-        console.error('DB error message:', error.message);
       }
       throw new AppError(
         500,
@@ -681,7 +681,7 @@ router.get(
           timeframe: `${timeframe} months`,
         }))
       );
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching billing analytics:', error);
       throw new AppError(
         500,
@@ -747,7 +747,7 @@ router.post(
       }
 
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating reminder timestamp:', error);
       throw new AppError(
         500,
@@ -774,7 +774,7 @@ router.get(
       );
 
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching confirmed courses:', error);
       throw new AppError(
         500,
@@ -801,7 +801,7 @@ router.get(
       );
 
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching completed courses:', error);
       throw new AppError(
         500,
@@ -828,7 +828,7 @@ router.get(
       );
 
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching cancelled courses:', error);
       throw new AppError(
         500,
@@ -985,7 +985,7 @@ router.put(
       } finally {
         client.release();
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error cancelling course:', error);
       throw new AppError(
         500,
@@ -1153,7 +1153,7 @@ router.put(
       } finally {
         client.release();
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating course schedule:', error);
       throw new AppError(
         500,
@@ -1492,7 +1492,7 @@ router.get(
        ORDER BY u.username, ia.date`
       );
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching instructors:', error);
       throw new AppError(
         500,
@@ -1578,7 +1578,7 @@ router.get(
 
       devLog('[ORG STUDENTS] Students found:', result.rows.length);
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ORG STUDENTS] Error fetching course students:', error);
       throw new AppError(
         500,
@@ -1670,7 +1670,7 @@ router.post(
       } finally {
         client.release();
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error uploading course students:', error);
       throw new AppError(
         500,
@@ -1775,7 +1775,7 @@ router.post(
       } finally {
         client.release();
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error uploading course students:', error);
       throw new AppError(
         500,
@@ -1814,7 +1814,7 @@ router.get(
       }));
 
       return res.json(ApiResponseBuilder.success(keysToCamel(schedule)));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching instructor schedule:', error);
       throw new AppError(
         500,
@@ -1846,7 +1846,7 @@ router.get(
       }));
 
       return res.json(ApiResponseBuilder.success(keysToCamel(availability)));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching instructor availability:', error);
       throw new AppError(
         500,
@@ -2318,7 +2318,7 @@ router.post(
         `attachment; filename="weekly-schedule-${startDate}.pdf"`
       );
       res.send(pdfBuffer);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error generating weekly schedule PDF:', error);
       throw new AppError(
         500,
@@ -2396,7 +2396,7 @@ router.delete(
       } finally {
         client.release();
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error removing instructor availability:', error);
       if (error instanceof AppError) {
         throw error;
@@ -2515,7 +2515,7 @@ router.get(
     devLog('[Debug] Getting course pricing with cache');
 
     try {
-      const user = (req as any).user;
+      const user = req.user!;
 
       if (!user) {
         return res.status(401).json({
@@ -2649,7 +2649,7 @@ router.get(
         success: true,
         data: result.rows,
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching course types:', error);
       throw error;
     }
@@ -3274,7 +3274,7 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
       
       // Only allow accounting roles to access this endpoint
       if (user.role !== 'accountant') {
@@ -3478,7 +3478,7 @@ router.put(
     try {
       const { id } = req.params;
       const { amount, due_date, status, approval_status, notes } = req.body;
-      const user = (req as any).user;
+      const user = req.user!;
 
       // If this is an approval action, track the user and timestamp
       let approvedBy = null;
@@ -3998,7 +3998,7 @@ router.post(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
 
       // Only allow accountant or admin roles
       if (user.role !== 'accountant' && user.role !== 'admin') {
@@ -4033,7 +4033,7 @@ router.post(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
 
       // Only allow accountant or admin roles
       if (user.role !== 'accountant' && user.role !== 'admin') {
@@ -4471,11 +4471,11 @@ router.post(
         message: 'User created successfully',
         data: result.rows[0],
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating user:', error);
 
       // Handle specific database constraint violations
-      if (error.code === '23505') {
+      if (isDatabaseError(error) && error.code === '23505') {
         // Unique constraint violation
         if (error.constraint === 'users_email_key') {
           throw new AppError(
@@ -5174,7 +5174,7 @@ router.get(
       );
 
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching course students:', error);
       if (error instanceof AppError) {
         throw error;
@@ -5432,7 +5432,7 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
 
       if (user.role !== 'organization') {
         throw new AppError(
@@ -5565,7 +5565,7 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
       const { id } = req.params;
 
       if (user.role !== 'organization') {
@@ -5672,7 +5672,7 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
       const { id } = req.params;
 
       if (user.role !== 'organization') {
@@ -5740,7 +5740,7 @@ router.post(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
       const { id } = req.params;
       const {
         payment_method,
@@ -5952,7 +5952,7 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
 
       if (user.role !== 'organization') {
         throw new AppError(
@@ -6054,7 +6054,7 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
 
       if (user.role !== 'accountant' && user.role !== 'admin') {
         throw new AppError(
@@ -6104,7 +6104,7 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
       const { status = 'verified' } = req.query;
 
       if (user.role !== 'accountant' && user.role !== 'admin') {
@@ -6166,7 +6166,7 @@ router.post(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
       const { id } = req.params;
       const { action, notes } = req.body; // action: 'approve' or 'reject'
 
@@ -6421,7 +6421,7 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
 
       if (user.role !== 'organization') {
         throw new AppError(
@@ -6539,7 +6539,7 @@ router.post(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
       const { id } = req.params;
 
       if (user.role !== 'organization') {
@@ -6636,7 +6636,7 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
 
       if (user.role !== 'organization') {
         throw new AppError(
@@ -6775,7 +6775,7 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
 
       if (user.role !== 'organization') {
         throw new AppError(
@@ -6844,7 +6844,7 @@ router.post(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
       const { id } = req.params;
       const { reason } = req.body;
 
@@ -7194,7 +7194,7 @@ router.get(
       );
 
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching course students for accounting:', error);
       if (error instanceof AppError) {
         throw error;
@@ -7336,7 +7336,7 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
+      const user = req.user!;
       const { id } = req.params;
       const { payment_amount = 0 } = req.query;
 
