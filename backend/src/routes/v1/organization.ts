@@ -5,15 +5,8 @@ import { asyncHandler, AppError } from '../../utils/errorHandler.js';
 import { errorCodes } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { keysToCamel } from '../../utils/caseConverter.js';
-import { devLog } from '../../utils/devLog.js';
 
 const router = express.Router();
-
-// Debug test route
-router.get('/test', (req: Request, res: Response) => {
-  console.log('[ORG/TEST] Test route called');
-  res.json({ success: true, message: 'Organization router is working' });
-});
 
 // Get organization details
 router.get('/', authenticateToken, requireRole(['admin', 'organization']), asyncHandler(async (req: Request, res: Response) => {
@@ -77,17 +70,10 @@ router.put('/profile', authenticateToken, requireRole(['organization']), asyncHa
   res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
 }));
 
-router.get('/courses', authenticateToken, requireRole(['organization']), async (req: Request, res: Response) => {
-  try {
-    console.log('[ORG/COURSES] Endpoint called');
-    if (!req.user) {
-      console.log('[ORG/COURSES] No user found');
-      return res.status(401).json({ success: false, error: { code: 'NO_USER', message: 'User not authenticated' }});
-    }
-    console.log('[ORG/COURSES] User:', req.user?.username, 'OrgId:', req.user?.organizationId);
-  devLog('🔍 [TRACE] Organization courses endpoint called');
-  devLog('🔍 [TRACE] User:', req.user);
-  devLog('🔍 [TRACE] Organization ID:', req.user?.organizationId);
+router.get('/courses', authenticateToken, requireRole(['organization']), asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) {
+    throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
+  }
 
   // Pagination parameters
   const page = parseInt(req.query.page as string) || 1;
@@ -105,87 +91,45 @@ router.get('/courses', authenticateToken, requireRole(['organization']), async (
     LIMIT $2 OFFSET $3
   `;
 
-  console.log('[ORG/COURSES] Running query...');
-  devLog('🔍 [TRACE] SQL Query:', query);
-  devLog('🔍 [TRACE] Query parameters:', [req.user?.organizationId, limit, offset]);
+  const result = await pool.query(query, [req.user?.organizationId, limit, offset]);
 
-  try {
-    const result = await pool.query(query, [req.user?.organizationId, limit, offset]);
-    console.log('[ORG/COURSES] Main query success, rows:', result.rows.length);
+  // Get total count for pagination
+  const countResult = await pool.query(
+    'SELECT COUNT(*) FROM course_requests WHERE organization_id = $1 AND archived = false',
+    [req.user?.organizationId]
+  );
+  const total = parseInt(countResult.rows[0].count);
 
-    // Get total count for pagination
-    const countResult = await pool.query(
-      'SELECT COUNT(*) FROM course_requests WHERE organization_id = $1 AND archived = false',
-      [req.user?.organizationId]
-    );
-    const total = parseInt(countResult.rows[0].count);
-    console.log('[ORG/COURSES] Count query success, total:', total);
-
-    devLog('🔍 [TRACE] Query executed successfully');
-    devLog('🔍 [TRACE] Number of rows returned:', result.rows.length);
-    devLog('🔍 [TRACE] Total count:', total);
-
-    if (result.rows.length > 0) {
-      devLog('🔍 [TRACE] First row sample:');
-      const firstRow = result.rows[0];
-      Object.keys(firstRow).forEach(key => {
-        devLog(`  🔍 [TRACE] ${key}: ${firstRow[key]} (type: ${typeof firstRow[key]})`);
-      });
+  // Format date fields to YYYY-MM-DD (handles invalid dates safely)
+  const formatDateOnly = (dt: Date | string | null | undefined): string | null => {
+    if (!dt) return null;
+    try {
+      const date = new Date(dt);
+      if (isNaN(date.getTime())) return null; // Invalid date
+      return date.toISOString().slice(0, 10);
+    } catch {
+      return null;
     }
+  };
 
-    devLog('🔍 [TRACE] Sending response with data length:', result.rows.length);
+  const formatCourseRow = (row: Record<string, any>): Record<string, any> => ({
+    ...row,
+    scheduledDate: row.scheduledDate ? formatDateOnly(row.scheduledDate) : null,
+    dateRequested: row.dateRequested ? formatDateOnly(row.dateRequested) : null,
+    confirmedDate: row.confirmedDate ? formatDateOnly(row.confirmedDate) : null,
+    requestSubmittedDate: row.requestSubmittedDate ? formatDateOnly(row.requestSubmittedDate) : null,
+  });
 
-    // Format date fields to YYYY-MM-DD
-    const formatDateOnly = (dt: Date | string | null | undefined): string | null =>
-      dt ? new Date(dt).toISOString().slice(0, 10) : null;
-
-    const formatCourseRow = (row: Record<string, any>): Record<string, any> => ({
-      ...row,
-      scheduledDate: row.scheduledDate ? formatDateOnly(row.scheduledDate) : null,
-      dateRequested: row.dateRequested ? formatDateOnly(row.dateRequested) : null,
-      confirmedDate: row.confirmedDate ? formatDateOnly(row.confirmedDate) : null,
-      requestSubmittedDate: row.requestSubmittedDate ? formatDateOnly(row.requestSubmittedDate) : null,
-    });
-
-    // Convert to camelCase first, then format dates
-    console.log('[ORG/COURSES] Converting to camelCase...');
-    const camelData = keysToCamel(result.rows);
-    console.log('[ORG/COURSES] Formatting and sending response...');
-    res.json(ApiResponseBuilder.paginate(camelData.map(formatCourseRow), page, limit, total));
-    console.log('[ORG/COURSES] Response sent successfully');
-  } catch (queryError: any) {
-    console.error('[ORG/COURSES] Inner catch - Query error:', queryError.message);
-    return res.status(500).json({
-      success: false,
-      error: {
-        code: 'DEBUG_QUERY_ERROR',
-        message: queryError.message,
-        stack: queryError.stack?.split('\n').slice(0, 5).join('\n'),
-        where: queryError.where || null
-      }
-    });
-  }
-  } catch (outerError: any) {
-    console.error('[ORG/COURSES] Outer catch - Error:', outerError.message);
-    return res.status(500).json({
-      success: false,
-      error: {
-        code: 'DEBUG_OUTER_ERROR',
-        message: outerError.message,
-        stack: outerError.stack?.split('\n').slice(0, 5).join('\n')
-      }
-    });
-  }
-});
+  // Convert to camelCase first, then format dates
+  const camelData = keysToCamel(result.rows);
+  res.json(ApiResponseBuilder.paginate(camelData.map(formatCourseRow), page, limit, total));
+}));
 
 // Get archived courses for the organization
 router.get('/archive', authenticateToken, requireRole(['organization']), asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
-  devLog('🔍 [TRACE] Organization archive endpoint called');
-  devLog('🔍 [TRACE] User:', req.user);
-  devLog('🔍 [TRACE] Organization ID:', req.user?.organizationId);
 
   const query = `
     SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor,
@@ -197,17 +141,19 @@ router.get('/archive', authenticateToken, requireRole(['organization']), asyncHa
     ORDER BY cr.archived_at DESC
   `;
 
-  devLog('🔍 [TRACE] SQL Query:', query);
-  devLog('🔍 [TRACE] Query parameters:', [req.user?.organizationId]);
-
   const result = await pool.query(query, [req.user?.organizationId]);
 
-  devLog('🔍 [TRACE] Query executed successfully');
-  devLog('🔍 [TRACE] Number of rows returned:', result.rows.length);
-
-  // Format date fields to YYYY-MM-DD
-  const formatDateOnly = (dt: Date | string | null | undefined): string | null =>
-    dt ? new Date(dt).toISOString().slice(0, 10) : null;
+  // Format date fields to YYYY-MM-DD (handles invalid dates safely)
+  const formatDateOnly = (dt: Date | string | null | undefined): string | null => {
+    if (!dt) return null;
+    try {
+      const date = new Date(dt);
+      if (isNaN(date.getTime())) return null; // Invalid date
+      return date.toISOString().slice(0, 10);
+    } catch {
+      return null;
+    }
+  };
 
   const formatArchiveRow = (row: Record<string, any>): Record<string, any> => ({
     ...row,
