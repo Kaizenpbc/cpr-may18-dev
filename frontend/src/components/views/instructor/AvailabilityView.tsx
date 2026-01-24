@@ -199,17 +199,20 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
         }
         setSuccessMessage('Availability removed successfully');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       handleError(err, { component: 'AvailabilityView', action: 'update availability' });
-      setError(err.message || 'Failed to update availability');
+      setError(err instanceof Error ? err.message : 'Failed to update availability');
     } finally {
       handleConfirmationClose();
     }
   };
 
-  const CustomDay = (props: any) => {
+  const CustomDay = (props: { day: Date; [key: string]: unknown }) => {
     const { day, ...other } = props;
     const dateStr = format(day, 'yyyy-MM-dd');
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const isToday = dateStr === todayStr;
+
     const isAvailable = availableDates.some(d => {
       if (!d) return false;
       const dStr = typeof d === 'string' ? d.slice(0, 10) : '';
@@ -224,21 +227,25 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
 
     const isHoliday = holidays.includes(dateStr);
     const isPastDate = day < new Date(new Date().setHours(0, 0, 0, 0));
-    
+
     // Check if date is within 11 days
     const today = new Date();
     const diffTime = day.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     const isWithin11Days = diffDays < 11;
 
-    // Color available dates GREEN
+    // Color logic with priority: Scheduled > Available > Today > Past > Default
     let backgroundColor, hoverColor, tooltipTitle, textColor;
+    let borderStyle = 'none';
+    let opacity = 1;
+    let cursor = 'pointer';
 
     if (isScheduled) {
       // Blue = Scheduled Classes
       backgroundColor = theme.palette.primary.main;
       hoverColor = theme.palette.primary.dark;
       textColor = 'white';
+      cursor = 'not-allowed';
       const classInfo = scheduledClasses.find(
         c => (c.date || c.datescheduled) === dateStr
       );
@@ -248,11 +255,25 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
       backgroundColor = theme.palette.success.main;
       hoverColor = theme.palette.success.dark;
       textColor = 'white';
-      tooltipTitle = isWithin11Days 
+      tooltipTitle = isWithin11Days
         ? 'Cannot unmark availability within 11 days'
         : isPastDate
         ? 'Cannot unmark past availability'
         : 'Available - Click to remove';
+    } else if (isPastDate) {
+      // Grey out past dates
+      backgroundColor = theme.palette.grey[300];
+      hoverColor = theme.palette.grey[300];
+      textColor = theme.palette.grey[500];
+      opacity = 0.6;
+      cursor = 'not-allowed';
+      tooltipTitle = 'Past date - Cannot mark availability';
+    } else if (isToday) {
+      // Yellow circle for today
+      backgroundColor = '#FFC107'; // Yellow/Amber
+      hoverColor = '#FFB300';
+      textColor = '#000';
+      tooltipTitle = 'Today - Click to mark as available';
     } else {
       // All other dates use default styling
       backgroundColor = 'inherit';
@@ -261,11 +282,14 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
 
       if (isHoliday) {
         tooltipTitle = 'Holiday';
-      } else if (isPastDate) {
-        tooltipTitle = 'Past Date';
       } else {
         tooltipTitle = 'Click to mark as available';
       }
+    }
+
+    // Add yellow border for today regardless of other styling
+    if (isToday && !isPastDate) {
+      borderStyle = '3px solid #FFC107';
     }
 
     return (
@@ -274,30 +298,34 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
           <PickersDay
             {...other}
             day={day}
+            disabled={isPastDate && !isAvailable && !isScheduled}
             onClick={() => {
-              if (isAvailable) {
-                if (isPastDate) {
+              // Block clicks on past dates
+              if (isPastDate) {
+                if (isAvailable) {
                   setError('Cannot unmark past availability');
-                  return;
                 }
-                if (isWithin11Days) {
-                  setError('Cannot unmark availability within 11 days');
-                  return;
-                }
+                return;
+              }
+              if (isAvailable && isWithin11Days) {
+                setError('Cannot unmark availability within 11 days');
+                return;
               }
               handleDateClick(day);
             }}
             sx={{
               backgroundColor: `${backgroundColor}!important`,
               color: `${textColor}!important`,
-              cursor: isScheduled ? 'not-allowed' : 'pointer',
+              cursor: cursor,
+              opacity: opacity,
+              border: borderStyle,
               '&:hover': {
                 backgroundColor: `${hoverColor}!important`,
               },
               '&.Mui-disabled': {
                 backgroundColor: `${backgroundColor}!important`,
                 color: `${textColor}!important`,
-                opacity: 0.7,
+                opacity: opacity,
               },
             }}
           />
@@ -371,6 +399,18 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
                       width: 20,
                       height: 20,
                       borderRadius: '50%',
+                      backgroundColor: '#FFC107',
+                      border: '2px solid #FFB300',
+                    }}
+                  />
+                  <Typography variant='body2'>Today</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box
+                    sx={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: '50%',
                       backgroundColor: theme.palette.success.main,
                     }}
                   />
@@ -387,6 +427,18 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
                   />
                   <Typography variant='body2'>Scheduled Classes</Typography>
                 </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box
+                    sx={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: '50%',
+                      backgroundColor: theme.palette.grey[300],
+                      opacity: 0.6,
+                    }}
+                  />
+                  <Typography variant='body2'>Past (unavailable)</Typography>
+                </Box>
                 <Box
                   sx={{
                     mt: 1,
@@ -395,7 +447,7 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
                   }}
                 >
                   <Typography variant='caption' color='text.secondary'>
-                    Click on any date to toggle availability
+                    Click on future dates to toggle availability
                   </Typography>
                 </Box>
               </Box>
