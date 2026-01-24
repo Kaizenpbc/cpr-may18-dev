@@ -1,5 +1,5 @@
-import { pool } from '../config/database';
-import { AppError, errorCodes } from '../utils/errorHandler';
+import { pool } from '../config/database.js';
+import { AppError, errorCodes } from '../utils/errorHandler.js';
 
 export interface PaymentRequest {
   id?: number;
@@ -258,12 +258,12 @@ export class PaymentRequestService {
       `, [...params, limit, offset]);
       
       // Parse course details for each request
-      const requestsWithCourseDetails = requestsResult.rows.map(request => {
-        let courseDetails = [];
+      const requestsWithCourseDetails = requestsResult.rows.map((request) => {
+        let courseDetails: unknown[] = [];
         if (request.course_details) {
           try {
-            courseDetails = typeof request.course_details === 'string' 
-              ? JSON.parse(request.course_details) 
+            courseDetails = typeof request.course_details === 'string'
+              ? JSON.parse(request.course_details)
               : request.course_details;
           } catch (error) {
             console.error('Error parsing course details:', error);
@@ -274,7 +274,7 @@ export class PaymentRequestService {
           ...request,
           course_details: courseDetails
         };
-      });
+      }) as PaymentRequestDetail[];
       
       // Get total count for pagination
       const countResult = await client.query(`

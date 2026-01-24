@@ -715,16 +715,16 @@ export class PDFService {
 
   static async generatePaymentReceipt(payment: PaymentData): Promise<Buffer> {
     const browser = await puppeteer.launch({
-      headless: 'new',
+      headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
 
     try {
       const page = await browser.newPage();
       const html = this.getPaymentReceiptHTML(payment);
-      
+
       await page.setContent(html, { waitUntil: 'networkidle0' });
-      
+
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
@@ -736,7 +736,7 @@ export class PDFService {
         }
       });
 
-      return pdfBuffer;
+      return Buffer.from(pdfBuffer);
     } finally {
       await browser.close();
     }

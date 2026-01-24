@@ -554,6 +554,24 @@ This is an automated reminder. For questions, please contact our accounting depa
       return false;
     }
   }
+
+  /**
+   * Send MFA verification code email
+   */
+  async sendMFAVerificationCode(
+    userEmail: string,
+    code: string,
+    expiryMinutes: number
+  ): Promise<void> {
+    const subject = 'CPR Training System - MFA Verification Code';
+    const html = `
+      <h2>MFA Verification Code</h2>
+      <p>Your verification code is: <strong>${code}</strong></p>
+      <p>This code will expire in ${expiryMinutes} minutes.</p>
+      <p>If you didn't request this code, please ignore this email.</p>
+    `;
+    await this.sendEmail(userEmail, subject, html);
+  }
 }
 
 // Export the singleton instance

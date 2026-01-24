@@ -247,16 +247,11 @@ export class MFAService {
       await this.storeMFACode(userId, 'email', code, this.config.email.expiryMinutes);
 
       // Send email
-      await emailService.sendEmail({
-        to: userEmail,
-        subject: 'CPR Training System - MFA Verification Code',
-        html: `
-          <h2>MFA Verification Code</h2>
-          <p>Your verification code is: <strong>${code}</strong></p>
-          <p>This code will expire in ${this.config.email.expiryMinutes} minutes.</p>
-          <p>If you didn't request this code, please ignore this email.</p>
-        `
-      });
+      await emailService.sendMFAVerificationCode(
+        userEmail,
+        code,
+        this.config.email.expiryMinutes
+      );
 
       // Log security event
       logMFASecurityEvent(

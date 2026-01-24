@@ -243,6 +243,27 @@
 11. **Username enumeration** - Now returns same error message for both user not found and invalid password
 12. **Direct axios usage** - Profile.tsx now uses api wrapper with proper auth handling
 
+**Build Error Fixes (required for type checking):**
+13. **encryptionConfig.ts** - Added missing `getActiveKey()` method to EncryptionService class
+14. **invoiceTemplates.ts** - Fixed RegExp to string conversion using `pattern.source`
+15. **timesheet.ts** - Added proper type imports (Request, Response, NextFunction) and `.js` extensions
+
+---
+
+## Pre-Existing Build Issues (102 TypeScript errors)
+
+### Backend
+- Multiple route files missing `.js` import extensions (payRates.ts, timesheet.ts, etc.)
+- `req.user` accessed without undefined checks across many route handlers
+- Configuration type mismatches in encryptionConfig.ts, sslConfig.ts, environmentConfig.ts
+- Missing methods on NotificationService class
+- `base32` encoding issues in mfaConfig.ts
+
+### Frontend
+- Test files have outdated imports (@testing-library/react)
+- PaymentRequest interface missing properties (base_amount, hourly_rate, etc.)
+- Module resolution issues in test files
+
 ---
 
 ## Notes

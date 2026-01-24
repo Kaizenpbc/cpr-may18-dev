@@ -7,12 +7,12 @@ export interface InvoiceTemplate {
   vendorName: string;
   templateName: string;
   fieldPatterns: {
-    invoiceNumber: string[];
-    invoiceDate: string[];
-    dueDate: string[];
-    amount: string[];
-    description: string[];
-    vendorName: string[];
+    invoiceNumber: RegExp[];
+    invoiceDate: RegExp[];
+    dueDate: RegExp[];
+    amount: RegExp[];
+    description: RegExp[];
+    vendorName: RegExp[];
   };
   confidenceThreshold: number;
   isActive: boolean;
@@ -214,7 +214,7 @@ export class InvoiceTemplateService {
       for (const pattern of patterns) {
         const match = text.match(new RegExp(pattern, 'i'));
         if (match && match[1]) {
-          const matchConfidence = this.calculateConfidence(match[0], pattern);
+          const matchConfidence = this.calculateConfidence(match[0], pattern.source);
           if (matchConfidence > bestConfidence) {
             bestMatch = match[1].trim();
             bestConfidence = matchConfidence;
@@ -226,10 +226,11 @@ export class InvoiceTemplateService {
       confidence[field] = bestConfidence;
     });
 
+    const confidenceValues = Object.values(confidence) as number[];
     return {
       data: result,
       confidence: confidence,
-      overallConfidence: Object.values(confidence).reduce((a: number, b: number) => a + b, 0) / Object.keys(confidence).length
+      overallConfidence: confidenceValues.reduce((a, b) => a + b, 0) / confidenceValues.length
     };
   }
 

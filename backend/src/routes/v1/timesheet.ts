@@ -1,22 +1,22 @@
-import express from 'express';
-import { authenticateToken } from '../../middleware/authMiddleware';
-import { asyncHandler } from '../../middleware/asyncHandler';
-import { AppError, errorCodes } from '../../utils/errorHandler';
-import { pool } from '../../config/database';
+import express, { Request, Response, NextFunction } from 'express';
+import { authenticateToken } from '../../middleware/authMiddleware.js';
+import { asyncHandler } from '../../middleware/asyncHandler.js';
+import { AppError, errorCodes } from '../../utils/errorHandler.js';
+import { pool } from '../../config/database.js';
 
 const router = express.Router();
 
 // Middleware to ensure HR or instructor role
-const requireTimesheetAccess = (req: any, res: any, next: any) => {
-  if (!['hr', 'instructor'].includes(req.user.role)) {
+const requireTimesheetAccess = (req: Request, res: Response, next: NextFunction) => {
+  if (!['hr', 'instructor'].includes(req.user?.role || '')) {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. HR or instructor role required.');
   }
   next();
 };
 
 // Get Timesheet Statistics (HR only)
-router.get('/stats', authenticateToken, asyncHandler(async (req, res) => {
-  if (req.user.role !== 'hr') {
+router.get('/stats', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  if (req.user?.role !== 'hr') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. HR role required.');
   }
 
@@ -66,7 +66,7 @@ router.get('/stats', authenticateToken, asyncHandler(async (req, res) => {
 }));
 
 // Get Timesheets (with filtering)
-router.get('/', authenticateToken, requireTimesheetAccess, asyncHandler(async (req, res) => {
+router.get('/', authenticateToken, requireTimesheetAccess, asyncHandler(async (req: Request, res: Response) => {
   const client = await pool.connect();
   
   try {
@@ -140,7 +140,7 @@ router.get('/', authenticateToken, requireTimesheetAccess, asyncHandler(async (r
 }));
 
 // Get Timesheet Details
-router.get('/:timesheetId', authenticateToken, requireTimesheetAccess, asyncHandler(async (req, res) => {
+router.get('/:timesheetId', authenticateToken, requireTimesheetAccess, asyncHandler(async (req: Request, res: Response) => {
   const { timesheetId } = req.params;
   const client = await pool.connect();
   
@@ -178,7 +178,7 @@ router.get('/:timesheetId', authenticateToken, requireTimesheetAccess, asyncHand
 }));
 
 // Submit Timesheet (Instructors only)
-router.post('/', authenticateToken, asyncHandler(async (req, res) => {
+router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   if (req.user.role !== 'instructor') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only instructors can submit timesheets.');
   }
@@ -260,7 +260,7 @@ router.post('/', authenticateToken, asyncHandler(async (req, res) => {
 }));
 
 // Update Timesheet (Instructors only)
-router.put('/:timesheetId', authenticateToken, asyncHandler(async (req, res) => {
+router.put('/:timesheetId', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   if (req.user.role !== 'instructor') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only instructors can update timesheets.');
   }
@@ -304,7 +304,7 @@ router.put('/:timesheetId', authenticateToken, asyncHandler(async (req, res) => 
 }));
 
 // Approve/Reject Timesheet (HR only)
-router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req, res) => {
+router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   if (req.user.role !== 'hr') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. HR role required.');
   }
@@ -348,7 +348,7 @@ router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req,
     if (action === 'approve') {
       try {
         // Import the service dynamically to avoid circular dependencies
-        const { PaymentRequestService } = await import('../../services/paymentRequestService');
+        const { PaymentRequestService } = await import('../../services/paymentRequestService.js');
         paymentRequest = await PaymentRequestService.createPaymentRequest(timesheetId);
       } catch (paymentError) {
         console.error('Error creating payment request:', paymentError);
@@ -386,7 +386,7 @@ router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req,
 }));
 
 // Get Instructor Timesheet Summary
-router.get('/instructor/:instructorId/summary', authenticateToken, requireTimesheetAccess, asyncHandler(async (req, res) => {
+router.get('/instructor/:instructorId/summary', authenticateToken, requireTimesheetAccess, asyncHandler(async (req: Request, res: Response) => {
   const { instructorId } = req.params;
   const client = await pool.connect();
   
@@ -426,7 +426,7 @@ router.get('/instructor/:instructorId/summary', authenticateToken, requireTimesh
 }));
 
 // Get courses for a specific week (Monday to Sunday)
-router.get('/week/:weekStartDate/courses', authenticateToken, asyncHandler(async (req, res) => {
+router.get('/week/:weekStartDate/courses', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   if (req.user.role !== 'instructor') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only instructors can access this endpoint.');
   }
@@ -485,7 +485,7 @@ router.get('/week/:weekStartDate/courses', authenticateToken, asyncHandler(async
 }));
 
 // Add Note to Timesheet
-router.post('/:timesheetId/notes', authenticateToken, asyncHandler(async (req, res) => {
+router.post('/:timesheetId/notes', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const { timesheetId } = req.params;
   const { note_text, note_type = 'general' } = req.body;
   
@@ -560,7 +560,7 @@ router.post('/:timesheetId/notes', authenticateToken, asyncHandler(async (req, r
 }));
 
 // Get Timesheet Notes
-router.get('/:timesheetId/notes', authenticateToken, requireTimesheetAccess, asyncHandler(async (req, res) => {
+router.get('/:timesheetId/notes', authenticateToken, requireTimesheetAccess, asyncHandler(async (req: Request, res: Response) => {
   const { timesheetId } = req.params;
   const client = await pool.connect();
   
@@ -586,7 +586,7 @@ router.get('/:timesheetId/notes', authenticateToken, requireTimesheetAccess, asy
 }));
 
 // Delete Note (only by the user who created it or HR/Admin)
-router.delete('/:timesheetId/notes/:noteId', authenticateToken, asyncHandler(async (req, res) => {
+router.delete('/:timesheetId/notes/:noteId', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const { timesheetId, noteId } = req.params;
   const client = await pool.connect();
   

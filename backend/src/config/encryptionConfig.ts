@@ -360,6 +360,11 @@ export class EncryptionService {
     return this.keyManager.rotateKey();
   }
 
+  // Get active encryption key
+  getActiveKey(): EncryptionKey | null {
+    return this.keyManager.getActiveKey();
+  }
+
   // Get encryption statistics
   getEncryptionStats(): {
     totalKeys: number;
