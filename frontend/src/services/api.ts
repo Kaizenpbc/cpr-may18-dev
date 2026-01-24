@@ -559,6 +559,12 @@ export const organizationApi = {
       throw error;
     }
   },
+
+  // Get students for a course
+  getCourseStudents: async (courseId: number) => {
+    const response = await api.get(`/organization/courses/${courseId}/students`);
+    return response.data;
+  },
 };
 
 // Student endpoints

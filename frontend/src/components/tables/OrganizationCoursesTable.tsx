@@ -27,12 +27,12 @@ import { formatDisplayDate } from '../../utils/dateUtils';
 
 interface Course {
   id: string | number;
-  request_submitted_date: string; // When organization submitted the request
-  scheduled_date: string; // Organization's preferred date
-  course_type_name: string;
+  requestSubmittedDate: string; // When organization submitted the request
+  scheduledDate: string; // Organization's preferred date
+  courseTypeName: string;
   location: string;
-  registered_students: number;
-  students_attended?: number;
+  registeredStudents: number;
+  studentsAttended?: number;
   status: string;
   instructor: string;
   notes?: string;
@@ -88,10 +88,10 @@ const isUploadDisabled = course => {
     return true;
   }
 
-  // Disable if it's the day of the class (scheduled_date)
-  if (course.scheduled_date) {
+  // Disable if it's the day of the class (scheduledDate)
+  if (course.scheduledDate) {
     const today = new Date();
-    const classDate = new Date(course.scheduled_date);
+    const classDate = new Date(course.scheduledDate);
 
     // Set both dates to start of day for accurate comparison
     today.setHours(0, 0, 0, 0);
@@ -110,9 +110,9 @@ const getUploadTooltip = course => {
     return `Cannot upload students - Course is ${course.status?.toLowerCase()}`;
   }
 
-  if (course.scheduled_date) {
+  if (course.scheduledDate) {
     const today = new Date();
-    const classDate = new Date(course.scheduled_date);
+    const classDate = new Date(course.scheduledDate);
 
     today.setHours(0, 0, 0, 0);
     classDate.setHours(0, 0, 0, 0);
@@ -175,9 +175,9 @@ const OrganizationCoursesTable: React.FC<OrganizationCoursesTableProps> = ({
 
             return (
               <TableRow key={course.id} hover>
-                <TableCell>{formatDisplayDate(course.request_submitted_date)}</TableCell>
-                <TableCell>{formatDisplayDate(course.scheduled_date)}</TableCell>
-                <TableCell>{course.course_type_name || '-'}</TableCell>
+                <TableCell>{formatDisplayDate(course.requestSubmittedDate)}</TableCell>
+                <TableCell>{formatDisplayDate(course.scheduledDate)}</TableCell>
+                <TableCell>{course.courseTypeName || '-'}</TableCell>
                 <TableCell>{course.location || '-'}</TableCell>
                 <TableCell>
                   <Box
@@ -190,7 +190,7 @@ const OrganizationCoursesTable: React.FC<OrganizationCoursesTableProps> = ({
                   >
                     <RegisteredIcon fontSize='small' color='primary' />
                     <Typography variant='body2' color='primary.main'>
-                      {course.registered_students || 0}
+                      {course.registeredStudents || 0}
                     </Typography>
                   </Box>
                 </TableCell>
@@ -205,7 +205,7 @@ const OrganizationCoursesTable: React.FC<OrganizationCoursesTableProps> = ({
                   >
                     <AttendedIcon fontSize='small' color='success' />
                     <Typography variant='body2' color='success.main'>
-                      {course.students_attended || 0}
+                      {course.studentsAttended || 0}
                     </Typography>
                   </Box>
                 </TableCell>

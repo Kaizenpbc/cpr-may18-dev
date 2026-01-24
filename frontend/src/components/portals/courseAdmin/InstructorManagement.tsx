@@ -2083,8 +2083,8 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
         onClose={handleViewStudentsClose}
         courseId={selectedCourseForStudents?.id || null}
         courseInfo={{
-          course_type: selectedCourseForStudents?.courseTypeName || selectedCourseForStudents?.courseType,
-          organization_name: selectedCourseForStudents?.organizationName,
+          courseType: selectedCourseForStudents?.courseTypeName || selectedCourseForStudents?.courseType,
+          organizationName: selectedCourseForStudents?.organizationName,
           location: selectedCourseForStudents?.location,
         }}
       />

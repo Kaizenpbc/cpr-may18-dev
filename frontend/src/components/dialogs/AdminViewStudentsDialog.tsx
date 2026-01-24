@@ -29,13 +29,13 @@ import { useAuth } from '../../contexts/AuthContext';
 
 interface Student {
   id: number;
-  course_request_id: number;
-  first_name: string;
-  last_name: string;
+  courseRequestId: number;
+  firstName: string;
+  lastName: string;
   email?: string;
   attended?: boolean;
-  attendance_marked?: boolean;
-  created_at?: string;
+  attendanceMarked?: boolean;
+  createdAt?: string;
 }
 
 interface AdminViewStudentsDialogProps {
@@ -43,8 +43,8 @@ interface AdminViewStudentsDialogProps {
   onClose: () => void;
   courseId: number | null;
   courseInfo?: {
-    course_type?: string;
-    organization_name?: string;
+    courseType?: string;
+    organizationName?: string;
     location?: string;
   };
 }
@@ -81,11 +81,12 @@ const AdminViewStudentsDialog: React.FC<AdminViewStudentsDialogProps> = ({
             `[${user?.role || 'User'}] Successfully fetched ${studentsData.length} students for course: ${courseId}`
           );
           setStudents(studentsData);
-        } catch (err: any) {
+        } catch (err: unknown) {
           logger.error(`[${user?.role || 'User'}] Failed to fetch students:`, err);
+          const errObj = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
           setError(
-            err.response?.data?.error?.message ||
-              err.message ||
+            errObj.response?.data?.error?.message ||
+              errObj.message ||
               'Failed to fetch students'
           );
         } finally {
@@ -106,7 +107,7 @@ const AdminViewStudentsDialog: React.FC<AdminViewStudentsDialogProps> = ({
   };
 
   const getAttendanceChip = (student: Student) => {
-    if (!student.attendance_marked) {
+    if (!student.attendanceMarked) {
       return (
         <Chip
           icon={<NotMarkedIcon />}
@@ -137,7 +138,7 @@ const AdminViewStudentsDialog: React.FC<AdminViewStudentsDialogProps> = ({
   // Calculate attendance statistics
   const attendanceStats = students.reduce(
     (stats, student) => {
-      if (student.attendance_marked) {
+      if (student.attendanceMarked) {
         stats.marked++;
         if (student.attended) {
           stats.present++;
@@ -173,7 +174,7 @@ const AdminViewStudentsDialog: React.FC<AdminViewStudentsDialogProps> = ({
         </Box>
         {courseInfo && (
           <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
-            {courseInfo.course_type} - {courseInfo.organization_name} -{' '}
+            {courseInfo.courseType} - {courseInfo.organizationName} -{' '}
             {courseInfo.location}
           </Typography>
         )}
@@ -260,7 +261,7 @@ const AdminViewStudentsDialog: React.FC<AdminViewStudentsDialogProps> = ({
                           sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
                         >
                           <Typography variant='body1' fontWeight='medium'>
-                            {student.first_name} {student.last_name}
+                            {student.firstName} {student.lastName}
                           </Typography>
                           {getAttendanceChip(student)}
                         </Box>
@@ -285,12 +286,12 @@ const AdminViewStudentsDialog: React.FC<AdminViewStudentsDialogProps> = ({
                               </Typography>
                             </Box>
                           )}
-                          {student.created_at && (
+                          {student.createdAt && (
                             <Typography
                               variant='caption'
                               color='text.secondary'
                             >
-                              Added: {formatDate(student.created_at)}
+                              Added: {formatDate(student.createdAt)}
                             </Typography>
                           )}
                         </Box>

@@ -65,7 +65,7 @@ const ViewStudentsDialog = ({ open, onClose, courseId }) => {
   };
 
   const getAttendanceChip = student => {
-    if (!student.attendance_marked) {
+    if (!student.attendanceMarked) {
       return (
         <Chip
           icon={<NotMarkedIcon />}
@@ -96,7 +96,7 @@ const ViewStudentsDialog = ({ open, onClose, courseId }) => {
   // Calculate attendance statistics
   const attendanceStats = students.reduce(
     (stats, student) => {
-      if (student.attendance_marked) {
+      if (student.attendanceMarked) {
         stats.marked++;
         if (student.attended) {
           stats.present++;
@@ -215,7 +215,7 @@ const ViewStudentsDialog = ({ open, onClose, courseId }) => {
                           sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
                         >
                           <Typography variant='body1' fontWeight='medium'>
-                            {student.first_name} {student.last_name}
+                            {student.firstName} {student.lastName}
                           </Typography>
                           {getAttendanceChip(student)}
                         </Box>
@@ -240,12 +240,12 @@ const ViewStudentsDialog = ({ open, onClose, courseId }) => {
                               </Typography>
                             </Box>
                           )}
-                          {student.created_at && (
+                          {student.createdAt && (
                             <Typography
                               variant='caption'
                               color='text.secondary'
                             >
-                              Added: {formatDate(student.created_at)}
+                              Added: {formatDate(student.createdAt)}
                             </Typography>
                           )}
                         </Box>

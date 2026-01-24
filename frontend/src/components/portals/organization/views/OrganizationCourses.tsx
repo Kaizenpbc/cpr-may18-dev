@@ -56,11 +56,11 @@ interface Course {
 
 interface Student {
   id: number;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   attended?: boolean;
-  attendance_marked?: boolean;
+  attendanceMarked?: boolean;
 }
 
 interface OrganizationCoursesProps {
@@ -436,10 +436,10 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
                 <React.Fragment key={student.id}>
                   <ListItem>
                     <ListItemText
-                      primary={`${student.first_name} ${student.last_name}`}
+                      primary={`${student.firstName} ${student.lastName}`}
                       secondary={student.email}
                     />
-                    {student.attendance_marked && (
+                    {student.attendanceMarked && (
                       <Chip
                         label={student.attended ? 'Attended' : 'No Show'}
                         color={student.attended ? 'success' : 'error'}
