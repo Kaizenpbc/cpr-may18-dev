@@ -25,6 +25,11 @@ export function keysToCamel<T>(obj: T): T {
     return obj;
   }
 
+  // Preserve Date objects - don't convert them to empty objects
+  if (obj instanceof Date) {
+    return obj;
+  }
+
   if (Array.isArray(obj)) {
     return obj.map(item => keysToCamel(item)) as T;
   }
@@ -46,6 +51,11 @@ export function keysToCamel<T>(obj: T): T {
  */
 export function keysToSnake<T>(obj: T): T {
   if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  // Preserve Date objects - don't convert them to empty objects
+  if (obj instanceof Date) {
     return obj;
   }
 
