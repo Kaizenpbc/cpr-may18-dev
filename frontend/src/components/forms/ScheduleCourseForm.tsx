@@ -20,7 +20,9 @@ import { getTodayDate } from '../../utils/dateUtils';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
 import { AxiosResponse } from 'axios';
+import { format } from 'date-fns';
 
 interface CourseType {
   id: number;
@@ -43,12 +45,45 @@ interface ApiResponse {
   success: boolean;
   error?: string;
   message?: string;
-  course?: any;
+  course?: { id: number; scheduled_date: string; course_type_id: number };
 }
 
 interface ScheduleCourseFormProps {
   onCourseScheduled: () => void;
 }
+
+// Custom day component for the DatePicker
+const CustomDay = (props: PickersDayProps<Date>) => {
+  const { day, ...other } = props;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const isToday = format(day, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
+  const isPastDate = day < today;
+
+  return (
+    <PickersDay
+      {...other}
+      day={day}
+      disabled={isPastDate}
+      sx={{
+        ...(isToday && {
+          backgroundColor: '#FFC107 !important',
+          color: '#000 !important',
+          border: '2px solid #FFB300 !important',
+          '&:hover': {
+            backgroundColor: '#FFB300 !important',
+          },
+        }),
+        ...(isPastDate && {
+          backgroundColor: '#e0e0e0 !important',
+          color: '#9e9e9e !important',
+          opacity: 0.5,
+        }),
+      }}
+    />
+  );
+};
 
 const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseScheduled }) => {
   const { user } = useAuth();
@@ -210,10 +245,15 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
                     scheduledDate: newValue
                   }));
                 }}
+                minDate={new Date()}
+                slots={{
+                  day: CustomDay
+                }}
                 slotProps={{
                   textField: {
                     fullWidth: true,
-                    required: true
+                    required: true,
+                    helperText: 'Yellow = Today. Past dates are disabled.'
                   }
                 }}
               />
