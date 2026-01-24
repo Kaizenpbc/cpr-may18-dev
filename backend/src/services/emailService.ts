@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import nodemailer, { SendMailOptions, Transporter } from 'nodemailer';
 import { createTransport } from 'nodemailer';
 import { format } from 'date-fns';
 import { pool } from '../config/database.js';
@@ -22,6 +22,44 @@ interface InvoiceReminderData {
   invoiceId: number;
 }
 
+interface ClassDetails {
+  date: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  organization?: string;
+  courseName?: string;
+  courseType?: string;
+  students: number | string;
+}
+
+interface CourseDetails {
+  courseName?: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  organization?: string;
+  students: number | string;
+  instructorName?: string;
+}
+
+interface InvoiceData {
+  invoiceNumber: string;
+  organizationName: string;
+  amount: number;
+  invoiceDate?: string;
+  courseDate?: string;
+  courseName?: string;
+  courseType?: string;
+  location?: string;
+  studentsAttended?: number;
+  studentsBilled?: number;
+  totalStudents?: number;
+  dueDate?: string;
+  portalUrl?: string;
+}
+
 // Email templates
 const EMAIL_TEMPLATES = {
   AVAILABILITY_CONFIRMATION: (date: string) => ({
@@ -39,7 +77,7 @@ const EMAIL_TEMPLATES = {
     `,
   }),
 
-  CLASS_SCHEDULED: (classDetails: any) => ({
+  CLASS_SCHEDULED: (classDetails: ClassDetails) => ({
     subject: 'New Class Scheduled',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -59,7 +97,7 @@ const EMAIL_TEMPLATES = {
     `,
   }),
 
-  CLASS_REMINDER: (classDetails: any) => ({
+  CLASS_REMINDER: (classDetails: ClassDetails) => ({
     subject: 'Class Reminder',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -81,7 +119,7 @@ const EMAIL_TEMPLATES = {
     `,
   }),
 
-  COURSE_ASSIGNED_INSTRUCTOR: (courseDetails: any) => ({
+  COURSE_ASSIGNED_INSTRUCTOR: (courseDetails: CourseDetails) => ({
     subject: 'New Course Assignment',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -103,7 +141,7 @@ const EMAIL_TEMPLATES = {
     `,
   }),
 
-  COURSE_SCHEDULED_ORGANIZATION: (courseDetails: any) => ({
+  COURSE_SCHEDULED_ORGANIZATION: (courseDetails: CourseDetails) => ({
     subject: 'Course Request Confirmed',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -123,7 +161,7 @@ const EMAIL_TEMPLATES = {
     `,
   }),
 
-  INVOICE_POSTED: (invoiceData: any) => ({
+  INVOICE_POSTED: (invoiceData: InvoiceData) => ({
     subject: `Invoice ${invoiceData.invoiceNumber} - Complete with Attendance`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -215,12 +253,13 @@ class EmailService {
       
       // Create a mock transporter that logs emails
       this.transporter = {
-        sendMail: async (mailOptions: any) => {
+        sendMail: async (mailOptions: SendMailOptions) => {
           console.log('📧 [EMAIL SERVICE] MOCK EMAIL SENT:');
           console.log('   From:', mailOptions.from);
           console.log('   To:', mailOptions.to);
           console.log('   Subject:', mailOptions.subject);
-          console.log('   HTML Preview:', mailOptions.html.substring(0, 200) + '...');
+          const htmlContent = typeof mailOptions.html === 'string' ? mailOptions.html : '';
+          console.log('   HTML Preview:', htmlContent.substring(0, 200) + '...');
           console.log('📧 [EMAIL SERVICE] Mock email logged successfully');
           return { messageId: `mock_${Date.now()}` };
         },
@@ -228,7 +267,7 @@ class EmailService {
           console.log('✅ [EMAIL SERVICE] Mock transporter verified');
           return true;
         }
-      } as any;
+      } as Transporter;
     } else {
       console.log('✅ [EMAIL SERVICE] SMTP configured, using real transporter');
       // Create reusable transporter object using SMTP transport
@@ -282,19 +321,19 @@ class EmailService {
     return this.sendEmail(email, template.subject, template.html);
   }
 
-  async sendClassScheduledNotification(email: string, classDetails: any) {
+  async sendClassScheduledNotification(email: string, classDetails: ClassDetails) {
     const template = EMAIL_TEMPLATES.CLASS_SCHEDULED(classDetails);
     return this.sendEmail(email, template.subject, template.html);
   }
 
-  async sendClassReminder(email: string, classDetails: any) {
+  async sendClassReminder(email: string, classDetails: ClassDetails) {
     const template = EMAIL_TEMPLATES.CLASS_REMINDER(classDetails);
     return this.sendEmail(email, template.subject, template.html);
   }
 
   async sendCourseAssignedNotification(
     instructorEmail: string,
-    courseDetails: any
+    courseDetails: CourseDetails
   ) {
     const template = EMAIL_TEMPLATES.COURSE_ASSIGNED_INSTRUCTOR(courseDetails);
     return this.sendEmail(instructorEmail, template.subject, template.html);
@@ -302,7 +341,7 @@ class EmailService {
 
   async sendCourseScheduledToOrganization(
     organizationEmail: string,
-    courseDetails: any
+    courseDetails: CourseDetails
   ) {
     const template =
       EMAIL_TEMPLATES.COURSE_SCHEDULED_ORGANIZATION(courseDetails);
@@ -311,7 +350,7 @@ class EmailService {
 
   async sendInvoicePostedNotification(
     organizationEmail: string,
-    invoiceData: any
+    invoiceData: InvoiceData
   ) {
     const template = EMAIL_TEMPLATES.INVOICE_POSTED(invoiceData);
     return this.sendEmail(organizationEmail, template.subject, template.html);
@@ -319,7 +358,7 @@ class EmailService {
 
   async sendInvoiceWithPDF(
     organizationEmail: string,
-    invoiceData: any,
+    invoiceData: InvoiceData,
     pdfBuffer: Buffer,
     filename: string
   ) {
