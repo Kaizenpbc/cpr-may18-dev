@@ -28,7 +28,11 @@ function PricingRuleManager() {
   const [pricingRules, setPricingRules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [snackbar, setSnackbar] = useState({
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'warning' | 'info';
+  }>({
     open: false,
     message: '',
     severity: 'success',
@@ -42,7 +46,7 @@ function PricingRuleManager() {
     try {
       const data = await api.getPricingRules();
       setPricingRules(data || []);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error fetching pricing rules:', err);
       setError(err.message || 'Failed to load pricing rules.');
     } finally {
@@ -54,7 +58,7 @@ function PricingRuleManager() {
     fetchPricingRules();
   }, [fetchPricingRules]);
 
-  const showSnackbar = (message, severity = 'success') => {
+  const showSnackbar = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
     setSnackbar({ open: true, message, severity });
   };
 

@@ -28,8 +28,17 @@ interface ApiResponse<T> {
   };
 }
 
+interface AuthUser {
+  id: number;
+  username: string;
+  role: string;
+  organizationId?: number;
+  organizationName?: string;
+  [key: string]: unknown;
+}
+
 // Add request deduplication for auth checks
-let authCheckPromise: Promise<any> | null = null;
+let authCheckPromise: Promise<AuthUser> | null = null;
 let refreshPromise: Promise<RefreshResponse> | null = null;
 
 /**
@@ -234,7 +243,7 @@ export const authService = {
       console.log('[TRACE] Auth service - Checking authentication with backend');
       // Create and cache the promise
       authCheckPromise = api
-        .get<ApiResponse<{ user: any }>>('/auth/me')
+        .get<ApiResponse<{ user: AuthUser }>>('/auth/me')
         .then(response => {
           if (!response.data.success || !response.data.data) {
             throw new Error(response.data.error?.message || 'Auth check failed');
@@ -304,9 +313,10 @@ export const authService = {
       const response = await api.post('/auth/recover-password', { email });
       console.log('[DEBUG] Password recovery response:', response.status);
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[DEBUG] Password recovery error:', error);
-      throw new Error(error.response?.data?.message || 'Failed to send recovery email');
+      const errObj = error as { response?: { data?: { message?: string } } };
+      throw new Error(errObj.response?.data?.message || 'Failed to send recovery email');
     }
   },
 };

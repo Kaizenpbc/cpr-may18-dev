@@ -16,8 +16,16 @@ export const INSTRUCTOR_QUERY_KEYS = {
 } as const;
 
 // Data extractors
-const extractData = <T>(response: any): T => {
-  return response.data?.data || response.data || response;
+const extractData = <T>(response: { data?: { data?: T } | T } | T): T => {
+  const resp = response as { data?: { data?: T } | T };
+  if (resp && typeof resp === 'object' && 'data' in resp) {
+    const inner = resp.data as { data?: T } | T;
+    if (inner && typeof inner === 'object' && 'data' in inner) {
+      return (inner as { data: T }).data;
+    }
+    return inner as T;
+  }
+  return response as T;
 };
 
 // Hook for instructor availability
@@ -165,7 +173,7 @@ export const useAddAvailability = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: INSTRUCTOR_QUERY_KEYS.availability });
     },
-    onError: (error) => handleError(error, 'add availability'),
+    onError: (error) => handleError(error, { component: 'instructorService', action: 'add availability' }),
   });
 };
 
@@ -180,7 +188,7 @@ export const useRemoveAvailability = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: INSTRUCTOR_QUERY_KEYS.availability });
     },
-    onError: (error) => handleError(error, 'remove availability'),
+    onError: (error) => handleError(error, { component: 'instructorService', action: 'remove availability' }),
   });
 };
 
@@ -197,32 +205,51 @@ export const useCompleteClass = () => {
       queryClient.invalidateQueries({ queryKey: INSTRUCTOR_QUERY_KEYS.classesCompleted });
       queryClient.invalidateQueries({ queryKey: INSTRUCTOR_QUERY_KEYS.classesActive });
     },
-    onError: (error) => handleError(error, 'complete class'),
+    onError: (error) => handleError(error, { component: 'instructorService', action: 'complete class' }),
   });
 };
 
+// Flexible student attendance type for mutations
+interface StudentAttendanceInput {
+  id?: number;
+  studentid?: string;
+  attended?: boolean;
+  attendance?: boolean;
+  [key: string]: unknown;
+}
+
 export const useUpdateAttendance = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ courseId, students }: { courseId: number; students: any[] }) => {
-      const response = await instructorApi.updateAttendance(courseId, students);
+    mutationFn: async ({ courseId, students }: { courseId: number; students: StudentAttendanceInput[] }) => {
+      // Transform to API expected format
+      const transformedStudents = students.map(s => ({
+        studentid: s.studentid || String(s.id),
+        attendance: s.attendance ?? s.attended ?? false,
+      }));
+      const response = await instructorApi.updateAttendance(courseId, transformedStudents);
       return extractData(response);
     },
     onSuccess: (_, { courseId }) => {
       queryClient.invalidateQueries({ queryKey: INSTRUCTOR_QUERY_KEYS.classStudents(courseId) });
       queryClient.invalidateQueries({ queryKey: INSTRUCTOR_QUERY_KEYS.classes });
     },
-    onError: (error) => handleError(error, 'update attendance'),
+    onError: (error) => handleError(error, { component: 'instructorService', action: 'update attendance' }),
   });
 };
 
 export const useMarkAttendance = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ courseId, students }: { courseId: number; students: any[] }) => {
-      const response = await instructorApi.markAttendance(courseId, students);
+    mutationFn: async ({ courseId, students }: { courseId: number; students: StudentAttendanceInput[] }) => {
+      // Transform to API expected format
+      const transformedStudents = students.map(s => ({
+        studentid: s.studentid || String(s.id),
+        attendance: s.attendance ?? s.attended ?? false,
+      }));
+      const response = await instructorApi.markAttendance(courseId, transformedStudents);
       return extractData(response);
     },
     onSuccess: (_, { courseId }) => {
@@ -230,7 +257,7 @@ export const useMarkAttendance = () => {
       queryClient.invalidateQueries({ queryKey: INSTRUCTOR_QUERY_KEYS.classes });
       queryClient.invalidateQueries({ queryKey: INSTRUCTOR_QUERY_KEYS.attendance });
     },
-    onError: (error) => handleError(error, 'mark attendance'),
+    onError: (error) => handleError(error, { component: 'instructorService', action: 'mark attendance' }),
   });
 };
 
@@ -245,7 +272,7 @@ export const useUpdateClassNotes = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: INSTRUCTOR_QUERY_KEYS.classes });
     },
-    onError: (error) => handleError(error, 'update class notes'),
+    onError: (error) => handleError(error, { component: 'instructorService', action: 'update class notes' }),
   });
 };
 

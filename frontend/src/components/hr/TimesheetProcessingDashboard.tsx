@@ -56,8 +56,8 @@ interface CourseDetail {
   organizationName?: string;
   location?: string;
   courseType: string;
-  studentCount: number;
-  status: string;
+  studentCount?: number;
+  status?: string;
 }
 
 type ChipColor = 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
@@ -85,7 +85,7 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
   });
   const [filters, setFilters] = useState<TimesheetFilters>({
     status: '',
-    instructor_id: '',
+    instructorId: '',
     month: ''
   });
 
@@ -351,8 +351,8 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
               <TextField
                 fullWidth
                 label="Instructor ID"
-                value={filters.instructor_id}
-                onChange={(e) => handleFilterChange('instructor_id', e.target.value)}
+                value={filters.instructorId}
+                onChange={(e) => handleFilterChange('instructorId', e.target.value)}
                 placeholder="Filter by instructor ID"
               />
             </Grid>
@@ -543,13 +543,15 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
                               <TableCell>{course.organizationName || 'TBD'}</TableCell>
                               <TableCell>{course.location || 'TBD'}</TableCell>
                               <TableCell>{course.courseType}</TableCell>
-                              <TableCell>{course.studentCount}</TableCell>
+                              <TableCell>{course.studentCount ?? '-'}</TableCell>
                               <TableCell>
-                                <Chip
-                                  label={course.status}
-                                  color={course.status === 'completed' ? 'success' : 'primary'}
-                                  size="small"
-                                />
+                                {course.status ? (
+                                  <Chip
+                                    label={course.status}
+                                    color={course.status === 'completed' ? 'success' : 'primary'}
+                                    size="small"
+                                  />
+                                ) : '-'}
                               </TableCell>
                             </TableRow>
                           ))}

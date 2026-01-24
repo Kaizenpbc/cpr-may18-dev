@@ -79,11 +79,12 @@ const ResetPassword = () => {
       setTimeout(() => {
         navigate('/login');
       }, 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Debug] ResetPassword - Password reset error:', err);
+      const errObj = err as { response?: { data?: { error?: string } }; message?: string };
       setError(
-        err.response?.data?.error || 
-        err.message ||
+        errObj.response?.data?.error ||
+        errObj.message ||
         'An error occurred while resetting your password. Please try again.'
       );
     } finally {

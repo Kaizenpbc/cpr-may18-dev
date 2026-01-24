@@ -43,9 +43,9 @@ export const instructorApi = {
     api.post('/instructor/availability', { date }),
   removeAvailability: (date: string) =>
     api.delete(`/instructor/availability/${date}`),
-  updateProfile: (data: any) => api.put('/instructor/profile', data),
+  updateProfile: (data: Record<string, unknown>) => api.put('/instructor/profile', data),
   getClasses: () => api.get('/instructor/classes'),
-  submitAttendance: (classId: number, data: any) =>
+  submitAttendance: (classId: number, data: Record<string, unknown>) =>
     api.post(`/instructor/classes/${classId}/attendance`, data),
 };
 

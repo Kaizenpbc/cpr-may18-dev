@@ -18,14 +18,28 @@ import {
 import * as api from '../../services/api';
 import logger from '../../utils/logger';
 
-const StudentUploadDialog = ({ open, onClose, courseId, onUploadComplete }) => {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [parsedStudents, setParsedStudents] = useState([]);
+interface StudentUploadDialogProps {
+  open: boolean;
+  onClose: () => void;
+  courseId: number | string | null;
+  onUploadComplete: (message: string) => void;
+}
+
+interface ParsedStudent {
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  [key: string]: unknown;
+}
+
+const StudentUploadDialog: React.FC<StudentUploadDialogProps> = ({ open, onClose, courseId, onUploadComplete }) => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [parsedStudents, setParsedStudents] = useState<ParsedStudent[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [parseError, setParseError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const fileInputRef = useRef(null); // Ref to access file input
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref to access file input
 
   // Reset state when dialog closes or file changes
   const resetState = () => {
@@ -45,17 +59,17 @@ const StudentUploadDialog = ({ open, onClose, courseId, onUploadComplete }) => {
     onClose(); // Call the parent onClose handler
   };
 
-  const handleFileChange = event => {
-    const selectedFile = event.target.files[0];
-    if (selectedFile) {
-      logger.info('File selected for upload:', selectedFile.name);
-      setSelectedFile(selectedFile);
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      logger.info('File selected for upload:', file.name);
+      setSelectedFile(file);
       // Automatically parse the file when selected
-      parseFile(selectedFile);
+      parseFile(file);
     }
   };
 
-  const parseFile = file => {
+  const parseFile = (file: File) => {
     setIsParsing(true);
     setParseError('');
     logger.debug('[parseFile] Starting parse...');
@@ -149,7 +163,7 @@ const StudentUploadDialog = ({ open, onClose, courseId, onUploadComplete }) => {
     try {
       logger.info('Starting file upload');
       const response = await api.organizationApi.uploadStudents(
-        courseId,
+        Number(courseId),
         parsedStudents
       );
       if (response.success) {
@@ -159,8 +173,9 @@ const StudentUploadDialog = ({ open, onClose, courseId, onUploadComplete }) => {
         setUploadError(response.message || 'Upload failed.');
       }
       logger.info('File uploaded successfully');
-    } catch (err) {
-      setUploadError(err.message || 'An error occurred during upload.');
+    } catch (err: unknown) {
+      const errObj = err as { message?: string };
+      setUploadError(errObj.message || 'An error occurred during upload.');
       logger.error('Error uploading file:', err);
     } finally {
       setIsUploading(false);
@@ -261,18 +276,6 @@ const StudentUploadDialog = ({ open, onClose, courseId, onUploadComplete }) => {
         )}
       </DialogContent>
       <DialogActions>
-        {/* Log button disabled state */}
-        {logger.debug('[DialogActions Render] Button Disabled Check:', {
-          isUploading,
-          isParsing,
-          parsedStudentsLength: parsedStudents.length,
-          hasParseError: !!parseError,
-          isDisabled:
-            isUploading ||
-            isParsing ||
-            parsedStudents.length === 0 ||
-            !!parseError,
-        })}
         <Button onClick={handleClose} disabled={isUploading}>
           Cancel
         </Button>

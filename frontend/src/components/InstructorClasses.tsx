@@ -43,8 +43,9 @@ const InstructorClasses: React.FC<InstructorClassesProps> = ({
           setClasses(Array.isArray(classData) ? classData : []);
         }
         setError(null);
-      } catch (error: any) {
-        if (error.response?.status === 401) {
+      } catch (error: unknown) {
+        const errObj = error as { response?: { status?: number } };
+        if (errObj.response?.status === 401) {
           await logout();
           window.location.href = '/login';
           return;
@@ -91,15 +92,15 @@ const InstructorClasses: React.FC<InstructorClassesProps> = ({
           </TableHead>
           <TableBody>
             {classes.map(classItem => (
-              <TableRow key={classItem.id || classItem.course_id}>
+              <TableRow key={classItem.id || classItem.courseId}>
                 <TableCell>
-                  {format(new Date(classItem.start_date), 'MMM dd, yyyy')}
+                  {format(new Date(classItem.startDate), 'MMM dd, yyyy')}
                 </TableCell>
                 <TableCell>
-                  {`${classItem.start_time} - ${classItem.end_time}`}
+                  {`${classItem.startTime} - ${classItem.endTime}`}
                 </TableCell>
-                <TableCell>{classItem.course_type}</TableCell>
-                <TableCell>{classItem.organization_name}</TableCell>
+                <TableCell>{classItem.courseType}</TableCell>
+                <TableCell>{classItem.organizationName}</TableCell>
                 <TableCell>{classItem.status}</TableCell>
               </TableRow>
             ))}

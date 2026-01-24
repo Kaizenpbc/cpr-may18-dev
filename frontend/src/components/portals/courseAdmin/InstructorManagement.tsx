@@ -93,8 +93,8 @@ interface FormData {
 
 interface AvailabilityFormData {
   day: string;
-  start_time: string;
-  end_time: string;
+  startTime: string;
+  endTime: string;
 }
 
 interface Course {
@@ -519,7 +519,7 @@ const InstructorManagement: React.FC = () => {
       scheduledDate: course.confirmedDate || '',
       startTime: course.confirmedStartTime || '09:00',
       endTime: course.confirmedEndTime || '12:00',
-      instructorId: course.instructorId || '',
+      instructorId: course.instructorId ? String(course.instructorId) : '',
     });
 
     // Fetch available instructors for the confirmed date
@@ -539,9 +539,9 @@ const InstructorManagement: React.FC = () => {
           // Add current instructor to the list
           availableList.unshift({
             id: course.instructorId,
-            instructor_name: course.instructorName,
+            instructorName: course.instructorName,
             email: '',
-            availability_status: 'Currently Assigned',
+            availabilityStatus: 'Currently Assigned',
           });
         }
         setAvailableInstructors(availableList);
@@ -652,7 +652,7 @@ const InstructorManagement: React.FC = () => {
   const addAvailabilitySlot = () => {
     setAvailabilityData([
       ...availabilityData,
-      { day: '', start_time: '', end_time: '' },
+      { day: '', startTime: '', endTime: '' },
     ]);
   };
 
@@ -850,7 +850,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
       return validationResponse.data.data;
     } catch (err) {
       console.error('Error checking billing readiness:', err);
-      return { isValid: false, validation_errors: ['Unable to validate billing readiness'] };
+      return { isValid: false, validationErrors: ['Unable to validate billing readiness'] };
     }
   };
 
@@ -868,7 +868,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
       if (!validationData.isValid) {
         console.log('❌ [BILLING] Validation failed, showing error');
         // Show validation errors in a more detailed way
-        const errorMessage = validationData.validation_errors.join('\n• ');
+        const errorMessage = validationData.validationErrors.join('\n• ');
         const fullErrorMessage = `Cannot send to billing:\n• ${errorMessage}`;
         console.log('🔍 [BILLING] Setting error message:', fullErrorMessage);
         setError(fullErrorMessage);
@@ -1178,7 +1178,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
                 // Filter based on showCompleted toggle
                 if (
                   !showCompleted &&
-                  instructor.assignment_status === 'Completed'
+                  instructor.assignmentStatus === 'Completed'
                 ) {
                   return false;
                 }
@@ -1187,7 +1187,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
               .map((instructor, index) => {
                 return (
                   <TableRow
-                    key={`${instructor.id}-${instructor.availability_date}-${index}`}
+                    key={`${instructor.id}-${instructor.availabilityDate}-${index}`}
                   >
                     <TableCell>
                       <Typography variant='body2' fontWeight='medium'>
@@ -1199,12 +1199,12 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
                     </TableCell>
                     <TableCell>
                       <Box>
-                        {instructor.availability_date &&
-                        instructor.availability_date !==
+                        {instructor.availabilityDate &&
+                        instructor.availabilityDate !==
                           'No availability set' ? (
                           <Chip
                             label={formatDisplayDate(
-                              instructor.availability_date
+                              instructor.availabilityDate
                             )}
                             size='small'
                             color='success'
@@ -1224,17 +1224,17 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
                     </TableCell>
                     <TableCell>
                       <Typography variant='body2'>
-                        {instructor.assigned_organization || '-'}
+                        {instructor.assignedOrganization || '-'}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant='body2'>
-                        {instructor.assigned_location || '-'}
+                        {instructor.assignedLocation || '-'}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant='body2'>
-                        {instructor.assigned_course_type || '-'}
+                        {instructor.assignedCourseType || '-'}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -1252,19 +1252,19 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
                     </TableCell>
                     <TableCell>
                       <Chip
-                        label={instructor.assignment_status}
+                        label={instructor.assignmentStatus}
                         color={
-                          instructor.assignment_status === 'Confirmed'
+                          instructor.assignmentStatus === 'Confirmed'
                             ? 'primary'
-                            : instructor.assignment_status === 'Completed'
+                            : instructor.assignmentStatus === 'Completed'
                               ? 'default'
-                              : instructor.assignment_status === 'Available'
+                              : instructor.assignmentStatus === 'Available'
                                 ? 'success'
                                 : 'default'
                         }
                         size='small'
                         variant={
-                          instructor.assignment_status === 'Completed'
+                          instructor.assignmentStatus === 'Completed'
                             ? 'filled'
                             : 'outlined'
                         }
@@ -1298,16 +1298,16 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
                           <CalendarIcon />
                         </IconButton>
                       </Tooltip>
-                      {instructor.availability_date &&
-                        instructor.availability_date !==
+                      {instructor.availabilityDate &&
+                        instructor.availabilityDate !==
                           'No availability set' &&
-                        instructor.assignment_status !== 'Completed' && (
+                        instructor.assignmentStatus !== 'Completed' && (
                           <Tooltip title='Remove this availability date'>
                             <IconButton
                               onClick={() =>
                                 handleDeleteAvailability(
                                   instructor.id,
-                                  instructor.availability_date!
+                                  instructor.availabilityDate!
                                 )
                               }
                               color='error'
@@ -1804,18 +1804,18 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
               <TextField
                 type='time'
                 label='Start Time'
-                value={slot.start_time}
+                value={slot.startTime}
                 onChange={e =>
-                  updateAvailabilitySlot(index, 'start_time', e.target.value)
+                  updateAvailabilitySlot(index, 'startTime', e.target.value)
                 }
                 InputLabelProps={{ shrink: true }}
               />
               <TextField
                 type='time'
                 label='End Time'
-                value={slot.end_time}
+                value={slot.endTime}
                 onChange={e =>
-                  updateAvailabilitySlot(index, 'end_time', e.target.value)
+                  updateAvailabilitySlot(index, 'endTime', e.target.value)
                 }
                 InputLabelProps={{ shrink: true }}
               />
@@ -2028,7 +2028,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
               {availableInstructors.map(instructor => (
                 <MenuItem key={instructor.id} value={instructor.id}>
                   {instructor.instructorName}{' '}
-                  {instructor.availability_status === 'Currently Assigned'
+                  {instructor.availabilityStatus === 'Currently Assigned'
                     ? '(Currently Assigned)'
                     : `(${instructor.email})`}
                 </MenuItem>

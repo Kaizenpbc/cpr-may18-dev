@@ -59,8 +59,9 @@ const TimesheetNotes: React.FC<TimesheetNotesProps> = ({ timesheetId, onNotesCha
     try {
       const notesData = await timesheetService.getTimesheetNotes(timesheetId);
       setNotes(notesData);
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to load notes');
+    } catch (err: unknown) {
+      const errObj = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(errObj.response?.data?.message || errObj.message || 'Failed to load notes');
     } finally {
       setLoading(false);
     }
@@ -75,8 +76,8 @@ const TimesheetNotes: React.FC<TimesheetNotesProps> = ({ timesheetId, onNotesCha
 
     try {
       const noteData: TimesheetNoteSubmission = {
-        note_text: newNote.trim(),
-        note_type: noteType
+        noteText: newNote.trim(),
+        noteType: noteType
       };
 
       await timesheetService.addTimesheetNote(timesheetId, noteData);
@@ -87,8 +88,9 @@ const TimesheetNotes: React.FC<TimesheetNotesProps> = ({ timesheetId, onNotesCha
       if (onNotesChange) {
         onNotesChange();
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to add note');
+    } catch (err: unknown) {
+      const errObj = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(errObj.response?.data?.message || errObj.message || 'Failed to add note');
     }
   };
 
@@ -103,8 +105,9 @@ const TimesheetNotes: React.FC<TimesheetNotesProps> = ({ timesheetId, onNotesCha
       if (onNotesChange) {
         onNotesChange();
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to delete note');
+    } catch (err: unknown) {
+      const errObj = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(errObj.response?.data?.message || errObj.message || 'Failed to delete note');
     }
   };
 
@@ -140,7 +143,7 @@ const TimesheetNotes: React.FC<TimesheetNotesProps> = ({ timesheetId, onNotesCha
   };
 
   const canDeleteNote = (note: TimesheetNote) => {
-    return note.user_id === user?.id || user?.role === 'hr';
+    return note.userId === user?.id || user?.role === 'hr';
   };
 
   const canAddNote = () => {
@@ -184,24 +187,24 @@ const TimesheetNotes: React.FC<TimesheetNotesProps> = ({ timesheetId, onNotesCha
               <React.Fragment key={note.id}>
                 <ListItem alignItems="flex-start" sx={{ px: 0 }}>
                   <ListItemAvatar>
-                    <Avatar sx={{ bgcolor: `${getNoteTypeColor(note.note_type)}.main` }}>
-                      {getNoteTypeIcon(note.note_type)}
+                    <Avatar sx={{ bgcolor: `${getNoteTypeColor(note.noteType)}.main` }}>
+                      {getNoteTypeIcon(note.noteType)}
                     </Avatar>
                   </ListItemAvatar>
                   <ListItemText
                     primary={
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                         <Typography variant="subtitle2" component="span">
-                          {note.added_by}
+                          {note.addedBy}
                         </Typography>
                         <Chip
-                          label={note.note_type}
+                          label={note.noteType}
                           size="small"
-                          color={getNoteTypeColor(note.note_type) as any}
+                          color={getNoteTypeColor(note.noteType) as 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'}
                           variant="outlined"
                         />
                         <Typography variant="caption" color="textSecondary">
-                          {format(new Date(note.created_at), 'MMM dd, yyyy HH:mm')}
+                          {format(new Date(note.createdAt), 'MMM dd, yyyy HH:mm')}
                         </Typography>
                       </Box>
                     }
@@ -212,7 +215,7 @@ const TimesheetNotes: React.FC<TimesheetNotesProps> = ({ timesheetId, onNotesCha
                         color="text.primary"
                         sx={{ whiteSpace: 'pre-wrap' }}
                       >
-                        {note.note_text}
+                        {note.noteText}
                       </Typography>
                     }
                   />
@@ -241,7 +244,7 @@ const TimesheetNotes: React.FC<TimesheetNotesProps> = ({ timesheetId, onNotesCha
               <InputLabel>Note Type</InputLabel>
               <Select
                 value={noteType}
-                onChange={(e) => setNoteType(e.target.value as any)}
+                onChange={(e) => setNoteType(e.target.value as 'instructor' | 'hr' | 'accounting' | 'general')}
                 label="Note Type"
               >
                 <MenuItem value="general">General</MenuItem>

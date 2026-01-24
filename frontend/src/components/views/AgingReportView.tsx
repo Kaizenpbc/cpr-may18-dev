@@ -76,7 +76,7 @@ const AgingReportView = () => {
   } = useQuery({
     queryKey: ['aging-report', organizationFilter, asOfDate],
     queryFn: async () => {
-      const params = {};
+      const params: { organization_id?: string; as_of_date?: string } = {};
       if (organizationFilter) params.organization_id = organizationFilter;
       if (asOfDate) params.as_of_date = asOfDate;
 

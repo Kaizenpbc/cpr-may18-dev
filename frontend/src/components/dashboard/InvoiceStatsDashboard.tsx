@@ -25,8 +25,20 @@ interface InvoiceStats {
   lastUpdated: string;
 }
 
+interface Invoice {
+  id: number;
+  status: string;
+  amount: number;
+  createdAt?: string;
+  approvalStatus?: string;
+  approvedAt?: string;
+  postedToOrgAt?: string;
+  paymentStatus?: string;
+  paidToDate?: number;
+}
+
 interface InvoiceStatsDashboardProps {
-  invoices?: any[];
+  invoices?: Invoice[];
   loading?: boolean;
 }
 
@@ -47,32 +59,32 @@ const InvoiceStatsDashboard: React.FC<InvoiceStatsDashboardProps> = ({
 
     const today = new Date().toDateString();
     
-    const pendingApprovals = invoices.filter(invoice => 
+    const pendingApprovals = invoices.filter(invoice =>
       ['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes(
-        (invoice.approval_status || '').toLowerCase()
+        (invoice.approvalStatus || '').toLowerCase()
       )
     ).length;
 
     const approvedToday = invoices.filter(invoice => {
-      if (!invoice.approved_at) return false;
-      const approvedDate = new Date(invoice.approved_at).toDateString();
+      if (!invoice.approvedAt) return false;
+      const approvedDate = new Date(invoice.approvedAt).toDateString();
       return approvedDate === today;
     }).length;
 
     const postedToday = invoices.filter(invoice => {
-      if (!invoice.posted_to_org_at) return false;
-      const postedDate = new Date(invoice.posted_to_org_at).toDateString();
+      if (!invoice.postedToOrgAt) return false;
+      const postedDate = new Date(invoice.postedToOrgAt).toDateString();
       return postedDate === today;
     }).length;
 
     const totalOutstanding = invoices
       .filter(invoice => {
-        const status = (invoice.paymentstatus || invoice.payment_status || '').toLowerCase();
+        const status = (invoice.paymentStatus || '').toLowerCase();
         return status !== 'paid' && status !== 'cancelled';
       })
       .reduce((sum, invoice) => {
-        const amount = parseFloat(invoice.amount || 0);
-        const paid = parseFloat(invoice.paidtodate || invoice.paid_to_date || 0);
+        const amount = typeof invoice.amount === 'number' ? invoice.amount : parseFloat(String(invoice.amount)) || 0;
+        const paid = typeof invoice.paidToDate === 'number' ? invoice.paidToDate : parseFloat(String(invoice.paidToDate)) || 0;
         return sum + (amount - paid);
       }, 0);
 

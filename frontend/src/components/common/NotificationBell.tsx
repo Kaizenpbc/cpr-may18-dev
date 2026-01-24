@@ -71,7 +71,6 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
               badgeContent={unreadCount > 99 ? '99+' : unreadCount}
               color="error"
               max={99}
-              size={getBadgeSize()}
             >
               <NotificationsIcon sx={{ fontSize: getIconSize() }} />
             </Badge>

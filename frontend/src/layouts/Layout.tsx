@@ -158,7 +158,7 @@ const Layout: React.FC = () => {
             <MenuIcon />
           </IconButton>
           <Typography variant='h6' noWrap component='div' sx={{ flexGrow: 1 }}>
-            {user?.full_name || 'Welcome'}
+            {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Welcome'}
           </Typography>
           <Button color='inherit' onClick={handleLogout}>
             Logout

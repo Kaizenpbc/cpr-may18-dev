@@ -52,7 +52,7 @@ const InstructorPortalContainer: React.FC = () => {
   }, [location.pathname]);
 
   // Error handler for error boundaries
-  const handleError = useCallback((error: Error, errorInfo: any) => {
+  const handleError = useCallback((error: Error, errorInfo: { componentStack?: string }) => {
     logger.error('Instructor Portal Error:', error, errorInfo);
     analytics.trackError(error, 'instructor_portal', {
       componentStack: errorInfo.componentStack,
@@ -126,7 +126,7 @@ const InstructorPortalContainer: React.FC = () => {
     }
   }, [completeClassMutation]);
 
-  const handleUpdateAttendance = useCallback(async (courseId: number, students: any[]) => {
+  const handleUpdateAttendance = useCallback(async (courseId: number, students: Array<{ id: number; attended: boolean; [key: string]: unknown }>) => {
     try {
       await updateAttendanceMutation.mutateAsync({ courseId, students });
       setSuccessState('Attendance updated successfully');

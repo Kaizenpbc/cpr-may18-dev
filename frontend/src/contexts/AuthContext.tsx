@@ -8,8 +8,14 @@ interface User {
   id: number;
   username: string;
   role: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
   organizationId?: number;
   organizationName?: string;
+  // Allow additional properties for API compatibility
+  [key: string]: unknown;
 }
 
 interface SessionStatus {
@@ -37,6 +43,7 @@ interface AuthContextType {
   checkAuth: () => Promise<void>;
   refreshSession: () => Promise<void>;
   validateTokenOnPageLoad: () => Promise<TokenValidationResult>;
+  register: (username: string, email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -238,17 +245,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('[TRACE] Auth context - Refreshing session');
       await authService.refreshToken();
-      
+
       // Update session status
       const status = authService.getSessionStatus();
       setSessionStatus(status);
-      
+
       console.log('[TRACE] Auth context - Session refreshed successfully');
     } catch (err) {
       console.error('[TRACE] Auth context - Session refresh failed:', err);
       setError(err instanceof Error ? err.message : 'Session refresh failed');
       // Don't clear user here, let the next API call handle it
     }
+  };
+
+  const register = async (username: string, email: string, password: string): Promise<void> => {
+    // Registration is not currently implemented
+    // This stub exists for type compatibility with the Register page
+    throw new Error('Registration is not currently available. Please contact your administrator for account setup.');
   };
 
   // Monitor session status
@@ -442,17 +455,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAuthenticated = !!user && !!tokenService.getAccessToken();
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      loading, 
-      error, 
-      isAuthenticated, 
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      error,
+      isAuthenticated,
       sessionStatus,
-      login, 
-      logout, 
+      login,
+      logout,
       checkAuth,
       refreshSession,
-      validateTokenOnPageLoad
+      validateTokenOnPageLoad,
+      register
     }}>
       {children}
     </AuthContext.Provider>

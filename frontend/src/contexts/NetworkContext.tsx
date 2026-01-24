@@ -9,12 +9,28 @@ import React, {
 import logger from '../utils/logger';
 import analytics from '../services/analytics';
 
+// Navigator connection type for Network Information API
+interface NavigatorConnection {
+  type?: string;
+  effectiveType?: string;
+  downlink?: number;
+  rtt?: number;
+  addEventListener?: (type: string, listener: () => void) => void;
+  removeEventListener?: (type: string, listener: () => void) => void;
+}
+
+interface NavigatorWithConnection extends Navigator {
+  connection?: NavigatorConnection;
+  mozConnection?: NavigatorConnection;
+  webkitConnection?: NavigatorConnection;
+}
+
 // Types for network status and queued requests
 interface QueuedRequest {
   id: string;
   url: string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-  data?: any;
+  data?: Record<string, unknown>;
   headers?: Record<string, string>;
   timestamp: number;
   retryCount: number;
@@ -120,9 +136,9 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({
   // Update network status from Navigator API
   const updateNetworkStatus = useCallback(() => {
     const connection =
-      (navigator as any).connection ||
-      (navigator as any).mozConnection ||
-      (navigator as any).webkitConnection;
+      (navigator as NavigatorWithConnection).connection ||
+      (navigator as NavigatorWithConnection).mozConnection ||
+      (navigator as NavigatorWithConnection).webkitConnection;
 
     const newStatus: NetworkStatus = {
       isOnline: navigator.onLine,
@@ -332,9 +348,9 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({
 
     // Monitor connection changes if supported
     const connection =
-      (navigator as any).connection ||
-      (navigator as any).mozConnection ||
-      (navigator as any).webkitConnection;
+      (navigator as NavigatorWithConnection).connection ||
+      (navigator as NavigatorWithConnection).mozConnection ||
+      (navigator as NavigatorWithConnection).webkitConnection;
     if (connection) {
       connection.addEventListener('change', handleConnectionChange);
     }
@@ -375,9 +391,9 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({
     window.removeEventListener('offline', handleOffline);
 
     const connection =
-      (navigator as any).connection ||
-      (navigator as any).mozConnection ||
-      (navigator as any).webkitConnection;
+      (navigator as NavigatorWithConnection).connection ||
+      (navigator as NavigatorWithConnection).mozConnection ||
+      (navigator as NavigatorWithConnection).webkitConnection;
     if (connection) {
       connection.removeEventListener('change', handleConnectionChange);
     }

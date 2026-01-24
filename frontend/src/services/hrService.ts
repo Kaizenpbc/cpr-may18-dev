@@ -9,17 +9,17 @@ export interface HRDashboardData {
 
 export interface ProfileChange {
   id: number;
-  user_id: number;
-  change_type: 'instructor' | 'organization';
-  field_name: string;
-  old_value: string;
-  new_value: string;
+  userId: number;
+  changeType: 'instructor' | 'organization';
+  fieldName: string;
+  oldValue: string;
+  newValue: string;
   status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
   username: string;
   role: string;
-  display_name: string;
+  displayName: string;
 }
 
 export const hrService = {
@@ -48,35 +48,35 @@ export const hrService = {
   },
 
   // Get instructor profiles for management
-  async getInstructorProfiles(): Promise<any[]> {
+  async getInstructorProfiles(): Promise<Record<string, unknown>[]> {
     const response = await api.get('/hr/instructors');
     return response.data.data;
   },
 
   // Get organization profiles for management
-  async getOrganizationProfiles(): Promise<any[]> {
+  async getOrganizationProfiles(): Promise<Record<string, unknown>[]> {
     const response = await api.get('/hr/organizations');
     return response.data.data;
   },
 
   // Update instructor profile (HR can edit directly)
-  async updateInstructorProfile(instructorId: number, data: any): Promise<void> {
+  async updateInstructorProfile(instructorId: number, data: Record<string, unknown>): Promise<void> {
     await api.put(`/hr/instructors/${instructorId}`, data);
   },
 
   // Update organization profile (HR can edit directly)
-  async updateOrganizationProfile(organizationId: number, data: any): Promise<void> {
+  async updateOrganizationProfile(organizationId: number, data: Record<string, unknown>): Promise<void> {
     await api.put(`/hr/organizations/${organizationId}`, data);
   },
 
   // Get compliance alerts
-  async getComplianceAlerts(): Promise<any[]> {
+  async getComplianceAlerts(): Promise<Record<string, unknown>[]> {
     const response = await api.get('/hr/compliance-alerts');
     return response.data.data;
   },
 
   // Get returned payment requests for HR review
-  async getReturnedPaymentRequests(filters?: { page?: number; limit?: number }): Promise<any> {
+  async getReturnedPaymentRequests(filters?: { page?: number; limit?: number }): Promise<Record<string, unknown>> {
     const response = await api.get('/hr-dashboard/returned-payment-requests', { params: filters });
     return response.data.data;
   },
@@ -94,7 +94,7 @@ export const hrService = {
   },
 
   // Get HR reports
-  async getReports(reportType: string, filters?: any): Promise<any> {
+  async getReports(reportType: string, filters?: Record<string, unknown>): Promise<Record<string, unknown>> {
     const response = await api.get(`/hr/reports/${reportType}`, { params: filters });
     return response.data.data;
   }

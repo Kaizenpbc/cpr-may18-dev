@@ -42,7 +42,7 @@ export class ApiErrorHandler {
    */
   private static handleAxiosError(error: AxiosError, context: ErrorContext): StandardError {
     const statusCode = error.response?.status || 500;
-    const serverError = error.response?.data as any;
+    const serverError = error.response?.data as { error?: { code?: string; message?: string; details?: unknown; traceId?: string }; code?: string; message?: string; details?: unknown; traceId?: string } | undefined;
     
     // Extract error information from server response
     const code = serverError?.error?.code || 
@@ -282,7 +282,7 @@ export class ApiErrorHandler {
     const userMessage = ERROR_MESSAGES[code] || 'An unexpected error occurred';
 
     // Determine if error is retryable and provide suggestions
-    const retryableCodes = [
+    const retryableCodes: string[] = [
       ERROR_CODES.NETWORK_ERROR,
       ERROR_CODES.CONNECTION_TIMEOUT,
       ERROR_CODES.SERVICE_UNAVAILABLE,
@@ -290,7 +290,7 @@ export class ApiErrorHandler {
       ERROR_CODES.RATE_LIMIT_EXCEEDED,
     ];
 
-    const isRetryable = retryableCodes.includes(code as any);
+    const isRetryable = retryableCodes.includes(code);
 
     let suggestion = '';
     if (code.includes('NETWORK') || code.includes('CONNECTION')) {
@@ -318,13 +318,13 @@ export class ApiErrorHandler {
    * Get maximum retry attempts for error type
    */
   private static getMaxRetries(code: string): number {
-    const highRetryErrors = [ERROR_CODES.NETWORK_ERROR, ERROR_CODES.CONNECTION_TIMEOUT];
-    const mediumRetryErrors = [ERROR_CODES.SERVICE_UNAVAILABLE, ERROR_CODES.EXTERNAL_SERVICE_TIMEOUT];
-    const lowRetryErrors = [ERROR_CODES.RATE_LIMIT_EXCEEDED];
+    const highRetryErrors: string[] = [ERROR_CODES.NETWORK_ERROR, ERROR_CODES.CONNECTION_TIMEOUT];
+    const mediumRetryErrors: string[] = [ERROR_CODES.SERVICE_UNAVAILABLE, ERROR_CODES.EXTERNAL_SERVICE_TIMEOUT];
+    const lowRetryErrors: string[] = [ERROR_CODES.RATE_LIMIT_EXCEEDED];
 
-    if (highRetryErrors.includes(code as any)) return 3;
-    if (mediumRetryErrors.includes(code as any)) return 2;
-    if (lowRetryErrors.includes(code as any)) return 1;
+    if (highRetryErrors.includes(code)) return 3;
+    if (mediumRetryErrors.includes(code)) return 2;
+    if (lowRetryErrors.includes(code)) return 1;
     
     return 0; // No retries for other errors
   }
@@ -332,7 +332,7 @@ export class ApiErrorHandler {
   /**
    * Extract additional error details from Axios error
    */
-  private static getErrorDetails(error: AxiosError): any {
+  private static getErrorDetails(error: AxiosError): Record<string, unknown> {
     return {
       url: error.config?.url,
       method: error.config?.method,
@@ -363,15 +363,15 @@ export class ApiErrorHandler {
    * Check if error is retryable
    */
   static isRetryableError(error: StandardError): boolean {
-    const retryableCodes = [
+    const retryableCodes: string[] = [
       ERROR_CODES.NETWORK_ERROR,
       ERROR_CODES.CONNECTION_TIMEOUT,
       ERROR_CODES.SERVICE_UNAVAILABLE,
       ERROR_CODES.EXTERNAL_SERVICE_TIMEOUT,
       ERROR_CODES.RATE_LIMIT_EXCEEDED,
     ];
-    
-    return retryableCodes.includes(error.code as any) || error.statusCode >= 500;
+
+    return retryableCodes.includes(error.code) || error.statusCode >= 500;
   }
 
   /**

@@ -89,6 +89,8 @@ interface EmailTemplate {
   usageCount?: number;
   createdAt?: string;
   updatedAt?: string;
+  // Allow additional properties for API compatibility
+  [key: string]: unknown;
 }
 
 interface EventTrigger {
@@ -200,7 +202,7 @@ const EmailTemplateManager: React.FC = () => {
         currentSearchTerm !== undefined ? currentSearchTerm : searchTerm;
 
       try {
-        const params: any = {
+        const params: Record<string, string> = {
           active: 'true',
         };
         if (effectiveCategoryFilter !== 'all') {
@@ -213,7 +215,7 @@ const EmailTemplateManager: React.FC = () => {
         const response = await emailTemplateApi.getAll(params);
         const rawTemplates = response.data.templates || response.data.data || [];
 
-        const mappedTemplates = rawTemplates.map((t: any) => ({
+        const mappedTemplates = rawTemplates.map((t: Record<string, unknown>) => ({
           ...t,
           htmlContent: t.htmlContent || t.body,
           eventTriggers: t.eventTriggers || [],
@@ -322,7 +324,7 @@ const EmailTemplateManager: React.FC = () => {
       showToast({
         type: 'error',
         message:
-          (error as any).response?.data?.error?.message || 'Failed to save template',
+          (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message || 'Failed to save template',
         priority: 'normal',
       });
     }
@@ -343,7 +345,7 @@ const EmailTemplateManager: React.FC = () => {
         showToast({
           type: 'error',
           message:
-            (error as any).response?.data?.error?.message || 'Failed to delete template',
+            (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message || 'Failed to delete template',
           priority: 'normal',
         });
       }
@@ -364,7 +366,7 @@ const EmailTemplateManager: React.FC = () => {
       showToast({
         type: 'error',
         message:
-          (error as any).response?.data?.error?.message || 'Failed to clone template',
+          (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message || 'Failed to clone template',
         priority: 'normal',
       });
     }
@@ -395,7 +397,7 @@ const EmailTemplateManager: React.FC = () => {
       showToast({
         type: 'error',
         message:
-          (error as any).response?.data?.error?.message || 'Failed to send test email',
+          (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message || 'Failed to send test email',
         priority: 'normal',
       });
     }
@@ -779,7 +781,7 @@ const EmailTemplateManager: React.FC = () => {
                   onChange={e =>
                     setFormData({
                       ...formData,
-                      category: e.target.value as any,
+                      category: e.target.value as EmailTemplate['category'],
                       subCategory: '', // Reset subcategory when category changes
                     })
                   }

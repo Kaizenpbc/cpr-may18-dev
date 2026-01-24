@@ -72,15 +72,16 @@ const Login = () => {
       setError(null);
       setErrorCode(null);
       setSuggestions([]);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errObj = err as { response?: { data?: { error?: string | { message?: string; retryAfter?: string; code?: string }; code?: string; suggestions?: string[] }; status?: number } };
       console.error('[DEEP TRACE] Login error:', {
         error: err,
-        response: err.response?.data,
-        status: err.response?.status,
+        response: errObj.response?.data,
+        status: errObj.response?.status,
         timestamp: new Date().toISOString()
       });
 
-      const errorData = err.response?.data;
+      const errorData = errObj.response?.data;
       let errorMessage = 'Failed to login. Please check your credentials.';
 
       if (typeof errorData?.error === 'object') {
@@ -93,7 +94,8 @@ const Login = () => {
       }
 
       setError(errorMessage);
-      setErrorCode(errorData?.code || errorData?.error?.code);
+      const errorObj = errorData?.error as { code?: string } | undefined;
+      setErrorCode(errorData?.code || errorObj?.code);
       setSuggestions(errorData?.suggestions || []);
     } finally {
       setIsLoading(false);
@@ -124,9 +126,10 @@ const Login = () => {
           `${response.data.message}\n\nDevelopment Reset Token: ${response.data.resetToken}`
         );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errObj = err as { response?: { data?: { error?: string } } };
       setForgotPasswordMessage(
-        err.response?.data?.error || 'Failed to send reset instructions'
+        errObj.response?.data?.error || 'Failed to send reset instructions'
       );
     } finally {
       setIsForgotPasswordLoading(false);

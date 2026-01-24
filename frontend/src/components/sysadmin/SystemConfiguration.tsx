@@ -28,13 +28,13 @@ import logger from '../../utils/logger';
 
 interface SystemConfig {
   id: number;
-  config_key: string;
-  config_value: string;
+  configKey: string;
+  configValue: string;
   description: string;
   category: string;
-  updated_by?: number;
-  updated_at: string;
-  created_at: string;
+  updatedBy?: number;
+  updatedAt: string;
+  createdAt: string;
 }
 
 interface ConfigurationsByCategory {
@@ -65,7 +65,7 @@ const SystemConfiguration: React.FC = () => {
         // Initialize edited values with current values
         const initialValues: Record<string, string> = {};
         Object.values(response.data.data).flat().forEach((config: SystemConfig) => {
-          initialValues[config.config_key] = config.config_value;
+          initialValues[config.configKey] = config.configValue;
         });
         setEditedValues(initialValues);
       } else {
@@ -228,19 +228,19 @@ const SystemConfiguration: React.FC = () => {
           <AccordionDetails>
             <Grid container spacing={2}>
               {configs.map((config) => (
-                <Grid item xs={12} md={6} key={config.config_key}>
+                <Grid item xs={12} md={6} key={config.configKey}>
                   <Card variant="outlined">
                     <CardContent>
                       <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
                         <Typography variant="subtitle2" fontWeight="bold">
-                          {config.config_key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          {config.configKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                         </Typography>
-                        
+
                         <Box display="flex" gap={1}>
                           <Tooltip title="Save this setting">
                             <IconButton
                               size="small"
-                              onClick={() => handleSave(config.config_key)}
+                              onClick={() => handleSave(config.configKey)}
                               disabled={saving}
                               color="primary"
                             >
@@ -249,23 +249,23 @@ const SystemConfiguration: React.FC = () => {
                           </Tooltip>
                         </Box>
                       </Box>
-                      
+
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                         {config.description}
                       </Typography>
-                      
+
                       <TextField
                         fullWidth
                         size="small"
-                        value={editedValues[config.config_key] || config.config_value}
-                        onChange={(e) => handleValueChange(config.config_key, e.target.value)}
+                        value={editedValues[config.configKey] || config.configValue}
+                        onChange={(e) => handleValueChange(config.configKey, e.target.value)}
                         variant="outlined"
                         label="Value"
                       />
-                      
-                      {config.updated_at && (
+
+                      {config.updatedAt && (
                         <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                          Last updated: {new Date(config.updated_at).toLocaleString()}
+                          Last updated: {new Date(config.updatedAt).toLocaleString()}
                         </Typography>
                       )}
                     </CardContent>

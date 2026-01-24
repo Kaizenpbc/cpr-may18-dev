@@ -93,8 +93,8 @@ const PayRateManagement: React.FC = () => {
   const [tierForm, setTierForm] = useState<PayRateTierForm>({
     name: '',
     description: '',
-    base_hourly_rate: 0,
-    course_bonus: 50
+    baseHourlyRate: 0,
+    courseBonus: 50
   });
 
   // Instructors state
@@ -112,23 +112,23 @@ const PayRateManagement: React.FC = () => {
   const [rateDialogOpen, setRateDialogOpen] = useState(false);
   const [selectedInstructor, setSelectedInstructor] = useState<InstructorPayRateList | null>(null);
   const [rateForm, setRateForm] = useState<InstructorPayRateForm>({
-    hourly_rate: 0,
-    course_bonus: 50,
-    effective_date: new Date().toISOString().split('T')[0],
+    hourlyRate: 0,
+    courseBonus: 50,
+    effectiveDate: new Date().toISOString().split('T')[0],
     notes: '',
-    change_reason: ''
+    changeReason: ''
   });
 
   // Bulk update state
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [selectedInstructors, setSelectedInstructors] = useState<number[]>([]);
   const [bulkForm, setBulkForm] = useState<BulkPayRateUpdate>({
-    instructor_ids: [],
-    hourly_rate: 0,
-    course_bonus: 50,
-    effective_date: new Date().toISOString().split('T')[0],
+    instructorIds: [],
+    hourlyRate: 0,
+    courseBonus: 50,
+    effectiveDate: new Date().toISOString().split('T')[0],
     notes: '',
-    change_reason: ''
+    changeReason: ''
   });
 
   // History dialog state
@@ -149,8 +149,9 @@ const PayRateManagement: React.FC = () => {
       setLoading(true);
       const data = await payRateService.getTiers();
       setTiers(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load pay rate tiers');
+    } catch (err: unknown) {
+      const errObj = err as { message?: string };
+      setError(errObj.message || 'Failed to load pay rate tiers');
     } finally {
       setLoading(false);
     }
@@ -163,12 +164,13 @@ const PayRateManagement: React.FC = () => {
         page: pagination.page,
         limit: pagination.limit,
         search: searchTerm,
-        has_rate: hasRateFilter
+        ...(hasRateFilter && { has_rate: hasRateFilter as 'true' | 'false' })
       });
       setInstructors(data.instructors);
       setPagination(data.pagination);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load instructors');
+    } catch (err: unknown) {
+      const errObj = err as { message?: string };
+      setError(errObj.message || 'Failed to load instructors');
     } finally {
       setLoading(false);
     }
@@ -184,10 +186,11 @@ const PayRateManagement: React.FC = () => {
       }
       setTierDialogOpen(false);
       setEditingTier(null);
-      setTierForm({ name: '', description: '', base_hourly_rate: 0, course_bonus: 50 });
+      setTierForm({ name: '', description: '', baseHourlyRate: 0, courseBonus: 50 });
       loadTiers();
-    } catch (err: any) {
-      setError(err.message || 'Failed to save tier');
+    } catch (err: unknown) {
+      const errObj = err as { message?: string };
+      setError(errObj.message || 'Failed to save tier');
     } finally {
       setLoading(false);
     }
@@ -201,10 +204,11 @@ const PayRateManagement: React.FC = () => {
       await payRateService.setInstructorRate(selectedInstructor.id, rateForm);
       setRateDialogOpen(false);
       setSelectedInstructor(null);
-      setRateForm({ hourly_rate: 0, course_bonus: 50, effective_date: new Date().toISOString().split('T')[0], notes: '', change_reason: '' });
+      setRateForm({ hourlyRate: 0, courseBonus: 50, effectiveDate: new Date().toISOString().split('T')[0], notes: '', changeReason: '' });
       loadInstructors();
-    } catch (err: any) {
-      setError(err.message || 'Failed to set instructor rate');
+    } catch (err: unknown) {
+      const errObj = err as { message?: string };
+      setError(errObj.message || 'Failed to set instructor rate');
     } finally {
       setLoading(false);
     }
@@ -216,10 +220,11 @@ const PayRateManagement: React.FC = () => {
       await payRateService.bulkUpdateRates(bulkForm);
       setBulkDialogOpen(false);
       setSelectedInstructors([]);
-      setBulkForm({ instructor_ids: [], hourly_rate: 0, course_bonus: 50, effective_date: new Date().toISOString().split('T')[0], notes: '', change_reason: '' });
+      setBulkForm({ instructorIds: [], hourlyRate: 0, courseBonus: 50, effectiveDate: new Date().toISOString().split('T')[0], notes: '', changeReason: '' });
       loadInstructors();
-    } catch (err: any) {
-      setError(err.message || 'Failed to update rates');
+    } catch (err: unknown) {
+      const errObj = err as { message?: string };
+      setError(errObj.message || 'Failed to update rates');
     } finally {
       setLoading(false);
     }
@@ -228,11 +233,11 @@ const PayRateManagement: React.FC = () => {
   const openRateDialog = (instructor: InstructorPayRateList) => {
     setSelectedInstructor(instructor);
     setRateForm({
-      hourly_rate: instructor.hourly_rate || 25,
-      course_bonus: instructor.course_bonus || 50,
-      effective_date: new Date().toISOString().split('T')[0],
+      hourlyRate: instructor.hourlyRate || 25,
+      courseBonus: instructor.courseBonus || 50,
+      effectiveDate: new Date().toISOString().split('T')[0],
       notes: '',
-      change_reason: ''
+      changeReason: ''
     });
     setRateDialogOpen(true);
   };
@@ -243,8 +248,9 @@ const PayRateManagement: React.FC = () => {
       const detail = await payRateService.getInstructorDetail(instructor.id);
       setInstructorDetail(detail);
       setHistoryDialogOpen(true);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load instructor history');
+    } catch (err: unknown) {
+      const errObj = err as { message?: string };
+      setError(errObj.message || 'Failed to load instructor history');
     } finally {
       setLoading(false);
     }
@@ -256,12 +262,12 @@ const PayRateManagement: React.FC = () => {
       setTierForm({
         name: tier.name,
         description: tier.description || '',
-        base_hourly_rate: tier.base_hourly_rate,
-        course_bonus: tier.course_bonus
+        baseHourlyRate: tier.baseHourlyRate,
+        courseBonus: tier.courseBonus
       });
     } else {
       setEditingTier(null);
-      setTierForm({ name: '', description: '', base_hourly_rate: 0, course_bonus: 50 });
+      setTierForm({ name: '', description: '', baseHourlyRate: 0, courseBonus: 50 });
     }
     setTierDialogOpen(true);
   };
@@ -389,16 +395,16 @@ const PayRateManagement: React.FC = () => {
                     </TableCell>
                     <TableCell>{instructor.phone || 'N/A'}</TableCell>
                     <TableCell>
-                      {instructor.hourly_rate ? (
+                      {instructor.hourlyRate ? (
                         <Box>
                           <Typography variant="body2">
-                            ${instructor.hourly_rate}/hour
+                            ${instructor.hourlyRate}/hour
                           </Typography>
                           <Typography variant="caption" color="textSecondary">
-                            +${instructor.course_bonus} per course
+                            +${instructor.courseBonus} per course
                           </Typography>
-                          {instructor.tier_name && (
-                            <Chip size="small" label={instructor.tier_name} sx={{ ml: 1 }} />
+                          {instructor.tierName && (
+                            <Chip size="small" label={instructor.tierName} sx={{ ml: 1 }} />
                           )}
                         </Box>
                       ) : (
@@ -407,8 +413,8 @@ const PayRateManagement: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={instructor.rate_status} 
-                        color={getStatusColor(instructor.rate_status) as any}
+                        label={instructor.rateStatus} 
+                        color={getStatusColor(instructor.rateStatus) as any}
                         size="small"
                       />
                     </TableCell>
@@ -463,14 +469,14 @@ const PayRateManagement: React.FC = () => {
                       {tier.description}
                     </Typography>
                     <Typography variant="h5" color="primary">
-                      ${tier.base_hourly_rate}/hour
+                      ${tier.baseHourlyRate}/hour
                     </Typography>
                     <Typography variant="body2">
-                      +${tier.course_bonus} per course
+                      +${tier.courseBonus} per course
                     </Typography>
                     <Chip 
-                      label={tier.is_active ? 'Active' : 'Inactive'} 
-                      color={tier.is_active ? 'success' : 'default'}
+                      label={tier.isActive ? 'Active' : 'Inactive'} 
+                      color={tier.isActive ? 'success' : 'default'}
                       size="small"
                       sx={{ mt: 1 }}
                     />
@@ -536,8 +542,8 @@ const PayRateManagement: React.FC = () => {
                 fullWidth
                 label="Base Hourly Rate ($)"
                 type="number"
-                value={tierForm.base_hourly_rate}
-                onChange={(e) => setTierForm({ ...tierForm, base_hourly_rate: parseFloat(e.target.value) || 0 })}
+                value={tierForm.baseHourlyRate}
+                onChange={(e) => setTierForm({ ...tierForm, baseHourlyRate: parseFloat(e.target.value) || 0 })}
                 inputProps={{ min: 0, step: 0.01 }}
                 required
               />
@@ -547,8 +553,8 @@ const PayRateManagement: React.FC = () => {
                 fullWidth
                 label="Course Bonus ($)"
                 type="number"
-                value={tierForm.course_bonus}
-                onChange={(e) => setTierForm({ ...tierForm, course_bonus: parseFloat(e.target.value) || 0 })}
+                value={tierForm.courseBonus}
+                onChange={(e) => setTierForm({ ...tierForm, courseBonus: parseFloat(e.target.value) || 0 })}
                 inputProps={{ min: 0, step: 0.01 }}
               />
             </Grid>
@@ -574,8 +580,8 @@ const PayRateManagement: React.FC = () => {
                 fullWidth
                 label="Hourly Rate ($)"
                 type="number"
-                value={rateForm.hourly_rate}
-                onChange={(e) => setRateForm({ ...rateForm, hourly_rate: parseFloat(e.target.value) || 0 })}
+                value={rateForm.hourlyRate}
+                onChange={(e) => setRateForm({ ...rateForm, hourlyRate: parseFloat(e.target.value) || 0 })}
                 inputProps={{ min: 0, step: 0.01 }}
                 required
               />
@@ -585,8 +591,8 @@ const PayRateManagement: React.FC = () => {
                 fullWidth
                 label="Course Bonus ($)"
                 type="number"
-                value={rateForm.course_bonus}
-                onChange={(e) => setRateForm({ ...rateForm, course_bonus: parseFloat(e.target.value) || 0 })}
+                value={rateForm.courseBonus}
+                onChange={(e) => setRateForm({ ...rateForm, courseBonus: parseFloat(e.target.value) || 0 })}
                 inputProps={{ min: 0, step: 0.01 }}
               />
             </Grid>
@@ -594,14 +600,14 @@ const PayRateManagement: React.FC = () => {
               <FormControl fullWidth>
                 <InputLabel>Pay Rate Tier</InputLabel>
                 <Select
-                  value={rateForm.tier_id || ''}
-                  onChange={(e) => setRateForm({ ...rateForm, tier_id: e.target.value ? Number(e.target.value) : undefined })}
+                  value={rateForm.tierId || ''}
+                  onChange={(e) => setRateForm({ ...rateForm, tierId: e.target.value ? Number(e.target.value) : undefined })}
                   label="Pay Rate Tier"
                 >
                   <MenuItem value="">No Tier</MenuItem>
                   {tiers.map((tier) => (
                     <MenuItem key={tier.id} value={tier.id}>
-                      {tier.name} (${tier.base_hourly_rate}/hour)
+                      {tier.name} (${tier.baseHourlyRate}/hour)
                     </MenuItem>
                   ))}
                 </Select>
@@ -612,8 +618,8 @@ const PayRateManagement: React.FC = () => {
                 fullWidth
                 label="Effective Date"
                 type="date"
-                value={rateForm.effective_date}
-                onChange={(e) => setRateForm({ ...rateForm, effective_date: e.target.value })}
+                value={rateForm.effectiveDate}
+                onChange={(e) => setRateForm({ ...rateForm, effectiveDate: e.target.value })}
                 InputLabelProps={{ shrink: true }}
                 required
               />
@@ -622,8 +628,8 @@ const PayRateManagement: React.FC = () => {
               <TextField
                 fullWidth
                 label="Change Reason"
-                value={rateForm.change_reason}
-                onChange={(e) => setRateForm({ ...rateForm, change_reason: e.target.value })}
+                value={rateForm.changeReason}
+                onChange={(e) => setRateForm({ ...rateForm, changeReason: e.target.value })}
                 multiline
                 rows={2}
               />
@@ -660,8 +666,8 @@ const PayRateManagement: React.FC = () => {
                 fullWidth
                 label="Hourly Rate ($)"
                 type="number"
-                value={bulkForm.hourly_rate}
-                onChange={(e) => setBulkForm({ ...bulkForm, hourly_rate: parseFloat(e.target.value) || 0 })}
+                value={bulkForm.hourlyRate}
+                onChange={(e) => setBulkForm({ ...bulkForm, hourlyRate: parseFloat(e.target.value) || 0 })}
                 inputProps={{ min: 0, step: 0.01 }}
                 required
               />
@@ -671,8 +677,8 @@ const PayRateManagement: React.FC = () => {
                 fullWidth
                 label="Course Bonus ($)"
                 type="number"
-                value={bulkForm.course_bonus}
-                onChange={(e) => setBulkForm({ ...bulkForm, course_bonus: parseFloat(e.target.value) || 0 })}
+                value={bulkForm.courseBonus}
+                onChange={(e) => setBulkForm({ ...bulkForm, courseBonus: parseFloat(e.target.value) || 0 })}
                 inputProps={{ min: 0, step: 0.01 }}
               />
             </Grid>
@@ -680,14 +686,14 @@ const PayRateManagement: React.FC = () => {
               <FormControl fullWidth>
                 <InputLabel>Pay Rate Tier</InputLabel>
                 <Select
-                  value={bulkForm.tier_id || ''}
-                  onChange={(e) => setBulkForm({ ...bulkForm, tier_id: e.target.value ? Number(e.target.value) : undefined })}
+                  value={bulkForm.tierId || ''}
+                  onChange={(e) => setBulkForm({ ...bulkForm, tierId: e.target.value ? Number(e.target.value) : undefined })}
                   label="Pay Rate Tier"
                 >
                   <MenuItem value="">No Tier</MenuItem>
                   {tiers.map((tier) => (
                     <MenuItem key={tier.id} value={tier.id}>
-                      {tier.name} (${tier.base_hourly_rate}/hour)
+                      {tier.name} (${tier.baseHourlyRate}/hour)
                     </MenuItem>
                   ))}
                 </Select>
@@ -698,8 +704,8 @@ const PayRateManagement: React.FC = () => {
                 fullWidth
                 label="Effective Date"
                 type="date"
-                value={bulkForm.effective_date}
-                onChange={(e) => setBulkForm({ ...bulkForm, effective_date: e.target.value })}
+                value={bulkForm.effectiveDate}
+                onChange={(e) => setBulkForm({ ...bulkForm, effectiveDate: e.target.value })}
                 InputLabelProps={{ shrink: true }}
                 required
               />
@@ -708,8 +714,8 @@ const PayRateManagement: React.FC = () => {
               <TextField
                 fullWidth
                 label="Change Reason"
-                value={bulkForm.change_reason}
-                onChange={(e) => setBulkForm({ ...bulkForm, change_reason: e.target.value })}
+                value={bulkForm.changeReason}
+                onChange={(e) => setBulkForm({ ...bulkForm, changeReason: e.target.value })}
                 multiline
                 rows={2}
               />
@@ -752,13 +758,13 @@ const PayRateManagement: React.FC = () => {
                   {instructorDetail.currentRate ? (
                     <Box>
                       <Typography variant="h5" color="primary">
-                        ${instructorDetail.currentRate.hourly_rate}/hour
+                        ${instructorDetail.currentRate.hourlyRate}/hour
                       </Typography>
                       <Typography variant="body2">
-                        +${instructorDetail.currentRate.course_bonus} per course
+                        +${instructorDetail.currentRate.courseBonus} per course
                       </Typography>
                       <Typography variant="caption" color="textSecondary">
-                        Effective: {new Date(instructorDetail.currentRate.effective_date).toLocaleDateString()}
+                        Effective: {new Date(instructorDetail.currentRate.effectiveDate).toLocaleDateString()}
                       </Typography>
                     </Box>
                   ) : (
@@ -775,26 +781,26 @@ const PayRateManagement: React.FC = () => {
                       primary={
                         <Box>
                           <Typography variant="subtitle2">
-                            ${change.old_hourly_rate || 0} → ${change.new_hourly_rate}/hour
+                            ${change.oldHourlyRate || 0} → ${change.newHourlyRate}/hour
                           </Typography>
                           <Typography variant="body2" color="textSecondary">
-                            {new Date(change.effective_date).toLocaleDateString()}
+                            {new Date(change.effectiveDate).toLocaleDateString()}
                           </Typography>
                         </Box>
                       }
                       secondary={
                         <Box>
                           <Typography variant="caption">
-                            Course bonus: ${change.old_course_bonus || 0} → ${change.new_course_bonus}
+                            Course bonus: ${change.oldCourseBonus || 0} → ${change.newCourseBonus}
                           </Typography>
-                          {change.change_reason && (
+                          {change.changeReason && (
                             <Typography variant="caption" display="block">
-                              Reason: {change.change_reason}
+                              Reason: {change.changeReason}
                             </Typography>
                           )}
-                          {change.changed_by_name && (
+                          {change.changedByName && (
                             <Typography variant="caption" display="block">
-                              Changed by: {change.changed_by_name}
+                              Changed by: {change.changedByName}
                             </Typography>
                           )}
                         </Box>
@@ -802,13 +808,13 @@ const PayRateManagement: React.FC = () => {
                     />
                     <ListItemSecondaryAction>
                       <MuiChip 
-                        label={change.old_tier_name || 'No Tier'} 
+                        label={change.oldTierName || 'No Tier'} 
                         size="small" 
                         variant="outlined"
                         sx={{ mr: 1 }}
                       />
                       <MuiChip 
-                        label={change.new_tier_name || 'No Tier'} 
+                        label={change.newTierName || 'No Tier'} 
                         size="small"
                       />
                     </ListItemSecondaryAction>

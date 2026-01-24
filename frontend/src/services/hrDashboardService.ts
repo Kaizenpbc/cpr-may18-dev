@@ -1,12 +1,28 @@
 import { api } from './api';
 
+export interface RecentChange {
+  id: number;
+  userId: number;
+  changeType: string;
+  createdAt: string;
+  [key: string]: unknown;
+}
+
+export interface PendingApproval {
+  id: number;
+  userId: number;
+  status: string;
+  createdAt: string;
+  [key: string]: unknown;
+}
+
 export interface HRDashboardStats {
   pendingApprovals: number;
   activeInstructors: number;
   organizations: number;
   expiringCertifications: number;
-  recentChanges: any[];
-  pendingApprovalsList: any[];
+  recentChanges: RecentChange[];
+  pendingApprovalsList: PendingApproval[];
 }
 
 export interface InstructorProfile {
@@ -14,44 +30,44 @@ export interface InstructorProfile {
   username: string;
   email: string;
   phone: string | null;
-  created_at: string;
-  updated_at: string;
-  total_courses: number;
-  completed_courses: number;
-  active_courses: number;
-  last_course_date: string | null;
+  createdAt: string;
+  updatedAt: string;
+  totalCourses: number;
+  completedCourses: number;
+  activeCourses: number;
+  lastCourseDate: string | null;
 }
 
 export interface OrganizationProfile {
   id: number;
   name: string;
-  contact_email: string;
-  contact_phone: string | null;
+  contactEmail: string;
+  contactPhone: string | null;
   address: string | null;
-  created_at: string;
-  updated_at: string;
-  total_courses: number;
-  completed_courses: number;
-  active_courses: number;
-  total_users: number;
-  last_course_date: string | null;
+  createdAt: string;
+  updatedAt: string;
+  totalCourses: number;
+  completedCourses: number;
+  activeCourses: number;
+  totalUsers: number;
+  lastCourseDate: string | null;
 }
 
 export interface ProfileChange {
   id: number;
-  user_id: number;
-  change_type: string;
-  field_name: string;
-  old_value: string | null;
-  new_value: string;
+  userId: number;
+  changeType: string;
+  fieldName: string;
+  oldValue: string | null;
+  newValue: string;
   status: 'pending' | 'approved' | 'rejected';
-  hr_comment: string | null;
-  created_at: string;
-  updated_at: string;
+  hrComment: string | null;
+  createdAt: string;
+  updatedAt: string;
   username: string;
   email: string;
   role: string;
-  organization_name: string | null;
+  organizationName: string | null;
 }
 
 export interface PaginationData {
@@ -90,12 +106,32 @@ export interface PendingChangesResponse {
   };
 }
 
+export interface UserProfile {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+  organizationId?: number;
+  organizationName?: string;
+  createdAt: string;
+  updatedAt: string;
+  [key: string]: unknown;
+}
+
+export interface CourseHistoryItem {
+  id: number;
+  courseName: string;
+  courseDate: string;
+  status: string;
+  [key: string]: unknown;
+}
+
 export interface UserProfileResponse {
   success: boolean;
   data: {
-    user: any;
-    profileChanges: any[];
-    courseHistory: any[];
+    user: UserProfile;
+    profileChanges: ProfileChange[];
+    courseHistory: CourseHistoryItem[];
   };
 }
 

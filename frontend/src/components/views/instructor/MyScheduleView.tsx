@@ -26,7 +26,7 @@ import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
 import { Refresh } from '@mui/icons-material';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { formatDisplayDate } from '../../utils/dateUtils';
+import { formatDisplayDate } from '../../../utils/dateUtils';
 import { 
   useInstructorClasses, 
   useCompletedClasses, 
@@ -365,7 +365,7 @@ const MyScheduleView: React.FC = () => {
 
         {combinedError && (
           <Alert severity='error' sx={{ mb: 2 }}>
-            {combinedError.message}
+            {typeof combinedError === 'string' ? combinedError : combinedError.message}
           </Alert>
         )}
 

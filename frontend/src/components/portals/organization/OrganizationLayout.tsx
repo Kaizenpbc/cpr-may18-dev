@@ -31,8 +31,9 @@ interface User {
   id: number;
   username: string;
   role: string;
-  organizationId: number;
-  organizationName: string;
+  organizationId?: number;
+  organizationName?: string;
+  [key: string]: unknown;
 }
 
 interface NavigationItem {
@@ -41,11 +42,11 @@ interface NavigationItem {
   icon: React.ReactNode;
 }
 
-interface OrganizationLayoutProps {
+export interface OrganizationLayoutProps {
   children: React.ReactNode;
   user: User | null;
-  currentView: string;
-  onViewChange: (view: string) => void;
+  currentView?: string;
+  onViewChange?: (view: string) => void;
   onLogout: () => void;
   navigationItems: NavigationItem[];
   drawerWidth: number;
@@ -98,27 +99,32 @@ const OrganizationLayout: React.FC<OrganizationLayoutProps> = ({
       <Divider />
       <List>
         {navigationItems.map((item) => (
-          <ListItem
+          <NavLink
             key={item.id}
-            component={NavLink}
             to={`/organization/${item.id}`}
             style={({ isActive }) => ({
+              textDecoration: 'none',
+              color: 'inherit',
+              display: 'block',
               backgroundColor: isActive ? '#e3f2fd' : undefined,
             })}
-            sx={{
-              '&.Mui-selected': {
-                backgroundColor: 'primary.light',
-                '&:hover': {
-                  backgroundColor: 'primary.light',
-                },
-              },
-            }}
           >
-            <ListItemIcon>
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText primary={item.label} />
-          </ListItem>
+            <ListItem
+              sx={{
+                '&.Mui-selected': {
+                  backgroundColor: 'primary.light',
+                  '&:hover': {
+                    backgroundColor: 'primary.light',
+                  },
+                },
+              }}
+            >
+              <ListItemIcon>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItem>
+          </NavLink>
         ))}
       </List>
     </Box>

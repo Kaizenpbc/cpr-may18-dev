@@ -2,12 +2,12 @@ import React, { forwardRef } from 'react';
 import { TextField, TextFieldProps } from '@mui/material';
 import { useAccessibility } from '../../hooks/useAccessibility';
 
-interface AccessibleTextFieldProps extends TextFieldProps {
+type AccessibleTextFieldProps = TextFieldProps & {
   announceOnChange?: boolean;
   announceOnFocus?: boolean;
   announceOnBlur?: boolean;
   announceText?: string;
-}
+};
 
 const AccessibleTextField = forwardRef<HTMLDivElement, AccessibleTextFieldProps>(
   ({ 

@@ -3992,6 +3992,103 @@ router.get(
   })
 );
 
+// AR Aging Report endpoint
+router.get(
+  '/accounting/reports/ar-aging',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'accountant']),
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { organization_id, as_of_date } = req.query;
+      const asOfDate = as_of_date ? new Date(as_of_date as string) : new Date();
+
+      devLog('[Debug] Generating AR aging report, org:', organization_id, 'asOfDate:', asOfDate);
+
+      let orgFilter = '';
+      const params: (string | number | Date)[] = [asOfDate];
+
+      if (organization_id) {
+        orgFilter = 'AND i.organization_id = $2';
+        params.push(parseInt(organization_id as string));
+      }
+
+      const query = `
+        WITH invoice_aging AS (
+          SELECT
+            i.id as invoice_id,
+            i.invoice_number,
+            i.organization_id,
+            o.name as organization_name,
+            i.amount,
+            COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.invoice_id = i.id), 0) as paid_amount,
+            i.amount - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.invoice_id = i.id), 0) as balance,
+            i.invoice_date,
+            i.due_date,
+            CASE
+              WHEN i.due_date IS NULL THEN 0
+              ELSE EXTRACT(DAY FROM ($1::date - i.due_date::date))
+            END as days_overdue,
+            i.status
+          FROM invoices i
+          LEFT JOIN organizations o ON i.organization_id = o.id
+          WHERE i.status NOT IN ('paid', 'void', 'cancelled')
+            AND (i.amount - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.invoice_id = i.id), 0)) > 0
+            ${orgFilter}
+        )
+        SELECT
+          invoice_id,
+          invoice_number,
+          organization_id,
+          organization_name,
+          amount,
+          paid_amount,
+          balance,
+          invoice_date,
+          due_date,
+          days_overdue,
+          status,
+          CASE
+            WHEN days_overdue <= 0 THEN 'current'
+            WHEN days_overdue BETWEEN 1 AND 30 THEN '1-30'
+            WHEN days_overdue BETWEEN 31 AND 60 THEN '31-60'
+            WHEN days_overdue BETWEEN 61 AND 90 THEN '61-90'
+            ELSE '90+'
+          END as aging_bucket
+        FROM invoice_aging
+        ORDER BY days_overdue DESC, organization_name, invoice_date
+      `;
+
+      const result = await pool.query(query, params);
+
+      // Calculate summary by aging bucket
+      const summary = {
+        current: 0,
+        '1-30': 0,
+        '31-60': 0,
+        '61-90': 0,
+        '90+': 0,
+        total: 0,
+      };
+
+      result.rows.forEach((row: { aging_bucket: string; balance: string | number }) => {
+        const balance = parseFloat(row.balance as string) || 0;
+        summary[row.aging_bucket as keyof typeof summary] =
+          (summary[row.aging_bucket as keyof typeof summary] || 0) + balance;
+        summary.total += balance;
+      });
+
+      res.json(ApiResponseBuilder.success({
+        asOfDate: asOfDate.toISOString().split('T')[0],
+        invoices: keysToCamel(result.rows),
+        summary,
+      }));
+    } catch (error) {
+      console.error('Error generating AR aging report:', error);
+      throw error;
+    }
+  })
+);
+
 // Manual trigger for overdue invoices update (for testing/admin use)
 router.post(
   '/accounting/trigger-overdue-update',
@@ -5121,6 +5218,240 @@ router.delete(
       success: true,
       message: 'Organization deleted successfully',
     });
+  })
+);
+
+// Get single organization by ID (for OrganizationDetailPage)
+router.get(
+  '/sysadmin/organizations/:id',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'accountant']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    devLog('[Debug] Getting organization details for ID:', id);
+
+    const query = `
+      SELECT
+        o.id as organizationid,
+        o.name as organizationname,
+        o.address as addressstreet,
+        o.contact_name as contactname,
+        o.contact_email as contactemail,
+        o.contact_phone as contactphone,
+        o.city as addresscity,
+        o.province as addressprovince,
+        o.postal_code as addresspostalcode,
+        o.created_at,
+        o.updated_at
+      FROM organizations o
+      WHERE o.id = $1
+    `;
+
+    const result = await pool.query(query, [id]);
+
+    if (result.rows.length === 0) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Organization not found');
+    }
+
+    res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
+  })
+);
+
+// Get courses for an organization (admin view)
+router.get(
+  '/sysadmin/organizations/:id/courses',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'accountant']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    devLog('[Debug] Getting courses for organization ID:', id);
+
+    const query = `
+      SELECT
+        cr.id as courseid,
+        cr.course_number as coursenumber,
+        ct.name as coursetypename,
+        cr.status,
+        cr.confirmed_date as confirmeddate,
+        cr.date_requested as daterequested,
+        cr.location,
+        cr.registered_students as registeredstudents,
+        COALESCE(u.first_name || ' ' || u.last_name, 'Unassigned') as instructorname,
+        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as studentcount,
+        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as attendedcount,
+        cr.created_at,
+        cr.updated_at
+      FROM course_requests cr
+      LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+      LEFT JOIN users u ON cr.instructor_id = u.id
+      WHERE cr.organization_id = $1
+      ORDER BY cr.confirmed_date DESC NULLS LAST, cr.created_at DESC
+    `;
+
+    const result = await pool.query(query, [id]);
+
+    res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
+  })
+);
+
+// Get invoices for an organization
+router.get(
+  '/sysadmin/organizations/:id/invoices',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'accountant']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    devLog('[Debug] Getting invoices for organization ID:', id);
+
+    const query = `
+      SELECT
+        i.id as invoiceid,
+        i.invoice_number as invoicenumber,
+        i.amount,
+        i.status,
+        i.invoice_date as invoicedate,
+        i.due_date as duedate,
+        i.paid_date as paiddate,
+        i.notes,
+        COALESCE(
+          (SELECT SUM(p.amount) FROM payments p WHERE p.invoice_id = i.id),
+          0
+        ) as amountpaid,
+        i.created_at,
+        i.updated_at
+      FROM invoices i
+      WHERE i.organization_id = $1
+      ORDER BY i.invoice_date DESC NULLS LAST, i.created_at DESC
+    `;
+
+    const result = await pool.query(query, [id]);
+
+    res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
+  })
+);
+
+// Get financial summary for an organization
+router.get(
+  '/sysadmin/organizations/:id/financial-summary',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'accountant']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    devLog('[Debug] Getting financial summary for organization ID:', id);
+
+    const query = `
+      SELECT
+        COALESCE(SUM(i.amount), 0) as total_invoiced,
+        COALESCE(SUM(
+          CASE WHEN i.status IN ('paid', 'partial') THEN
+            (SELECT COALESCE(SUM(p.amount), 0) FROM payments p WHERE p.invoice_id = i.id)
+          ELSE 0 END
+        ), 0) as total_paid,
+        COALESCE(SUM(
+          CASE WHEN i.status NOT IN ('paid', 'void', 'cancelled') THEN
+            i.amount - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.invoice_id = i.id), 0)
+          ELSE 0 END
+        ), 0) as balance_due
+      FROM invoices i
+      WHERE i.organization_id = $1
+        AND i.status NOT IN ('void', 'cancelled')
+    `;
+
+    const result = await pool.query(query, [id]);
+    const row = result.rows[0] || { total_invoiced: 0, total_paid: 0, balance_due: 0 };
+
+    res.json(ApiResponseBuilder.success({
+      totalInvoiced: parseFloat(row.total_invoiced) || 0,
+      totalPaid: parseFloat(row.total_paid) || 0,
+      balanceDue: parseFloat(row.balance_due) || 0,
+    }));
+  })
+);
+
+// Schedule a course (assign instructor and date)
+router.post(
+  '/courseadmin/courses/:id/schedule',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'courseadmin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { instructorId, dateScheduled } = req.body;
+    devLog('[Debug] Scheduling course ID:', id, 'with instructor:', instructorId, 'on date:', dateScheduled);
+
+    if (!instructorId || !dateScheduled) {
+      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor ID and date scheduled are required');
+    }
+
+    // Verify the course exists and is in a schedulable state
+    const courseCheck = await pool.query(
+      'SELECT id, status FROM course_requests WHERE id = $1',
+      [id]
+    );
+
+    if (courseCheck.rows.length === 0) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Course not found');
+    }
+
+    const currentStatus = courseCheck.rows[0].status;
+    if (currentStatus === 'completed' || currentStatus === 'cancelled') {
+      throw new AppError(400, errorCodes.VALIDATION_ERROR, `Cannot schedule a course with status: ${currentStatus}`);
+    }
+
+    // Verify the instructor exists
+    const instructorCheck = await pool.query(
+      "SELECT id FROM users WHERE id = $1 AND role = 'instructor'",
+      [instructorId]
+    );
+
+    if (instructorCheck.rows.length === 0) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Instructor not found');
+    }
+
+    // Update the course request
+    const result = await pool.query(
+      `UPDATE course_requests
+       SET instructor_id = $1,
+           confirmed_date = $2,
+           status = 'confirmed',
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3
+       RETURNING *`,
+      [instructorId, dateScheduled, id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Course scheduled successfully',
+      course: keysToCamel(result.rows[0]),
+    });
+  })
+);
+
+// Get all instructors (for course scheduling dropdown)
+router.get(
+  '/courseadmin/instructors',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'courseadmin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    devLog('[Debug] Getting all instructors for course admin');
+
+    const query = `
+      SELECT
+        u.id as instructorid,
+        u.first_name as firstname,
+        u.last_name as lastname,
+        u.email,
+        u.phone,
+        u.is_active as isactive
+      FROM users u
+      WHERE u.role = 'instructor'
+        AND (u.is_active = true OR u.is_active IS NULL)
+      ORDER BY u.last_name, u.first_name
+    `;
+
+    const result = await pool.query(query);
+
+    res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
   })
 );
 

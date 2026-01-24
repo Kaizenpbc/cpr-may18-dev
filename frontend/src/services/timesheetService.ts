@@ -13,7 +13,18 @@ export interface Timesheet {
   hrComment?: string;
   createdAt: string;
   updatedAt: string;
-  courseDetails?: { courseId: number; courseType: string; date: string; hours: number }[];
+  courseDetails?: {
+    courseId: number;
+    courseType: string;
+    date: string;
+    hours: number;
+    startTime?: string;
+    endTime?: string;
+    organizationName?: string;
+    location?: string;
+    studentCount?: number;
+    status?: string;
+  }[];
 }
 
 export interface TimesheetStats {
@@ -37,14 +48,14 @@ export interface TimesheetFilters {
   page?: number;
   limit?: number;
   status?: string;
-  instructor_id?: string;
+  instructorId?: string;
   month?: string;
 }
 
 export interface TimesheetSubmission {
-  week_start_date: string;
-  total_hours?: number;
-  courses_taught?: number;
+  weekStartDate: string;
+  totalHours?: number;
+  coursesTaught?: number;
   notes?: string;
 }
 
@@ -66,8 +77,8 @@ export interface WeekCourses {
 }
 
 export interface TimesheetUpdate {
-  total_hours: number;
-  courses_taught?: number;
+  totalHours: number;
+  coursesTaught?: number;
   notes?: string;
 }
 
@@ -90,8 +101,8 @@ export interface TimesheetNote {
 }
 
 export interface TimesheetNoteSubmission {
-  note_text: string;
-  note_type?: 'instructor' | 'hr' | 'accounting' | 'general';
+  noteText: string;
+  noteType?: 'instructor' | 'hr' | 'accounting' | 'general';
 }
 
 class TimesheetService {
@@ -116,7 +127,7 @@ class TimesheetService {
     if (filters.page) params.append('page', filters.page.toString());
     if (filters.limit) params.append('limit', filters.limit.toString());
     if (filters.status) params.append('status', filters.status);
-    if (filters.instructor_id) params.append('instructor_id', filters.instructor_id);
+    if (filters.instructorId) params.append('instructor_id', filters.instructorId);
     if (filters.month) params.append('month', filters.month);
 
     const response = await api.get(`/timesheet?${params.toString()}`);

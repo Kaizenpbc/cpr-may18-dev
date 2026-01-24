@@ -28,7 +28,7 @@ import { format } from 'date-fns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
-import { PickersDay } from '@mui/x-date-pickers/PickersDay';
+import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
 import type { Class, Availability, ApiResponse } from '../../../types/api';
 import api, { instructorApi } from '../../../api/index';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -207,7 +207,7 @@ const AvailabilityView: React.FC<AvailabilityViewProps> = ({
     }
   };
 
-  const CustomDay = (props: { day: Date; [key: string]: unknown }) => {
+  const CustomDay = (props: PickersDayProps<Date>) => {
     const { day, ...other } = props;
     const dateStr = format(day, 'yyyy-MM-dd');
     const todayStr = format(new Date(), 'yyyy-MM-dd');

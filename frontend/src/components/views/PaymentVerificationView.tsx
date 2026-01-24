@@ -37,9 +37,44 @@ import ServiceDetailsTable from '../common/ServiceDetailsTable';
 import PaymentHistoryTable from '../common/PaymentHistoryTable';
 import { formatDisplayDate } from '../../utils/dateUtils';
 
+interface Payment {
+  paymentId?: number;
+  id?: number;
+  organizationName?: string;
+  organizationname?: string;
+  invoiceNumber?: string;
+  invoicenumber?: string;
+  invoiceId?: number;
+  courseRequestId?: number;
+  amount?: number;
+  paymentMethod?: string;
+  referenceNumber?: string;
+  paymentDate?: string;
+  submittedByOrgAt?: string;
+  status?: string;
+  verifiedByAccountingAt?: string;
+  notes?: string;
+  location?: string;
+  courseTypeName?: string;
+  courseType?: string;
+  name?: string;
+  studentsAttended?: number;
+  studentsattendance?: number;
+  registeredStudents?: number;
+  ratePerStudent?: number;
+  baseCost?: number;
+  taxAmount?: number;
+  paymentstatus?: string;
+  amountPaid?: number;
+  balanceDue?: number;
+  courseDate?: string;
+  duedate?: string;
+  [key: string]: unknown;
+}
+
 const PaymentVerificationView = () => {
   console.log('🔍 [PAYMENT VERIFICATION] Component function called');
-  const [selectedPayment, setSelectedPayment] = useState(null);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState('view'); // 'view' or 'action'
   const [verificationAction, setVerificationAction] = useState('approve'); // 'approve' or 'reject'
@@ -49,8 +84,8 @@ const PaymentVerificationView = () => {
   
   // State for attendance data
   const [attendanceData, setAttendanceData] = useState<Array<{
-    first_name: string;
-    last_name: string;
+    firstName: string;
+    lastName: string;
     email: string;
     attended: boolean;
   }>>([]);
@@ -62,7 +97,7 @@ const PaymentVerificationView = () => {
 
   // State for invoice viewing
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<Payment | null>(null);
   const [loadingInvoice, setLoadingInvoice] = useState(false);
 
   const queryClient = useQueryClient();
@@ -79,7 +114,7 @@ const PaymentVerificationView = () => {
       const pendingPayments = response.data.data.payments?.filter(payment => 
         payment.status === 'pending_verification' || 
         payment.status === 'pending' ||
-        !payment.verified_by_accounting_at
+        !payment.verifiedByAccountingAt
       ) || [];
       
       console.log('🔍 [PAYMENT VERIFICATION] Filtered payments:', pendingPayments);
@@ -168,38 +203,39 @@ const PaymentVerificationView = () => {
         setPaymentDialogOpen(false);
       }, 2000);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('🔍 [VERIFY PAYMENT] Error:', error);
-      setErrorMessage(error.response?.data?.message || 'Failed to verify payment. Please try again.');
+      const errObj = error as { response?: { data?: { message?: string } } };
+      setErrorMessage(errObj.response?.data?.message || 'Failed to verify payment. Please try again.');
       setSuccessMessage('');
     },
   });
 
-  const handleViewPayment = (payment) => {
+  const handleViewPayment = (payment: Payment) => {
     setSelectedPayment(payment);
     setDialogMode('view');
     setPaymentDialogOpen(true);
-    
+
     // Load attendance data for this payment's course
-    if (payment.course_request_id) {
-      loadAttendanceData(payment.course_request_id);
+    if (payment.courseRequestId) {
+      loadAttendanceData(payment.courseRequestId);
     }
-    
+
     // Load payment history for this payment's invoice
-    if (payment.invoice_id) {
-      loadPaymentHistory(payment.invoice_id);
+    if (payment.invoiceId) {
+      loadPaymentHistory(payment.invoiceId);
     }
   };
 
-  const handleActionPayment = (payment, action) => {
+  const handleActionPayment = (payment: Payment, action: string) => {
     setSelectedPayment(payment);
     setVerificationAction(action);
     setDialogMode('action');
     setPaymentDialogOpen(true);
     
     // Load attendance data for this payment's course
-    if (payment.course_request_id) {
-      loadAttendanceData(payment.course_request_id);
+    if (payment.courseRequestId) {
+      loadAttendanceData(payment.courseRequestId);
     }
   };
 
@@ -216,12 +252,12 @@ const PaymentVerificationView = () => {
     }
 
     console.log('🔍 [HANDLE VERIFY SUBMIT] Payment ID field check:', {
-      payment_id: selectedPayment.payment_id,
+      payment_id: selectedPayment.paymentId,
       id: selectedPayment.id,
       allFields: Object.keys(selectedPayment)
     });
 
-    const paymentId = selectedPayment.payment_id || selectedPayment.id;
+    const paymentId = selectedPayment.paymentId || selectedPayment.id;
 
     console.log('🔍 [HANDLE VERIFY SUBMIT] Calling mutation with:', {
       paymentId,
@@ -265,20 +301,21 @@ const PaymentVerificationView = () => {
   };
 
   // Transform payment data into service details format
-  const getServiceDetails = (payment: any) => {
+  const getServiceDetails = (payment: Payment | null) => {
     if (!payment) return [];
-    
+
     // For now, create a single service detail from the payment
     // In the future, this could be expanded to show multiple courses
+    const amount = payment.amount || 0;
     return [{
-      date: payment.payment_date || payment.submitted_by_org_at,
+      date: payment.paymentDate || payment.submittedByOrgAt,
       location: payment.location || 'N/A',
-      course: payment.course_type_name || payment.course_type || 'N/A',
-      students: payment.students_attended || payment.registered_students || 0,
-      ratePerStudent: payment.rate_per_student || 9.00, // Default rate
-      baseCost: payment.base_cost || (payment.amount * 0.885), // Estimate if not available
-      tax: payment.tax_amount || (payment.amount * 0.115), // Estimate if not available
-      total: payment.amount || 0,
+      course: payment.courseTypeName || payment.courseType || 'N/A',
+      students: payment.studentsAttended || payment.registeredStudents || 0,
+      ratePerStudent: payment.ratePerStudent || 9.00, // Default rate
+      baseCost: payment.baseCost || (amount * 0.885), // Estimate if not available
+      tax: payment.taxAmount || (amount * 0.115), // Estimate if not available
+      total: amount,
     }];
   };
 
@@ -295,16 +332,16 @@ const PaymentVerificationView = () => {
   };
 
   // Check if payment can be verified (not already processed)
-  const canVerifyPayment = (payment) => {
+  const canVerifyPayment = (payment: Payment | null) => {
     if (!payment) return false;
-    return !payment.verified_by_accounting_at && 
-           (payment.status === 'pending_verification' || 
+    return !payment.verifiedByAccountingAt &&
+           (payment.status === 'pending_verification' ||
             payment.status === 'pending' ||
             !payment.status);
   };
 
   // Get payment status for display
-  const getPaymentStatus = (payment: any) => {
+  const getPaymentStatus = (payment: Payment | null) => {
     if (!payment) {
       return {
         label: 'UNKNOWN',
@@ -330,7 +367,7 @@ const PaymentVerificationView = () => {
       }
     }
     
-    if (payment.verified_by_accounting_at) {
+    if (payment.verifiedByAccountingAt) {
       return {
         label: 'VERIFIED',
         color: 'success' as const,
@@ -430,15 +467,15 @@ const PaymentVerificationView = () => {
                 paymentsData.payments.map(payment => {
                   if (!payment) return null;
                   return (
-                    <TableRow key={payment.payment_id} hover>
+                    <TableRow key={payment.paymentId} hover>
                       <TableCell>
                         <Typography variant='body2' fontWeight='medium'>
-                          {payment.organization_name}
+                          {payment.organizationName}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant='body2'>
-                          {payment.invoice_number}
+                          {payment.invoiceNumber}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -448,19 +485,19 @@ const PaymentVerificationView = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant='body2'>
-                          {payment.payment_method
+                          {payment.paymentMethod
                             ?.replace('_', ' ')
                             .toUpperCase()}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant='body2'>
-                          {payment.reference_number || '-'}
+                          {payment.referenceNumber || '-'}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant='body2'>
-                          {formatDate(payment.submitted_by_org_at)}
+                          {formatDate(payment.submittedByOrgAt)}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -504,7 +541,7 @@ const PaymentVerificationView = () => {
           }
           {selectedPayment && (
             <Typography variant='subtitle2' color='text.secondary'>
-              {selectedPayment.organization_name} - {selectedPayment.invoice_number}
+              {selectedPayment.organizationName} - {selectedPayment.invoiceNumber}
             </Typography>
           )}
         </DialogTitle>
@@ -550,7 +587,7 @@ const PaymentVerificationView = () => {
                       <TableBody>
                         {attendanceData.map((student, index) => (
                           <TableRow key={index}>
-                            <TableCell>{student.first_name} {student.last_name}</TableCell>
+                            <TableCell>{student.firstName} {student.lastName}</TableCell>
                             <TableCell>{student.email || 'N/A'}</TableCell>
                             <TableCell align="center">
                               <Chip
@@ -582,7 +619,7 @@ const PaymentVerificationView = () => {
                     Invoice Number
                   </Typography>
                   <Typography variant='body1' fontWeight='medium'>
-                    {selectedPayment.invoice_number}
+                    {selectedPayment.invoiceNumber}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -598,7 +635,7 @@ const PaymentVerificationView = () => {
                     Payment Method
                   </Typography>
                   <Typography variant='body1'>
-                    {selectedPayment.payment_method?.replace('_', ' ').toUpperCase()}
+                    {selectedPayment.paymentMethod?.replace('_', ' ').toUpperCase()}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -606,7 +643,7 @@ const PaymentVerificationView = () => {
                     Reference Number
                   </Typography>
                   <Typography variant='body1'>
-                    {selectedPayment.reference_number || '-'}
+                    {selectedPayment.referenceNumber || '-'}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -614,7 +651,7 @@ const PaymentVerificationView = () => {
                     Payment Date
                   </Typography>
                   <Typography variant='body1'>
-                    {formatDate(selectedPayment.payment_date)}
+                    {formatDate(selectedPayment.paymentDate)}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -622,7 +659,7 @@ const PaymentVerificationView = () => {
                     Submitted Date
                   </Typography>
                   <Typography variant='body1'>
-                    {formatDate(selectedPayment.submitted_by_org_at)}
+                    {formatDate(selectedPayment.submittedByOrgAt)}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -636,13 +673,13 @@ const PaymentVerificationView = () => {
                     size='small'
                   />
                 </Grid>
-                {selectedPayment.verified_by_accounting_at && (
+                {selectedPayment.verifiedByAccountingAt && (
                   <Grid item xs={12} sm={6}>
                     <Typography variant='body2' color='text.secondary'>
                       Verified By Accounting
                     </Typography>
                     <Typography variant='body1'>
-                      {formatDate(selectedPayment.verified_by_accounting_at)}
+                      {formatDate(selectedPayment.verifiedByAccountingAt)}
                     </Typography>
                   </Grid>
                 )}
@@ -842,7 +879,7 @@ const PaymentVerificationView = () => {
                     Course Date
                   </Typography>
                   <Typography variant="body1" fontWeight="medium">
-                    {selectedInvoice.course_date ? formatDisplayDate(selectedInvoice.course_date) : 'N/A'}
+                    {selectedInvoice.courseDate ? formatDisplayDate(selectedInvoice.courseDate) : 'N/A'}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -866,15 +903,15 @@ const PaymentVerificationView = () => {
                     Amount Paid
                   </Typography>
                   <Typography variant="body1" fontWeight="medium" color="success.main">
-                    ${Number(selectedInvoice.amount_paid || 0).toFixed(2)}
+                    ${Number(selectedInvoice.amountPaid || 0).toFixed(2)}
                   </Typography>
                 </Grid>
                 <Grid item xs={12}>
                   <Typography variant="body2" color="text.secondary">
                     Balance Due
                   </Typography>
-                  <Typography variant="body1" fontWeight="medium" color={Number(selectedInvoice.balance_due || 0) > 0 ? 'error.main' : 'success.main'}>
-                    ${Number(selectedInvoice.balance_due || 0).toFixed(2)}
+                  <Typography variant="body1" fontWeight="medium" color={Number(selectedInvoice.balanceDue || 0) > 0 ? 'error.main' : 'success.main'}>
+                    ${Number(selectedInvoice.balanceDue || 0).toFixed(2)}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>

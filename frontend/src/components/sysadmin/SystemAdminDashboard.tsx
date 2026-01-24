@@ -206,7 +206,7 @@ const SystemAdminDashboard = ({ onShowSnackbar }) => {
                             }
                           />
                           <Typography variant='caption' color='text.secondary'>
-                            {formatDate(user.created_at)}
+                            {formatDate(user.createdAt)}
                           </Typography>
                         </Box>
                       }
@@ -254,12 +254,12 @@ const SystemAdminDashboard = ({ onShowSnackbar }) => {
                           }}
                         >
                           <Chip
-                            label={course.course_code || 'N/A'}
+                            label={course.courseCode || 'N/A'}
                             size='small'
                             variant='outlined'
                           />
                           <Typography variant='caption' color='text.secondary'>
-                            {formatDate(course.created_at)}
+                            {formatDate(course.createdAt)}
                           </Typography>
                         </Box>
                       }

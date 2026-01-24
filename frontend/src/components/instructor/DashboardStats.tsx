@@ -16,10 +16,10 @@ import {
 
 interface DashboardStatsProps {
   stats: {
-    total_courses: number;
-    scheduled_courses: number;
-    completed_courses: number;
-    cancelled_courses: number;
+    totalCourses: number;
+    scheduledCourses: number;
+    completedCourses: number;
+    cancelledCourses: number;
   } | null;
 }
 
@@ -48,10 +48,10 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({ stats }) => {
   console.log('[DashboardStats] Stats type:', typeof stats);
   console.log('[DashboardStats] Stats keys:', stats ? Object.keys(stats) : 'null');
   console.log('[DashboardStats] Individual values:', {
-    total_courses: stats?.total_courses,
-    scheduled_courses: stats?.scheduled_courses,
-    completed_courses: stats?.completed_courses,
-    cancelled_courses: stats?.cancelled_courses
+    totalCourses: stats?.totalCourses,
+    scheduledCourses: stats?.scheduledCourses,
+    completedCourses: stats?.completedCourses,
+    cancelledCourses: stats?.cancelledCourses
   });
 
   return (
@@ -60,7 +60,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({ stats }) => {
         <StatCard 
             icon={<ClassIcon />}
             title="Total Classes"
-            value={stats?.total_courses || 0}
+            value={stats?.totalCourses || 0}
             color="primary.main"
         />
       </Grid>
@@ -68,7 +68,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({ stats }) => {
         <StatCard 
             icon={<ScheduleIcon />}
             title="Upcoming Classes"
-            value={stats?.scheduled_courses || 0}
+            value={stats?.scheduledCourses || 0}
             color="info.main"
         />
       </Grid>
@@ -76,7 +76,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({ stats }) => {
         <StatCard 
             icon={<PeopleIcon />}
             title="Completed Classes"
-            value={stats?.completed_courses || 0}
+            value={stats?.completedCourses || 0}
             color="success.main"
         />
       </Grid>
@@ -84,7 +84,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({ stats }) => {
         <StatCard 
             icon={<CalendarIcon />}
             title="Cancelled Classes"
-            value={stats?.cancelled_courses || 0}
+            value={stats?.cancelledCourses || 0}
             color="warning.main"
         />
       </Grid>

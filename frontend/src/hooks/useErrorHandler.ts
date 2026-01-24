@@ -19,7 +19,7 @@ interface ErrorHandlerResult {
   handleEnhancedError: (error: unknown, context?: Partial<ErrorContext>) => EnhancedError;
   handleApiError: (
     error: unknown,
-    apiContext: { endpoint: string; method: string; requestData?: any }
+    apiContext: { endpoint: string; method: string; requestData?: unknown }
   ) => StandardError;
   handleAuthError: (
     error: unknown,
@@ -111,7 +111,7 @@ export const useErrorHandler = (options: UseErrorHandlerOptions = {}): ErrorHand
   const handleApiError = useCallback(
     (
       error: unknown,
-      apiContext: { endpoint: string; method: string; requestData?: any }
+      apiContext: { endpoint: string; method: string; requestData?: unknown }
     ): StandardError => {
       const errorContext: ErrorContext = {
         service: 'ApiService',

@@ -158,8 +158,8 @@ const ClassAttendanceView: React.FC = () => {
     }
   };
 
-  const handleClassChange = (event: { target: { value: number } }) => {
-    const classId = event.target.value;
+  const handleClassChange = (event: { target: { value: unknown } }) => {
+    const classId = event.target.value as number;
     const selected = todaysClasses.find(c => c.courseId === classId);
     setSelectedClass(selected || null);
     setInstructorComments(''); // Reset comments when changing classes
@@ -343,8 +343,8 @@ const ClassAttendanceView: React.FC = () => {
                           {course.name} - {course.organizationname}
                         </Typography>
                         <Typography variant='body2' color='text.secondary'>
-                          {formatTime(course.start_time)} -{' '}
-                          {formatTime(course.end_time)} | {course.location}
+                          {formatTime(course.startTime)} -{' '}
+                          {formatTime(course.endTime)} | {course.location}
                         </Typography>
                       </Box>
                     </MenuItem>
@@ -404,7 +404,7 @@ const ClassAttendanceView: React.FC = () => {
                     <Grid item xs={12} sm={6} md={3}>
                       <Chip
                         icon={<ScheduleIcon />}
-                        label={`${formatTime(selectedClass.start_time)} - ${formatTime(selectedClass.end_time)}`}
+                        label={`${formatTime(selectedClass.startTime)} - ${formatTime(selectedClass.endTime)}`}
                         size='small'
                       />
                     </Grid>
@@ -705,7 +705,7 @@ const ClassAttendanceView: React.FC = () => {
                               Course: {selectedClass?.name}<br />
               Organization: {selectedClass?.organizationname}<br />
               Location: {selectedClass?.location}<br />
-              Time: {selectedClass ? `${formatTime(selectedClass.start_time)} - ${formatTime(selectedClass.end_time)}` : ''}<br />
+              Time: {selectedClass ? `${formatTime(selectedClass.startTime)} - ${formatTime(selectedClass.endTime)}` : ''}<br />
               Students Registered: {stats.total}<br />
               Students Present: {stats.present}<br />
               Students Absent: {stats.absent}

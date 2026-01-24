@@ -15,7 +15,7 @@ interface AnalyticsEvent {
   /** The name of the event being tracked */
   event: string;
   /** Additional properties associated with the event */
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
   /** ISO timestamp when the event occurred */
   timestamp?: string;
   /** Unique identifier for the user */
@@ -36,7 +36,7 @@ interface PerformanceMetric {
   /** ISO timestamp when the metric was recorded */
   timestamp: string;
   /** Additional metadata about the metric */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -123,7 +123,7 @@ class AnalyticsService {
    * Associates all future events with this user
    *
    * @param {string | number} userId - Unique identifier for the user
-   * @param {Record<string, any>} [properties] - Additional user properties
+   * @param {Record<string, unknown>} [properties] - Additional user properties
    *
    * @example
    * ```typescript
@@ -133,7 +133,7 @@ class AnalyticsService {
    * });
    * ```
    */
-  setUser(userId: string | number, properties?: Record<string, any>) {
+  setUser(userId: string | number, properties?: Record<string, unknown>) {
     this.userId = userId;
 
     if (this.isEnabled) {
@@ -149,7 +149,7 @@ class AnalyticsService {
    * Tracks a custom event with optional properties
    *
    * @param {string} event - Name of the event to track
-   * @param {Record<string, any>} [properties] - Additional event properties
+   * @param {Record<string, unknown>} [properties] - Additional event properties
    *
    * @example
    * ```typescript
@@ -160,7 +160,7 @@ class AnalyticsService {
    * });
    * ```
    */
-  track(event: string, properties?: Record<string, any>) {
+  track(event: string, properties?: Record<string, unknown>) {
     const analyticsEvent: AnalyticsEvent = {
       event,
       properties: {
@@ -192,7 +192,7 @@ class AnalyticsService {
   /**
    * Track page views
    */
-  trackPageView(page: string, properties?: Record<string, any>) {
+  trackPageView(page: string, properties?: Record<string, unknown>) {
     this.track('page_view', {
       page,
       ...properties,
@@ -202,7 +202,7 @@ class AnalyticsService {
   /**
    * Track instructor-specific actions
    */
-  trackInstructorAction(action: string, properties?: Record<string, any>) {
+  trackInstructorAction(action: string, properties?: Record<string, unknown>) {
     this.track('instructor_action', {
       action,
       portal: 'instructor',
@@ -213,7 +213,7 @@ class AnalyticsService {
   /**
    * Track organization-specific actions
    */
-  trackOrganizationAction(action: string, properties?: Record<string, any>) {
+  trackOrganizationAction(action: string, properties?: Record<string, unknown>) {
     this.track('organization_action', {
       action,
       portal: 'organization',
@@ -224,7 +224,7 @@ class AnalyticsService {
   /**
    * Track course admin-specific actions
    */
-  trackCourseAdminAction(action: string, properties?: Record<string, any>) {
+  trackCourseAdminAction(action: string, properties?: Record<string, unknown>) {
     this.track('course_admin_action', {
       action,
       portal: 'course_admin',
@@ -238,7 +238,7 @@ class AnalyticsService {
   trackClassAction(
     action: string,
     classId?: number,
-    properties?: Record<string, any>
+    properties?: Record<string, unknown>
   ) {
     this.track('class_action', {
       action,
@@ -254,7 +254,7 @@ class AnalyticsService {
   trackAvailabilityAction(
     action: string,
     date?: string,
-    properties?: Record<string, any>
+    properties?: Record<string, unknown>
   ) {
     this.track('availability_action', {
       action,
@@ -267,7 +267,7 @@ class AnalyticsService {
   /**
    * Track errors
    */
-  trackError(error: Error, context?: string, properties?: Record<string, any>) {
+  trackError(error: Error, context?: string, properties?: Record<string, unknown>) {
     this.track('error_occurred', {
       error: error.message,
       stack: error.stack,

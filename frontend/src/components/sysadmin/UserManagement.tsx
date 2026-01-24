@@ -52,14 +52,14 @@ const UserManagement = ({ onShowSnackbar }) => {
     username: '',
     email: '',
     password: '',
-    first_name: '',
-    last_name: '',
-    full_name: '',
+    firstName: '',
+    lastName: '',
+    fullName: '',
     role: '',
     mobile: '',
-    organization_id: '',
-    date_onboarded: '',
-    user_comments: '',
+    organizationId: '',
+    dateOnboarded: '',
+    userComments: '',
     status: 'active',
   });
 
@@ -109,14 +109,14 @@ const UserManagement = ({ onShowSnackbar }) => {
       username: '',
       email: '',
       password: '',
-      first_name: '',
-      last_name: '',
-      full_name: '',
+      firstName: '',
+      lastName: '',
+      fullName: '',
       role: '',
       mobile: '',
-      organization_id: '',
-      date_onboarded: '',
-      user_comments: '',
+      organizationId: '',
+      dateOnboarded: '',
+      userComments: '',
       status: 'active',
     });
     setShowDialog(true);
@@ -128,16 +128,16 @@ const UserManagement = ({ onShowSnackbar }) => {
       username: user.username || '',
       email: user.email || '',
       password: '', // Don't pre-fill password for security
-      first_name: user.first_name || '',
-      last_name: user.last_name || '',
-      full_name: user.full_name || '',
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      fullName: user.fullName || '',
       role: user.role || '',
       mobile: user.mobile || '',
-      organization_id: user.organization_id || '',
-      date_onboarded: user.date_onboarded
-        ? user.date_onboarded.split('T')[0]
+      organizationId: user.organizationId || '',
+      dateOnboarded: user.dateOnboarded
+        ? user.dateOnboarded.split('T')[0]
         : '',
-      user_comments: user.user_comments || '',
+      userComments: user.userComments || '',
       status: user.status || 'active',
     });
     setShowDialog(true);
@@ -176,8 +176,8 @@ const UserManagement = ({ onShowSnackbar }) => {
     try {
       const submitData = {
         ...formData,
-        organization_id: formData.organization_id || null,
-        date_onboarded: formData.date_onboarded || null,
+        organizationId: formData.organizationId || null,
+        dateOnboarded: formData.dateOnboarded || null,
       };
 
       // Remove password if it's empty (for updates)
@@ -346,8 +346,8 @@ const UserManagement = ({ onShowSnackbar }) => {
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2'>
-                      {user.full_name ||
-                        `${user.first_name || ''} ${user.last_name || ''}`.trim() ||
+                      {user.fullName ||
+                        `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
                         '-'}
                     </Typography>
                   </TableCell>
@@ -363,7 +363,7 @@ const UserManagement = ({ onShowSnackbar }) => {
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2'>
-                      {user.organization_name || '-'}
+                      {user.organizationName || '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -380,7 +380,7 @@ const UserManagement = ({ onShowSnackbar }) => {
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2'>
-                      {formatDate(user.date_onboarded)}
+                      {formatDate(user.dateOnboarded)}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -481,8 +481,8 @@ const UserManagement = ({ onShowSnackbar }) => {
                 <TextField
                   fullWidth
                   label='First Name'
-                  name='first_name'
-                  value={formData.first_name}
+                  name='firstName'
+                  value={formData.firstName}
                   onChange={handleChange}
                 />
               </Grid>
@@ -490,8 +490,8 @@ const UserManagement = ({ onShowSnackbar }) => {
                 <TextField
                   fullWidth
                   label='Last Name'
-                  name='last_name'
-                  value={formData.last_name}
+                  name='lastName'
+                  value={formData.lastName}
                   onChange={handleChange}
                 />
               </Grid>
@@ -508,15 +508,15 @@ const UserManagement = ({ onShowSnackbar }) => {
                 <FormControl fullWidth>
                   <InputLabel>Organization</InputLabel>
                   <Select
-                    name='organization_id'
-                    value={formData.organization_id}
+                    name='organizationId'
+                    value={formData.organizationId}
                     label='Organization'
                     onChange={handleChange}
                   >
                     <MenuItem value=''>None</MenuItem>
                     {organizations.map(org => (
                       <MenuItem key={org.id} value={org.id}>
-                        {org.organization_name}
+                        {org.organizationName}
                       </MenuItem>
                     ))}
                   </Select>
@@ -527,8 +527,8 @@ const UserManagement = ({ onShowSnackbar }) => {
                   fullWidth
                   type='date'
                   label='Date Onboarded'
-                  name='date_onboarded'
-                  value={formData.date_onboarded}
+                  name='dateOnboarded'
+                  value={formData.dateOnboarded}
                   onChange={handleChange}
                   InputLabelProps={{ shrink: true }}
                 />
@@ -556,8 +556,8 @@ const UserManagement = ({ onShowSnackbar }) => {
                   multiline
                   rows={3}
                   label='Comments'
-                  name='user_comments'
-                  value={formData.user_comments}
+                  name='userComments'
+                  value={formData.userComments}
                   onChange={handleChange}
                 />
               </Grid>

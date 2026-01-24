@@ -153,7 +153,7 @@ class TokenService {
   /**
    * Attempts to refresh the token silently
    */
-  private async refreshTokenSilently(): Promise<void> {
+  async refreshTokenSilently(): Promise<string | null> {
     try {
       devLog('[TRACE] TokenService - Attempting silent token refresh');
 
@@ -178,6 +178,7 @@ class TokenService {
 
           // Notify other tabs
           this.broadcastSessionUpdate('tokenRefreshed');
+          return data.data.accessToken;
         }
       } else {
         devLog('[TRACE] Token service - Silent refresh failed, will retry on next request');
@@ -186,6 +187,7 @@ class TokenService {
       devLog('[TRACE] Token service - Silent refresh error:', error);
       // Don't clear tokens here, let the next API call handle it
     }
+    return null;
   }
 
   /**
@@ -310,7 +312,7 @@ class TokenService {
   /**
    * Handles session synchronization events
    */
-  private handleSessionSync(data: any): void {
+  private handleSessionSync(data: { type: string; token?: string; expiry?: number }): void {
     devLog('[TRACE] Token service - Session sync received:', data);
 
     switch (data.type) {
@@ -342,7 +344,7 @@ class TokenService {
   /**
    * Broadcasts session updates to other tabs
    */
-  private broadcastSessionUpdate(type: string, additionalData: any = {}): void {
+  private broadcastSessionUpdate(type: string, additionalData: Record<string, unknown> = {}): void {
     const data = {
       type,
       timestamp: Date.now(),
@@ -486,4 +488,4 @@ export const tokenService = new TokenService();
 devLog('TokenService initialized');
 
 // Make tokenService globally available for debugging
-(window as any).tokenService = tokenService;
+(window as unknown as { tokenService: TokenService }).tokenService = tokenService;

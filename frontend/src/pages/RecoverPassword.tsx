@@ -18,8 +18,8 @@ const RecoverPassword: React.FC = () => {
     try {
       await authService.recoverPassword(email);
       setSuccess(true);
-    } catch (err: any) {
-      setError(err.message || 'Failed to send recovery email');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to send recovery email');
     } finally {
       setLoading(false);
     }

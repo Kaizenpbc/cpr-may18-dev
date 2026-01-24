@@ -247,10 +247,12 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
       }
 
       // Try different download approaches
-      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+      // IE/Edge legacy support - msSaveOrOpenBlob doesn't exist on modern browsers
+      const nav = window.navigator as Navigator & { msSaveOrOpenBlob?: (blob: Blob, filename: string) => boolean };
+      if (nav.msSaveOrOpenBlob) {
         // For IE/Edge
         console.log('[PDF Download] Using IE/Edge download method');
-        window.navigator.msSaveOrOpenBlob(blob, `Invoice-${invoiceNumber}.pdf`);
+        nav.msSaveOrOpenBlob(blob, `Invoice-${invoiceNumber}.pdf`);
       } else {
         // For modern browsers - try multiple methods
         console.log('[PDF Download] Using modern browser download method');

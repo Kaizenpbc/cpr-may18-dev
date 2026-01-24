@@ -5,7 +5,7 @@ export interface AppError {
   code: string;
   message: string;
   statusCode?: number;
-  details?: any;
+  details?: Record<string, unknown>;
   userMessage?: string;
   isRetryable?: boolean;
 }
@@ -29,21 +29,25 @@ export class ErrorHandler {
   }
 
   // Parse and standardize errors from different sources
-  parseError(error: any, context?: ErrorContext): AppError {
+  parseError(error: unknown, context?: ErrorContext): AppError {
+    const err = error as Record<string, unknown>;
     // Handle axios errors
-    if (error.response) {
+    const response = err.response as Record<string, unknown> | undefined;
+    if (response) {
+      const data = response.data as Record<string, unknown> | undefined;
+      const errorInfo = data?.error as Record<string, unknown> | undefined;
       return {
-        code: error.response.data?.error?.code || 'API_ERROR',
-        message: error.response.data?.error?.message || error.message,
-        statusCode: error.response.status,
-        details: error.response.data,
-        userMessage: this.getUserFriendlyMessage(error.response.status, error.response.data?.error?.code),
-        isRetryable: this.isRetryableError(error.response.status)
+        code: (errorInfo?.code as string) || 'API_ERROR',
+        message: (errorInfo?.message as string) || (err.message as string) || 'API Error',
+        statusCode: response.status as number,
+        details: data as Record<string, unknown>,
+        userMessage: this.getUserFriendlyMessage(response.status as number, errorInfo?.code as string),
+        isRetryable: this.isRetryableError(response.status as number)
       };
     }
 
     // Handle network errors
-    if (error.request) {
+    if (err.request) {
       return {
         code: 'NETWORK_ERROR',
         message: 'Network request failed',
@@ -53,19 +57,19 @@ export class ErrorHandler {
     }
 
     // Handle React Query errors
-    if (error?.code) {
+    if (err.code) {
       return {
-        code: error.code,
-        message: error.message,
-        userMessage: error.userMessage || this.getUserFriendlyMessage(undefined, error.code),
-        isRetryable: error.isRetryable || false
+        code: err.code as string,
+        message: err.message as string,
+        userMessage: (err.userMessage as string) || this.getUserFriendlyMessage(undefined, err.code as string),
+        isRetryable: (err.isRetryable as boolean) || false
       };
     }
 
     // Handle generic errors
     return {
       code: 'UNKNOWN_ERROR',
-      message: error.message || 'An unexpected error occurred',
+      message: (err.message as string) || 'An unexpected error occurred',
       userMessage: 'Something went wrong. Please try again.',
       isRetryable: false
     };
@@ -135,7 +139,7 @@ export class ErrorHandler {
   }
 
   // Handle errors with consistent user feedback
-  handleError(error: any, context?: ErrorContext, options?: {
+  handleError(error: unknown, context?: ErrorContext, options?: {
     showToast?: boolean;
     showConsole?: boolean;
     redirectToLogin?: boolean;
@@ -172,7 +176,7 @@ export class ErrorHandler {
   }
 
   // Show error toast with consistent styling
-  private showErrorToast(error: AppError): void {
+  showErrorToast(error: AppError): void {
     toast.error(error.userMessage || error.message, {
       position: 'top-right',
       autoClose: 5000,
@@ -233,7 +237,7 @@ export class ErrorHandler {
 
   // Create a React Query error handler
   createQueryErrorHandler(context?: ErrorContext) {
-    return (error: any) => {
+    return (error: unknown) => {
       return this.handleError(error, context, {
         showToast: true,
         showConsole: true,
@@ -244,7 +248,7 @@ export class ErrorHandler {
 
   // Create a mutation error handler
   createMutationErrorHandler(context?: ErrorContext) {
-    return (error: any) => {
+    return (error: unknown) => {
       return this.handleError(error, context, {
         showToast: true,
         showConsole: true,
@@ -258,8 +262,8 @@ export class ErrorHandler {
 export const errorHandler = ErrorHandler.getInstance();
 
 // Export convenience functions
-export const handleError = (error: any, context?: ErrorContext, options?: any) => 
-  errorHandler.handleError(error, context, options);
+export const handleError = (error: unknown, context?: ErrorContext, options?: Record<string, unknown>) =>
+  errorHandler.handleError(error, context, options as { showToast?: boolean; showConsole?: boolean; redirectToLogin?: boolean });
 
 export const showSuccessToast = (message: string) => 
   errorHandler.showSuccessToast(message);

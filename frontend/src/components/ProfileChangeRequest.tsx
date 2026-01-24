@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { profileChangesService, ProfileChangeRequest } from '../services/profileChangesService';
+import { profileChangesService, type ProfileChangeRequest as ProfileChangeRequestType } from '../services/profileChangesService';
 
 interface ProfileChangeRequestProps {
   onSuccess?: () => void;
@@ -27,7 +27,7 @@ const ProfileChangeRequest: React.FC<ProfileChangeRequestProps> = ({ onSuccess }
   const { user } = useAuth();
   const { success, error } = useToast();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<ProfileChangeRequest>({
+  const [formData, setFormData] = useState<ProfileChangeRequestType>({
     field_name: '',
     new_value: '',
     change_type: 'instructor',
@@ -72,8 +72,9 @@ const ProfileChangeRequest: React.FC<ProfileChangeRequestProps> = ({ onSuccess }
       });
       
       onSuccess?.();
-    } catch (err: any) {
-      error(err.response?.data?.message || 'Failed to submit profile change request', {
+    } catch (err: unknown) {
+      const errObj = err as { response?: { data?: { message?: string } } };
+      error(errObj.response?.data?.message || 'Failed to submit profile change request', {
         title: 'Submission Failed',
         context: 'profile_change',
       });
@@ -82,7 +83,7 @@ const ProfileChangeRequest: React.FC<ProfileChangeRequestProps> = ({ onSuccess }
     }
   };
 
-  const handleChange = (field: keyof ProfileChangeRequest, value: string) => {
+  const handleChange = (field: keyof ProfileChangeRequestType, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,

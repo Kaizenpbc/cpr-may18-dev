@@ -416,7 +416,7 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
                     <TableRow key={course.id}>
                       <TableCell>{course.courseTypeName}</TableCell>
                       <TableCell>
-                        {formatDisplayDate(course.request_submitted_date)}
+                        {formatDisplayDate(course.requestSubmittedDate)}
                       </TableCell>
                       <TableCell>{course.location}</TableCell>
                       <TableCell>{course.registeredStudents}</TableCell>

@@ -47,9 +47,37 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { NotificationProvider } from '../../contexts/NotificationContext';
 
+interface BillingQueueItem {
+  id: number;
+  course_type?: string;
+  organization_name?: string;
+  students_attended?: number;
+  [key: string]: unknown;
+}
+
+interface Invoice {
+  id: number;
+  balancedue?: string | number;
+  paymentstatus?: string;
+  [key: string]: unknown;
+}
+
+interface MenuGroup {
+  label: string;
+  icon: React.ReactNode;
+  items: MenuItem[];
+}
+
+interface MenuItem {
+  label: string;
+  icon: React.ReactNode;
+  path: string;
+  component: React.ReactNode;
+}
+
 // Billing Ready View Component
 const ReadyForBillingView: React.FC = () => {
-  const [billingQueue, setBillingQueue] = useState<any[]>([]);
+  const [billingQueue, setBillingQueue] = useState<BillingQueueItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const { showSuccess, showError } = useSnackbar();
@@ -84,13 +112,13 @@ const ReadyForBillingView: React.FC = () => {
       // Refresh the billing queue after creating invoice
       const updatedQueue = await getBillingQueue();
       setBillingQueue(updatedQueue.data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ [INVOICE] Error creating invoice:', error);
-      
+      const axiosErr = error as { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string };
       // Show error message to user
-      const errorMessage = error.response?.data?.error?.message || 
-                          error.response?.data?.message || 
-                          error.message || 
+      const errorMessage = axiosErr.response?.data?.error?.message ||
+                          axiosErr.response?.data?.message ||
+                          axiosErr.message ||
                           'Failed to create invoice. Please try again.';
       showError(`Invoice creation failed: ${errorMessage}`);
     }
@@ -117,13 +145,13 @@ const ReadyForBillingView: React.FC = () => {
 
 // Accounts Receivable View Component
 const AccountsReceivableView: React.FC = () => {
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showInvoiceDetailDialog, setShowInvoiceDetailDialog] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
   const [showRecordPaymentDialog, setShowRecordPaymentDialog] = useState(false);
-  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<any>(null);
+  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
   const { showSuccess, showError } = useSnackbar();
 
   React.useEffect(() => {
@@ -133,14 +161,15 @@ const AccountsReceivableView: React.FC = () => {
       try {
         const data = await getInvoices();
         // Filter to show only invoices with outstanding balances for AR
-        const arInvoices = (data || []).filter((invoice: any) => {
-          const balanceDue = parseFloat(invoice.balancedue || 0);
+        const arInvoices = (data || []).filter((invoice: Invoice) => {
+          const balanceDue = parseFloat(String(invoice.balancedue || 0));
           const paymentStatus = invoice.paymentstatus?.toLowerCase();
           return balanceDue > 0 && paymentStatus !== 'paid';
         });
         setInvoices(arInvoices);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load invoices.');
+      } catch (err: unknown) {
+        const errObj = err as { message?: string };
+        setError(errObj.message || 'Failed to load invoices.');
         setInvoices([]);
       } finally {
         setIsLoading(false);
@@ -150,7 +179,7 @@ const AccountsReceivableView: React.FC = () => {
     fetchInvoices();
   }, []);
 
-  const handleRecordPaymentClick = (invoice: any) => {
+  const handleRecordPaymentClick = (invoice: Invoice) => {
     console.log('Record payment for invoice:', invoice);
     setSelectedInvoiceForPayment(invoice);
     setShowRecordPaymentDialog(true);
@@ -178,14 +207,15 @@ const AccountsReceivableView: React.FC = () => {
       try {
         const data = await getInvoices();
         // Filter to show only invoices with outstanding balances for AR
-        const arInvoices = (data || []).filter((invoice: any) => {
-          const balanceDue = parseFloat(invoice.balancedue || 0);
+        const arInvoices = (data || []).filter((invoice: Invoice) => {
+          const balanceDue = parseFloat(String(invoice.balancedue || 0));
           const paymentStatus = invoice.paymentstatus?.toLowerCase();
           return balanceDue > 0 && paymentStatus !== 'paid';
         });
         setInvoices(arInvoices);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load invoices.');
+      } catch (err: unknown) {
+        const errObj = err as { message?: string };
+        setError(errObj.message || 'Failed to load invoices.');
         setInvoices([]);
       } finally {
         setIsLoading(false);
@@ -209,8 +239,9 @@ const AccountsReceivableView: React.FC = () => {
       try {
         const data = await getInvoices();
         setInvoices(data || []);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load invoices.');
+      } catch (err: unknown) {
+        const errObj = err as { message?: string };
+        setError(errObj.message || 'Failed to load invoices.');
         setInvoices([]);
       } finally {
         setIsLoading(false);
@@ -357,7 +388,7 @@ const menuGroups = [
 const allRoutes = menuGroups.flatMap(group => group.items);
 
 const AccountingPortal: React.FC = () => {
-  const handleError = (error: Error, errorInfo: any) => {
+  const handleError = (error: Error, errorInfo: React.ErrorInfo) => {
     console.error('[AccountingPortal] Error caught by boundary:', error, errorInfo);
   };
 
@@ -414,8 +445,8 @@ const AccountingPortal: React.FC = () => {
   };
 
   // Helper function to check if a group contains the current active route
-  const isGroupActive = (group: any) => {
-    return group.items.some((item: any) => `/accounting/${item.path}` === location.pathname);
+  const isGroupActive = (group: MenuGroup) => {
+    return group.items.some((item) => `/accounting/${item.path}` === location.pathname);
   };
 
   const handleLogout = async () => {

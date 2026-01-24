@@ -31,7 +31,7 @@ import {
   LocationOn as LocationIcon,
   Group as GroupIcon,
 } from '@mui/icons-material';
-import { timesheetService, TimesheetSubmission as TimesheetSubmissionData, WeekCourses } from '../../services/timesheetService';
+import { timesheetService, TimesheetSubmission as TimesheetSubmissionData, WeekCourses, Timesheet } from '../../services/timesheetService';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface TimesheetSubmissionProps {
@@ -41,9 +41,9 @@ interface TimesheetSubmissionProps {
 const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSubmitted }) => {
   const { user } = useAuth();
   const [formData, setFormData] = useState<TimesheetSubmissionData>({
-    week_start_date: '',
-    total_hours: 0,
-    courses_taught: 0,
+    weekStartDate: '',
+    totalHours: 0,
+    coursesTaught: 0,
     notes: '',
   });
   const [weekCourses, setWeekCourses] = useState<WeekCourses | null>(null);
@@ -51,7 +51,7 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [existingTimesheet, setExistingTimesheet] = useState<any>(null);
+  const [existingTimesheet, setExistingTimesheet] = useState<Timesheet | undefined>(undefined);
   const [checkingExisting, setCheckingExisting] = useState(false);
 
   // Auto-populate week start date on component mount and check for existing timesheet
@@ -59,7 +59,7 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
     const currentWeekStart = getCurrentWeekStart();
     setFormData(prev => ({
       ...prev,
-      week_start_date: currentWeekStart,
+      weekStartDate: currentWeekStart,
     }));
     
     // Check if timesheet already exists for this week
@@ -70,9 +70,9 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
     setCheckingExisting(true);
     try {
       const response = await timesheetService.getTimesheets();
-      const existing = response.timesheets.find(ts => 
-        ts.week_start_date === weekStartDate || 
-        ts.week_start_date.startsWith(weekStartDate)
+      const existing = response.timesheets.find(ts =>
+        ts.weekStartDate === weekStartDate ||
+        ts.weekStartDate.startsWith(weekStartDate)
       );
       setExistingTimesheet(existing);
     } catch (err) {
@@ -85,8 +85,8 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
   const handleChange = (field: keyof TimesheetSubmissionData) => (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const value = field === 'total_hours' || field === 'courses_taught' 
-      ? parseFloat(event.target.value) || 0 
+    const value = field === 'totalHours' || field === 'coursesTaught'
+      ? parseFloat(event.target.value) || 0
       : event.target.value;
     
     setFormData(prev => ({
@@ -101,13 +101,13 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
 
   // Fetch courses when week start date changes
   useEffect(() => {
-    if (formData.week_start_date) {
-      fetchWeekCourses(formData.week_start_date);
+    if (formData.weekStartDate) {
+      fetchWeekCourses(formData.weekStartDate);
     } else {
       setWeekCourses(null);
-      setFormData(prev => ({ ...prev, courses_taught: 0 }));
+      setFormData(prev => ({ ...prev, coursesTaught: 0 }));
     }
-  }, [formData.week_start_date]);
+  }, [formData.weekStartDate]);
 
   const fetchWeekCourses = async (weekStartDate: string) => {
     setLoadingCourses(true);
@@ -115,21 +115,21 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
       const courses = await timesheetService.getWeekCourses(weekStartDate);
       setWeekCourses(courses);
       // Auto-populate courses taught
-      setFormData(prev => ({ ...prev, courses_taught: courses.total_courses }));
-    } catch (err: any) {
+      setFormData(prev => ({ ...prev, coursesTaught: courses.totalCourses }));
+    } catch (err: unknown) {
       console.error('Error fetching week courses:', err);
       setWeekCourses(null);
-      setFormData(prev => ({ ...prev, courses_taught: 0 }));
+      setFormData(prev => ({ ...prev, coursesTaught: 0 }));
     } finally {
       setLoadingCourses(false);
     }
   };
 
   const canSubmitTimesheet = (): boolean => {
-    if (!formData.week_start_date) return false;
-    
+    if (!formData.weekStartDate) return false;
+
     const today = new Date();
-    const weekStart = new Date(formData.week_start_date);
+    const weekStart = new Date(formData.weekStartDate);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6); // Sunday
     
@@ -140,7 +140,7 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
-    if (!formData.week_start_date) {
+    if (!formData.weekStartDate) {
       setError('Week start date is required');
       return;
     }
@@ -162,9 +162,9 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
       // Reset form to current week
       const currentWeekStart = getCurrentWeekStart();
       setFormData({
-        week_start_date: currentWeekStart,
-        total_hours: 0,
-        courses_taught: 0,
+        weekStartDate: currentWeekStart,
+        totalHours: 0,
+        coursesTaught: 0,
         notes: '',
       });
       setWeekCourses(null);
@@ -173,10 +173,11 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
       if (onTimesheetSubmitted) {
         onTimesheetSubmitted();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Handle specific error cases with user-friendly messages
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to submit timesheet';
-      
+      const errObj = err as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage = errObj.response?.data?.message || errObj.message || 'Failed to submit timesheet';
+
       if (errorMessage.includes('already exists for this week')) {
         setError('You have already submitted a timesheet for this week. You can view or update your existing timesheet in the timesheet history.');
       } else if (errorMessage.includes('Week start date must be a Monday')) {
@@ -218,10 +219,10 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
   };
 
   const getSubmissionStatus = () => {
-    if (!formData.week_start_date) return { canSubmit: false, message: 'Loading...' };
-    
+    if (!formData.weekStartDate) return { canSubmit: false, message: 'Loading...' };
+
     const today = new Date();
-    const weekStart = new Date(formData.week_start_date);
+    const weekStart = new Date(formData.weekStartDate);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
     
@@ -272,13 +273,13 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
         )}
 
         {existingTimesheet && !checkingExisting && (
-          <Alert 
-            severity="warning" 
+          <Alert
+            severity="warning"
             sx={{ mb: 2 }}
             action={
-              <Button 
-                color="inherit" 
-                size="small" 
+              <Button
+                color="inherit"
+                size="small"
                 onClick={() => {
                   if (onTimesheetSubmitted) {
                     onTimesheetSubmitted();
@@ -289,7 +290,7 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
               </Button>
             }
           >
-            You have already submitted a timesheet for this week (Week of {formatDate(existingTimesheet.week_start_date)}). 
+            You have already submitted a timesheet for this week (Week of {formatDate(existingTimesheet.weekStartDate)}).
             You can view or update your existing timesheet in the timesheet history.
           </Alert>
         )}
@@ -308,7 +309,7 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
                   fullWidth
                   label="Week Start Date (Monday)"
                   type="date"
-                  value={formData.week_start_date}
+                  value={formData.weekStartDate}
                   InputLabelProps={{ shrink: true }}
                   required
                   disabled={true}
@@ -321,26 +322,26 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
                   }}
                 />
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="Total Hours"
                   type="number"
-                  value={formData.total_hours}
-                  onChange={handleChange('total_hours')}
+                  value={formData.totalHours}
+                  onChange={handleChange('totalHours')}
                   disabled={loading}
                   inputProps={{ min: 0, step: 0.5 }}
                   helperText="Total hours worked this week (optional)"
                 />
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="Courses Taught"
                   type="number"
-                  value={formData.courses_taught}
+                  value={formData.coursesTaught}
                   disabled={true}
                   inputProps={{ min: 0 }}
                   helperText="Auto-calculated from your scheduled courses"
@@ -379,7 +380,7 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
                     type="submit"
                     variant="contained"
                     startIcon={loading ? <CircularProgress size={20} /> : <AddIcon />}
-                    disabled={loading || !submissionStatus.canSubmit || existingTimesheet}
+                    disabled={loading || !submissionStatus.canSubmit || !!existingTimesheet}
                     size="large"
                   >
                     {loading ? 'Submitting...' : existingTimesheet ? 'Timesheet Already Submitted' : 'Submit Timesheet'}
@@ -391,12 +392,12 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
         </Paper>
 
         {/* Week Courses Section */}
-        {formData.week_start_date && (
+        {formData.weekStartDate && (
           <Paper sx={{ p: 3, mt: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <EventIcon sx={{ mr: 1, color: 'primary.main' }} />
               <Typography variant="h6" component="h3">
-                Courses for Week of {formatDate(formData.week_start_date)}
+                Courses for Week of {formatDate(formData.weekStartDate)}
               </Typography>
             </Box>
 
@@ -407,7 +408,7 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
             ) : weekCourses ? (
               <Box>
                 <Typography variant="body2" color="textSecondary" gutterBottom>
-                  Week: {formatDate(weekCourses.week_start_date)} to {formatDate(weekCourses.week_end_date)}
+                  Week: {formatDate(weekCourses.weekStartDate)} to {formatDate(weekCourses.weekEndDate)}
                 </Typography>
                 
                 {weekCourses.courses.length > 0 ? (
@@ -427,14 +428,14 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
                         {weekCourses.courses.map((course) => (
                           <TableRow key={course.id} hover>
                             <TableCell>{formatDate(course.date)}</TableCell>
-                            <TableCell>{course.organization_name}</TableCell>
+                            <TableCell>{course.organizationName}</TableCell>
                             <TableCell>{course.location || 'TBD'}</TableCell>
-                            <TableCell>{course.course_type}</TableCell>
-                            <TableCell>{course.student_count}</TableCell>
+                            <TableCell>{course.courseType}</TableCell>
+                            <TableCell>{course.studentCount}</TableCell>
                             <TableCell>
-                              <Chip 
-                                label={course.status} 
-                                color={course.status === 'completed' ? 'success' : 'primary'} 
+                              <Chip
+                                label={course.status}
+                                color={course.status === 'completed' ? 'success' : 'primary'}
                                 size="small"
                               />
                             </TableCell>

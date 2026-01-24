@@ -42,35 +42,35 @@ import { useVendorInvoiceUpdates } from '../../../hooks/useVendorInvoiceUpdates'
 
 interface PaidVendorInvoice {
   id: number;
-  invoice_number: string;
+  invoiceNumber: string;
   description: string;
   total: number | string;
   status: string;
-  created_at: string;
-  invoice_date: string;
-  due_date: string;
-  vendor_name: string;
-  vendor_email: string;
-  vendor_contact: string;
-  vendor_payment_method: string;
-  approved_by_name: string;
-  approved_by_email: string;
-  sent_to_accounting_at: string;
-  total_paid: number | string;
-  balance_due: number | string;
-  paid_at: string;
-  admin_notes: string;
+  createdAt: string;
+  invoiceDate: string;
+  dueDate: string;
+  vendorName: string;
+  vendorEmail: string;
+  vendorContact: string;
+  vendorPaymentMethod: string;
+  approvedByName: string;
+  approvedByEmail: string;
+  sentToAccountingAt: string;
+  totalPaid: number | string;
+  balanceDue: number | string;
+  paidAt: string;
+  adminNotes: string;
 }
 
 interface PaymentHistory {
   id: number;
-  payment_date: string;
+  paymentDate: string;
   amount: number;
-  payment_method: string;
-  reference_number: string;
+  paymentMethod: string;
+  referenceNumber: string;
   notes: string;
   status: string;
-  processed_by_name: string;
+  processedByName: string;
 }
 
 const PaidVendorInvoices: React.FC = () => {
@@ -110,11 +110,11 @@ const PaidVendorInvoices: React.FC = () => {
       }
       
       // Filter to only show paid invoices
-      const paidInvoices = allInvoices.filter((invoice: any) => 
+      const paidInvoices = allInvoices.filter((invoice: { status: string }) =>
         invoice.status === 'paid'
       );
       setInvoices(paidInvoices);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching paid vendor invoices:', error);
       setError('Failed to load paid vendor invoices. Please try again.');
       showError('Failed to load paid vendor invoices');
@@ -128,8 +128,8 @@ const PaidVendorInvoices: React.FC = () => {
   const { isConnected } = useVendorInvoiceUpdates({
     onStatusUpdate: (update) => {
       console.log('🔄 Real-time status update received in vendor paid invoices:', update);
-      // Only refresh if an invoice becomes paid (not if it's already paid)
-      if (update.newStatus === 'paid' && update.oldStatus !== 'paid') {
+      // Only refresh if an invoice becomes paid
+      if (update.newStatus === 'paid') {
         fetchPaidInvoices();
       }
     },
@@ -153,12 +153,12 @@ const PaidVendorInvoices: React.FC = () => {
     }, 0);
     
     const totalPaid = invoices.reduce((sum, inv) => {
-      const totalPaid = inv.total_paid || 0;
-      return sum + (isNaN(totalPaid) ? 0 : totalPaid);
+      const paid = Number(inv.totalPaid) || 0;
+      return sum + (isNaN(paid) ? 0 : paid);
     }, 0);
     
-    const mostRecentDate = invoices.length > 0 ? 
-      (invoices[0].paid_at || invoices[0].created_at) : null;
+    const mostRecentDate = invoices.length > 0 ?
+      (invoices[0].paidAt || invoices[0].createdAt) : null;
     
     return { totalAmount, totalPaid, mostRecentDate };
   }, [invoices]);
@@ -341,7 +341,7 @@ const PaidVendorInvoices: React.FC = () => {
                 <TableRow key={invoice.id} hover>
                   <TableCell sx={{ position: 'sticky', left: 0, backgroundColor: 'background.paper', zIndex: 1 }}>
                     <Typography variant="body2" fontWeight="bold">
-                      {invoice.invoice_number}
+                      {invoice.invoiceNumber}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -356,12 +356,12 @@ const PaidVendorInvoices: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" color="success.main" fontWeight="bold">
-                      {formatCurrency(invoice.total_paid || invoice.total)}
+                      {formatCurrency(invoice.totalPaid || invoice.total)}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
-                      {formatDate(invoice.paid_at || invoice.sent_to_accounting_at)}
+                      {formatDate(invoice.paidAt || invoice.sentToAccountingAt)}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -402,7 +402,7 @@ const PaidVendorInvoices: React.FC = () => {
             <Box display="flex" alignItems="center">
               <InvoiceIcon sx={{ mr: 1 }} />
               <Typography variant="h6">
-                Paid Invoice Details - {selectedInvoice?.invoice_number}
+                Paid Invoice Details - {selectedInvoice?.invoiceNumber}
               </Typography>
             </Box>
             <Chip
@@ -436,7 +436,7 @@ const PaidVendorInvoices: React.FC = () => {
                   <Grid item xs={12} md={4}>
                     <Box textAlign="center">
                       <Typography variant="h5" color="success.main" fontWeight="bold">
-                        {formatCurrency(selectedInvoice.total_paid || selectedInvoice.total)}
+                        {formatCurrency(selectedInvoice.totalPaid || selectedInvoice.total)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         Amount Paid
@@ -459,7 +459,7 @@ const PaidVendorInvoices: React.FC = () => {
                     label="✅ Payment Complete: This invoice has been fully paid"
                     color="success"
                     icon={<PaidIcon />}
-                    size="large"
+                    size="medium"
                     sx={{ fontSize: '1rem' }}
                   />
                 </Box>
@@ -477,15 +477,15 @@ const PaidVendorInvoices: React.FC = () => {
                       <strong>Description:</strong> {selectedInvoice.description}
                     </Typography>
                     <Typography variant="body2" mb={1}>
-                      <strong>Invoice Date:</strong> {formatDate(selectedInvoice.invoice_date)}
+                      <strong>Invoice Date:</strong> {formatDate(selectedInvoice.invoiceDate)}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} md={6}>
                     <Typography variant="body2" mb={1}>
-                      <strong>Due Date:</strong> {formatDate(selectedInvoice.due_date)}
+                      <strong>Due Date:</strong> {formatDate(selectedInvoice.dueDate)}
                     </Typography>
                     <Typography variant="body2" mb={1}>
-                      <strong>Created:</strong> {formatDate(selectedInvoice.created_at)}
+                      <strong>Created:</strong> {formatDate(selectedInvoice.createdAt)}
                     </Typography>
                   </Grid>
                 </Grid>
@@ -500,15 +500,15 @@ const PaidVendorInvoices: React.FC = () => {
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={6}>
                     <Typography variant="body2" mb={1}>
-                      <strong>Approved By:</strong> {selectedInvoice.approved_by_name || 'Admin User'}
+                      <strong>Approved By:</strong> {selectedInvoice.approvedByName || 'Admin User'}
                     </Typography>
                     <Typography variant="body2" mb={1}>
-                      <strong>Paid Date:</strong> {formatDate(selectedInvoice.paid_at || selectedInvoice.sent_to_accounting_at)}
+                      <strong>Paid Date:</strong> {formatDate(selectedInvoice.paidAt || selectedInvoice.sentToAccountingAt)}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} md={6}>
                     <Typography variant="body2" mb={1}>
-                      <strong>Admin Notes:</strong> {selectedInvoice.admin_notes || 'No notes provided'}
+                      <strong>Admin Notes:</strong> {selectedInvoice.adminNotes || 'No notes provided'}
                     </Typography>
                   </Grid>
                 </Grid>
@@ -542,18 +542,18 @@ const PaidVendorInvoices: React.FC = () => {
                       <TableBody>
                         {paymentHistory.map((payment) => (
                           <TableRow key={payment.id}>
-                            <TableCell>{formatDate(payment.payment_date)}</TableCell>
+                            <TableCell>{formatDate(payment.paymentDate)}</TableCell>
                             <TableCell>{formatCurrency(payment.amount)}</TableCell>
                             <TableCell>
-                              <Chip 
-                                label={payment.payment_method.replace('_', ' ').toUpperCase()} 
-                                size="small" 
-                                color="primary" 
+                              <Chip
+                                label={payment.paymentMethod.replace('_', ' ').toUpperCase()}
+                                size="small"
+                                color="primary"
                                 variant="outlined"
                               />
                             </TableCell>
-                            <TableCell>{payment.reference_number || '-'}</TableCell>
-                            <TableCell>{payment.processed_by_name || 'Unknown'}</TableCell>
+                            <TableCell>{payment.referenceNumber || '-'}</TableCell>
+                            <TableCell>{payment.processedByName || 'Unknown'}</TableCell>
                             <TableCell>
                               <Chip 
                                 label={payment.status.toUpperCase()} 

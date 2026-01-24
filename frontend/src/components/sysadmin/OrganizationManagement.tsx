@@ -44,13 +44,13 @@ const OrganizationManagement = () => {
     address: '',
     city: '',
     province: '',
-    postal_code: '',
+    postalCode: '',
     country: 'Canada',
-    contact_person: '',
-    contact_position: 'Manager',
-    contact_email: '',
-    contact_phone: '',
-    organization_comments: '',
+    contactPerson: '',
+    contactPosition: 'Manager',
+    contactEmail: '',
+    contactPhone: '',
+    organizationComments: '',
   });
 
   const positions = ['Owner', 'Manager', 'Director', 'Administrator', 'Other'];
@@ -76,17 +76,17 @@ const OrganizationManagement = () => {
     if (org) {
       setEditingOrg(org);
       setFormData({
-        name: org.organization_name || '',
+        name: org.organizationName || '',
         address: org.address || '',
         city: org.city || '',
         province: org.province || '',
-        postal_code: org.postal_code || '',
+        postalCode: org.postalCode || '',
         country: org.country || 'Canada',
-        contact_person: org.contact_person || '',
-        contact_position: org.contact_position || 'Manager',
-        contact_email: org.contact_email || '',
-        contact_phone: org.contact_phone || '',
-        organization_comments: org.organization_comments || '',
+        contactPerson: org.contactPerson || '',
+        contactPosition: org.contactPosition || 'Manager',
+        contactEmail: org.contactEmail || '',
+        contactPhone: org.contactPhone || '',
+        organizationComments: org.organizationComments || '',
       });
     } else {
       setEditingOrg(null);
@@ -95,13 +95,13 @@ const OrganizationManagement = () => {
         address: '',
         city: '',
         province: '',
-        postal_code: '',
+        postalCode: '',
         country: 'Canada',
-        contact_person: '',
-        contact_position: 'Manager',
-        contact_email: '',
-        contact_phone: '',
-        organization_comments: '',
+        contactPerson: '',
+        contactPosition: 'Manager',
+        contactEmail: '',
+        contactPhone: '',
+        organizationComments: '',
       });
     }
     setOpenDialog(true);
@@ -235,29 +235,29 @@ const OrganizationManagement = () => {
                       }}
                     >
                       <BusinessIcon fontSize='small' color='primary' />
-                      {org.organization_name}
+                      {org.organizationName}
                     </Box>
-                    {org.organization_comments && (
+                    {org.organizationComments && (
                       <Box sx={{ fontSize: '0.85em', color: '#666', mt: 0.5 }}>
-                        {org.organization_comments}
+                        {org.organizationComments}
                       </Box>
                     )}
                   </Box>
                 </TableCell>
-                <TableCell>{org.contact_person || '-'}</TableCell>
+                <TableCell>{org.contactPerson || '-'}</TableCell>
                 <TableCell>
-                  {org.contact_position && (
+                  {org.contactPosition && (
                     <Chip
-                      label={org.contact_position}
+                      label={org.contactPosition}
                       size='small'
                       color={
-                        org.contact_position === 'Owner' ? 'primary' : 'default'
+                        org.contactPosition === 'Owner' ? 'primary' : 'default'
                       }
                     />
                   )}
                 </TableCell>
-                <TableCell>{org.contact_email || '-'}</TableCell>
-                <TableCell>{formatPhone(org.contact_phone) || '-'}</TableCell>
+                <TableCell>{org.contactEmail || '-'}</TableCell>
+                <TableCell>{formatPhone(org.contactPhone) || '-'}</TableCell>
                 <TableCell>
                   {org.city && org.province ? (
                     <Box sx={{ fontSize: '0.9em' }}>
@@ -274,7 +274,7 @@ const OrganizationManagement = () => {
                     <Tooltip title='Users'>
                       <Chip
                         icon={<PeopleIcon />}
-                        label={org.user_count || 0}
+                        label={org.userCount || 0}
                         size='small'
                         variant='outlined'
                       />
@@ -282,7 +282,7 @@ const OrganizationManagement = () => {
                     <Tooltip title='Courses'>
                       <Chip
                         icon={<SchoolIcon />}
-                        label={org.course_count || 0}
+                        label={org.courseCount || 0}
                         size='small'
                         variant='outlined'
                       />
@@ -299,7 +299,7 @@ const OrganizationManagement = () => {
                   <IconButton
                     onClick={() => setDeleteConfirm(org)}
                     color='error'
-                    disabled={org.user_count > 0 || org.course_count > 0}
+                    disabled={org.userCount > 0 || org.courseCount > 0}
                   >
                     <DeleteIcon />
                   </IconButton>
@@ -337,8 +337,8 @@ const OrganizationManagement = () => {
               <TextField
                 fullWidth
                 label='Contact Person'
-                name='contact_person'
-                value={formData.contact_person}
+                name='contactPerson'
+                value={formData.contactPerson}
                 onChange={handleInputChange}
               />
             </Grid>
@@ -348,8 +348,8 @@ const OrganizationManagement = () => {
                 fullWidth
                 select
                 label='Position'
-                name='contact_position'
-                value={formData.contact_position}
+                name='contactPosition'
+                value={formData.contactPosition}
                 onChange={handleInputChange}
               >
                 {positions.map(pos => (
@@ -364,9 +364,9 @@ const OrganizationManagement = () => {
               <TextField
                 fullWidth
                 label='Email'
-                name='contact_email'
+                name='contactEmail'
                 type='email'
-                value={formData.contact_email}
+                value={formData.contactEmail}
                 onChange={handleInputChange}
               />
             </Grid>
@@ -375,8 +375,8 @@ const OrganizationManagement = () => {
               <TextField
                 fullWidth
                 label='Phone'
-                name='contact_phone'
-                value={formData.contact_phone}
+                name='contactPhone'
+                value={formData.contactPhone}
                 onChange={handleInputChange}
                 placeholder='(123) 456-7890'
               />
@@ -416,8 +416,8 @@ const OrganizationManagement = () => {
               <TextField
                 fullWidth
                 label='Postal Code'
-                name='postal_code'
-                value={formData.postal_code}
+                name='postalCode'
+                value={formData.postalCode}
                 onChange={handleInputChange}
               />
             </Grid>
@@ -426,8 +426,8 @@ const OrganizationManagement = () => {
               <TextField
                 fullWidth
                 label='Comments'
-                name='organization_comments'
-                value={formData.organization_comments}
+                name='organizationComments'
+                value={formData.organizationComments}
                 onChange={handleInputChange}
                 multiline
                 rows={3}
@@ -451,7 +451,7 @@ const OrganizationManagement = () => {
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           Are you sure you want to delete the organization "
-          {deleteConfirm?.organization_name}"? This action cannot be undone.
+          {deleteConfirm?.organizationName}"? This action cannot be undone.
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteConfirm(null)}>Cancel</Button>

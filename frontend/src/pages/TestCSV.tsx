@@ -2,11 +2,18 @@ import React, { useState } from 'react';
 import { Button, Container, Typography, Box, Paper } from '@mui/material';
 import CSVUploadDialog from '../components/dialogs/CSVUploadDialog';
 
+interface UploadResult {
+  fileName: string;
+  content: string;
+  parsed: unknown;
+  response: unknown;
+}
+
 const TestCSV: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [uploadResult, setUploadResult] = useState<any>(null);
+  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
 
-  const handleUploadSuccess = (data: any) => {
+  const handleUploadSuccess = (data: UploadResult) => {
     console.log('Upload successful:', data);
     setUploadResult(data);
   };

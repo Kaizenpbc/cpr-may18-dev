@@ -7,14 +7,28 @@ export interface ErrorContext {
   method: string;
   userId?: string;
   requestId?: string;
-  additionalData?: Record<string, any>;
+  additionalData?: Record<string, unknown>;
+  // Extended properties for different error types
+  route?: string;
+  params?: Record<string, unknown>;
+  errorType?: string;
+  endpoint?: string;
+  requestData?: unknown;
+  responseData?: unknown;
+  action?: string;
+  attemptedRole?: string;
+  operation?: string;
+  duration?: number;
+  threshold?: number;
+  // Allow additional dynamic properties
+  [key: string]: unknown;
 }
 
 export interface StandardError {
   code: string;
   message: string;
   statusCode: number;
-  details?: any;
+  details?: unknown;
   context?: ErrorContext;
   timestamp: string;
   traceId?: string;
@@ -42,13 +56,13 @@ export class ServiceError extends Error {
 }
 
 // Standardized API Response interface
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: {
     code: string;
     message: string;
-    details?: any;
+    details?: unknown;
     traceId?: string;
   };
   metadata?: {

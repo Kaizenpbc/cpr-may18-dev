@@ -182,9 +182,13 @@ const Dashboard: React.FC = () => {
       'An error occurred while loading the dashboard';
     
     // Check if it's a 403 error (permission denied)
-    const is403Error = availabilityError?.response?.status === 403 ||
-      classesError?.response?.status === 403 ||
-      dashboardError?.response?.status === 403;
+    const getErrorStatus = (err: Error | null): number | undefined => {
+      const errWithResponse = err as { response?: { status?: number } };
+      return errWithResponse?.response?.status;
+    };
+    const is403Error = getErrorStatus(availabilityError) === 403 ||
+      getErrorStatus(classesError) === 403 ||
+      getErrorStatus(dashboardError) === 403;
     
     return (
       <Box sx={{ p: 3 }}>
@@ -201,7 +205,7 @@ const Dashboard: React.FC = () => {
   return (
     <Box>
       <Typography variant='h4' gutterBottom>
-        Welcome back, {user?.full_name}
+        Welcome back, {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.username}
       </Typography>
 
       <Grid container spacing={3}>

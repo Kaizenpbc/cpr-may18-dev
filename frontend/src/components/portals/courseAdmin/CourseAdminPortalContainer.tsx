@@ -32,7 +32,7 @@ const CourseAdminPortalContainer: React.FC = () => {
   }, [user]);
 
   // Error handler for error boundaries
-  const handleError = useCallback((error: Error, errorInfo: any) => {
+  const handleError = useCallback((error: Error, errorInfo: React.ErrorInfo) => {
     logger.error('Course Admin Portal Error:', error, errorInfo);
     analytics.trackError(error, 'course_admin_portal', {
       componentStack: errorInfo.componentStack,

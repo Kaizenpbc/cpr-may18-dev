@@ -462,7 +462,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
                           {course.courseTypeName}
                         </Typography>
                       </TableCell>
-                      <TableCell>{formatDisplayDate(course.request_submitted_date)}</TableCell>
+                      <TableCell>{formatDisplayDate(course.requestSubmittedDate)}</TableCell>
                       <TableCell>{course.location}</TableCell>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>

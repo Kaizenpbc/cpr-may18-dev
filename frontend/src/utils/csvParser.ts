@@ -5,6 +5,7 @@ export interface StudentData {
   phone?: string;
   organization_id?: number;
   course_request_id?: number;
+  [key: string]: unknown;
 }
 
 export interface ParsedCSVResult {

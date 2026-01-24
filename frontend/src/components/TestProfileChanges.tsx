@@ -22,8 +22,8 @@ const TestProfileChanges: React.FC = () => {
       });
       
       setResult(`Success: ${JSON.stringify(response, null, 2)}`);
-    } catch (error: any) {
-      setResult(`Error: ${error.message || 'Unknown error'}`);
+    } catch (error: unknown) {
+      setResult(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }

@@ -41,21 +41,21 @@ import { hrService } from '../../services/hrService';
 
 interface ReturnedPaymentRequest {
   id: number;
-  instructor_id: number;
-  instructor_name: string;
-  instructor_email: string;
+  instructorId: number;
+  instructorName: string;
+  instructorEmail: string;
   amount: number;
-  week_start_date: string;
-  total_hours: number;
-  courses_taught: number;
-  hourly_rate: number;
-  course_bonus: number;
-  base_amount: number;
-  bonus_amount: number;
-  tier_name: string;
+  weekStartDate: string;
+  totalHours: number;
+  coursesTaught: number;
+  hourlyRate: number;
+  courseBonus: number;
+  baseAmount: number;
+  bonusAmount: number;
+  tierName: string;
   notes: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface ReturnedPaymentRequestDetailDialogProps {
@@ -131,9 +131,9 @@ const ReturnedPaymentRequestDetailDialog: React.FC<ReturnedPaymentRequestDetailD
                 <Typography variant="h6" gutterBottom color="primary">
                   👤 Instructor Information
                 </Typography>
-                <Typography><strong>Name:</strong> {request.instructor_name}</Typography>
-                <Typography><strong>Email:</strong> {request.instructor_email}</Typography>
-                <Typography><strong>ID:</strong> {request.instructor_id}</Typography>
+                <Typography><strong>Name:</strong> {request.instructorName}</Typography>
+                <Typography><strong>Email:</strong> {request.instructorEmail}</Typography>
+                <Typography><strong>ID:</strong> {request.instructorId}</Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -148,9 +148,9 @@ const ReturnedPaymentRequestDetailDialog: React.FC<ReturnedPaymentRequestDetailD
                 <Typography variant="h5" color="success.main" fontWeight="bold">
                   ${Number(request.amount).toFixed(2)}
                 </Typography>
-                <Typography><strong>Week Starting:</strong> {new Date(request.week_start_date).toLocaleDateString()}</Typography>
-                <Typography><strong>Hours:</strong> {request.total_hours}h</Typography>
-                <Typography><strong>Courses:</strong> {request.courses_taught}</Typography>
+                <Typography><strong>Week Starting:</strong> {new Date(request.weekStartDate).toLocaleDateString()}</Typography>
+                <Typography><strong>Hours:</strong> {request.totalHours}h</Typography>
+                <Typography><strong>Courses:</strong> {request.coursesTaught}</Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -162,11 +162,11 @@ const ReturnedPaymentRequestDetailDialog: React.FC<ReturnedPaymentRequestDetailD
                 <Typography variant="h6" gutterBottom color="primary">
                   🧮 Payment Breakdown
                 </Typography>
-                <Typography><strong>Hourly Rate:</strong> ${request.hourly_rate}/hr</Typography>
-                <Typography><strong>Course Bonus:</strong> ${request.course_bonus}/course</Typography>
-                <Typography><strong>Base Amount:</strong> ${Number(request.base_amount).toFixed(2)}</Typography>
-                <Typography><strong>Bonus Amount:</strong> ${Number(request.bonus_amount).toFixed(2)}</Typography>
-                <Typography><strong>Pay Tier:</strong> {request.tier_name}</Typography>
+                <Typography><strong>Hourly Rate:</strong> ${request.hourlyRate}/hr</Typography>
+                <Typography><strong>Course Bonus:</strong> ${request.courseBonus}/course</Typography>
+                <Typography><strong>Base Amount:</strong> ${Number(request.baseAmount).toFixed(2)}</Typography>
+                <Typography><strong>Bonus Amount:</strong> ${Number(request.bonusAmount).toFixed(2)}</Typography>
+                <Typography><strong>Pay Tier:</strong> {request.tierName}</Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -272,8 +272,11 @@ const ReturnedPaymentRequests: React.FC = () => {
       const data = await hrService.getReturnedPaymentRequests({
         page: pagination.page,
         limit: pagination.limit
-      });
-      
+      }) as {
+        requests: ReturnedPaymentRequest[];
+        pagination: { page: number; limit: number; total: number; pages: number }
+      };
+
       setRequests(data.requests);
       setPagination(data.pagination);
     } catch (err) {
@@ -383,9 +386,9 @@ const ReturnedPaymentRequests: React.FC = () => {
                       <TableRow key={request.id} hover>
                         <TableCell>{request.id}</TableCell>
                         <TableCell>
-                          <Typography variant="body2">{request.instructor_name}</Typography>
+                          <Typography variant="body2">{request.instructorName}</Typography>
                           <Typography variant="caption" color="textSecondary">
-                            ID: {request.instructor_id}
+                            ID: {request.instructorId}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -393,14 +396,14 @@ const ReturnedPaymentRequests: React.FC = () => {
                             ${Number(request.amount).toFixed(2)}
                           </Typography>
                         </TableCell>
-                        <TableCell>{new Date(request.week_start_date).toLocaleDateString()}</TableCell>
+                        <TableCell>{new Date(request.weekStartDate).toLocaleDateString()}</TableCell>
                         <TableCell>
                           <Typography variant="body2">
-                            {request.total_hours}h / {request.courses_taught} courses
+                            {request.totalHours}h / {request.coursesTaught} courses
                           </Typography>
                         </TableCell>
                         <TableCell>
-                          {new Date(request.updated_at).toLocaleDateString()}
+                          {new Date(request.updatedAt).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
                           <Tooltip title="Review Details">

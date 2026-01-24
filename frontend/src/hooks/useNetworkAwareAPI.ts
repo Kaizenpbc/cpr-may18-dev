@@ -6,14 +6,14 @@ import logger from '../utils/logger';
 interface APIRequestOptions {
   url: string;
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-  data?: any;
+  data?: unknown;
   headers?: Record<string, string>;
   maxRetries?: number;
   queueWhenOffline?: boolean;
   skipIfSlowConnection?: boolean;
 }
 
-interface APIResponse<T = any> {
+interface APIResponse<T = unknown> {
   data?: T;
   error?: string;
   isQueued?: boolean;
@@ -33,7 +33,7 @@ export const useNetworkAwareAPI = () => {
 
   // Enhanced API request with network awareness
   const makeRequest = useCallback(
-    async <T = any>(options: APIRequestOptions): Promise<APIResponse<T>> => {
+    async <T = unknown>(options: APIRequestOptions): Promise<APIResponse<T>> => {
       const {
         url,
         method = 'GET',
@@ -59,7 +59,7 @@ export const useNetworkAwareAPI = () => {
         const queueId = queueRequest({
           url,
           method,
-          data,
+          data: data as Record<string, unknown>,
           headers,
           maxRetries,
         });
@@ -98,18 +98,19 @@ export const useNetworkAwareAPI = () => {
         return {
           data: response.data,
         };
-      } catch (error: any) {
+      } catch (error: unknown) {
         logger.error(
           `[NetworkAwareAPI] Request failed: ${method} ${url}`,
           error
         );
 
+        const err = error as { code?: string; message?: string };
         // If it's a network error and queuing is enabled, queue it
-        if (queueWhenOffline && (error.code === 'NETWORK_ERROR' || !isOnline)) {
+        if (queueWhenOffline && (err.code === 'NETWORK_ERROR' || !isOnline)) {
           const queueId = queueRequest({
             url,
             method,
-            data,
+            data: data as Record<string, unknown>,
             headers,
             maxRetries,
           });
@@ -122,7 +123,7 @@ export const useNetworkAwareAPI = () => {
         }
 
         return {
-          error: error.message || 'Request failed',
+          error: err.message || 'Request failed',
         };
       }
     },
@@ -137,7 +138,7 @@ export const useNetworkAwareAPI = () => {
 
   // Optimized GET request with caching
   const get = useCallback(
-    async <T = any>(
+    async <T = unknown>(
       url: string,
       options?: Omit<APIRequestOptions, 'url' | 'method'>
     ): Promise<APIResponse<T>> => {
@@ -196,9 +197,9 @@ export const useNetworkAwareAPI = () => {
 
   // POST request with automatic queuing
   const post = useCallback(
-    async <T = any>(
+    async <T = unknown>(
       url: string,
-      data?: any,
+      data?: unknown,
       options?: Omit<APIRequestOptions, 'url' | 'method' | 'data'>
     ): Promise<APIResponse<T>> => {
       return makeRequest<T>({
@@ -214,9 +215,9 @@ export const useNetworkAwareAPI = () => {
 
   // PUT request with automatic queuing
   const put = useCallback(
-    async <T = any>(
+    async <T = unknown>(
       url: string,
-      data?: any,
+      data?: unknown,
       options?: Omit<APIRequestOptions, 'url' | 'method' | 'data'>
     ): Promise<APIResponse<T>> => {
       return makeRequest<T>({
@@ -232,7 +233,7 @@ export const useNetworkAwareAPI = () => {
 
   // DELETE request with automatic queuing
   const del = useCallback(
-    async <T = any>(
+    async <T = unknown>(
       url: string,
       options?: Omit<APIRequestOptions, 'url' | 'method'>
     ): Promise<APIResponse<T>> => {
@@ -248,9 +249,9 @@ export const useNetworkAwareAPI = () => {
 
   // PATCH request with automatic queuing
   const patch = useCallback(
-    async <T = any>(
+    async <T = unknown>(
       url: string,
-      data?: any,
+      data?: unknown,
       options?: Omit<APIRequestOptions, 'url' | 'method' | 'data'>
     ): Promise<APIResponse<T>> => {
       return makeRequest<T>({

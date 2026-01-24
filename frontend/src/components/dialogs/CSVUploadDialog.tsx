@@ -14,10 +14,17 @@ import { CloudUpload as UploadIcon } from '@mui/icons-material';
 import { parseCSV, ParsedCSVResult } from '../../utils/csvParser';
 import { organizationApi } from '../../services/api';
 
+interface UploadResult {
+  fileName: string;
+  content: string;
+  parsed: ParsedCSVResult;
+  response: unknown;
+}
+
 interface CSVUploadDialogProps {
   open: boolean;
   onClose: () => void;
-  onUploadSuccess?: (data: any) => void;
+  onUploadSuccess?: (data: UploadResult) => void;
   title?: string;
   description?: string;
   courseRequestId?: number;
@@ -113,20 +120,21 @@ const CSVUploadDialog: React.FC<CSVUploadDialogProps> = ({
       
       onUploadSuccess?.(result);
       onClose();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[CSVUploadDialog] Upload error:', err);
-      
+
       // Enhanced error handling
-      if (err.response?.status === 401) {
+      const errObj = err as { response?: { status?: number }; message?: string };
+      if (errObj.response?.status === 401) {
         setError('Authentication failed. Please log in again.');
-      } else if (err.response?.status === 403) {
+      } else if (errObj.response?.status === 403) {
         setError('Access denied. You do not have permission to upload students for this course.');
-      } else if (err.response?.status === 404) {
+      } else if (errObj.response?.status === 404) {
         setError('Course not found. Please refresh the page and try again.');
-      } else if (err.response?.status === 500) {
+      } else if (errObj.response?.status === 500) {
         setError('Server error occurred. Please try again or contact support.');
-      } else if (err.message) {
-        setError(err.message);
+      } else if (errObj.message) {
+        setError(errObj.message);
       } else {
         setError('Failed to upload file. Please try again.');
       }

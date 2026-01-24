@@ -23,7 +23,7 @@
     "monitor:clean": "npm run dev:clean && node monitor-servers.js",
     "stop": "npm run cleanup && npm run kill-ports && npm run check-ports",
     "security:scan": "node scripts/security-scan.js",
-    "security:audit": "npm audit --audit-level=moderate && cd backend && npm audit --audit-level=moderate && cd ../frontend && npm audit --audit-level=moderate",
+    "security:audit": "npm audit --audit-level=high && cd backend && npm audit --audit-level=high && cd ../frontend && npm audit --audit-level=high",
     "security:fix": "npm audit fix && cd backend && npm audit fix && cd ../frontend && npm audit fix",
     "security:ci": "audit-ci --config audit-ci.json",
     "ssl:generate": "node scripts/generate-ssl-certs.js",

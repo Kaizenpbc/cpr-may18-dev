@@ -8,7 +8,7 @@ export interface Notification {
   type: NotificationType;
   title: string;
   message: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   read_at: Date | null;
   created_at: Date;
   updated_at: Date;
@@ -82,14 +82,15 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         setNotifications(response.data.data);
         backoffDelay.current = 0; // Reset backoff on success
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching notifications:', err);
+      const axiosErr = err as { response?: { status?: number; data?: { message?: string } } };
       // Handle rate limiting
-      if (err.response?.status === 429) {
+      if (axiosErr.response?.status === 429) {
         backoffDelay.current = Math.min(backoffDelay.current * 2 || 60000, maxBackoff);
         console.log(`Rate limited. Backing off for ${backoffDelay.current / 1000}s`);
       } else {
-        setError(err.response?.data?.message || 'Failed to fetch notifications');
+        setError(axiosErr.response?.data?.message || 'Failed to fetch notifications');
       }
     } finally {
       setIsLoading(false);
@@ -110,10 +111,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         setUnreadCount(response.data.data.count);
         backoffDelay.current = 0; // Reset backoff on success
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching unread count:', err);
+      const axiosErr = err as { response?: { status?: number } };
       // Handle rate limiting with exponential backoff
-      if (err.response?.status === 429) {
+      if (axiosErr.response?.status === 429) {
         backoffDelay.current = Math.min(backoffDelay.current * 2 || 60000, maxBackoff);
         console.log(`Rate limited. Backing off for ${backoffDelay.current / 1000}s`);
       }
@@ -137,9 +139,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         // Refresh unread count
         await fetchUnreadCount();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error marking notification as read:', err);
-      setError(err.response?.data?.message || 'Failed to mark notification as read');
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || 'Failed to mark notification as read');
     }
   }, [fetchUnreadCount]);
 
@@ -153,9 +156,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         );
         setUnreadCount(0);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error marking all notifications as read:', err);
-      setError(err.response?.data?.message || 'Failed to mark all notifications as read');
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || 'Failed to mark all notifications as read');
     }
   }, []);
 
@@ -168,9 +172,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         // Refresh unread count
         await fetchUnreadCount();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error deleting notification:', err);
-      setError(err.response?.data?.message || 'Failed to delete notification');
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || 'Failed to delete notification');
     }
   }, [fetchUnreadCount]);
 

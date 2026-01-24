@@ -21,8 +21,11 @@ interface AvailabilityDate {
 }
 
 interface StudentAttendance {
-  studentid: string;
-  attendance: boolean;
+  id?: number;
+  studentid?: string;
+  attended?: boolean;
+  attendance?: boolean;
+  [key: string]: unknown;
 }
 
 // Extended class item for accessing additional properties
@@ -143,18 +146,17 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
 
         combined.push({
           key: `class-${classItem.courseId}`,
-          type: 'class',
+          type: 'class' as const,
           displayDate: formatDisplayDate(dateStr),
-          organizationname: extClass.organizationname || classItem.organizationName || 'Unassigned',
+          organizationName: extClass.organizationname || classItem.organizationName || 'Unassigned',
           location: classItem.location || 'TBD',
-          coursenumber: classItem.courseId?.toString() || '',
-          coursetypename: extClass.course_name || classItem.courseType || 'CPR Class',
-          studentsregistered: extClass.studentcount || classItem.registeredStudents || 0,
-          studentsattendance: extClass.studentsattendance || classItem.studentsAttended || 0,
+          courseNumber: classItem.courseId?.toString() || '',
+          courseTypeName: extClass.course_name || classItem.courseType || 'CPR Class',
+          studentsRegistered: extClass.studentcount || classItem.registeredStudents || 0,
+          studentsAttendance: extClass.studentsattendance || classItem.studentsAttended || 0,
           notes: classItem.notes,
           status: classItem.status || 'scheduled',
           courseId: classItem.courseId,
-          originalData: classItem as unknown as Record<string, unknown>
         });
       });
 
@@ -176,18 +178,17 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
       });
       
       // Include all availability dates (don't filter by date)
-      const entry = {
+      const entry: CombinedScheduleItem = {
         key: `availability-${availability.id}`,
-        type: 'availability',
+        type: 'availability' as const,
         displayDate: formatDisplayDate(dateStr),
-        organizationname: 'Available',
+        organizationName: 'Available',
         location: 'Available',
-        coursenumber: '',
-        coursetypename: 'Available',
-        studentsregistered: 0,
-        studentsattendance: 0,
+        courseNumber: '',
+        courseTypeName: 'Available',
+        studentsRegistered: 0,
+        studentsAttendance: 0,
         status: 'available',
-        originalData: availability
       };
       
       console.log('[InstructorPortal] Created availability entry:', entry);
@@ -201,7 +202,7 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
       key: item.key,
       type: item.type,
       displayDate: item.displayDate,
-      organizationname: item.organizationname,
+      organizationName: item.organizationName,
       status: item.status
     })));
     return combined;
@@ -252,11 +253,7 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
                 path='/dashboard'
                 element={
                   <ErrorBoundary onError={handleError}>
-                    <InstructorDashboard
-                      availableDates={availableDates}
-                      scheduledClasses={scheduledClasses}
-                      completedClasses={completedClasses}
-                    />
+                    <InstructorDashboard />
                   </ErrorBoundary>
                 }
               />
@@ -339,7 +336,7 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
                 path='/profile'
                 element={
                   <ErrorBoundary onError={handleError}>
-                    <InstructorProfile user={user} />
+                    <InstructorProfile />
                   </ErrorBoundary>
                 }
               />

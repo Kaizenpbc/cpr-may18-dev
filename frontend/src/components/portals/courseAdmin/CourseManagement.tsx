@@ -29,7 +29,7 @@ interface Course {
   id: number;
   name: string;
   description: string;
-  duration_minutes: number;
+  durationMinutes: number;
 }
 
 const CourseManagement: React.FC = () => {
@@ -39,7 +39,7 @@ const CourseManagement: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    duration_minutes: 0,
+    durationMinutes: 0,
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -63,14 +63,14 @@ const CourseManagement: React.FC = () => {
       setFormData({
         name: course.name,
         description: course.description,
-        duration_minutes: course.duration_minutes,
+        durationMinutes: course.durationMinutes,
       });
     } else {
       setEditingCourse(null);
       setFormData({
         name: '',
         description: '',
-        duration_minutes: 0,
+        durationMinutes: 0,
       });
     }
     setOpen(true);
@@ -82,7 +82,7 @@ const CourseManagement: React.FC = () => {
     setFormData({
       name: '',
       description: '',
-      duration_minutes: 0,
+      durationMinutes: 0,
     });
   };
 
@@ -90,7 +90,7 @@ const CourseManagement: React.FC = () => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'duration_minutes' ? parseInt(value) || 0 : value,
+      [name]: name === 'durationMinutes' ? parseInt(value) || 0 : value,
     }));
   };
 
@@ -174,7 +174,7 @@ const CourseManagement: React.FC = () => {
               <TableRow key={course.id}>
                 <TableCell>{course.name}</TableCell>
                 <TableCell>{course.description}</TableCell>
-                <TableCell>{course.duration_minutes}</TableCell>
+                <TableCell>{course.durationMinutes}</TableCell>
                 <TableCell>
                   <IconButton
                     onClick={() => handleOpen(course)}
@@ -223,11 +223,11 @@ const CourseManagement: React.FC = () => {
           />
           <TextField
             margin='dense'
-            name='duration_minutes'
+            name='durationMinutes'
             label='Duration (minutes)'
             type='number'
             fullWidth
-            value={formData.duration_minutes}
+            value={formData.durationMinutes}
             onChange={handleInputChange}
           />
         </DialogContent>

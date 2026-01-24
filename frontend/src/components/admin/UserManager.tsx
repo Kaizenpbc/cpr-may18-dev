@@ -36,9 +36,13 @@ function UserManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // State for Add/Edit Dialog
-  const [dialog_open, setDialogOpen] = useState(false);
-  const [editing_user, setEditingUser] = useState(null); // null for Add, user object for Edit
-  const [snackbar, setSnackbar] = useState({
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null); // null for Add, user object for Edit
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'warning' | 'info';
+  }>({
     open: false,
     message: '',
     severity: 'success',
@@ -65,30 +69,28 @@ function UserManager() {
   const handleAddOpen = () => {
     setEditingUser(null); // Set to null for Add mode
     setDialogOpen(true);
-    // alert('Add User dialog not implemented yet.'); // Removed placeholder
   };
 
   const handleEditOpen = user => {
     setEditingUser(user); // Set the user data for Edit mode
     setDialogOpen(true);
-    // alert(`Edit User ${user.user_id} dialog not implemented yet.`); // Removed placeholder
   };
 
-  const handleDelete = async user_id => {
-    const user_to_delete = users.find(u => u.user_id === user_id);
-    const confirm_message = user_to_delete
-      ? `Are you sure you want to delete user: ${user_to_delete.username} (ID: ${user_id})?`
-      : `Are you sure you want to delete user ID ${user_id}?`;
+  const handleDelete = async userId => {
+    const userToDelete = users.find(u => u.userId === userId);
+    const confirmMessage = userToDelete
+      ? `Are you sure you want to delete user: ${userToDelete.username} (ID: ${userId})?`
+      : `Are you sure you want to delete user ID ${userId}?`;
 
-    if (window.confirm(confirm_message)) {
+    if (window.confirm(confirmMessage)) {
       try {
-        await api.deleteUser(user_id);
-        setUsers(users.filter(user => user.user_id !== user_id));
-        logger.info(`User ${user_id} deleted successfully`);
-        showSnackbar(`User ${user_id} deleted successfully.`, 'success');
+        await api.deleteUser(userId);
+        setUsers(users.filter(user => user.userId !== userId));
+        logger.info(`User ${userId} deleted successfully`);
+        showSnackbar(`User ${userId} deleted successfully.`, 'success');
         fetchUsers(); // Refresh the list
       } catch (err) {
-        logger.error(`Error deleting user ${user_id}:`, err);
+        logger.error(`Error deleting user ${userId}:`, err);
         setError('Failed to delete user');
         showSnackbar(`Failed to delete user: ${err.message}`, 'error');
       }
@@ -106,7 +108,7 @@ function UserManager() {
   };
 
   // --- Define showSnackbar helper ---
-  const showSnackbar = (message, severity = 'success') => {
+  const showSnackbar = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
     setSnackbar({ open: true, message, severity });
   };
 
@@ -167,15 +169,15 @@ function UserManager() {
                 </TableRow>
               ) : (
                 users.map(user => (
-                  <TableRow key={user.user_id}>
-                    <TableCell>{user.user_id}</TableCell>
+                  <TableRow key={user.userId}>
+                    <TableCell>{user.userId}</TableCell>
                     <TableCell>{user.username}</TableCell>
                     <TableCell>{user.role}</TableCell>
-                    <TableCell>{user.first_name}</TableCell>
-                    <TableCell>{user.last_name}</TableCell>
+                    <TableCell>{user.firstName}</TableCell>
+                    <TableCell>{user.lastName}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.phone}</TableCell>
-                    <TableCell>{user.organization_name}</TableCell>
+                    <TableCell>{user.organizationName}</TableCell>
                     <TableCell>
                       <IconButton
                         size='small'
@@ -186,7 +188,7 @@ function UserManager() {
                       </IconButton>
                       <IconButton
                         size='small'
-                        onClick={() => handleDelete(user.user_id)}
+                        onClick={() => handleDelete(user.userId)}
                         title='Delete'
                       >
                         <DeleteIcon />
@@ -219,11 +221,11 @@ function UserManager() {
 
       {/* Add/Edit Dialog */}
       <UserDialog
-        open={dialog_open}
+        open={dialogOpen}
         onClose={handleDialogClose}
         onSave={handleDialogSave}
-        user={editing_user}
-        existing_users={users}
+        user={editingUser}
+        existingUsers={users}
       />
     </Paper>
   );

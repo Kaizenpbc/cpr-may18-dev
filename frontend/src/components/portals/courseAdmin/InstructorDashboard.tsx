@@ -33,22 +33,22 @@ import {
 import { fetchCourseAdminDashboardData } from '../../../services/api';
 
 interface InstructorStats {
-  instructor_id: number;
-  instructor_name: string;
+  instructorId: number;
+  instructorName: string;
   email: string;
-  courses_completed: number;
-  courses_scheduled: number;
-  total_courses: number;
-  completion_rate: number;
-  last_course_date: string;
-  avg_students_per_course: number;
+  coursesCompleted: number;
+  coursesScheduled: number;
+  totalCourses: number;
+  completionRate: number;
+  lastCourseDate: string;
+  avgStudentsPerCourse: number;
 }
 
 interface DashboardSummary {
-  total_instructors: number;
-  total_courses_this_month: number;
-  total_completed_this_month: number;
-  avg_courses_per_instructor: number;
+  totalInstructors: number;
+  totalCoursesThisMonth: number;
+  totalCompletedThisMonth: number;
+  avgCoursesPerInstructor: number;
 }
 
 const InstructorDashboard: React.FC = () => {
@@ -72,7 +72,7 @@ const InstructorDashboard: React.FC = () => {
     try {
       const data = await fetchCourseAdminDashboardData(selectedMonth);
       setInstructorStats(Array.isArray(data.instructorStats) ? data.instructorStats : []);
-      setDashboardSummary(data.dashboardSummary);
+      setDashboardSummary(data.dashboardSummary as unknown as DashboardSummary);
     } catch (err) {
       setError('Failed to fetch dashboard data');
       console.error('Dashboard fetch error:', err);
@@ -370,14 +370,14 @@ const InstructorDashboard: React.FC = () => {
                         >
                           <LinearProgress
                             variant='determinate'
-                            value={Number(instructor.completion_rate)}
+                            value={Number(instructor.completionRate)}
                             color={getStatusColor(
-                              Number(instructor.completion_rate)
+                              Number(instructor.completionRate)
                             )}
                             sx={{ width: 60, height: 8, borderRadius: 4 }}
                           />
                           <Typography variant='body2'>
-                            {Number(instructor.completion_rate).toFixed(0)}%
+                            {Number(instructor.completionRate).toFixed(0)}%
                           </Typography>
                         </Box>
                       </TableCell>
@@ -398,9 +398,9 @@ const InstructorDashboard: React.FC = () => {
                       </TableCell>
                       <TableCell align='center'>
                         <Typography variant='body2'>
-                          {instructor.last_course_date
+                          {instructor.lastCourseDate
                             ? new Date(
-                                instructor.last_course_date
+                                instructor.lastCourseDate
                               ).toLocaleDateString()
                             : 'N/A'}
                         </Typography>

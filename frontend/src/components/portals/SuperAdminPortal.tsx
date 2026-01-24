@@ -38,7 +38,11 @@ const SuperAdminPortal = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [selected_view, setSelectedView] = useState('organizations'); // Default view
-  const [snackbar, setSnackbar] = useState({
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'warning' | 'info';
+  }>({
     open: false,
     message: '',
     severity: 'success',
@@ -46,14 +50,14 @@ const SuperAdminPortal = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const showSnackbar = useCallback((message, severity = 'success') => {
+  const showSnackbar = useCallback((message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
     setSnackbar({ open: true, message, severity });
   }, []);
 
   const handleLogout = () => {
-    const first_name = user?.first_name || 'Super Admin';
-    const logout_message = `Goodbye ${first_name}!`; // Simple message
-    showSnackbar(logout_message, 'info');
+    const firstName = user?.firstName || 'Super Admin';
+    const logoutMessage = `Goodbye ${firstName}!`; // Simple message
+    showSnackbar(logoutMessage, 'info');
 
     setTimeout(() => {
       logout();
@@ -61,7 +65,7 @@ const SuperAdminPortal = () => {
     }, 1500);
   };
 
-  const handleError = (error: Error, errorInfo: any) => {
+  const handleError = (error: Error, errorInfo: React.ErrorInfo) => {
     logger.error('[SuperAdminPortal] Error caught by boundary:', error, errorInfo);
   };
 
@@ -83,7 +87,7 @@ const SuperAdminPortal = () => {
       case 'course_types':
         return (
           <ErrorBoundary context="super_admin_course_types" onError={handleError}>
-            <CourseManager />
+            <CourseManager showSnackbar={showSnackbar} />
           </ErrorBoundary>
         );
       case 'pricing':
@@ -130,7 +134,7 @@ const SuperAdminPortal = () => {
               ⚡ Super Admin Portal
             </Typography>
             <Typography variant='body1' noWrap sx={{ mr: 2 }}>
-              Welcome {user?.username || user?.first_name || 'Super Admin'}!
+              Welcome {user?.username || user?.firstName || 'Super Admin'}!
             </Typography>
             <ThemeToggle size="small" />
           </Toolbar>

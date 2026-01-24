@@ -33,7 +33,7 @@ function PricingRuleDialog({ open, onClose, onSave, rule }) {
   const [loadingLists, setLoadingLists] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | boolean>>({});
   const isEditMode = Boolean(rule?.pricingid);
 
   // Fetch lists needed for dropdowns
@@ -98,7 +98,7 @@ function PricingRuleDialog({ open, onClose, onSave, rule }) {
     setError('');
     setFieldErrors({});
     let hasClientError = false;
-    const newFieldErrors = {};
+    const newFieldErrors: Record<string, string> = {};
 
     // Client-side validation
     if (!formData.organizationId)
@@ -130,8 +130,8 @@ function PricingRuleDialog({ open, onClose, onSave, rule }) {
       };
 
       if (isEditMode) {
-        // API only supports updating price by rule ID
-        await api.updatePricingRule(rule.pricingid, dataToSend.price);
+        // Update pricing rule with new data
+        await api.updatePricingRule(rule.pricingid, dataToSend);
       } else {
         await api.addPricingRule(dataToSend);
       }
@@ -142,7 +142,7 @@ function PricingRuleDialog({ open, onClose, onSave, rule }) {
       const message = err.message || 'Failed to save rule.';
       setError('Failed to save. Please fix highlighted field(s).');
 
-      const tempFieldErrors = {};
+      const tempFieldErrors: Record<string, string> = {};
       if (message.toLowerCase().includes('already exists')) {
         tempFieldErrors.organizationId =
           'Rule already exists for this Org/Course Type';

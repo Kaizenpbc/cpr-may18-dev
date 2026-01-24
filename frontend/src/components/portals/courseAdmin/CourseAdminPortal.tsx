@@ -96,7 +96,7 @@ const CourseAdminPortal: React.FC<CourseAdminPortalProps> = ({
   const location = useLocation();
   const currentPath = location.pathname.split('/').pop();
 
-  const handleError = (error: Error, errorInfo: any) => {
+  const handleError = (error: Error, errorInfo: React.ErrorInfo) => {
     console.error('[CourseAdminPortal] Error caught by boundary:', error, errorInfo);
   };
 
@@ -114,7 +114,7 @@ const CourseAdminPortal: React.FC<CourseAdminPortalProps> = ({
               Course Administration Portal
             </Typography>
             <Typography variant='body1' sx={{ mr: 2 }}>
-              Welcome, {user?.first_name || user?.username || 'Admin'}!
+              Welcome, {user?.firstName || user?.username || 'Admin'}!
             </Typography>
             <ThemeToggle size="small" />
             <IconButton

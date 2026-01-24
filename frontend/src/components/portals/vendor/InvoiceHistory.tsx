@@ -45,10 +45,10 @@ import { useVendorInvoiceUpdates } from '../../../hooks/useVendorInvoiceUpdates'
 
 interface Invoice {
   id: number;
-  invoice_number: string;
+  invoiceNumber: string;
   item?: string;
   company?: string;
-  billing_company?: string;
+  billingCompany?: string;
   quantity?: number | null;
   description: string;
   rate: number; // Always a number (defaults to 0)
@@ -57,33 +57,33 @@ interface Invoice {
   hst: number; // Always a number (defaults to 0)
   total: number; // Always a number (defaults to 0)
   status: string;
-  created_at: string;
-  due_date?: string;
-  payment_date?: string;
-  pdf_filename?: string;
-  vendor_name?: string;
-  vendor_email?: string;
-  vendor_contact?: string;
-  total_paid?: number | string;
-  balance_due?: number | string;
-  admin_notes?: string;
-  approved_by_name?: string;
-  approved_by_email?: string;
-  sent_to_accounting_at?: string;
-  paid_at?: string;
-  bank_name?: string;
+  createdAt: string;
+  dueDate?: string;
+  paymentDate?: string;
+  pdfFilename?: string;
+  vendorName?: string;
+  vendorEmail?: string;
+  vendorContact?: string;
+  totalPaid?: number | string;
+  balanceDue?: number | string;
+  adminNotes?: string;
+  approvedByName?: string;
+  approvedByEmail?: string;
+  sentToAccountingAt?: string;
+  paidAt?: string;
+  bankName?: string;
 }
 
 interface PaymentHistory {
   id: number;
   amount: number;
-  payment_date: string;
-  payment_method: string;
-  reference_number: string;
+  paymentDate: string;
+  paymentMethod: string;
+  referenceNumber: string;
   notes: string;
   status: string;
-  processed_at: string;
-  processed_by_name: string;
+  processedAt: string;
+  processedByName: string;
 }
 
 interface TabPanelProps {
@@ -91,6 +91,8 @@ interface TabPanelProps {
   index: number;
   value: number;
 }
+
+type ChipColor = 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
 
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
@@ -162,8 +164,8 @@ const InvoiceHistory: React.FC = () => {
         }));
         
         console.log('🔍 [FETCH DEBUG] Processed invoices:', processedInvoices);
-        console.log('🔍 [FETCH DEBUG] Invoice statuses:', processedInvoices.map(inv => ({ id: inv.id, number: inv.invoice_number, status: inv.status })));
-        
+        console.log('🔍 [FETCH DEBUG] Invoice statuses:', processedInvoices.map(inv => ({ id: inv.id, number: inv.invoiceNumber, status: inv.status })));
+
         setInvoices(processedInvoices);
       } else if (response && response.data && Array.isArray(response.data)) {
         console.log('🔍 [FETCH DEBUG] Response has data property, length:', response.data.length);
@@ -180,8 +182,8 @@ const InvoiceHistory: React.FC = () => {
         }));
         
         console.log('🔍 [FETCH DEBUG] Processed invoices:', processedInvoices);
-        console.log('🔍 [FETCH DEBUG] Invoice statuses:', processedInvoices.map(inv => ({ id: inv.id, number: inv.invoice_number, status: inv.status })));
-        
+        console.log('🔍 [FETCH DEBUG] Invoice statuses:', processedInvoices.map(inv => ({ id: inv.id, number: inv.invoiceNumber, status: inv.status })));
+
         setInvoices(processedInvoices);
       } else {
         console.log('🔍 [FETCH DEBUG] Unexpected response format:', response);
@@ -218,7 +220,7 @@ const InvoiceHistory: React.FC = () => {
   }
 
   // Helper functions
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): ChipColor => {
     switch (status) {
       case 'pending_submission':
         return 'default';
@@ -352,9 +354,9 @@ const InvoiceHistory: React.FC = () => {
     if (search) {
       console.log('🔍 [FILTER DEBUG] Applying search filter for:', search);
       filtered = filtered.filter(invoice => 
-        invoice.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
+        invoice.invoiceNumber.toLowerCase().includes(search.toLowerCase()) ||
         (invoice.description && invoice.description.toLowerCase().includes(search.toLowerCase())) ||
-        (invoice.billing_company && invoice.billing_company.toLowerCase().includes(search.toLowerCase())) ||
+        (invoice.billingCompany && invoice.billingCompany.toLowerCase().includes(search.toLowerCase())) ||
         (invoice.company && invoice.company.toLowerCase().includes(search.toLowerCase()))
       );
       console.log('🔍 [FILTER DEBUG] After search filter:', filtered.length, 'invoices');
@@ -395,7 +397,7 @@ const InvoiceHistory: React.FC = () => {
         break;
     }
 
-    console.log('🔍 [FILTER DEBUG] Final filtered invoices:', filtered.map(inv => ({ id: inv.id, number: inv.invoice_number, status: inv.status })));
+    console.log('🔍 [FILTER DEBUG] Final filtered invoices:', filtered.map(inv => ({ id: inv.id, number: inv.invoiceNumber, status: inv.status })));
     return filtered;
   };
 
@@ -426,9 +428,9 @@ const InvoiceHistory: React.FC = () => {
           <TableBody>
             {filteredInvoices.map((invoice) => (
               <TableRow key={invoice.id}>
-                <TableCell sx={{ position: 'sticky', left: 0, backgroundColor: 'background.paper', zIndex: 1 }}>{new Date(invoice.created_at).toLocaleDateString()}</TableCell>
-                <TableCell sx={{ position: 'sticky', left: 100, backgroundColor: 'background.paper', zIndex: 1 }}>{invoice.billing_company || invoice.company || '-'}</TableCell>
-                <TableCell sx={{ position: 'sticky', left: 250, backgroundColor: 'background.paper', zIndex: 1 }}>{invoice.invoice_number}</TableCell>
+                <TableCell sx={{ position: 'sticky', left: 0, backgroundColor: 'background.paper', zIndex: 1 }}>{new Date(invoice.createdAt).toLocaleDateString()}</TableCell>
+                <TableCell sx={{ position: 'sticky', left: 100, backgroundColor: 'background.paper', zIndex: 1 }}>{invoice.billingCompany || invoice.company || '-'}</TableCell>
+                <TableCell sx={{ position: 'sticky', left: 250, backgroundColor: 'background.paper', zIndex: 1 }}>{invoice.invoiceNumber}</TableCell>
                 <TableCell align="right">{invoice.quantity || '-'}</TableCell>
                 <TableCell>{invoice.item || '-'}</TableCell>
                 <TableCell>
@@ -441,10 +443,10 @@ const InvoiceHistory: React.FC = () => {
                     `$${Number(invoice.rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </TableCell>
                 <TableCell align="right">
-                  {invoice.amount && !isNaN(invoice.amount) ? 
-                    `$${parseFloat(invoice.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 
-                    (invoice.total && !isNaN(invoice.total) ? 
-                      `$${parseFloat(invoice.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-')}
+                  {invoice.amount && !isNaN(Number(invoice.amount)) ?
+                    `$${Number(invoice.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` :
+                    (invoice.total && !isNaN(Number(invoice.total)) ?
+                      `$${Number(invoice.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-')}
                 </TableCell>
                 <TableCell align="right">
                   {invoice.subtotal && !isNaN(invoice.subtotal) && invoice.subtotal > 0 ? 
@@ -459,9 +461,9 @@ const InvoiceHistory: React.FC = () => {
                     `$${Number(invoice.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </TableCell>
                 <TableCell>
-                  <Chip label={getStatusLabel(invoice.status)} color={getStatusColor(invoice.status) as any} size="small" />
+                  <Chip label={getStatusLabel(invoice.status)} color={getStatusColor(invoice.status)} size="small" />
                 </TableCell>
-                <TableCell>{invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '-'}</TableCell>
+                <TableCell>{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '-'}</TableCell>
                 <TableCell align="center" sx={{ position: 'sticky', right: 0, backgroundColor: 'background.paper', zIndex: 1 }}>
                   <Tooltip title="View Invoice Details">
                     <IconButton size="small" onClick={() => handleView(invoice.id)} color="primary">
@@ -469,7 +471,7 @@ const InvoiceHistory: React.FC = () => {
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Download PDF">
-                    <IconButton size="small" onClick={() => handleDownload(invoice.id, invoice.invoice_number)} color="secondary">
+                    <IconButton size="small" onClick={() => handleDownload(invoice.id, invoice.invoiceNumber)} color="secondary">
                       <DownloadIcon />
                     </IconButton>
                   </Tooltip>
@@ -813,12 +815,12 @@ const InvoiceHistory: React.FC = () => {
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6">
-              Invoice Details - #{selectedInvoice?.invoice_number}
+              Invoice Details - #{selectedInvoice?.invoiceNumber}
             </Typography>
             {selectedInvoice && (
               <Chip
                 label={getStatusLabel(selectedInvoice.status)}
-                color={getStatusColor(selectedInvoice.status) as any}
+                color={getStatusColor(selectedInvoice.status)}
                 size="small"
               />
             )}
@@ -836,20 +838,20 @@ const InvoiceHistory: React.FC = () => {
                     </Typography>
                     <Box sx={{ pl: 2 }}>
                       <Typography variant="body1" fontWeight="bold" sx={{ mb: 1 }}>
-                        Invoice #{selectedInvoice.invoice_number}
+                        Invoice #{selectedInvoice.invoiceNumber}
                       </Typography>
                       <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
                         <PersonIcon sx={{ mr: 1, fontSize: 'small' }} />
-                        {selectedInvoice.billing_company || selectedInvoice.company || 'N/A'}
+                        {selectedInvoice.billingCompany || selectedInvoice.company || 'N/A'}
                       </Typography>
                       <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
                         <EmailIcon sx={{ mr: 1, fontSize: 'small' }} />
-                        Created: {formatDate(selectedInvoice.created_at)}
+                        Created: {formatDate(selectedInvoice.createdAt)}
                       </Typography>
-                      {selectedInvoice.due_date && (
+                      {selectedInvoice.dueDate && (
                         <Typography variant="body2" color="textSecondary">
                           <BankIcon sx={{ mr: 1, fontSize: 'small' }} />
-                          Due: {formatDate(selectedInvoice.due_date)}
+                          Due: {formatDate(selectedInvoice.dueDate)}
                         </Typography>
                       )}
                     </Box>
@@ -864,10 +866,10 @@ const InvoiceHistory: React.FC = () => {
                         {formatCurrency(parseFloat(selectedInvoice.total?.toString() || '0') || 0)}
                       </Typography>
                       <Typography variant="body2" color="success.main" sx={{ mb: 1 }}>
-                        Paid: {formatCurrency(parseFloat(selectedInvoice.total_paid?.toString() || '0'))}
+                        Paid: {formatCurrency(parseFloat(selectedInvoice.totalPaid?.toString() || '0'))}
                       </Typography>
                       <Typography variant="body2" color="warning.main" fontWeight="bold">
-                        Balance: {formatCurrency(parseFloat(selectedInvoice.balance_due?.toString() || '0'))}
+                        Balance: {formatCurrency(parseFloat(selectedInvoice.balanceDue?.toString() || '0'))}
                       </Typography>
                     </Box>
                   </Grid>
@@ -893,16 +895,16 @@ const InvoiceHistory: React.FC = () => {
                       Invoice Date
                     </Typography>
                     <Typography variant="body1">
-                      {formatDate(selectedInvoice.created_at)}
+                      {formatDate(selectedInvoice.createdAt)}
                     </Typography>
                   </Grid>
-                  {selectedInvoice.due_date && (
+                  {selectedInvoice.dueDate && (
                     <Grid item xs={12} md={6}>
                       <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                         Due Date
                       </Typography>
                       <Typography variant="body1">
-                        {formatDate(selectedInvoice.due_date)}
+                        {formatDate(selectedInvoice.dueDate)}
                       </Typography>
                     </Grid>
                   )}
@@ -920,7 +922,7 @@ const InvoiceHistory: React.FC = () => {
                       Approved By
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
-                      {selectedInvoice.approved_by_name || 'Admin User'}
+                      {selectedInvoice.approvedByName || 'Admin User'}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} md={6}>
@@ -928,21 +930,21 @@ const InvoiceHistory: React.FC = () => {
                       {selectedInvoice.status === 'paid' ? 'Paid Date' : 'Sent to Accounting'}
                     </Typography>
                     <Typography variant="body1">
-                      {selectedInvoice.status === 'paid' && selectedInvoice.paid_at 
-                        ? formatDate(selectedInvoice.paid_at) 
-                        : selectedInvoice.sent_to_accounting_at 
-                          ? formatDate(selectedInvoice.sent_to_accounting_at) 
+                      {selectedInvoice.status === 'paid' && selectedInvoice.paidAt 
+                        ? formatDate(selectedInvoice.paidAt) 
+                        : selectedInvoice.sentToAccountingAt 
+                          ? formatDate(selectedInvoice.sentToAccountingAt) 
                           : 'N/A'
                       }
                     </Typography>
                   </Grid>
-                  {selectedInvoice.admin_notes && (
+                  {selectedInvoice.adminNotes && (
                     <Grid item xs={12}>
                       <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                         Admin Notes
                       </Typography>
                       <Typography variant="body1" sx={{ p: 2, backgroundColor: '#fff8e1', borderRadius: 1 }}>
-                        {selectedInvoice.admin_notes}
+                        {selectedInvoice.adminNotes}
                       </Typography>
                     </Grid>
                   )}
@@ -969,8 +971,8 @@ const InvoiceHistory: React.FC = () => {
                       Amount Paid
                     </Typography>
                     <Typography variant="h6" color="success.main" fontWeight="bold">
-                      {selectedInvoice.total_paid && parseFloat(selectedInvoice.total_paid.toString()) > 0 
-                        ? formatCurrency(parseFloat(selectedInvoice.total_paid.toString()))
+                      {selectedInvoice.totalPaid && parseFloat(selectedInvoice.totalPaid.toString()) > 0 
+                        ? formatCurrency(parseFloat(selectedInvoice.totalPaid.toString()))
                         : formatCurrency(parseFloat(selectedInvoice.total?.toString() || '0'))
                       }
                     </Typography>
@@ -980,7 +982,7 @@ const InvoiceHistory: React.FC = () => {
                       Balance Due
                     </Typography>
                     <Typography variant="h6" color="warning.main" fontWeight="bold">
-                      {formatCurrency(parseFloat(selectedInvoice.balance_due?.toString() || '0'))}
+                      {formatCurrency(parseFloat(selectedInvoice.balanceDue?.toString() || '0'))}
                     </Typography>
                   </Grid>
                 </Grid>
@@ -1014,18 +1016,18 @@ const InvoiceHistory: React.FC = () => {
                         <TableBody>
                           {paymentHistory.map((payment) => (
                             <TableRow key={payment.id}>
-                              <TableCell>{new Date(payment.payment_date).toLocaleDateString()}</TableCell>
+                              <TableCell>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>
                               <TableCell>${payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                               <TableCell>
                                 <Chip 
-                                  label={payment.payment_method.replace('_', ' ').toUpperCase()} 
+                                  label={payment.paymentMethod.replace('_', ' ').toUpperCase()} 
                                   size="small" 
                                   color="primary" 
                                   variant="outlined"
                                 />
                               </TableCell>
-                              <TableCell>{payment.reference_number || '-'}</TableCell>
-                              <TableCell>{payment.processed_by_name || 'Unknown'}</TableCell>
+                              <TableCell>{payment.referenceNumber || '-'}</TableCell>
+                              <TableCell>{payment.processedByName || 'Unknown'}</TableCell>
                               <TableCell>
                                 <Chip 
                                   label={payment.status.toUpperCase()} 
@@ -1051,7 +1053,7 @@ const InvoiceHistory: React.FC = () => {
           {selectedInvoice && (
             <>
               <Button
-                onClick={() => handleDownload(selectedInvoice.id, selectedInvoice.invoice_number)}
+                onClick={() => handleDownload(selectedInvoice.id, selectedInvoice.invoiceNumber)}
                 startIcon={<DownloadIcon />}
                 variant="outlined"
                 color="primary"

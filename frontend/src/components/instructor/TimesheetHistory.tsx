@@ -34,6 +34,19 @@ interface TimesheetHistoryProps {
   onRefresh?: () => void;
 }
 
+interface CourseDetail {
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  organizationName?: string;
+  location?: string;
+  courseType: string;
+  studentCount?: number;
+  status?: string;
+}
+
+type ChipColor = 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
+
 const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
   const { user } = useAuth();
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
@@ -49,8 +62,9 @@ const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
     try {
       const response = await timesheetService.getTimesheets();
       setTimesheets(response.timesheets || []);
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to load timesheets');
+    } catch (err: unknown) {
+      const errObj = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(errObj.response?.data?.message || errObj.message || 'Failed to load timesheets');
     } finally {
       setLoading(false);
     }
@@ -77,7 +91,7 @@ const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): ChipColor => {
     switch (status) {
       case 'approved':
         return 'success';
@@ -177,29 +191,29 @@ const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
                   <TableRow key={timesheet.id}>
                     <TableCell>
                       <Typography variant="body2">
-                        {formatWeekRange(timesheet.week_start_date)}
+                        {formatWeekRange(timesheet.weekStartDate)}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {timesheet.total_hours} hours
+                        {timesheet.totalHours} hours
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {timesheet.courses_taught} courses
+                        {timesheet.coursesTaught} courses
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip
                         label={timesheet.status.toUpperCase()}
-                        color={getStatusColor(timesheet.status) as any}
+                        color={getStatusColor(timesheet.status)}
                         size="small"
                       />
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {formatDate(timesheet.created_at)}
+                        {formatDate(timesheet.createdAt)}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -221,7 +235,7 @@ const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
         {/* Timesheet Details Dialog */}
         <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
           <DialogTitle>
-            Timesheet Details - {selectedTimesheet && formatWeekRange(selectedTimesheet.week_start_date)}
+            Timesheet Details - {selectedTimesheet && formatWeekRange(selectedTimesheet.weekStartDate)}
           </DialogTitle>
           <DialogContent>
             {selectedTimesheet && (
@@ -231,7 +245,7 @@ const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
                     Week Period
                   </Typography>
                   <Typography variant="body1" gutterBottom>
-                    {formatWeekRange(selectedTimesheet.week_start_date)}
+                    {formatWeekRange(selectedTimesheet.weekStartDate)}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={6}>
@@ -240,7 +254,7 @@ const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
                   </Typography>
                   <Chip
                     label={selectedTimesheet.status.toUpperCase()}
-                    color={getStatusColor(selectedTimesheet.status) as any}
+                    color={getStatusColor(selectedTimesheet.status)}
                     sx={{ mt: 0.5 }}
                   />
                 </Grid>
@@ -249,7 +263,7 @@ const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
                     Total Hours
                   </Typography>
                   <Typography variant="body1" gutterBottom>
-                    {selectedTimesheet.total_hours} hours
+                    {selectedTimesheet.totalHours} hours
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={6}>
@@ -257,10 +271,10 @@ const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
                     Courses Taught
                   </Typography>
                   <Typography variant="body1" gutterBottom>
-                    {selectedTimesheet.courses_taught} courses
+                    {selectedTimesheet.coursesTaught} courses
                   </Typography>
                 </Grid>
-                {selectedTimesheet.course_details && selectedTimesheet.course_details.length > 0 && (
+                {selectedTimesheet.courseDetails && selectedTimesheet.courseDetails.length > 0 && (
                   <Grid item xs={12}>
                     <Typography variant="subtitle2" color="textSecondary" sx={{ mb: 2 }}>
                       Course Details
@@ -279,25 +293,27 @@ const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {selectedTimesheet.course_details.map((course: any, index: number) => (
+                          {selectedTimesheet.courseDetails.map((course: CourseDetail, index: number) => (
                             <TableRow key={index}>
                               <TableCell>{formatDate(course.date)}</TableCell>
                               <TableCell>
-                                {course.start_time && course.end_time 
-                                  ? `${course.start_time} - ${course.end_time}`
+                                {course.startTime && course.endTime
+                                  ? `${course.startTime} - ${course.endTime}`
                                   : 'TBD'
                                 }
                               </TableCell>
-                              <TableCell>{course.organization_name || 'TBD'}</TableCell>
+                              <TableCell>{course.organizationName || 'TBD'}</TableCell>
                               <TableCell>{course.location || 'TBD'}</TableCell>
-                              <TableCell>{course.course_type}</TableCell>
-                              <TableCell>{course.student_count}</TableCell>
+                              <TableCell>{course.courseType}</TableCell>
+                              <TableCell>{course.studentCount ?? '-'}</TableCell>
                               <TableCell>
-                                <Chip 
-                                  label={course.status} 
-                                  color={course.status === 'completed' ? 'success' : 'primary'} 
-                                  size="small"
-                                />
+                                {course.status ? (
+                                  <Chip
+                                    label={course.status}
+                                    color={course.status === 'completed' ? 'success' : 'primary'}
+                                    size="small"
+                                  />
+                                ) : '-'}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -314,13 +330,13 @@ const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
                     {selectedTimesheet.notes || 'No notes provided'}
                   </Typography>
                 </Grid>
-                {selectedTimesheet.hr_comment && (
+                {selectedTimesheet.hrComment && (
                   <Grid item xs={12}>
                     <Typography variant="subtitle2" color="textSecondary">
                       HR Comment
                     </Typography>
                     <Typography variant="body1" gutterBottom>
-                      {selectedTimesheet.hr_comment}
+                      {selectedTimesheet.hrComment}
                     </Typography>
                   </Grid>
                 )}
@@ -329,7 +345,7 @@ const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
                     Submitted
                   </Typography>
                   <Typography variant="body1" gutterBottom>
-                    {formatDate(selectedTimesheet.created_at)}
+                    {formatDate(selectedTimesheet.createdAt)}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={6}>
@@ -337,7 +353,7 @@ const TimesheetHistory: React.FC<TimesheetHistoryProps> = ({ onRefresh }) => {
                     Last Updated
                   </Typography>
                   <Typography variant="body1" gutterBottom>
-                    {formatDate(selectedTimesheet.updated_at)}
+                    {formatDate(selectedTimesheet.updatedAt)}
                   </Typography>
                 </Grid>
               </Grid>

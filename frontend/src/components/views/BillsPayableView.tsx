@@ -93,7 +93,7 @@ const BillsPayableView = () => {
         4: 'paid',
       };
 
-      const params = {};
+      const params: { status?: string } = {};
       if (statusMap[selectedTab]) {
         params.status = statusMap[selectedTab];
       }
@@ -112,7 +112,7 @@ const BillsPayableView = () => {
 
   // Submit payment mutation
   const submitPaymentMutation = useMutation({
-    mutationFn: async ({ invoiceId, paymentData }: { invoiceId: string; paymentData: any }) => {
+    mutationFn: async ({ invoiceId, paymentData }: { invoiceId: string; paymentData: { amount: number; payment_method: string; reference_number?: string; payment_date?: string; notes?: string } }) => {
       const response = await api.post(
         `/organization/invoices/${invoiceId}/payment-submission`,
         paymentData
@@ -839,9 +839,9 @@ const BillsPayableView = () => {
           <Button
             onClick={handlePaymentSubmit}
             variant='contained'
-            disabled={submitPaymentMutation.isLoading}
+            disabled={submitPaymentMutation.isPending}
           >
-            {submitPaymentMutation.isLoading
+            {submitPaymentMutation.isPending
               ? 'Reporting...'
               : 'Report Payment'}
           </Button>

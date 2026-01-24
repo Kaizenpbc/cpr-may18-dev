@@ -4,28 +4,28 @@ export interface PayRateTier {
   id: number;
   name: string;
   description?: string;
-  base_hourly_rate: number;
-  course_bonus: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  baseHourlyRate: number;
+  courseBonus: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface InstructorPayRate {
   id: number;
-  instructor_id: number;
-  tier_id?: number;
-  hourly_rate: number;
-  course_bonus: number;
-  effective_date: string;
-  end_date?: string;
+  instructorId: number;
+  tierId?: number;
+  hourlyRate: number;
+  courseBonus: number;
+  effectiveDate: string;
+  endDate?: string;
   notes?: string;
-  created_by?: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  tier_name?: string;
-  tier_description?: string;
+  createdBy?: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  tierName?: string;
+  tierDescription?: string;
 }
 
 export interface InstructorPayRateDetail {
@@ -41,20 +41,20 @@ export interface InstructorPayRateDetail {
 
 export interface PayRateHistory {
   id: number;
-  instructor_id: number;
-  old_hourly_rate?: number;
-  new_hourly_rate: number;
-  old_course_bonus?: number;
-  new_course_bonus: number;
-  old_tier_id?: number;
-  new_tier_id?: number;
-  change_reason?: string;
-  changed_by?: number;
-  effective_date: string;
-  created_at: string;
-  old_tier_name?: string;
-  new_tier_name?: string;
-  changed_by_name?: string;
+  instructorId: number;
+  oldHourlyRate?: number;
+  newHourlyRate: number;
+  oldCourseBonus?: number;
+  newCourseBonus: number;
+  oldTierId?: number;
+  newTierId?: number;
+  changeReason?: string;
+  changedBy?: number;
+  effectiveDate: string;
+  createdAt: string;
+  oldTierName?: string;
+  newTierName?: string;
+  changedByName?: string;
 }
 
 export interface InstructorPayRateList {
@@ -62,39 +62,39 @@ export interface InstructorPayRateList {
   username: string;
   email: string;
   phone?: string;
-  hourly_rate?: number;
-  course_bonus?: number;
-  effective_date?: string;
-  rate_active?: boolean;
-  tier_name?: string;
-  tier_description?: string;
-  rate_status: 'Set' | 'Not Set';
+  hourlyRate?: number;
+  courseBonus?: number;
+  effectiveDate?: string;
+  rateActive?: boolean;
+  tierName?: string;
+  tierDescription?: string;
+  rateStatus: 'Set' | 'Not Set';
 }
 
 export interface PayRateTierForm {
   name: string;
   description?: string;
-  base_hourly_rate: number;
-  course_bonus: number;
+  baseHourlyRate: number;
+  courseBonus: number;
 }
 
 export interface InstructorPayRateForm {
-  hourly_rate: number;
-  course_bonus?: number;
-  tier_id?: number;
-  effective_date?: string;
+  hourlyRate: number;
+  courseBonus?: number;
+  tierId?: number;
+  effectiveDate?: string;
   notes?: string;
-  change_reason?: string;
+  changeReason?: string;
 }
 
 export interface BulkPayRateUpdate {
-  instructor_ids: number[];
-  hourly_rate: number;
-  course_bonus?: number;
-  tier_id?: number;
-  effective_date?: string;
+  instructorIds: number[];
+  hourlyRate: number;
+  courseBonus?: number;
+  tierId?: number;
+  effectiveDate?: string;
   notes?: string;
-  change_reason?: string;
+  changeReason?: string;
 }
 
 class PayRateService {
@@ -109,7 +109,7 @@ class PayRateService {
     return response.data.data;
   }
 
-  async updateTier(id: number, tier: Partial<PayRateTierForm> & { is_active?: boolean }): Promise<PayRateTier> {
+  async updateTier(id: number, tier: Partial<PayRateTierForm> & { isActive?: boolean }): Promise<PayRateTier> {
     const response = await api.put(`/pay-rates/tiers/${id}`, tier);
     return response.data.data;
   }
@@ -149,10 +149,10 @@ class PayRateService {
   }
 
   async getCurrentRate(instructorId: number, date?: string): Promise<{
-    hourly_rate: number;
-    course_bonus: number;
-    tier_name?: string;
-    is_default: boolean;
+    hourlyRate: number;
+    courseBonus: number;
+    tierName?: string;
+    isDefault: boolean;
   }> {
     const response = await api.get(`/pay-rates/instructors/${instructorId}/current`, {
       params: { date }

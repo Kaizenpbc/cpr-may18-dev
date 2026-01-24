@@ -216,13 +216,13 @@ const PendingActionsSidebar: React.FC = () => {
         console.log('🔍 [PENDING ACTIONS] Invoices data:', invoicesData);
         
         // Count pending payments
-        const pendingPaymentsCount = paymentsData.data?.payments?.filter((p: any) => 
-          p.status === 'pending_verification' || !p.verified_by_accounting_at
+        const pendingPaymentsCount = paymentsData.data?.payments?.filter((p: { status?: string; verifiedByAccountingAt?: string }) =>
+          p.status === 'pending_verification' || !p.verifiedByAccountingAt
         ).length || 0;
-        
+
         // Count pending invoices
-        const pendingInvoicesCount = invoicesData.data?.invoices?.filter((i: any) => 
-          ['pending_approval', 'pending', 'draft'].includes(i.approval_status?.toLowerCase())
+        const pendingInvoicesCount = invoicesData.data?.invoices?.filter((i: { approvalStatus?: string }) =>
+          ['pending_approval', 'pending', 'draft'].includes(i.approvalStatus?.toLowerCase() || '')
         ).length || 0;
         
         console.log('🔍 [PENDING ACTIONS] Counts:', {
@@ -293,13 +293,13 @@ const PendingActionsSidebar: React.FC = () => {
       console.log('🔍 [PENDING ACTIONS] Refresh - Invoices data:', invoicesData);
       
       // Count pending payments
-      const pendingPaymentsCount = paymentsData.data?.payments?.filter((p: any) => 
-        p.status === 'pending_verification' || !p.verified_by_accounting_at
+      const pendingPaymentsCount = paymentsData.data?.payments?.filter((p: { status?: string; verifiedByAccountingAt?: string }) =>
+        p.status === 'pending_verification' || !p.verifiedByAccountingAt
       ).length || 0;
-      
+
       // Count pending invoices
-      const pendingInvoicesCount = invoicesData.data?.invoices?.filter((i: any) => 
-        ['pending_approval', 'pending', 'draft'].includes(i.approval_status?.toLowerCase())
+      const pendingInvoicesCount = invoicesData.data?.invoices?.filter((i: { approvalStatus?: string }) =>
+        ['pending_approval', 'pending', 'draft'].includes(i.approvalStatus?.toLowerCase() || '')
       ).length || 0;
       
       console.log('🔍 [PENDING ACTIONS] Refresh - Counts:', {
@@ -495,7 +495,7 @@ const AccountingDashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const data = await fetchAccountingDashboardData();
+      const data = await fetchAccountingDashboardData() as unknown as DashboardData;
       setDashboardData(data);
       setError(null);
     } catch (err) {

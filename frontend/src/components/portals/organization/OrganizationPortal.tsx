@@ -41,66 +41,88 @@ import OrganizationPricing from './views/OrganizationPricing';
 import OrganizationPaidInvoices from './views/OrganizationPaidInvoices';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
-// TypeScript interfaces
+// TypeScript interfaces - flexible to accommodate different data shapes
 interface User {
   id: number;
   username: string;
   role: string;
-  organizationId: number;
-  organizationName: string;
+  organizationId?: number;
+  organizationName?: string;
+  [key: string]: unknown;
 }
 
 interface OrganizationData {
   id: number;
   name: string;
-  contact_email: string;
-  contact_phone: string;
-  address: string;
-  total_courses: number;
-  total_students: number;
-  active_instructors: number;
+  contact_email?: string;
+  contact_phone?: string;
+  address?: string;
+  total_courses?: number;
+  total_students?: number;
+  active_instructors?: number;
+  [key: string]: unknown;
 }
 
 interface Course {
   id: string | number;
-  requestSubmittedDate: string; // When organization submitted the request
-  scheduledDate: string; // Organization's preferred date
-  courseTypeName: string;
-  location: string;
-  registeredStudents: number;
-  status: string;
-  instructor: string;
+  requestSubmittedDate?: string;
+  dateRequested?: string;
+  scheduledDate?: string;
+  courseTypeName?: string;
+  location?: string;
+  registeredStudents?: number;
+  status?: string;
+  instructor?: string;
   notes?: string;
+  [key: string]: unknown;
 }
 
 interface Invoice {
   id: number;
-  invoiceNumber: string;
-  createdAt: string;
-  dueDate: string;
-  amount: number;
-  status: string;
-  studentsBilled: number;
+  invoiceNumber?: string;
+  invoice_number?: string;
+  createdAt?: string;
+  created_at?: string;
+  dueDate?: string;
+  due_date?: string;
+  amount?: number;
+  status?: string;
+  studentsBilled?: number;
+  students_billed?: number;
   paidDate?: string;
-  location: string;
-  courseTypeName: string;
-  courseDate: string;
-  courseRequestId: number;
-  amountPaid: number;
-  balanceDue: number;
+  location?: string;
+  courseTypeName?: string;
+  courseDate?: string;
+  courseRequestId?: number;
+  amountPaid?: number;
+  balanceDue?: number;
+  [key: string]: unknown;
 }
 
 interface BillingSummary {
-  total_invoices: number;
-  pending_invoices: number;
-  overdue_invoices: number;
-  paid_invoices: number;
-  payment_submitted: number;
-  total_amount: number;
-  pending_amount: number;
-  overdue_amount: number;
-  paid_amount: number;
-  recent_invoices: Invoice[];
+  total_invoices?: number;
+  pending_invoices?: number;
+  overdue_invoices?: number;
+  paid_invoices?: number;
+  payment_submitted?: number;
+  total_amount?: number;
+  pending_amount?: number;
+  overdue_amount?: number;
+  paid_amount?: number;
+  recent_invoices?: Invoice[];
+  [key: string]: unknown;
+}
+
+interface PaidInvoicesSummary {
+  total_paid?: number;
+  total_amount?: number;
+  invoices_count?: number;
+  total_paid_invoices?: number;
+  total_paid_amount?: number;
+  average_paid_amount?: number;
+  paid_last_30_days?: number;
+  amount_paid_last_30_days?: number;
+  [key: string]: unknown;
 }
 
 interface OrganizationPortalProps {
@@ -110,12 +132,10 @@ interface OrganizationPortalProps {
   archivedCourses: Course[];
   invoices: Invoice[];
   paidInvoices: Invoice[];
-  paidInvoicesSummary: { total_paid: number; total_amount: number; invoices_count: number } | undefined;
+  paidInvoicesSummary: PaidInvoicesSummary | undefined;
   billingSummary: BillingSummary | undefined;
   loading: boolean;
   error: string | null;
-  // currentView: string;
-  // onViewChange: (view: string) => void;
   onLogout: () => void;
 }
 
@@ -192,13 +212,13 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
     console.log('[TRACE] OrganizationPortal - Dialog should now be open');
   };
 
-  // Handle CSV upload success
-  const handleCSVUploadSuccess = (data: { success: boolean; message?: string }) => {
+  // Handle CSV upload success - accepts UploadResult from CSVUploadDialog
+  const handleCSVUploadSuccess = (data: { fileName: string; content: string; parsed: unknown; response: unknown }) => {
     console.log('[TRACE] OrganizationPortal - handleCSVUploadSuccess called');
     console.log('[TRACE] OrganizationPortal - Selected course ID:', selectedCourseId);
     console.log('[TRACE] OrganizationPortal - Upload data:', data);
-    console.log('[TRACE] OrganizationPortal - CSV upload successful for course:', selectedCourseId, data);
-    
+    console.log('[TRACE] OrganizationPortal - CSV upload successful for course:', selectedCourseId, data.fileName);
+
     // Refresh the courses data to show updated student count
     queryClient.invalidateQueries({ queryKey: ['organization-courses', user?.organizationId] });
     
@@ -314,37 +334,37 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
             </Alert>
           )}
 
-          {/* Route-based rendering */}
+          {/* Route-based rendering - use type assertions to handle interface differences across components */}
           <Routes>
             <Route path="dashboard" element={
               loading ? <CircularProgress /> :
               error ? <Alert severity="error">{error}</Alert> :
-              <OrganizationDashboard organizationData={organizationData} courses={courses} archivedCourses={archivedCourses} billingSummary={billingSummary} />
+              <OrganizationDashboard organizationData={organizationData as never} courses={courses as never} archivedCourses={archivedCourses as never} billingSummary={billingSummary as never} />
             } />
             <Route path="courses" element={
               loading ? <CircularProgress /> :
               error ? <Alert severity="error">{error}</Alert> :
-              <OrganizationCourses courses={courses} onViewStudentsClick={handleViewStudentsClick} onUploadStudentsClick={handleUploadStudentsClick} />
+              <OrganizationCourses courses={courses as never} onViewStudentsClick={handleViewStudentsClick} onUploadStudentsClick={handleUploadStudentsClick} />
             } />
             <Route path="archive" element={
               loading ? <CircularProgress /> :
               error ? <Alert severity="error">{error}</Alert> :
-              <OrganizationArchive courses={archivedCourses} onViewStudentsClick={handleViewStudentsClick} />
+              <OrganizationArchive courses={archivedCourses as never} onViewStudentsClick={handleViewStudentsClick} />
             } />
             <Route path="schedule" element={<ScheduleCourseForm onCourseScheduled={handleCourseScheduled} />} />
             <Route path="billing" element={
               loading ? <CircularProgress /> :
               error ? <Alert severity="error">{error}</Alert> :
-              <OrganizationBilling invoices={invoices} billingSummary={billingSummary} />
+              <OrganizationBilling invoices={invoices as never} billingSummary={billingSummary as never} />
             } />
             <Route path="paid-invoices" element={
               loading ? <CircularProgress /> :
               error ? <Alert severity="error">{error}</Alert> :
-              <OrganizationPaidInvoices invoices={paidInvoices} paidInvoicesSummary={paidInvoicesSummary} />
+              <OrganizationPaidInvoices invoices={paidInvoices as never} paidInvoicesSummary={paidInvoicesSummary as never} />
             } />
-            <Route path="profile" element={<OrganizationProfile organizationData={organizationData} />} />
+            <Route path="profile" element={<OrganizationProfile organizationData={organizationData as never} />} />
             <Route path="pricing" element={<OrganizationPricing organizationId={user?.organizationId || 0} />} />
-            <Route path="analytics" element={<OrganizationAnalytics courses={courses} archivedCourses={archivedCourses} invoices={invoices} billingSummary={billingSummary} organizationData={organizationData} />} />
+            <Route path="analytics" element={<OrganizationAnalytics courses={courses as never} archivedCourses={archivedCourses as never} invoices={invoices as never} billingSummary={billingSummary as never} organizationData={organizationData as never} />} />
             <Route path="" element={<Navigate to="dashboard" replace />} />
             <Route path="*" element={<Box sx={{ p: 3 }}><Typography variant="h6">View not found</Typography></Box>} />
           </Routes>

@@ -96,9 +96,9 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
   return (
     <ListItem
       sx={{
-        backgroundColor: notification.is_read ? 'transparent' : 'action.hover',
+        backgroundColor: notification.isRead ? 'transparent' : 'action.hover',
         borderLeft: `4px solid ${
-          notification.is_read ? 'transparent' : 'primary.main'
+          notification.isRead ? 'transparent' : 'primary.main'
         }`,
         mb: 1
       }}
@@ -109,7 +109,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
       <ListItemText
         primary={
           <Box display="flex" alignItems="center" gap={1}>
-            <Typography variant="body1" fontWeight={notification.is_read ? 'normal' : 'bold'}>
+            <Typography variant="body1" fontWeight={notification.isRead ? 'normal' : 'bold'}>
               {notification.title}
             </Typography>
             <Chip 
@@ -125,18 +125,18 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
               {notification.message}
             </Typography>
             <Typography variant="caption" color="textSecondary">
-              {new Date(notification.created_at).toLocaleString()}
+              {new Date(notification.createdAt).toLocaleString()}
             </Typography>
-            {notification.sender_name && (
+            {notification.senderName && (
               <Typography variant="caption" color="textSecondary" display="block">
-                From: {notification.sender_name}
+                From: {notification.senderName}
               </Typography>
             )}
           </Box>
         }
       />
       <Box>
-        {!notification.is_read && (
+        {!notification.isRead && (
           <Tooltip title="Mark as Read">
             <IconButton
               size="small"
@@ -541,8 +541,8 @@ const NotificationsPanel: React.FC = () => {
             <FormControl fullWidth size="small">
               <InputLabel>Show</InputLabel>
               <Select
-                value={filters.unread_only ? 'true' : 'false'}
-                onChange={(e) => handleFilterChange({ unread_only: e.target.value === 'true' })}
+                value={filters.unreadOnly ? 'true' : 'false'}
+                onChange={(e) => handleFilterChange({ unreadOnly: e.target.value === 'true' })}
                 label="Show"
               >
                 <MenuItem value="false">All Notifications</MenuItem>

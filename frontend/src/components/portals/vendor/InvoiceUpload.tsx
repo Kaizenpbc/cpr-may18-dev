@@ -37,11 +37,11 @@ const InvoiceUpload: React.FC = () => {
     const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 30 days from now
 
     const [formData, setFormData] = useState({
-      vendor_name: '',
+      vendorName: '',
       date: today,
-      invoice_number: '',
-      acct_no: '',
-      due_date: dueDate,
+      invoiceNumber: '',
+      acctNo: '',
+      dueDate: dueDate,
       quantity: '',
       item: '',
       description: '',
@@ -49,10 +49,10 @@ const InvoiceUpload: React.FC = () => {
       subtotal: '',
       hst: '',
       total: '',
-      vendor_id: '', // Keep vendor_id for database relationship
-      detected_vendor_id: '' // Store detected vendor ID for backend processing
+      vendorId: '', // Keep vendorId for database relationship
+      detectedVendorId: '' // Store detected vendor ID for backend processing
     });
-    const [vendors, setVendors] = useState<Array<{id: number, vendor_name: string, vendor_type: string}>>([]);
+    const [vendors, setVendors] = useState<Array<{id: number, vendorName: string, vendorType: string}>>([]);
     const [vendorsLoading, setVendorsLoading] = useState(true);
     const [file, setFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
@@ -60,10 +60,10 @@ const InvoiceUpload: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
-    const [ocrResults, setOcrResults] = useState<any>(null);
-    const [ocrConfidence, setOcrConfidence] = useState<any>(null);
+    const [ocrResults, setOcrResults] = useState<Record<string, unknown> | null>(null);
+    const [ocrConfidence, setOcrConfidence] = useState<number | null>(null);
     const [showConfirmation, setShowConfirmation] = useState(false);
-    const [pendingOcrData, setPendingOcrData] = useState<any>(null);
+    const [pendingOcrData, setPendingOcrData] = useState<Record<string, unknown> | null>(null);
     const navigate = useNavigate();
 
     // Load vendors on component mount
@@ -183,7 +183,7 @@ const InvoiceUpload: React.FC = () => {
 
       try {
         // Validate required fields
-        if (!formData.invoice_number || !formData.total || !formData.description || !formData.date || !formData.vendor_id) {
+        if (!formData.invoiceNumber || !formData.total || !formData.description || !formData.date || !formData.vendorId) {
           console.log('❌ [INVOICE UPLOAD] Validation failed - missing required fields');
           setError('Please fill in all required fields including vendor selection.');
           setLoading(false);
@@ -240,11 +240,11 @@ const InvoiceUpload: React.FC = () => {
           setSuccess(successMessage);
           setSnackbarOpen(true);
           setFormData({
-            vendor_name: '',
+            vendorName: '',
             date: today,
-            invoice_number: '',
-            acct_no: '',
-            due_date: dueDate,
+            invoiceNumber: '',
+            acctNo: '',
+            dueDate: dueDate,
             quantity: '',
             item: '',
             description: '',
@@ -252,8 +252,8 @@ const InvoiceUpload: React.FC = () => {
             subtotal: '',
             hst: '',
             total: '',
-            vendor_id: '', // Reset vendor_id
-            detected_vendor_id: '' // Reset detected vendor ID
+            vendorId: '', // Reset vendorId
+            detectedVendorId: '' // Reset detected vendor ID
           });
           setFile(null);
           // After a short delay, navigate to history and trigger refresh
@@ -262,12 +262,13 @@ const InvoiceUpload: React.FC = () => {
           }, 1200);
           console.log('✅ [INVOICE UPLOAD] Form reset and success message set');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('❌ [INVOICE UPLOAD] Upload error:', err);
-        if (err.response?.data?.error) {
-          setError(err.response.data.error);
-        } else if (err.message) {
-          setError(err.message);
+        const errObj = err as { response?: { data?: { error?: string } }; message?: string };
+        if (errObj.response?.data?.error) {
+          setError(errObj.response.data.error);
+        } else if (errObj.message) {
+          setError(errObj.message);
         } else {
           setError('Failed to upload invoice. Please try again.');
         }
@@ -324,11 +325,11 @@ const InvoiceUpload: React.FC = () => {
           }
           if (extractedData.invoiceNumber) {
             console.log('📄 [INVOICE UPLOAD] Setting invoice number:', extractedData.invoiceNumber);
-            updatedFormData.invoice_number = extractedData.invoiceNumber;
+            updatedFormData.invoiceNumber = extractedData.invoiceNumber;
           }
           if (extractedData.dueDate) {
             console.log('📅 [INVOICE UPLOAD] Setting due date:', extractedData.dueDate);
-            updatedFormData.due_date = extractedData.dueDate;
+            updatedFormData.dueDate = extractedData.dueDate;
           }
           if (extractedData.description) {
             console.log('📝 [INVOICE UPLOAD] Setting description:', extractedData.description);
@@ -343,7 +344,7 @@ const InvoiceUpload: React.FC = () => {
           }
           if (extractedData.acctNo) {
             console.log('🏦 [INVOICE UPLOAD] Setting account number:', extractedData.acctNo);
-            updatedFormData.acct_no = extractedData.acctNo;
+            updatedFormData.acctNo = extractedData.acctNo;
           }
           if (extractedData.quantity) {
             console.log('🔢 [INVOICE UPLOAD] Setting quantity:', extractedData.quantity);
@@ -387,34 +388,34 @@ const InvoiceUpload: React.FC = () => {
             
             if (confidence > 0.7) { // High confidence threshold
               console.log('✅ [INVOICE UPLOAD] High confidence vendor detection, auto-selecting vendor');
-              updatedFormData.vendor_id = detectedVendorId.toString();
-              updatedFormData.vendor_name = detectedVendorName;
-              
+              updatedFormData.vendorId = detectedVendorId.toString();
+              updatedFormData.vendorName = detectedVendorName;
+
               // Store detected vendor ID for submission
-              updatedFormData.detected_vendor_id = detectedVendorId.toString();
+              updatedFormData.detectedVendorId = detectedVendorId.toString();
             } else {
               console.log('⚠️ [INVOICE UPLOAD] Low confidence vendor detection, requiring manual selection');
               // Still store the detected vendor ID but don't auto-select
-              updatedFormData.detected_vendor_id = detectedVendorId.toString();
+              updatedFormData.detectedVendorId = detectedVendorId.toString();
             }
           } else {
             // Fallback to simple string matching if no vendor detection data
             console.log('🔍 [INVOICE UPLOAD] No vendor detection data, using fallback string matching');
             if (extractedData.vendorName && vendors.length > 0) {
               console.log('🏢 [INVOICE UPLOAD] Attempting to auto-match vendor:', extractedData.vendorName);
-              const matchedVendor = vendors.find(vendor => 
-                vendor.vendor_name.toLowerCase().includes(extractedData.vendorName.toLowerCase()) ||
-                extractedData.vendorName.toLowerCase().includes(vendor.vendor_name.toLowerCase())
+              const matchedVendor = vendors.find(vendor =>
+                vendor.vendorName.toLowerCase().includes(extractedData.vendorName.toLowerCase()) ||
+                extractedData.vendorName.toLowerCase().includes(vendor.vendorName.toLowerCase())
               );
-              
+
               if (matchedVendor) {
-                console.log('✅ [INVOICE UPLOAD] Vendor auto-matched (fallback):', matchedVendor.vendor_name, 'ID:', matchedVendor.id);
-                updatedFormData.vendor_id = matchedVendor.id.toString();
-                updatedFormData.vendor_name = matchedVendor.vendor_name;
-                updatedFormData.detected_vendor_id = matchedVendor.id.toString();
+                console.log('✅ [INVOICE UPLOAD] Vendor auto-matched (fallback):', matchedVendor.vendorName, 'ID:', matchedVendor.id);
+                updatedFormData.vendorId = matchedVendor.id.toString();
+                updatedFormData.vendorName = matchedVendor.vendorName;
+                updatedFormData.detectedVendorId = matchedVendor.id.toString();
               } else {
                 console.log('⚠️ [INVOICE UPLOAD] No vendor match found for:', extractedData.vendorName);
-                console.log('🔍 [INVOICE UPLOAD] Available vendors:', vendors.map(v => v.vendor_name));
+                console.log('🔍 [INVOICE UPLOAD] Available vendors:', vendors.map(v => v.vendorName));
               }
             }
           }
@@ -432,7 +433,7 @@ const InvoiceUpload: React.FC = () => {
           setPendingOcrData(extractedData);
           setShowConfirmation(true);
           
-          const vendorMessage = updatedFormData.vendor_id 
+          const vendorMessage = updatedFormData.vendorId
             ? 'Vendor has been auto-matched and form is ready to submit!'
             : 'Form has been populated. Please select the vendor from the dropdown.';
           
@@ -442,9 +443,10 @@ const InvoiceUpload: React.FC = () => {
         } else {
           setError('Failed to scan invoice. Please try again or enter data manually.');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('❌ [INVOICE UPLOAD] OCR scan error:', err);
-        setError(err.response?.data?.error || 'Failed to scan invoice. Please try again.');
+        const errObj = err as { response?: { data?: { error?: string } } };
+        setError(errObj.response?.data?.error || 'Failed to scan invoice. Please try again.');
       } finally {
         setScanning(false);
       }
@@ -462,47 +464,47 @@ const InvoiceUpload: React.FC = () => {
         
         if (pendingOcrData.invoiceDate) {
           console.log('📅 [INVOICE UPLOAD] Setting invoice date:', pendingOcrData.invoiceDate);
-          updatedFormData.date = pendingOcrData.invoiceDate;
+          updatedFormData.date = String(pendingOcrData.invoiceDate);
         }
         if (pendingOcrData.invoiceNumber) {
           console.log('📄 [INVOICE UPLOAD] Setting invoice number:', pendingOcrData.invoiceNumber);
-          updatedFormData.invoice_number = pendingOcrData.invoiceNumber;
+          updatedFormData.invoiceNumber = String(pendingOcrData.invoiceNumber);
         }
         if (pendingOcrData.dueDate) {
           console.log('📅 [INVOICE UPLOAD] Setting due date:', pendingOcrData.dueDate);
-          updatedFormData.due_date = pendingOcrData.dueDate;
+          updatedFormData.dueDate = String(pendingOcrData.dueDate);
         }
         if (pendingOcrData.description) {
           console.log('📝 [INVOICE UPLOAD] Setting description:', pendingOcrData.description);
-          updatedFormData.description = pendingOcrData.description;
+          updatedFormData.description = String(pendingOcrData.description);
         }
         if (pendingOcrData.amount) {
           console.log('💰 [INVOICE UPLOAD] Setting total amount:', pendingOcrData.amount);
-          updatedFormData.total = pendingOcrData.amount;
+          updatedFormData.total = String(pendingOcrData.amount);
         }
         if (pendingOcrData.acctNo) {
           console.log('🏦 [INVOICE UPLOAD] Setting account number:', pendingOcrData.acctNo);
-          updatedFormData.acct_no = pendingOcrData.acctNo;
+          updatedFormData.acctNo = String(pendingOcrData.acctNo);
         }
         if (pendingOcrData.quantity) {
           console.log('🔢 [INVOICE UPLOAD] Setting quantity:', pendingOcrData.quantity);
-          updatedFormData.quantity = pendingOcrData.quantity;
+          updatedFormData.quantity = String(pendingOcrData.quantity);
         }
         if (pendingOcrData.item) {
           console.log('📦 [INVOICE UPLOAD] Setting item:', pendingOcrData.item);
-          updatedFormData.item = pendingOcrData.item;
+          updatedFormData.item = String(pendingOcrData.item);
         }
         if (pendingOcrData.rate) {
           console.log('💵 [INVOICE UPLOAD] Setting rate:', pendingOcrData.rate);
-          updatedFormData.rate = pendingOcrData.rate;
+          updatedFormData.rate = String(pendingOcrData.rate);
         }
         if (pendingOcrData.subtotal) {
           console.log('💰 [INVOICE UPLOAD] Setting subtotal:', pendingOcrData.subtotal);
-          updatedFormData.subtotal = pendingOcrData.subtotal;
+          updatedFormData.subtotal = String(pendingOcrData.subtotal);
         }
         if (pendingOcrData.hst) {
           console.log('🏛️ [INVOICE UPLOAD] Setting HST:', pendingOcrData.hst);
-          updatedFormData.hst = pendingOcrData.hst;
+          updatedFormData.hst = String(pendingOcrData.hst);
         }
 
         console.log('🔍 [INVOICE UPLOAD] Final updated form data:', updatedFormData);
@@ -525,11 +527,11 @@ const InvoiceUpload: React.FC = () => {
       const today = new Date().toISOString().split('T')[0];
       const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       setFormData({
-        vendor_name: '',
+        vendorName: '',
         date: today,
-        invoice_number: '',
-        acct_no: '',
-        due_date: dueDate,
+        invoiceNumber: '',
+        acctNo: '',
+        dueDate: dueDate,
         quantity: '',
         item: '',
         description: '',
@@ -537,8 +539,8 @@ const InvoiceUpload: React.FC = () => {
         subtotal: '',
         hst: '',
         total: '',
-        vendor_id: '',
-        detected_vendor_id: ''
+        vendorId: '',
+        detectedVendorId: ''
       });
       
       setSuccess('Form cleared. You can now enter data manually or scan another invoice.');
@@ -576,15 +578,15 @@ const InvoiceUpload: React.FC = () => {
                 <FormControl fullWidth>
                   <InputLabel>Vendor Name *</InputLabel>
                   <Select
-                    name="vendor_id"
-                    value={formData.vendor_id}
+                    name="vendorId"
+                    value={formData.vendorId}
                     onChange={handleSelectChange}
                     required
                     disabled={vendorsLoading}
                   >
                     {vendors.map((vendor) => (
                       <MenuItem key={vendor.id} value={vendor.id}>
-                        {vendor.vendor_name}
+                        {vendor.vendorName}
                       </MenuItem>
                     ))}
                   </Select>
@@ -609,8 +611,8 @@ const InvoiceUpload: React.FC = () => {
                 <TextField
                   fullWidth
                   label="Invoice # *"
-                  name="invoice_number"
-                  value={formData.invoice_number}
+                  name="invoiceNumber"
+                  value={formData.invoiceNumber}
                   onChange={handleInputChange}
                   required
                   placeholder="e.g., INV-2024-001"
@@ -621,8 +623,8 @@ const InvoiceUpload: React.FC = () => {
                 <TextField
                   fullWidth
                   label="Acct. No."
-                  name="acct_no"
-                  value={formData.acct_no}
+                  name="acctNo"
+                  value={formData.acctNo}
                   onChange={handleInputChange}
                   placeholder="Account number"
                 />
@@ -633,9 +635,9 @@ const InvoiceUpload: React.FC = () => {
                 <TextField
                   fullWidth
                   label="Due Date"
-                  name="due_date"
+                  name="dueDate"
                   type="date"
-                  value={formData.due_date}
+                  value={formData.dueDate}
                   onChange={handleInputChange}
                   InputLabelProps={{ shrink: true }}
                 />
@@ -815,51 +817,51 @@ const InvoiceUpload: React.FC = () => {
                     <Grid container spacing={2} sx={{ mb: 2 }}>
                       <Grid item xs={6} md={3}>
                         <Typography variant="caption" color="text.secondary">Vendor</Typography>
-                        <Typography variant="body2">{pendingOcrData.vendorName || 'N/A'}</Typography>
+                        <Typography variant="body2">{String(pendingOcrData.vendorName || 'N/A')}</Typography>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Typography variant="caption" color="text.secondary">Invoice #</Typography>
-                        <Typography variant="body2">{pendingOcrData.invoiceNumber || 'N/A'}</Typography>
+                        <Typography variant="body2">{String(pendingOcrData.invoiceNumber || 'N/A')}</Typography>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Typography variant="caption" color="text.secondary">Date</Typography>
-                        <Typography variant="body2">{pendingOcrData.invoiceDate || 'N/A'}</Typography>
+                        <Typography variant="body2">{String(pendingOcrData.invoiceDate || 'N/A')}</Typography>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Typography variant="caption" color="text.secondary">Due Date</Typography>
-                        <Typography variant="body2">{pendingOcrData.dueDate || 'N/A'}</Typography>
+                        <Typography variant="body2">{String(pendingOcrData.dueDate || 'N/A')}</Typography>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Typography variant="caption" color="text.secondary">Account #</Typography>
-                        <Typography variant="body2">{pendingOcrData.acctNo || 'N/A'}</Typography>
+                        <Typography variant="body2">{String(pendingOcrData.acctNo || 'N/A')}</Typography>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Typography variant="caption" color="text.secondary">Item</Typography>
-                        <Typography variant="body2">{pendingOcrData.item || 'N/A'}</Typography>
+                        <Typography variant="body2">{String(pendingOcrData.item || 'N/A')}</Typography>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Typography variant="caption" color="text.secondary">Quantity</Typography>
-                        <Typography variant="body2">{pendingOcrData.quantity || 'N/A'}</Typography>
+                        <Typography variant="body2">{String(pendingOcrData.quantity || 'N/A')}</Typography>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Typography variant="caption" color="text.secondary">Rate</Typography>
-                        <Typography variant="body2">{pendingOcrData.rate || 'N/A'}</Typography>
+                        <Typography variant="body2">{String(pendingOcrData.rate || 'N/A')}</Typography>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Typography variant="caption" color="text.secondary">Subtotal</Typography>
-                        <Typography variant="body2">{pendingOcrData.subtotal || 'N/A'}</Typography>
+                        <Typography variant="body2">{String(pendingOcrData.subtotal || 'N/A')}</Typography>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Typography variant="caption" color="text.secondary">Tax/HST</Typography>
-                        <Typography variant="body2">{pendingOcrData.hst || 'N/A'}</Typography>
+                        <Typography variant="body2">{String(pendingOcrData.hst || 'N/A')}</Typography>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Typography variant="caption" color="text.secondary">Total</Typography>
-                        <Typography variant="body2" fontWeight="bold">{pendingOcrData.amount || 'N/A'}</Typography>
+                        <Typography variant="body2" fontWeight="bold">{String(pendingOcrData.amount || 'N/A')}</Typography>
                       </Grid>
                       <Grid item xs={12}>
                         <Typography variant="caption" color="text.secondary">Description</Typography>
-                        <Typography variant="body2">{pendingOcrData.description || 'N/A'}</Typography>
+                        <Typography variant="body2">{String(pendingOcrData.description || 'N/A')}</Typography>
                       </Grid>
                     </Grid>
 
@@ -898,7 +900,7 @@ const InvoiceUpload: React.FC = () => {
                   startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <UploadIcon />}
                   fullWidth
                   sx={{ py: 2 }}
-                  disabled={loading || !file || !formData.vendor_id || !formData.invoice_number || !formData.total || !formData.description || !formData.date || showConfirmation}
+                  disabled={loading || !file || !formData.vendorId || !formData.invoiceNumber || !formData.total || !formData.description || !formData.date || showConfirmation}
                 >
                   {loading ? 'Uploading...' : 'Upload Invoice'}
                 </Button>

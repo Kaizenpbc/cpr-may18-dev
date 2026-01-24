@@ -307,16 +307,16 @@ const PersonnelManagement: React.FC<PersonnelManagementProps> = ({ onViewChange 
                         <TableCell>
                           <Box>
                             <Typography variant="body2">
-                              Total: {instructor.total_courses}
+                              Total: {instructor.totalCourses}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              Completed: {instructor.completed_courses}
+                              Completed: {instructor.completedCourses}
                             </Typography>
                           </Box>
                         </TableCell>
                         <TableCell>
-                          {instructor.last_course_date ? (
-                            formatDate(instructor.last_course_date)
+                          {instructor.lastCourseDate ? (
+                            formatDate(instructor.lastCourseDate)
                           ) : (
                             <Typography variant="caption" color="text.secondary">
                               No courses
@@ -325,9 +325,9 @@ const PersonnelManagement: React.FC<PersonnelManagementProps> = ({ onViewChange 
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={instructor.active_courses > 0 ? 'Active' : 'Inactive'}
+                            label={instructor.activeCourses > 0 ? 'Active' : 'Inactive'}
                             size="small"
-                            color={instructor.active_courses > 0 ? 'success' : 'default'}
+                            color={instructor.activeCourses > 0 ? 'success' : 'default'}
                           />
                         </TableCell>
                         <TableCell>
@@ -430,11 +430,11 @@ const PersonnelManagement: React.FC<PersonnelManagementProps> = ({ onViewChange 
                         <TableCell>
                           <Box>
                             <Typography variant="body2">
-                              {organization.contact_email}
+                              {organization.contactEmail}
                             </Typography>
-                            {organization.contact_phone && (
+                            {organization.contactPhone && (
                               <Typography variant="caption" color="text.secondary">
-                                {organization.contact_phone}
+                                {organization.contactPhone}
                               </Typography>
                             )}
                           </Box>
@@ -442,21 +442,21 @@ const PersonnelManagement: React.FC<PersonnelManagementProps> = ({ onViewChange 
                         <TableCell>
                           <Box>
                             <Typography variant="body2">
-                              Total: {organization.total_courses}
+                              Total: {organization.totalCourses}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              Completed: {organization.completed_courses}
+                              Completed: {organization.completedCourses}
                             </Typography>
                           </Box>
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
-                            {organization.total_users}
+                            {organization.totalUsers}
                           </Typography>
                         </TableCell>
                         <TableCell>
-                          {organization.last_course_date ? (
-                            formatDate(organization.last_course_date)
+                          {organization.lastCourseDate ? (
+                            formatDate(organization.lastCourseDate)
                           ) : (
                             <Typography variant="caption" color="text.secondary">
                               No activity
@@ -530,7 +530,7 @@ const PersonnelManagement: React.FC<PersonnelManagementProps> = ({ onViewChange 
                       </Typography>
                     )}
                     <Typography variant="body2">
-                      <strong>Created:</strong> {formatDate(selectedUser.user.created_at)}
+                      <strong>Created:</strong> {formatDate(selectedUser.user.createdAt)}
                     </Typography>
                   </Box>
                 </Grid>
@@ -541,13 +541,13 @@ const PersonnelManagement: React.FC<PersonnelManagementProps> = ({ onViewChange 
                   </Typography>
                   <Box maxHeight={200} overflow="auto">
                     {selectedUser.profileChanges.length > 0 ? (
-                      selectedUser.profileChanges.map((change: any) => (
+                      selectedUser.profileChanges.map((change: { id: number; fieldName: string; newValue: string; status: string; createdAt: string }) => (
                         <Box key={change.id} sx={{ mb: 1, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
                           <Typography variant="body2">
-                            <strong>{change.field_name}:</strong> {change.new_value}
+                            <strong>{change.fieldName}:</strong> {change.newValue}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            Status: {change.status} - {formatDate(change.created_at)}
+                            Status: {change.status} - {formatDate(change.createdAt)}
                           </Typography>
                         </Box>
                       ))

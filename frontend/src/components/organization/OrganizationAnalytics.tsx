@@ -179,7 +179,7 @@ const OrganizationAnalytics = () => {
                     <Typography variant='h5'>
                       {
                         studentParticipationData.summaryStats
-                          .total_courses_requested
+                          .totalCoursesRequested
                       }
                     </Typography>
                   </Box>
@@ -204,7 +204,7 @@ const OrganizationAnalytics = () => {
                     <Typography variant='h5'>
                       {
                         studentParticipationData.summaryStats
-                          .total_courses_completed
+                          .totalCoursesCompleted
                       }
                     </Typography>
                   </Box>
@@ -229,7 +229,7 @@ const OrganizationAnalytics = () => {
                     <Typography variant='h5'>
                       {
                         studentParticipationData.summaryStats
-                          .total_students_attended
+                          .totalStudentsAttended
                       }
                     </Typography>
                   </Box>
@@ -254,7 +254,7 @@ const OrganizationAnalytics = () => {
                     <Typography variant='h5'>
                       {
                         studentParticipationData.summaryStats
-                          .overall_attendance_rate
+                          .overallAttendanceRate
                       }
                       %
                     </Typography>
@@ -281,7 +281,7 @@ const OrganizationAnalytics = () => {
                 <Tooltip />
                 <Area
                   type='monotone'
-                  dataKey='request_count'
+                  dataKey='requestCount'
                   stroke='#8884d8'
                   fill='#8884d8'
                   fillOpacity={0.6}
@@ -304,12 +304,12 @@ const OrganizationAnalytics = () => {
                   cx='50%'
                   cy='50%'
                   labelLine={false}
-                  label={({ course_name, percentage }) =>
-                    `${course_name}: ${percentage}%`
+                  label={({ courseName, percentage }) =>
+                    `${courseName}: ${percentage}%`
                   }
                   outerRadius={80}
                   fill='#8884d8'
-                  dataKey='request_count'
+                  dataKey='requestCount'
                 >
                   {(courseRequestData?.courseNamePreferences || []).map(
                     (entry, index) => (
@@ -340,7 +340,7 @@ const OrganizationAnalytics = () => {
                 <Tooltip />
                 <Legend />
                 <Bar
-                  dataKey='request_count'
+                  dataKey='requestCount'
                   fill='#8884d8'
                   name='Course Requests'
                 />
@@ -363,11 +363,11 @@ const OrganizationAnalytics = () => {
                       <AccessTime color='primary' />
                     </ListItemIcon>
                     <ListItemText
-                      primary={item.lead_time_range}
-                      secondary={`${item.request_count} requests (avg: ${item.avg_days} days)`}
+                      primary={item.leadTimeRange}
+                      secondary={`${item.requestCount} requests (avg: ${item.avgDays} days)`}
                     />
                     <Chip
-                      label={`${item.request_count}`}
+                      label={`${item.requestCount}`}
                       color='primary'
                       size='small'
                     />
@@ -396,19 +396,19 @@ const OrganizationAnalytics = () => {
                       }}
                     >
                       <Typography variant='body2'>
-                        {item.course_name}
+                        {item.courseName}
                       </Typography>
                       <Typography variant='body2' color='primary'>
-                        {item.attendance_rate}%
+                        {item.attendanceRate}%
                       </Typography>
                     </Box>
                     <LinearProgress
                       variant='determinate'
-                      value={parseFloat(item.attendance_rate)}
+                      value={parseFloat(item.attendanceRate)}
                       sx={{ height: 8, borderRadius: 4 }}
                     />
                     <Typography variant='caption' color='textSecondary'>
-                      {item.total_attended} of {item.total_registered} students
+                      {item.totalAttended} of {item.totalRegistered} students
                       attended
                     </Typography>
                   </Box>
@@ -485,7 +485,7 @@ const OrganizationAnalytics = () => {
                     <Card variant='outlined'>
                       <CardContent>
                         <Typography variant='h6' color='primary'>
-                          {item.course_name}
+                          {item.courseName}
                         </Typography>
                         <Divider sx={{ my: 1 }} />
                         <Box
@@ -499,7 +499,7 @@ const OrganizationAnalytics = () => {
                             Completion Rate:
                           </Typography>
                           <Chip
-                            label={`${item.completion_rate}%`}
+                            label={`${item.completionRate}%`}
                             color={
                               item.completion_rate >= 80
                                 ? 'success'

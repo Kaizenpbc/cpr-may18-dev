@@ -2,16 +2,16 @@ import { api } from './api';
 
 export interface Notification {
   id: number;
-  recipient_id: number;
-  sender_id?: number;
-  sender_name?: string;
+  recipientId: number;
+  senderId?: number;
+  senderName?: string;
   type: string;
   title: string;
   message: string;
-  data?: any;
-  is_read: boolean;
-  read_at?: string;
-  created_at: string;
+  data?: Record<string, unknown>;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
 }
 
 export interface NotificationStats {
@@ -42,7 +42,7 @@ export interface SystemNotifications {
 export interface NotificationFilters {
   page?: number;
   limit?: number;
-  unread_only?: boolean;
+  unreadOnly?: boolean;
 }
 
 export interface NotificationCreation {
@@ -50,7 +50,7 @@ export interface NotificationCreation {
   type: string;
   title: string;
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
   sender_id?: number;
 }
 
@@ -59,7 +59,7 @@ export interface BulkNotificationCreation {
   type: string;
   title: string;
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 class NotificationService {
@@ -78,7 +78,7 @@ class NotificationService {
     
     if (filters.page) params.append('page', filters.page.toString());
     if (filters.limit) params.append('limit', filters.limit.toString());
-    if (filters.unread_only) params.append('unread_only', filters.unread_only.toString());
+    if (filters.unreadOnly) params.append('unread_only', filters.unreadOnly.toString());
 
     const response = await api.get(`/notifications?${params.toString()}`);
     return response.data.data;

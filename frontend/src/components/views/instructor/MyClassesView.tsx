@@ -47,14 +47,14 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
 }) => {
   console.log('🔍 [TRACE] MyClassesView rendered with combinedSchedule:', JSON.stringify(combinedSchedule, null, 2));
   
-  // Log each class item's studentsregistered value
+  // Log each class item's studentsRegistered value
   combinedSchedule.forEach((item, index) => {
     if (item.type === 'class') {
-      console.log(`🔍 [TRACE] Class ${index}:`, {
+      console.log(`[TRACE] Class ${index}:`, {
         course_id: item.courseId,
-        studentsregistered: item.studentsregistered,
+        studentsRegistered: item.studentsRegistered,
         displayDate: item.displayDate,
-        organizationname: item.organizationname
+        organizationName: item.organizationName
       });
     }
   });
@@ -314,29 +314,29 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
               </TableRow>
             ) : (
               sortedSchedule.map((item, index) => {
-                console.log(`🔍 [TRACE] Rendering item ${index}:`, {
+                console.log(`[TRACE] Rendering item ${index}:`, {
                   type: item.type,
                   course_id: item.courseId,
-                  studentsregistered: item.studentsregistered,
+                  studentsRegistered: item.studentsRegistered,
                   displayDate: item.displayDate
                 });
-                
+
                 return (
                   <TableRow key={`${item.type}-${item.courseId || item.originalData?.id || index}`} hover>
                     <TableCell>{item.displayDate}</TableCell>
-                    <TableCell>{item.type === 'class' ? item.organizationname : ''}</TableCell>
+                    <TableCell>{item.type === 'class' ? item.organizationName : ''}</TableCell>
                     <TableCell>{item.type === 'class' ? item.location : ''}</TableCell>
-                    <TableCell>{item.type === 'class' ? item.coursenumber : ''}</TableCell>
-                    <TableCell>{item.type === 'class' ? item.coursetypename : ''}</TableCell>
+                    <TableCell>{item.type === 'class' ? item.courseNumber : ''}</TableCell>
+                    <TableCell>{item.type === 'class' ? item.courseTypeName : ''}</TableCell>
                     <TableCell align='center'>
                       {item.type === 'class' ? (
                         (() => {
-                          console.log(`🔍 [TRACE] Displaying studentsregistered for course ${item.courseId}:`, item.studentsregistered);
-                          return item.studentsregistered;
+                          console.log(`[TRACE] Displaying studentsRegistered for course ${item.courseId}:`, item.studentsRegistered);
+                          return item.studentsRegistered;
                         })()
                       ) : ''}
                     </TableCell>
-                    <TableCell align='center'>{item.type === 'class' ? item.studentsattendance : ''}</TableCell>
+                    <TableCell align='center'>{item.type === 'class' ? item.studentsAttendance : ''}</TableCell>
                     <TableCell>{item.type === 'class' ? item.notes : ''}</TableCell>
                     <TableCell>
                       {item.type === 'class' ? (

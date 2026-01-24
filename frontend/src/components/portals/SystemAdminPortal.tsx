@@ -42,18 +42,22 @@ const SystemAdminPortal = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [snackbar, setSnackbar] = useState({
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'warning' | 'info';
+  }>({
     open: false,
     message: '',
     severity: 'success',
   });
 
-  const showSnackbar = (message, severity = 'success') => {
+  const showSnackbar = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
     setSnackbar({ open: true, message, severity });
   };
 
   const handleLogout = () => {
-    const firstName = user?.first_name || 'System Admin';
+    const firstName = user?.firstName || 'System Admin';
     const logoutMessage = `Goodbye ${firstName}, System Secured!`;
     showSnackbar(logoutMessage, 'info');
 
@@ -63,7 +67,7 @@ const SystemAdminPortal = () => {
     }, 1500);
   };
 
-  const handleError = (error: Error, errorInfo: any) => {
+  const handleError = (error: Error, errorInfo: React.ErrorInfo) => {
     console.error('[SystemAdminPortal] Error caught by boundary:', error, errorInfo);
   };
 
@@ -209,7 +213,7 @@ const SystemAdminPortal = () => {
                 path='/'
                 element={
                   <ErrorBoundary context="system_admin_dashboard" onError={handleError}>
-                    <SystemAdminDashboard />
+                    <SystemAdminDashboard onShowSnackbar={showSnackbar} />
                   </ErrorBoundary>
                 }
               />
@@ -217,7 +221,7 @@ const SystemAdminPortal = () => {
                 path='/courses'
                 element={
                   <ErrorBoundary context="system_admin_courses" onError={handleError}>
-                    <CourseManagement />
+                    <CourseManagement onShowSnackbar={showSnackbar} />
                   </ErrorBoundary>
                 }
               />
@@ -241,7 +245,7 @@ const SystemAdminPortal = () => {
                 path='/users'
                 element={
                   <ErrorBoundary context="system_admin_users" onError={handleError}>
-                    <UserManagement />
+                    <UserManagement onShowSnackbar={showSnackbar} />
                   </ErrorBoundary>
                 }
               />
@@ -249,7 +253,7 @@ const SystemAdminPortal = () => {
                 path='/vendors'
                 element={
                   <ErrorBoundary context="system_admin_vendors" onError={handleError}>
-                    <VendorManagement />
+                    <VendorManagement onShowSnackbar={showSnackbar} />
                   </ErrorBoundary>
                 }
               />

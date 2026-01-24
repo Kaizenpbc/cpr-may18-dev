@@ -42,7 +42,7 @@ const InstructorWorkloadReport = () => {
         dateRange.startDate,
         dateRange.endDate
       );
-      setReportData(data || []);
+      setReportData(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message || 'Could not load Instructor Workload report.');
       setReportData([]);

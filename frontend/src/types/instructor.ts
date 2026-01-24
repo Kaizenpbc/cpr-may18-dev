@@ -5,54 +5,54 @@ export interface InstructorUser {
   id: number;
   username: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   role: 'instructor';
   phone?: string;
-  certification_number?: string;
-  certification_expiry?: string;
-  created_at?: string;
-  updated_at?: string;
+  certificationNumber?: string;
+  certificationExpiry?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Course Types
 export interface Course {
   id: number;
-  course_id: number;
-  course_type: string;
-  course_type_id: number;
-  organization_id: number;
-  organization_name: string;
-  location_id: number;
-  location_name: string;
+  courseId: number;
+  courseType: string;
+  courseTypeId: number;
+  organizationId: number;
+  organizationName: string;
+  locationId: number;
+  locationName: string;
   address?: string;
-  start_date: string;
-  end_date: string;
-  start_time: string;
-  end_time: string;
-  max_students: number;
-  current_students: number;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+  maxStudents: number;
+  currentStudents: number;
   price: number;
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
-  instructor_id?: number;
-  instructor_name?: string;
-  created_at?: string;
-  updated_at?: string;
+  instructorId?: number;
+  instructorName?: string;
+  createdAt?: string;
+  updatedAt?: string;
   students?: Student[];
 }
 
 // Student Types
 export interface Student {
   id: number;
-  student_id: number;
-  user_id: number;
-  first_name: string;
-  last_name: string;
+  studentId: number;
+  userId: number;
+  firstName: string;
+  lastName: string;
   email: string;
   phone?: string;
   attendance?: AttendanceStatus;
-  payment_status?: 'paid' | 'pending' | 'partial';
-  enrolled_at?: string;
+  paymentStatus?: 'paid' | 'pending' | 'partial';
+  enrolledAt?: string;
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'late' | null;
@@ -60,25 +60,25 @@ export type AttendanceStatus = 'present' | 'absent' | 'late' | null;
 // Availability Types
 export interface AvailabilitySlot {
   id: number;
-  instructor_id: number;
+  instructorId: number;
   date: string;
-  is_available: boolean;
-  created_at?: string;
-  updated_at?: string;
+  isAvailable: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Course Request Types
 export interface CourseRequest {
   id: number;
-  organization_id: number;
-  organization_name: string;
-  course_type: string;
-  request_submitted_date: string; // When organization submitted the request
-  scheduled_date: string; // Organization's preferred date
+  organizationId: number;
+  organizationName: string;
+  courseType: string;
+  requestSubmittedDate: string; // When organization submitted the request
+  scheduledDate: string; // Organization's preferred date
   location: string;
-  estimated_students: number;
+  estimatedStudents: number;
   status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
+  createdAt: string;
   notes?: string;
 }
 
@@ -103,15 +103,15 @@ export interface PaginatedResponse<T> {
 
 // Form Types
 export interface AttendanceFormData {
-  student_id: number;
+  studentId: number;
   attendance: AttendanceStatus;
-  course_id: number;
+  courseId: number;
 }
 
 export interface CourseCompletionData {
-  course_id: number;
-  completion_date: string;
-  students_completed: number;
+  courseId: number;
+  completionDate: string;
+  studentsCompleted: number;
   notes?: string;
 }
 
@@ -153,33 +153,33 @@ export interface CombinedScheduleItem {
   key?: string;
   type: 'class' | 'availability';
   displayDate: string;
-  organizationname?: string;
+  organizationName?: string;
   location?: string;
-  coursenumber?: string;
-  coursetypename?: string;
-  studentsregistered?: number;
-  studentsattendance?: number;
+  courseNumber?: string;
+  courseTypeName?: string;
+  studentsRegistered?: number;
+  studentsAttendance?: number;
   notes?: string;
   status: string;
   // Original data
-  course_id?: number;
+  courseId?: number;
   originalData?: Course | AvailabilitySlot;
 }
 
 export interface ScheduledClass {
   id: number;
-  course_id: number;
-  instructor_id: number;
+  courseId: number;
+  instructorId: number;
   date: string;
-  start_time: string;
-  end_time: string;
+  startTime: string;
+  endTime: string;
   status: string;
   location: string;
-  max_students: number;
-  current_students: number;
-  course_type: string;
-  organization_name: string;
+  maxStudents: number;
+  currentStudents: number;
+  courseType: string;
+  organizationName: string;
   notes?: string;
-  registered_students: number;
-  students_attended?: number;
+  registeredStudents: number;
+  studentsAttended?: number;
 }

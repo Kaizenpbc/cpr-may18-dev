@@ -256,8 +256,8 @@ const OrganizationArchive: React.FC<OrganizationArchiveProps> = ({
                         size="small"
                       />
                     </TableCell>
-                    <TableCell>{formatDate(course.confirmed_date || '')}</TableCell>
-                    <TableCell>{formatDate(course.archived_at || '')}</TableCell>
+                    <TableCell>{formatDate(course.confirmedDate || '')}</TableCell>
+                    <TableCell>{formatDate(course.archivedAt || '')}</TableCell>
                     <TableCell align="center">
                       <Tooltip title="View Students">
                         <IconButton
@@ -313,7 +313,7 @@ const OrganizationArchive: React.FC<OrganizationArchiveProps> = ({
                 <React.Fragment key={student.id}>
                   <ListItem>
                     <ListItemText
-                      primary={`${student.first_name} ${student.last_name}`}
+                      primary={`${student.firstName} ${student.lastName}`}
                       secondary={student.email}
                     />
                     <Chip

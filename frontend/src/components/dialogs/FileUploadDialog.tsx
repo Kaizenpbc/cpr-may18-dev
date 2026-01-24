@@ -115,21 +115,22 @@ const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
         console.log('❌ [UPLOAD] Upload failed:', response.data.message);
         setError(response.data.message || 'Upload failed');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errObj = err as { message?: string; response?: { status?: number; statusText?: string; data?: { message?: string }; headers?: unknown }; config?: { url?: string; method?: string; headers?: unknown } };
       console.error('❌ [UPLOAD] Upload error:', {
-        message: err.message,
-        status: err.response?.status,
-        statusText: err.response?.statusText,
-        data: err.response?.data,
-        headers: err.response?.headers,
+        message: errObj.message,
+        status: errObj.response?.status,
+        statusText: errObj.response?.statusText,
+        data: errObj.response?.data,
+        headers: errObj.response?.headers,
         config: {
-          url: err.config?.url,
-          method: err.config?.method,
-          headers: err.config?.headers
+          url: errObj.config?.url,
+          method: errObj.config?.method,
+          headers: errObj.config?.headers
         },
         timestamp: new Date().toISOString()
       });
-      setError(err.response?.data?.message || 'Upload failed. Please try again.');
+      setError(errObj.response?.data?.message || 'Upload failed. Please try again.');
     } finally {
       setUploading(false);
     }

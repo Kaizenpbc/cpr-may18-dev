@@ -32,7 +32,11 @@ function PricingManager() {
   const [pricingRules, setPricingRules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [snackbar, setSnackbar] = useState({
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'warning' | 'info';
+  }>({
     open: false,
     message: '',
     severity: 'success',
@@ -47,7 +51,7 @@ function PricingManager() {
   const [filterType, setFilterType] = useState(''); // Selected Course Type ID for filtering
 
   // State for sorting
-  const [order, setOrder] = useState('asc');
+  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
   const [orderBy, setOrderBy] = useState('organizationname'); // Default sort column
 
   // Fetch pricing rules and lists for filters
@@ -111,7 +115,7 @@ function PricingManager() {
     }
   };
 
-  const showSnackbar = (message, severity = 'success') => {
+  const showSnackbar = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
     setSnackbar({ open: true, message, severity });
   };
 

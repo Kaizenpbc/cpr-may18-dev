@@ -51,12 +51,16 @@ const OrganizationDetailPage = () => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [paymentData, setPaymentData] = useState({
     amount: '',
-    payment_method: '',
-    reference_number: '',
-    payment_date: new Date().toISOString().split('T')[0],
+    paymentMethod: '',
+    referenceNumber: '',
+    paymentDate: new Date().toISOString().split('T')[0],
     notes: '',
   });
-  const [snackbar, setSnackbar] = useState({
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'warning' | 'info';
+  }>({
     open: false,
     message: '',
     severity: 'success',
@@ -74,12 +78,13 @@ const OrganizationDetailPage = () => {
       logger.info(`[OrganizationDetailPage] Loading data for Org ID: ${orgId}`);
       try {
         // Fetch all data concurrently
+        const numericOrgId = parseInt(orgId, 10);
         const [detailsRes, coursesRes, invoicesRes, summaryRes] =
           await Promise.all([
-            api.getOrganizationDetails(orgId),
-            api.getOrganizationCoursesAdmin(orgId),
-            api.getOrganizationInvoices(orgId),
-            api.getOrganizationFinancialSummary(orgId),
+            api.getOrganizationDetails(numericOrgId),
+            api.getOrganizationCoursesAdmin(numericOrgId),
+            api.getOrganizationInvoices(numericOrgId),
+            api.getOrganizationFinancialSummary(numericOrgId),
           ]);
 
         setOrgDetails(detailsRes);
@@ -117,9 +122,9 @@ const OrganizationDetailPage = () => {
       setSelectedInvoice(invoice);
       setPaymentData({
         amount: invoice.amount.toString(),
-        payment_method: '',
-        reference_number: '',
-        payment_date: new Date().toISOString().split('T')[0],
+        paymentMethod: '',
+        referenceNumber: '',
+        paymentDate: new Date().toISOString().split('T')[0],
         notes: '',
       });
       setPaymentDialogOpen(true);
@@ -161,7 +166,7 @@ const OrganizationDetailPage = () => {
       return;
     }
 
-    if (!paymentData.payment_method || paymentData.payment_method.trim() === '') {
+    if (!paymentData.paymentMethod || paymentData.paymentMethod.trim() === '') {
       setSnackbar({
         open: true,
         message: 'Please select a payment method.',
@@ -187,7 +192,7 @@ const OrganizationDetailPage = () => {
       setSelectedInvoice(null);
       
       // Reload invoice data to reflect payment
-      const invoicesRes = await api.getOrganizationInvoices(orgId);
+      const invoicesRes = await api.getOrganizationInvoices(parseInt(orgId, 10));
       setOrgInvoices(invoicesRes || []);
       
     } catch (error) {
@@ -206,9 +211,9 @@ const OrganizationDetailPage = () => {
     setSelectedInvoice(null);
     setPaymentData({
       amount: '',
-      payment_method: '',
-      reference_number: '',
-      payment_date: new Date().toISOString().split('T')[0],
+      paymentMethod: '',
+      referenceNumber: '',
+      paymentDate: new Date().toISOString().split('T')[0],
       notes: '',
     });
   };
@@ -359,9 +364,9 @@ const OrganizationDetailPage = () => {
                 <FormControl fullWidth required>
                   <InputLabel>Payment Method *</InputLabel>
                   <Select
-                    value={paymentData.payment_method}
+                    value={paymentData.paymentMethod}
                     label="Payment Method *"
-                    onChange={(e) => setPaymentData({ ...paymentData, payment_method: e.target.value })}
+                    onChange={(e) => setPaymentData({ ...paymentData, paymentMethod: e.target.value })}
                   >
                     <MenuItem value="">Select Payment Method</MenuItem>
                     <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
@@ -376,8 +381,8 @@ const OrganizationDetailPage = () => {
                 <TextField
                   fullWidth
                   label="Reference Number"
-                  value={paymentData.reference_number}
-                  onChange={(e) => setPaymentData({ ...paymentData, reference_number: e.target.value })}
+                  value={paymentData.referenceNumber}
+                  onChange={(e) => setPaymentData({ ...paymentData, referenceNumber: e.target.value })}
                   placeholder="Transaction ID, check number, etc."
                 />
               </Grid>
@@ -386,8 +391,8 @@ const OrganizationDetailPage = () => {
                   fullWidth
                   label="Payment Date"
                   type="date"
-                  value={paymentData.payment_date}
-                  onChange={(e) => setPaymentData({ ...paymentData, payment_date: e.target.value })}
+                  value={paymentData.paymentDate}
+                  onChange={(e) => setPaymentData({ ...paymentData, paymentDate: e.target.value })}
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
@@ -411,7 +416,7 @@ const OrganizationDetailPage = () => {
             onClick={handleSubmitPayment} 
             variant="contained" 
             color="success"
-            disabled={!paymentData.amount || !paymentData.payment_method}
+            disabled={!paymentData.amount || !paymentData.paymentMethod}
           >
             Record Payment
           </Button>

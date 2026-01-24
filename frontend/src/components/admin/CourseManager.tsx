@@ -30,8 +30,8 @@ interface Course {
   coursecode: string;
   duration: number;
   maxstudents: number;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface CourseManagerProps {
@@ -98,7 +98,7 @@ const CourseManager: React.FC<CourseManagerProps> = ({ showSnackbar }) => {
     }
   };
 
-  const handleSave = async (courseData: Omit<Course, 'id' | 'created_at' | 'updated_at'>) => {
+  const handleSave = async (courseData: Omit<Course, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       if (editingCourse) {
         await api.put(`/courses/${editingCourse.id}`, courseData);
@@ -182,10 +182,10 @@ const CourseManager: React.FC<CourseManagerProps> = ({ showSnackbar }) => {
                   <TableCell>{course.duration}</TableCell>
                   <TableCell>{course.maxstudents}</TableCell>
                   <TableCell>
-                    {formatDisplayDate(course.created_at)}
+                    {formatDisplayDate(course.createdAt)}
                   </TableCell>
                   <TableCell>
-                    {formatDisplayDate(course.updated_at)}
+                    {formatDisplayDate(course.updatedAt)}
                   </TableCell>
                   <TableCell>
                     <IconButton

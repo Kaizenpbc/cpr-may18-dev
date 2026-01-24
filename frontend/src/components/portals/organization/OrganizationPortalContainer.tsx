@@ -243,7 +243,7 @@ const OrganizationPortalContainer: React.FC = () => {
   return (
     <ErrorBoundary onError={handleError}>
               <OrganizationPortal
-          user={user}
+          user={user as never}
           organizationData={organizationData}
           courses={courses || []}
           archivedCourses={archivedCourses || []}
@@ -253,8 +253,6 @@ const OrganizationPortalContainer: React.FC = () => {
           billingSummary={billingSummary}
           loading={isLoading}
           error={error}
-          currentView={currentView}
-          onViewChange={handleViewChange}
           onLogout={handleLogout}
         />
     </ErrorBoundary>

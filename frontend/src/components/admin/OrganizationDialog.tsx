@@ -17,60 +17,59 @@ import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css'; // Import default styles
 
 // Initial empty state for a new organization
-const initial_org_state = {
-  organization_name: '',
-  contact_name: '',
-  contact_email: '',
-  contact_phone: '', // Store as E.164
-  address_street: '',
-  address_city: '',
-  address_province: '',
-  address_postal_code: '',
-  ceo_name: '',
-  ceo_phone: '', // Store as E.164
-  ceo_email: '',
+const initialOrgState = {
+  organizationName: '',
+  contactName: '',
+  contactEmail: '',
+  contactPhone: '', // Store as E.164
+  addressStreet: '',
+  addressCity: '',
+  addressProvince: '',
+  addressPostalCode: '',
+  ceoName: '',
+  ceoPhone: '', // Store as E.164
+  ceoEmail: '',
 };
 
 function OrganizationDialog({ open, onClose, onSave, organization }) {
-  const [org_data, setOrgData] = useState(initial_org_state);
+  const [orgData, setOrgData] = useState(initialOrgState);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [field_errors, setFieldErrors] = useState({}); // State for field-specific errors
-  const is_edit_mode = Boolean(organization?.organization_id);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | boolean>>({}); // State for field-specific errors
+  const isEditMode = Boolean(organization?.organizationId);
 
   useEffect(() => {
     // Populate form if editing, otherwise reset
-    if (is_edit_mode && organization) {
-      // Map incoming data (lowercase keys) to state (camelCase/lowercase if needed)
-      // Assuming backend returns lowercase keys as per schema
+    if (isEditMode && organization) {
+      // Map incoming data to state (backend returns camelCase via keysToCamel)
       setOrgData({
-        organization_name: organization.organization_name || '',
-        contact_name: organization.contact_name || '',
-        contact_email: organization.contact_email || '',
-        contact_phone: organization.contact_phone || '', // Already E.164 from DB
-        address_street: organization.address_street || '',
-        address_city: organization.address_city || '',
-        address_province: organization.address_province || '',
-        address_postal_code: organization.address_postal_code || '',
-        ceo_name: organization.ceo_name || '',
-        ceo_phone: organization.ceo_phone || '', // Already E.164 from DB
-        ceo_email: organization.ceo_email || '',
+        organizationName: organization.organizationName || '',
+        contactName: organization.contactName || '',
+        contactEmail: organization.contactEmail || '',
+        contactPhone: organization.contactPhone || '', // Already E.164 from DB
+        addressStreet: organization.addressStreet || '',
+        addressCity: organization.addressCity || '',
+        addressProvince: organization.addressProvince || '',
+        addressPostalCode: organization.addressPostalCode || '',
+        ceoName: organization.ceoName || '',
+        ceoPhone: organization.ceoPhone || '', // Already E.164 from DB
+        ceoEmail: organization.ceoEmail || '',
       });
     } else {
-      setOrgData(initial_org_state);
+      setOrgData(initialOrgState);
     }
     setError(''); // Clear general error
     setFieldErrors({}); // Clear field errors when dialog opens/org changes
-  }, [organization, is_edit_mode, open]);
+  }, [organization, isEditMode, open]);
 
   // Handles both TextField changes and PhoneInput changes
   const handleChange = (name, value) => {
-    setOrgData(prev_data => ({
-      ...prev_data,
+    setOrgData(prevData => ({
+      ...prevData,
       [name]: value,
     }));
     // Clear specific field error on change
-    if (field_errors[name]) {
+    if (fieldErrors[name]) {
       setFieldErrors(prev => ({ ...prev, [name]: false }));
     }
     // Clear general error message when user starts typing
@@ -82,30 +81,30 @@ function OrganizationDialog({ open, onClose, onSave, organization }) {
   const handleSave = async () => {
     setError('');
     setFieldErrors({});
-    const new_field_errors = {};
+    const newFieldErrors: Record<string, string> = {};
 
     // Client-side validation
-    if (!org_data.organization_name)
-      new_field_errors.organization_name = 'Organization Name required';
-    if (!org_data.contact_name)
-      new_field_errors.contact_name = 'Contact Name required';
-    if (!org_data.contact_email)
-      new_field_errors.contact_email = 'Contact Email required';
-    if (!org_data.contact_phone)
-      new_field_errors.contact_phone = 'Contact Phone required';
+    if (!orgData.organizationName)
+      newFieldErrors.organizationName = 'Organization Name required';
+    if (!orgData.contactName)
+      newFieldErrors.contactName = 'Contact Name required';
+    if (!orgData.contactEmail)
+      newFieldErrors.contactEmail = 'Contact Email required';
+    if (!orgData.contactPhone)
+      newFieldErrors.contactPhone = 'Contact Phone required';
 
-    if (Object.keys(new_field_errors).length > 0) {
+    if (Object.keys(newFieldErrors).length > 0) {
       setError('Please fix highlighted field(s).');
-      setFieldErrors(new_field_errors);
+      setFieldErrors(newFieldErrors);
       return;
     }
 
     setLoading(true);
     try {
-      if (is_edit_mode) {
-        await api.updateOrganization(organization.organization_id, org_data);
+      if (isEditMode) {
+        await api.updateOrganization(organization.organizationId, orgData);
       } else {
-        await api.addOrganization(org_data);
+        await api.addOrganization(orgData);
       }
       onSave();
       onClose();
@@ -119,7 +118,7 @@ function OrganizationDialog({ open, onClose, onSave, organization }) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth='md' fullWidth>
       <DialogTitle>
-        {is_edit_mode ? 'Edit Organization' : 'Add New Organization'}
+        {isEditMode ? 'Edit Organization' : 'Add New Organization'}
       </DialogTitle>
       <DialogContent>
         {error && (
@@ -131,51 +130,51 @@ function OrganizationDialog({ open, onClose, onSave, organization }) {
           {/* Organization Details */}
           <Grid xs={12} sm={12}>
             <TextField
-              name='organization_name'
+              name='organizationName'
               label='Organization Name *'
-              value={org_data.organization_name}
-              onChange={e => handleChange('organization_name', e.target.value)}
+              value={orgData.organizationName}
+              onChange={e => handleChange('organizationName', e.target.value)}
               fullWidth
               required
-              error={Boolean(field_errors.organization_name)}
-              helperText={field_errors.organization_name || ''}
+              error={Boolean(fieldErrors.organizationName)}
+              helperText={fieldErrors.organizationName || ''}
             />
           </Grid>
           {/* Address */}
           <Grid xs={12}>
             <TextField
-              name='address_street'
+              name='addressStreet'
               label='Street Address'
-              value={org_data.address_street}
-              onChange={e => handleChange('address_street', e.target.value)}
+              value={orgData.addressStreet}
+              onChange={e => handleChange('addressStreet', e.target.value)}
               fullWidth
             />
           </Grid>
           <Grid xs={12} sm={4}>
             <TextField
-              name='address_city'
+              name='addressCity'
               label='City'
-              value={org_data.address_city}
-              onChange={e => handleChange('address_city', e.target.value)}
+              value={orgData.addressCity}
+              onChange={e => handleChange('addressCity', e.target.value)}
               fullWidth
             />
           </Grid>
           <Grid xs={12} sm={4}>
             <TextField
-              name='address_province'
+              name='addressProvince'
               label='Province'
-              value={org_data.address_province}
-              onChange={e => handleChange('address_province', e.target.value)}
+              value={orgData.addressProvince}
+              onChange={e => handleChange('addressProvince', e.target.value)}
               fullWidth
             />
           </Grid>
           <Grid xs={12} sm={4}>
             <TextField
-              name='address_postal_code'
+              name='addressPostalCode'
               label='Postal Code'
-              value={org_data.address_postal_code}
+              value={orgData.addressPostalCode}
               onChange={e =>
-                handleChange('address_postal_code', e.target.value)
+                handleChange('addressPostalCode', e.target.value)
               }
               fullWidth
             />
@@ -183,76 +182,76 @@ function OrganizationDialog({ open, onClose, onSave, organization }) {
           {/* Contact Person */}
           <Grid xs={12} sm={6}>
             <TextField
-              name='contact_name'
+              name='contactName'
               label='Contact Name'
-              value={org_data.contact_name}
-              onChange={e => handleChange('contact_name', e.target.value)}
+              value={orgData.contactName}
+              onChange={e => handleChange('contactName', e.target.value)}
               fullWidth
             />
           </Grid>
           <Grid xs={12} sm={6}>
             <PhoneInput
               placeholder='Enter contact phone'
-              value={org_data.contact_phone}
-              onChange={value => handleChange('contact_phone', value || '')}
+              value={orgData.contactPhone}
+              onChange={value => handleChange('contactPhone', value || '')}
               defaultCountry='CA'
               international
               countryCallingCodeEditable={false}
               limitMaxLength
               style={{ marginBottom: '0px' }}
-              className={field_errors.contact_phone ? 'phone-input-error' : ''}
+              className={fieldErrors.contactPhone ? 'phone-input-error' : ''}
             />
-            {field_errors.contact_phone && (
+            {fieldErrors.contactPhone && (
               <Typography color='error' variant='caption'>
-                {field_errors.contact_phone}
+                {fieldErrors.contactPhone}
               </Typography>
             )}
           </Grid>
           <Grid xs={12} sm={12}>
             <TextField
-              name='contact_email'
+              name='contactEmail'
               label='Contact Email'
-              value={org_data.contact_email}
+              value={orgData.contactEmail}
               type='email'
-              onChange={e => handleChange('contact_email', e.target.value)}
+              onChange={e => handleChange('contactEmail', e.target.value)}
               fullWidth
             />
           </Grid>
           {/* CEO Details */}
           <Grid xs={12} sm={6}>
             <TextField
-              name='ceo_name'
+              name='ceoName'
               label='CEO Name'
-              value={org_data.ceo_name}
-              onChange={e => handleChange('ceo_name', e.target.value)}
+              value={orgData.ceoName}
+              onChange={e => handleChange('ceoName', e.target.value)}
               fullWidth
             />
           </Grid>
           <Grid xs={12} sm={6}>
             <PhoneInput
               placeholder='Enter CEO phone'
-              value={org_data.ceo_phone}
-              onChange={value => handleChange('ceo_phone', value || '')}
+              value={orgData.ceoPhone}
+              onChange={value => handleChange('ceoPhone', value || '')}
               defaultCountry='CA'
               international
               countryCallingCodeEditable={false}
               limitMaxLength
               style={{ marginBottom: '0px' }}
-              className={field_errors.ceo_phone ? 'phone-input-error' : ''}
+              className={fieldErrors.ceoPhone ? 'phone-input-error' : ''}
             />
-            {field_errors.ceo_phone && (
+            {fieldErrors.ceoPhone && (
               <Typography color='error' variant='caption'>
-                {field_errors.ceo_phone}
+                {fieldErrors.ceoPhone}
               </Typography>
             )}
           </Grid>
           <Grid xs={12} sm={12}>
             <TextField
-              name='ceo_email'
+              name='ceoEmail'
               label='CEO Email'
-              value={org_data.ceo_email}
+              value={orgData.ceoEmail}
               type='email'
-              onChange={e => handleChange('ceo_email', e.target.value)}
+              onChange={e => handleChange('ceoEmail', e.target.value)}
               fullWidth
             />
           </Grid>
@@ -265,7 +264,7 @@ function OrganizationDialog({ open, onClose, onSave, organization }) {
         <Button onClick={handleSave} variant='contained' disabled={loading}>
           {loading ? (
             <CircularProgress size={24} />
-          ) : is_edit_mode ? (
+          ) : isEditMode ? (
             'Save Changes'
           ) : (
             'Add Organization'

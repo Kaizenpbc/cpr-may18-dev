@@ -1,2 +1,3 @@
-export { default as InstructorDashboard } from './InstructorDashboard';
-export { default as InstructorDashboardContainer } from './InstructorDashboardContainer'; 
+// Re-export instructor components from their actual locations
+export { default as InstructorDashboard } from '../../instructor/InstructorDashboard';
+// InstructorDashboardContainer doesn't exist - removed

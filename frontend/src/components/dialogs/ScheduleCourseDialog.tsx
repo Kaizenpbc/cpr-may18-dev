@@ -84,7 +84,7 @@ const ScheduleCourseDialog = ({ open, onClose, course, onCourseScheduled }) => {
     setError('');
     try {
       const response = await api.scheduleCourseAdmin(course.courseid, {
-        instructorId: selectedInstructorId,
+        instructorId: parseInt(selectedInstructorId, 10),
         dateScheduled: scheduledDate,
       });
       if (response.success) {

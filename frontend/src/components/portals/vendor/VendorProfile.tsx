@@ -17,19 +17,19 @@ import { Save as SaveIcon } from '@mui/icons-material';
 
 interface VendorProfileData {
   name: string;
-  contact_email: string;
-  contact_phone: string;
+  contactEmail: string;
+  contactPhone: string;
   address: string;
-  vendor_type: string;
+  vendorType: string;
 }
 
 const VendorProfile: React.FC = () => {
   const [profile, setProfile] = useState<VendorProfileData>({
     name: '',
-    contact_email: '',
-    contact_phone: '',
+    contactEmail: '',
+    contactPhone: '',
     address: '',
-    vendor_type: ''
+    vendorType: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,10 +52,10 @@ const VendorProfile: React.FC = () => {
       // Mock data
       setProfile({
         name: 'Test Vendor Company',
-        contact_email: 'vendor@example.com',
-        contact_phone: '555-1234',
+        contactEmail: 'vendor@example.com',
+        contactPhone: '555-1234',
         address: '123 Vendor St, Vendor City, ON, A1B 2C3',
-        vendor_type: 'supplier'
+        vendorType: 'supplier'
       });
     } catch (err) {
       setError('Failed to load profile');
@@ -72,7 +72,7 @@ const VendorProfile: React.FC = () => {
     }));
   };
 
-  const handleSelectChange = (e: any) => {
+  const handleSelectChange = (e: { target: { name: string; value: string } }) => {
     const { name, value } = e.target;
     setProfile(prev => ({
       ...prev,
@@ -139,13 +139,13 @@ const VendorProfile: React.FC = () => {
               <FormControl fullWidth>
                 <InputLabel>Vendor Type</InputLabel>
                 <Select
-                  name="vendor_type"
-                  value={profile.vendor_type}
+                  name="vendorType"
+                  value={profile.vendorType}
                   onChange={handleSelectChange}
                   label="Vendor Type"
                 >
                   <MenuItem value="supplier">Supplier</MenuItem>
-                  <MenuItem value="service_provider">Service Provider</MenuItem>
+                  <MenuItem value="serviceProvider">Service Provider</MenuItem>
                   <MenuItem value="consultant">Consultant</MenuItem>
                   <MenuItem value="contractor">Contractor</MenuItem>
                   <MenuItem value="other">Other</MenuItem>
@@ -163,9 +163,9 @@ const VendorProfile: React.FC = () => {
               <TextField
                 fullWidth
                 label="Contact Email"
-                name="contact_email"
+                name="contactEmail"
                 type="email"
-                value={profile.contact_email}
+                value={profile.contactEmail}
                 onChange={handleInputChange}
                 required
               />
@@ -175,8 +175,8 @@ const VendorProfile: React.FC = () => {
               <TextField
                 fullWidth
                 label="Contact Phone"
-                name="contact_phone"
-                value={profile.contact_phone}
+                name="contactPhone"
+                value={profile.contactPhone}
                 onChange={handleInputChange}
               />
             </Grid>

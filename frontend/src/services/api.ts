@@ -18,6 +18,30 @@ import type {
 } from '../types/api';
 import { API_URL } from '../config';
 
+// Internal types for dashboard API responses
+interface DashboardStatsResponse {
+  scheduledClasses?: number;
+  completedClasses?: number;
+  totalStudents?: number;
+  recentClasses?: Array<{ id: string; date: string; type: string; students: number }>;
+  upcomingCourses?: number;
+  completedCourses?: number;
+  recentCourses?: Array<{ id: string; date: string; type: string; students: number }>;
+  pendingInvoices?: number;
+  totalRevenue?: number;
+  completedCoursesThisMonth?: number;
+  pendingApprovals?: number;
+  activeInstructors?: number;
+  organizations?: number;
+  instructorStats?: DashboardStatsResponse;
+  summary?: {
+    totalUsers?: number;
+    totalOrganizations?: number;
+    totalCourses?: number;
+  };
+  upcomingClasses?: number;
+}
+
 // Development-only logging utility - prevents sensitive data from being logged in production
 const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development';
 const devLog = (...args: unknown[]) => { if (isDev) console.log(...args); };
@@ -246,11 +270,11 @@ export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
     // Try all dashboard endpoints in parallel and use the first successful one
     // This is much faster than sequential fallbacks
     const [genericResult, instructorResult, adminResult] = await Promise.allSettled([
-      api.get<ApiResponse<Record<string, unknown>>>('/dashboard'),
-      api.get<ApiResponse<Record<string, unknown>>>('/instructor/dashboard/stats'),
+      api.get<ApiResponse<DashboardStatsResponse>>('/dashboard'),
+      api.get<ApiResponse<DashboardStatsResponse>>('/instructor/dashboard/stats'),
       Promise.all([
-        api.get<ApiResponse<Record<string, unknown>>>(`/admin/instructor-stats?month=${currentDate}`),
-        api.get<ApiResponse<Record<string, unknown>>>(`/admin/dashboard-summary?month=${currentDate}`)
+        api.get<ApiResponse<DashboardStatsResponse>>(`/admin/instructor-stats?month=${currentDate}`),
+        api.get<ApiResponse<DashboardStatsResponse>>(`/admin/dashboard-summary?month=${currentDate}`)
       ])
     ]);
 
@@ -283,7 +307,7 @@ export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
     // Check admin dashboard
     if (adminResult.status === 'fulfilled') {
       const [, dashboardSummary] = adminResult.value;
-      const summaryData = extractLegacyData(dashboardSummary);
+      const summaryData = extractLegacyData<DashboardStatsResponse>(dashboardSummary);
       if (summaryData) {
         devLog('[Debug] api.ts - Using admin dashboard data');
         return {
@@ -324,7 +348,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
     switch (userRole) {
       case 'instructor':
         try {
-          const response = await api.get<ApiResponse<Record<string, unknown>>>('/instructor/dashboard/stats');
+          const response = await api.get<ApiResponse<DashboardStatsResponse>>('/instructor/dashboard/stats');
           if (response.data.success) {
             const stats = response.data.data;
             dashboardData = {
@@ -342,16 +366,17 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
       case 'admin':
       case 'courseadmin':
         try {
-          const [instructorStats, dashboardSummary] = await Promise.all([
-            api.get<ApiResponse<Record<string, unknown>>>(`/admin/instructor-stats?month=${currentDate}`),
-            api.get<ApiResponse<Record<string, unknown>>>(`/admin/dashboard-summary?month=${currentDate}`)
+          const [, dashboardSummary] = await Promise.all([
+            api.get<ApiResponse<DashboardStatsResponse>>(`/admin/instructor-stats?month=${currentDate}`),
+            api.get<ApiResponse<DashboardStatsResponse>>(`/admin/dashboard-summary?month=${currentDate}`)
           ]);
 
+          const summaryData = extractLegacyData<DashboardStatsResponse>(dashboardSummary);
           dashboardData = {
-            upcomingClasses: extractLegacyData(dashboardSummary)?.upcomingClasses || 0,
-            totalStudents: extractLegacyData(dashboardSummary)?.totalStudents || 0,
-            completedClasses: extractLegacyData(dashboardSummary)?.completedClasses || 0,
-            recentClasses: extractLegacyData(dashboardSummary)?.recentClasses || []
+            upcomingClasses: summaryData?.upcomingClasses || 0,
+            totalStudents: summaryData?.totalStudents || 0,
+            completedClasses: summaryData?.completedClasses || 0,
+            recentClasses: summaryData?.recentClasses || []
           };
         } catch (error) {
           devLog('[Debug] api.ts - Admin dashboard not available, using fallback');
@@ -360,7 +385,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
 
       case 'organization':
         try {
-          const response = await api.get<ApiResponse<Record<string, unknown>>>('/organization/dashboard');
+          const response = await api.get<ApiResponse<DashboardStatsResponse>>('/organization/dashboard');
           if (response.data.success) {
             const stats = response.data.data;
             dashboardData = {
@@ -377,7 +402,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
 
       case 'accountant':
         try {
-          const response = await api.get<ApiResponse<Record<string, unknown>>>('/accounting/dashboard');
+          const response = await api.get<ApiResponse<DashboardStatsResponse>>('/accounting/dashboard');
           if (response.data.success) {
             const stats = response.data.data;
             dashboardData = {
@@ -394,7 +419,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
 
       case 'hr':
         try {
-          const response = await api.get<ApiResponse<Record<string, unknown>>>('/hr/dashboard');
+          const response = await api.get<ApiResponse<DashboardStatsResponse>>('/hr/dashboard');
           if (response.data.success) {
             const stats = response.data.data;
             dashboardData = {
@@ -411,13 +436,13 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
 
       case 'sysadmin':
         try {
-          const response = await api.get<ApiResponse<Record<string, unknown>>>('/sysadmin/dashboard');
+          const response = await api.get<ApiResponse<DashboardStatsResponse>>('/sysadmin/dashboard');
           if (response.data.success) {
-            const stats = response.data.data.summary;
+            const summary = response.data.data.summary;
             dashboardData = {
-              upcomingClasses: stats.totalUsers || 0,
-              totalStudents: stats.totalOrganizations || 0,
-              completedClasses: stats.totalCourses || 0,
+              upcomingClasses: summary?.totalUsers || 0,
+              totalStudents: summary?.totalOrganizations || 0,
+              completedClasses: summary?.totalCourses || 0,
               recentClasses: []
             };
           }
@@ -429,7 +454,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
       default:
         // Try generic dashboard endpoint
         try {
-          const response = await api.get<ApiResponse<Record<string, unknown>>>('/dashboard');
+          const response = await api.get<ApiResponse<DashboardStatsResponse>>('/dashboard');
           if (response.data.success && response.data.data) {
             const dashboardStats = response.data.data.instructorStats;
             dashboardData = {
@@ -810,6 +835,33 @@ export const sysAdminApi = {
   getUsers: async () => {
     const response = await api.get('/sysadmin/users');
     return response.data;
+  },
+  createUser: async (userData: Record<string, unknown>) => {
+    const response = await api.post('/sysadmin/users', userData);
+    return response.data;
+  },
+  updateUser: async (id: number, userData: Record<string, unknown>) => {
+    const response = await api.put(`/sysadmin/users/${id}`, userData);
+    return response.data;
+  },
+  deleteUser: async (id: number) => {
+    const response = await api.delete(`/sysadmin/users/${id}`);
+    return response.data;
+  },
+
+  // Vendor Invoice Management
+  getVendorInvoices: async (status?: string) => {
+    const params = status ? `?status=${status}` : '';
+    const response = await api.get(`/sysadmin/vendor-invoices${params}`);
+    return response.data;
+  },
+  approveVendorInvoice: async (id: number, action: 'approve' | 'reject', comment?: string) => {
+    const response = await api.put(`/sysadmin/vendor-invoices/${id}/approve`, { action, comment });
+    return response.data;
+  },
+  downloadVendorInvoice: async (id: number) => {
+    const response = await api.get(`/sysadmin/vendor-invoices/${id}/download`, { responseType: 'blob' });
+    return response;
   },
 
   // Course Management
@@ -1248,6 +1300,77 @@ export const collegesApi = {
   create: (name: string) => api.post('/colleges', { name }),
   update: (id: number, data: { name?: string; isActive?: boolean }) => api.put(`/colleges/${id}`, data),
   delete: (id: number) => api.delete(`/colleges/${id}`),
+};
+
+// =============================================================================
+// Top-level convenience exports for components using `import * as api`
+// =============================================================================
+
+// Organization Management (wraps sysAdminApi methods)
+export const updateOrganization = sysAdminApi.updateOrganization;
+export const addOrganization = sysAdminApi.createOrganization;
+export const deleteOrganization = sysAdminApi.deleteOrganization;
+
+// User Management (wraps sysAdminApi methods)
+export const getUsers = sysAdminApi.getUsers;
+export const deleteUser = async (userId: number) => {
+  const response = await api.delete(`/sysadmin/users/${userId}`);
+  return response.data;
+};
+
+// Pricing Rules (wraps organization pricing methods)
+export const getPricingRules = getOrganizationPricing;
+export const deletePricingRule = deleteOrganizationPricing;
+export const updatePricingRule = updateOrganizationPricing;
+export const addPricingRule = createOrganizationPricing;
+
+// Course Types
+export const getCourseTypes = async () => {
+  const response = await api.get('/course-types');
+  return response.data.data || [];
+};
+
+// Instructor Management
+export const getAllInstructors = async () => {
+  const response = await api.get('/courseadmin/instructors');
+  return response.data.data || response.data || [];
+};
+
+// Course Scheduling (Admin)
+export const scheduleCourseAdmin = async (courseId: number, scheduleData: { instructorId: number; dateScheduled: string }) => {
+  const response = await api.post(`/courseadmin/courses/${courseId}/schedule`, scheduleData);
+  return response.data;
+};
+
+// Organization Details (Admin view)
+export const getOrganizationDetails = async (orgId: number) => {
+  const response = await api.get(`/sysadmin/organizations/${orgId}`);
+  return response.data.data || response.data;
+};
+
+export const getOrganizationCoursesAdmin = async (orgId: number) => {
+  const response = await api.get(`/sysadmin/organizations/${orgId}/courses`);
+  return response.data.data || response.data || [];
+};
+
+export const getOrganizationInvoices = async (orgId: number) => {
+  const response = await api.get(`/sysadmin/organizations/${orgId}/invoices`);
+  return response.data.data || response.data || [];
+};
+
+export const getOrganizationFinancialSummary = async (orgId: number) => {
+  const response = await api.get(`/sysadmin/organizations/${orgId}/financial-summary`);
+  return response.data.data || response.data;
+};
+
+// AR Aging Report
+export const getArAgingReport = async (params?: { organizationId?: number; asOfDate?: string }) => {
+  const queryParams = new URLSearchParams();
+  if (params?.organizationId) queryParams.append('organization_id', params.organizationId.toString());
+  if (params?.asOfDate) queryParams.append('as_of_date', params.asOfDate);
+  const queryString = queryParams.toString();
+  const response = await api.get(`/accounting/reports/ar-aging${queryString ? `?${queryString}` : ''}`);
+  return response.data.data || response.data;
 };
 
 export default api;

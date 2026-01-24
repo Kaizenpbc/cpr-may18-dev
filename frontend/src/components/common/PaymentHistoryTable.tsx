@@ -20,17 +20,17 @@ import { api } from '../../services/api';
 
 interface Payment {
   id: number;
-  invoice_id: number;
+  invoiceId: number;
   amount?: number;
-  amount_paid?: number;
-  payment_date: string;
-  payment_method: string;
-  reference_number?: string;
+  amountPaid?: number;
+  paymentDate: string;
+  paymentMethod: string;
+  referenceNumber?: string;
   notes?: string;
   status: string;
-  created_at: string;
-  submitted_by_org_at?: string;
-  verified_by_accounting_at?: string;
+  createdAt: string;
+  submittedByOrgAt?: string;
+  verifiedByAccountingAt?: string;
 }
 
 interface PaymentHistoryTableProps {
@@ -137,22 +137,22 @@ const PaymentHistoryTable: React.FC<PaymentHistoryTableProps> = ({
         </TableHead>
         <TableBody>
           {safePayments
-            .filter(payment => payment && payment.id && (payment.amount || payment.amount_paid))
+            .filter(payment => payment && payment.id && (payment.amount || payment.amountPaid))
             .map((payment) => (
             <TableRow key={payment.id} hover>
               <TableCell>
-                {payment.payment_date ? formatDisplayDate(payment.payment_date) : '-'}
+                {payment.paymentDate ? formatDisplayDate(payment.paymentDate) : '-'}
               </TableCell>
               <TableCell align="right">
                 <Typography variant="body2" fontWeight="medium">
-                  ${Number(payment.amount || payment.amount_paid || 0).toFixed(2)}
+                  ${Number(payment.amount || payment.amountPaid || 0).toFixed(2)}
                 </Typography>
               </TableCell>
               <TableCell>
-                {payment.payment_method ? formatPaymentMethod(payment.payment_method) : '-'}
+                {payment.paymentMethod ? formatPaymentMethod(payment.paymentMethod) : '-'}
               </TableCell>
               <TableCell>
-                {payment.reference_number || '-'}
+                {payment.referenceNumber || '-'}
               </TableCell>
               <TableCell>
                 <Chip
@@ -164,14 +164,14 @@ const PaymentHistoryTable: React.FC<PaymentHistoryTableProps> = ({
               {showVerificationDetails && (
                 <>
                   <TableCell>
-                    {payment.submitted_by_org_at 
-                      ? formatDisplayDate(payment.submitted_by_org_at)
+                    {payment.submittedByOrgAt 
+                      ? formatDisplayDate(payment.submittedByOrgAt)
                       : '-'
                     }
                   </TableCell>
                   <TableCell>
-                    {payment.verified_by_accounting_at 
-                      ? formatDisplayDate(payment.verified_by_accounting_at)
+                    {payment.verifiedByAccountingAt 
+                      ? formatDisplayDate(payment.verifiedByAccountingAt)
                       : '-'
                     }
                   </TableCell>
@@ -189,7 +189,7 @@ const PaymentHistoryTable: React.FC<PaymentHistoryTableProps> = ({
                       <IconButton
                         size="small"
                         color="primary"
-                        onClick={() => onViewInvoice(payment.invoice_id)}
+                        onClick={() => onViewInvoice(payment.invoiceId)}
                       >
                         <ViewIcon fontSize="small" />
                       </IconButton>

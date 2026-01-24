@@ -159,7 +159,7 @@ const StudentAttendanceDialog = ({ open, onClose, courseId, students, loadingStu
 };
 
 // Payment Details Component
-const PaymentDetails = ({ invoiceId }) => {
+const PaymentDetails = ({ invoiceId, onViewDetailsClick }: { invoiceId: number; onViewDetailsClick?: (id: number) => void }) => {
   const [payments, setPayments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -505,7 +505,7 @@ const AccountsReceivableTable = ({
                       >
                         {/* Render PaymentDetails component only when expanded */}
                         {expandedRowId === invoice.invoiceid && (
-                          <PaymentDetails invoiceId={invoice.invoiceid} />
+                          <PaymentDetails invoiceId={invoice.invoiceid} onViewDetailsClick={onViewDetailsClick} />
                         )}
                       </Collapse>
                     </TableCell>

@@ -37,11 +37,20 @@ import {
   AttachMoney as MoneyIcon,
   Assessment as AssessmentIcon,
 } from '@mui/icons-material';
-import { hrDashboardService, HRDashboardStats, ProfileChange } from '../../services/hrDashboardService';
+import { hrDashboardService, HRDashboardStats, ProfileChange, RecentChange as ServiceRecentChange } from '../../services/hrDashboardService';
 
 interface HRDashboardProps {
   onViewChange?: (view: string) => void;
 }
+
+// Extended RecentChange for dashboard display (API returns additional fields)
+interface RecentChange extends ServiceRecentChange {
+  username?: string;
+  fieldName?: string;
+  status?: string;
+}
+
+type ChipColor = 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
 
 const HRDashboard: React.FC<HRDashboardProps> = ({ onViewChange }) => {
   const [stats, setStats] = useState<HRDashboardStats | null>(null);
@@ -101,7 +110,7 @@ const HRDashboard: React.FC<HRDashboardProps> = ({ onViewChange }) => {
     setApprovalDialog(true);
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): ChipColor => {
     switch (status) {
       case 'approved':
         return 'success';
@@ -284,19 +293,22 @@ const HRDashboard: React.FC<HRDashboardProps> = ({ onViewChange }) => {
             <Typography variant="body2" color="text.secondary">
               {stats?.recentChanges?.length || 0} recent profile changes
             </Typography>
-            {stats?.recentChanges?.slice(0, 3).map((change: any) => (
-              <Box key={change.id} sx={{ mt: 1, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
-                <Typography variant="body2">
-                  <strong>{change.username}</strong> - {getFieldDisplayName(change.field_name)} change
-                </Typography>
-                <Chip
-                  label={change.status}
-                  size="small"
-                  color={getStatusColor(change.status) as any}
-                  sx={{ mt: 0.5 }}
-                />
-              </Box>
-            ))}
+            {stats?.recentChanges?.slice(0, 3).map((change) => {
+              const extChange = change as RecentChange;
+              return (
+                <Box key={change.id} sx={{ mt: 1, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+                  <Typography variant="body2">
+                    <strong>{extChange.username || `User ${change.userId}`}</strong> - {getFieldDisplayName(extChange.fieldName || change.changeType)} change
+                  </Typography>
+                  <Chip
+                    label={extChange.status || 'pending'}
+                    size="small"
+                    color={getStatusColor(extChange.status || 'pending')}
+                    sx={{ mt: 0.5 }}
+                  />
+                </Box>
+              );
+            })}
           </Paper>
         </Grid>
       </Grid>
@@ -326,7 +338,9 @@ const HRDashboard: React.FC<HRDashboardProps> = ({ onViewChange }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {stats?.pendingApprovalsList?.map((change: ProfileChange) => (
+              {stats?.pendingApprovalsList?.map((approval) => {
+                const change = approval as unknown as ProfileChange;
+                return (
                 <TableRow key={change.id}>
                   <TableCell>
                     <Box>
@@ -340,28 +354,28 @@ const HRDashboard: React.FC<HRDashboardProps> = ({ onViewChange }) => {
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={change.change_type}
+                      label={change.changeType}
                       size="small"
                       color="primary"
                     />
                   </TableCell>
                   <TableCell>
-                    {getFieldDisplayName(change.field_name)}
+                    {getFieldDisplayName(change.fieldName)}
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" noWrap sx={{ maxWidth: 150 }}>
-                      {change.new_value}
+                      {change.newValue}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Chip
                       label={change.status}
                       size="small"
-                      color={getStatusColor(change.status) as any}
+                      color={getStatusColor(change.status)}
                     />
                   </TableCell>
                   <TableCell>
-                    {new Date(change.created_at).toLocaleDateString()}
+                    {new Date(change.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
                     <Box display="flex" gap={1}>
@@ -394,7 +408,8 @@ const HRDashboard: React.FC<HRDashboardProps> = ({ onViewChange }) => {
                     </Box>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>
@@ -412,7 +427,7 @@ const HRDashboard: React.FC<HRDashboardProps> = ({ onViewChange }) => {
                 User: {selectedChange.username} ({selectedChange.email})
               </Typography>
               <Typography variant="body2" gutterBottom>
-                Change: {getFieldDisplayName(selectedChange.field_name)} → {selectedChange.new_value}
+                Change: {getFieldDisplayName(selectedChange.fieldName)} → {selectedChange.newValue}
               </Typography>
               <TextField
                 fullWidth

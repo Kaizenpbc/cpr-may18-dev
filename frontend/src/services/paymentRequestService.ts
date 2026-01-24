@@ -8,7 +8,7 @@ export interface PaymentRequest {
   paymentDate: string;
   paymentMethod: string;
   notes: string;
-  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'returned_to_hr';
   createdAt: string;
   updatedAt: string;
   instructorName?: string;
@@ -17,6 +17,17 @@ export interface PaymentRequest {
   totalHours?: number;
   coursesTaught?: number;
   timesheetComment?: string;
+  baseAmount?: number;
+  hourlyRate?: number;
+  bonusAmount?: number;
+  courseBonus?: number;
+  tierName?: string;
+  classDetails?: Array<{
+    course_name: string;
+    hours: number;
+    date: string;
+    location?: string;
+  }>;
 }
 
 export interface PaymentRequestStats {
@@ -59,7 +70,8 @@ export interface PaymentRequestHistoryResponse {
 }
 
 export interface ProcessPaymentRequestData {
-  action: 'approve' | 'reject';
+  action: 'approve' | 'reject' | 'return_to_hr';
+  payment_method?: string;
   notes?: string;
 }
 

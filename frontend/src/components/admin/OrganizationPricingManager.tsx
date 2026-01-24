@@ -103,9 +103,10 @@ function OrganizationPricingManager() {
       setPricingData(Array.isArray(pricingResponse) ? pricingResponse : []);
       setOrganizations(Array.isArray(orgsResponse) ? orgsResponse : []);
       setClassTypes(Array.isArray(typesResponse) ? typesResponse : []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error fetching organization pricing data:', err);
-      setError(err.message || 'Failed to load data.');
+      const errObj = err as { message?: string };
+      setError(errObj.message || 'Failed to load data.');
       setPricingData([]);
       setOrganizations([]);
       setClassTypes([]);
@@ -136,10 +137,11 @@ function OrganizationPricingManager() {
         setPricingData(pricingData.filter(p => p.id !== id));
         logger.info(`Organization pricing ${id} deleted successfully`);
         showSnackbar('Pricing record deleted successfully.', 'success');
-      } catch (err: any) {
+      } catch (err: unknown) {
         logger.error(`Error deleting organization pricing ${id}:`, err);
-        setError(err.message || 'Failed to delete pricing record.');
-        showSnackbar(err.message || 'Failed to delete pricing record.', 'error');
+        const errObj = err as { message?: string };
+        setError(errObj.message || 'Failed to delete pricing record.');
+        showSnackbar(errObj.message || 'Failed to delete pricing record.', 'error');
       }
     }
   };
@@ -188,7 +190,7 @@ function OrganizationPricingManager() {
 
     // Apply sorting
     filtered.sort((a, b) => {
-      let compareA: any, compareB: any;
+      let compareA: string | number, compareB: string | number;
       switch (orderBy) {
         case 'organizationName':
           compareA = a.organizationName || '';

@@ -46,23 +46,29 @@ import { useLocation } from 'react-router-dom';
 
 interface Invoice {
   id: number;
-  invoice_number: string;
+  invoiceNumber: string;
   amount: number;
   description: string;
   status: string;
-  created_at: string;
-  due_date?: string;
-  payment_date?: string;
-  pdf_filename?: string;
-  organization_name?: string;
+  createdAt: string;
+  dueDate?: string;
+  paymentDate?: string;
+  pdfFilename?: string;
+  organizationName?: string;
   notes?: string;
-  approval_date?: string;
-  rejection_reason?: string;
+  approvalDate?: string;
+  rejectionReason?: string;
 }
+
+interface LocationState {
+  refresh?: boolean;
+}
+
+type ChipColor = 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
 
 interface StatusSummary {
   submitted: number;
-  pending_review: number;
+  pendingReview: number;
   approved: number;
   paid: number;
   rejected: number;
@@ -79,7 +85,7 @@ const InvoiceStatusView: React.FC = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [statusSummary, setStatusSummary] = useState<StatusSummary>({
     submitted: 0,
-    pending_review: 0,
+    pendingReview: 0,
     approved: 0,
     paid: 0,
     rejected: 0,
@@ -92,7 +98,7 @@ const InvoiceStatusView: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (location.state && (location.state as any).refresh) {
+    if (location.state && (location.state as LocationState).refresh) {
       fetchInvoices();
       window.history.replaceState({}, document.title);
     }
@@ -111,7 +117,7 @@ const InvoiceStatusView: React.FC = () => {
         return;
       }
       
-      const processedInvoices = response.data.map((invoice: any) => ({
+      const processedInvoices = response.data.map((invoice: Invoice & { amount: string | number }) => ({
         ...invoice,
         amount: typeof invoice.amount === 'string' ? parseFloat(invoice.amount) : invoice.amount || 0
       }));
@@ -130,7 +136,7 @@ const InvoiceStatusView: React.FC = () => {
   const calculateStatusSummary = (invoiceList: Invoice[]) => {
     const summary = {
       submitted: 0,
-      pending_review: 0,
+      pendingReview: 0,
       approved: 0,
       paid: 0,
       rejected: 0,
@@ -139,9 +145,9 @@ const InvoiceStatusView: React.FC = () => {
 
     invoiceList.forEach(invoice => {
       summary[invoice.status as keyof StatusSummary]++;
-      
+
       // Check for overdue invoices
-      if (invoice.due_date && new Date(invoice.due_date) < new Date() && invoice.status !== 'paid') {
+      if (invoice.dueDate && new Date(invoice.dueDate) < new Date() && invoice.status !== 'paid') {
         summary.overdue++;
       }
     });
@@ -149,7 +155,7 @@ const InvoiceStatusView: React.FC = () => {
     setStatusSummary(summary);
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): ChipColor => {
     switch (status) {
       case 'submitted':
         return 'warning';
@@ -219,14 +225,15 @@ const InvoiceStatusView: React.FC = () => {
       window.URL.revokeObjectURL(url);
       
       console.log('✅ [INVOICE STATUS VIEW] Download completed successfully');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errObj = err as { message?: string; stack?: string; name?: string };
       console.error('❌ [INVOICE STATUS VIEW] Download error:', err);
       console.error('❌ [INVOICE STATUS VIEW] Error details:', {
-        message: err.message,
-        stack: err.stack,
-        name: err.name
+        message: errObj.message,
+        stack: errObj.stack,
+        name: errObj.name
       });
-      alert(`Failed to download invoice: ${err.message}`);
+      alert(`Failed to download invoice: ${errObj.message || 'Unknown error'}`);
     }
   };
 
@@ -237,7 +244,7 @@ const InvoiceStatusView: React.FC = () => {
       setSelectedInvoice(response.data);
       setViewDialogOpen(true);
       console.log('✅ [INVOICE STATUS VIEW] Invoice details loaded');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ [INVOICE STATUS VIEW] View error:', err);
       alert('Failed to load invoice details. Please try again.');
     }
@@ -249,9 +256,9 @@ const InvoiceStatusView: React.FC = () => {
   };
 
   const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch = invoice.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
+    const matchesSearch = invoice.invoiceNumber.toLowerCase().includes(search.toLowerCase()) ||
                          invoice.description.toLowerCase().includes(search.toLowerCase()) ||
-                         (invoice.organization_name && invoice.organization_name.toLowerCase().includes(search.toLowerCase()));
+                         (invoice.organizationName && invoice.organizationName.toLowerCase().includes(search.toLowerCase()));
     const matchesStatus = !statusFilter || invoice.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -364,11 +371,11 @@ const InvoiceStatusView: React.FC = () => {
               <TableRow key={invoice.id}>
                 <TableCell>
                   <Typography variant="body2" fontWeight="bold">
-                    {invoice.invoice_number}
+                    {invoice.invoiceNumber}
                   </Typography>
                 </TableCell>
                 <TableCell>{invoice.description}</TableCell>
-                <TableCell>{invoice.organization_name || 'N/A'}</TableCell>
+                <TableCell>{invoice.organizationName || 'N/A'}</TableCell>
                 <TableCell align="right">
                   <Typography variant="body2" fontWeight="bold">
                     {formatCurrency(invoice.amount)}
@@ -378,16 +385,16 @@ const InvoiceStatusView: React.FC = () => {
                   <Chip
                     icon={getStatusIcon(invoice.status)}
                     label={invoice.status.replace('_', ' ').toUpperCase()}
-                    color={getStatusColor(invoice.status) as any}
+                    color={getStatusColor(invoice.status)}
                     size="small"
                   />
                 </TableCell>
-                <TableCell>{formatDate(invoice.created_at)}</TableCell>
+                <TableCell>{formatDate(invoice.createdAt)}</TableCell>
                 <TableCell>
-                  {invoice.due_date ? formatDate(invoice.due_date) : '-'}
+                  {invoice.dueDate ? formatDate(invoice.dueDate) : '-'}
                 </TableCell>
                 <TableCell>
-                  {invoice.payment_date ? formatDate(invoice.payment_date) : '-'}
+                  {invoice.paymentDate ? formatDate(invoice.paymentDate) : '-'}
                 </TableCell>
                 <TableCell align="center">
                   <Tooltip title="View Invoice Details">
@@ -402,7 +409,7 @@ const InvoiceStatusView: React.FC = () => {
                   <Tooltip title="Download PDF">
                     <IconButton 
                       size="small" 
-                      onClick={() => handleDownload(invoice.id, invoice.invoice_number)}
+                      onClick={() => handleDownload(invoice.id, invoice.invoiceNumber)}
                       color="secondary"
                     >
                       <DownloadIcon />
@@ -433,7 +440,7 @@ const InvoiceStatusView: React.FC = () => {
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">
-              Invoice Details - {selectedInvoice?.invoice_number}
+              Invoice Details - {selectedInvoice?.invoiceNumber}
             </Typography>
             <IconButton onClick={handleCloseViewDialog}>
               <CloseIcon />
@@ -445,37 +452,37 @@ const InvoiceStatusView: React.FC = () => {
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="textSecondary">Invoice Number</Typography>
-                <Typography variant="body1" gutterBottom>{selectedInvoice.invoice_number}</Typography>
+                <Typography variant="body1" gutterBottom>{selectedInvoice.invoiceNumber}</Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="textSecondary">Status</Typography>
                 <Chip
                   icon={getStatusIcon(selectedInvoice.status)}
                   label={selectedInvoice.status.replace('_', ' ').toUpperCase()}
-                  color={getStatusColor(selectedInvoice.status) as any}
+                  color={getStatusColor(selectedInvoice.status)}
                   size="small"
                 />
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="textSecondary">Created Date</Typography>
                 <Typography variant="body1" gutterBottom>
-                  {formatDate(selectedInvoice.created_at)}
+                  {formatDate(selectedInvoice.createdAt)}
                 </Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="textSecondary">Due Date</Typography>
                 <Typography variant="body1" gutterBottom>
-                  {selectedInvoice.due_date ? formatDate(selectedInvoice.due_date) : 'Not set'}
+                  {selectedInvoice.dueDate ? formatDate(selectedInvoice.dueDate) : 'Not set'}
                 </Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="textSecondary">Organization</Typography>
-                <Typography variant="body1" gutterBottom>{selectedInvoice.organization_name || 'N/A'}</Typography>
+                <Typography variant="body1" gutterBottom>{selectedInvoice.organizationName || 'N/A'}</Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="textSecondary">Payment Date</Typography>
                 <Typography variant="body1" gutterBottom>
-                  {selectedInvoice.payment_date ? formatDate(selectedInvoice.payment_date) : 'Not paid'}
+                  {selectedInvoice.paymentDate ? formatDate(selectedInvoice.paymentDate) : 'Not paid'}
                 </Typography>
               </Grid>
               <Grid item xs={12}>
@@ -499,7 +506,7 @@ const InvoiceStatusView: React.FC = () => {
           <Button onClick={handleCloseViewDialog}>Close</Button>
           {selectedInvoice && (
             <Button
-              onClick={() => handleDownload(selectedInvoice.id, selectedInvoice.invoice_number)}
+              onClick={() => handleDownload(selectedInvoice.id, selectedInvoice.invoiceNumber)}
               startIcon={<DownloadIcon />}
               variant="contained"
               color="primary"

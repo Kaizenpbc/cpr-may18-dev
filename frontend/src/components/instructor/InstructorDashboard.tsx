@@ -49,19 +49,33 @@ import TodayClassesList from './TodayClassesList';
 import QuickActionsGrid from './QuickActionsGrid';
 import { handleError } from '../../services/errorHandler';
 
+interface InstructorClass {
+  id: number;
+  coursename?: string;
+  date: string;
+  studentcount?: number;
+  [key: string]: unknown;
+}
+
 interface DashboardData {
   instructorStats: {
-    total_courses: number;
-    completed_courses: number;
-    scheduled_courses: number;
-    cancelled_courses: number;
+    totalCourses: number;
+    completedCourses: number;
+    scheduledCourses: number;
+    cancelledCourses: number;
   };
   dashboardSummary: {
-    total_courses: number;
-    completed_courses: number;
-    scheduled_courses: number;
-    cancelled_courses: number;
+    totalCourses: number;
+    completedCourses: number;
+    scheduledCourses: number;
+    cancelledCourses: number;
   };
+}
+
+interface ErrorWithDetails {
+  userMessage?: string;
+  suggestion?: string;
+  message?: string;
 }
 
 const InstructorDashboard: React.FC = () => {
@@ -101,11 +115,13 @@ const InstructorDashboard: React.FC = () => {
     const loadDashboardData = async () => {
       try {
         // Calculate statistics from the data we already have
+        const scheduled = scheduledClasses as InstructorClass[];
+        const completed = completedClasses as InstructorClass[];
         const stats = {
-          total_courses: (scheduledClasses as any[]).length + (completedClasses as any[]).length,
-          scheduled_courses: (scheduledClasses as any[]).length,
-          completed_courses: (completedClasses as any[]).length,
-          cancelled_courses: 0 // We'll need to get this from API if needed
+          totalCourses: scheduled.length + completed.length,
+          scheduledCourses: scheduled.length,
+          completedCourses: completed.length,
+          cancelledCourses: 0 // We'll need to get this from API if needed
         };
 
         console.log('[DEBUG] Setting dashboard stats:', stats);
@@ -129,13 +145,15 @@ const InstructorDashboard: React.FC = () => {
   }, [scheduledClasses, completedClasses]);
 
   // Calculate additional statistics
-  const totalClasses = (scheduledClasses as any[]).length;
-  const upcomingClasses = (scheduledClasses as any[]).filter(
-    (cls: any) => new Date(cls.date) > new Date()
+  const classesArray = scheduledClasses as InstructorClass[];
+  const todayArray = todayClasses as InstructorClass[];
+  const totalClasses = classesArray.length;
+  const upcomingClasses = classesArray.filter(
+    (cls) => new Date(cls.date) > new Date()
   );
-  const todayClassesCount = (todayClasses as any[]).length;
-  const totalStudents = (scheduledClasses as any[]).reduce(
-    (sum: number, cls: any) => sum + (cls.studentcount || 0),
+  const todayClassesCount = todayArray.length;
+  const totalStudents = classesArray.reduce(
+    (sum: number, cls) => sum + (cls.studentcount || 0),
     0
   );
 
@@ -157,14 +175,15 @@ const InstructorDashboard: React.FC = () => {
   }
 
   if (error) {
+    const errorObj = error as ErrorWithDetails;
     return (
       <Alert severity="error" sx={{ mb: 4 }}>
         <Typography variant="h6">
-          {typeof error === 'object' && error !== null && 'userMessage' in error ? (error as any).userMessage : 'Error Loading Dashboard'}
+          {typeof error === 'object' && error !== null && 'userMessage' in error ? errorObj.userMessage : 'Error Loading Dashboard'}
         </Typography>
         <Typography>
-          {typeof error === 'object' && error !== null && 'suggestion' in error ? (error as any).suggestion : 
-           typeof error === 'object' && error !== null && 'message' in error ? (error as any).message : 
+          {typeof error === 'object' && error !== null && 'suggestion' in error ? errorObj.suggestion :
+           typeof error === 'object' && error !== null && 'message' in error ? errorObj.message :
            typeof error === 'string' ? error : 'An unexpected error occurred'}
         </Typography>
       </Alert>
@@ -301,7 +320,7 @@ const InstructorDashboard: React.FC = () => {
                     Available Dates
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
-                    {(availableDates as any[]).length}
+                    {(availableDates as unknown[]).length}
                   </Typography>
                 </Box>
               </Box>
@@ -328,7 +347,7 @@ const InstructorDashboard: React.FC = () => {
               </Typography>
               {upcomingClasses.length > 0 ? (
                 <List>
-                  {upcomingClasses.slice(0, 5).map((cls: any, index: number) => (
+                  {upcomingClasses.slice(0, 5).map((cls, index: number) => (
                     <ListItem key={index} divider>
                       <ListItemText
                         primary={cls.coursename || 'Course'}
@@ -360,17 +379,17 @@ const InstructorDashboard: React.FC = () => {
               <Typography variant="h6" gutterBottom>
                 Recent Completed Classes
               </Typography>
-              {(completedClasses as any[]).length > 0 ? (
+              {(completedClasses as InstructorClass[]).length > 0 ? (
                 <List>
-                  {(completedClasses as any[]).slice(0, 5).map((cls: any, index: number) => (
+                  {(completedClasses as InstructorClass[]).slice(0, 5).map((cls, index: number) => (
                     <ListItem key={index} divider>
                       <ListItemText
                         primary={cls.coursename || 'Course'}
                         secondary={`${formatDate(cls.date)} • ${cls.studentcount || 0} students`}
                       />
-                      <Chip 
-                        label="Completed" 
-                        color="success" 
+                      <Chip
+                        label="Completed"
+                        color="success"
                         size="small"
                         sx={{ ml: 1 }}
                       />

@@ -88,7 +88,7 @@ const PaymentDetailsDialog: React.FC<PaymentDetailsDialogProps> = ({
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle>
-        Payment Details - {payment.instructor_name}
+        Payment Details - {payment.instructorName}
       </DialogTitle>
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -97,7 +97,7 @@ const PaymentDetailsDialog: React.FC<PaymentDetailsDialogProps> = ({
               Instructor
             </Typography>
             <Typography variant="body1" gutterBottom>
-              {payment.instructor_name} ({payment.instructor_email})
+              {payment.instructorName} ({payment.instructorEmail})
             </Typography>
           </Grid>
           <Grid item xs={12} md={6}>
@@ -105,7 +105,7 @@ const PaymentDetailsDialog: React.FC<PaymentDetailsDialogProps> = ({
               Payment Date
             </Typography>
             <Typography variant="body1" gutterBottom>
-              {new Date(payment.payment_date).toLocaleDateString()}
+              {new Date(payment.paymentDate).toLocaleDateString()}
             </Typography>
           </Grid>
           <Grid item xs={12} md={6}>
@@ -121,7 +121,7 @@ const PaymentDetailsDialog: React.FC<PaymentDetailsDialogProps> = ({
               Payment Method
             </Typography>
             <Typography variant="body1" gutterBottom>
-              {payment.payment_method}
+              {payment.paymentMethod}
             </Typography>
           </Grid>
           <Grid item xs={12}>
@@ -146,23 +146,23 @@ const PaymentDetailsDialog: React.FC<PaymentDetailsDialogProps> = ({
               size="small"
             />
           </Grid>
-          {payment.transaction_id && (
+          {payment.transactionId && (
             <Grid item xs={12}>
               <Typography variant="subtitle2" color="textSecondary">
                 Transaction ID
               </Typography>
               <Typography variant="body1" gutterBottom>
-                {payment.transaction_id}
+                {payment.transactionId}
               </Typography>
             </Grid>
           )}
-          {payment.hr_notes && (
+          {payment.hrNotes && (
             <Grid item xs={12}>
               <Typography variant="subtitle2" color="textSecondary">
                 HR Notes
               </Typography>
               <Typography variant="body1" gutterBottom>
-                {payment.hr_notes}
+                {payment.hrNotes}
               </Typography>
             </Grid>
           )}
@@ -588,17 +588,17 @@ const PayrollManagement: React.FC = () => {
                     <TableRow key={payment.id}>
                       <TableCell>
                         <Typography variant="body2" fontWeight="medium">
-                          {payment.instructor_name}
+                          {payment.instructorName}
                         </Typography>
                         <Typography variant="caption" color="textSecondary">
-                          {payment.instructor_email}
+                          {payment.instructorEmail}
                         </Typography>
                       </TableCell>
                       <TableCell>${Number(payment.amount || 0).toFixed(2)}</TableCell>
                       <TableCell>
-                        {new Date(payment.payment_date).toLocaleDateString()}
+                        {new Date(payment.paymentDate).toLocaleDateString()}
                       </TableCell>
-                      <TableCell>{payment.payment_method}</TableCell>
+                      <TableCell>{payment.paymentMethod}</TableCell>
                       <TableCell>
                         <Chip 
                           label={payment.status.toUpperCase()} 
@@ -607,7 +607,7 @@ const PayrollManagement: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell>
-                        {new Date(payment.created_at).toLocaleDateString()}
+                        {new Date(payment.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
                         <Tooltip title="View Details">
@@ -660,7 +660,7 @@ const PayrollManagement: React.FC = () => {
                 Period
               </Typography>
               <Typography variant="body1" gutterBottom>
-                {new Date(calculation.period.start_date).toLocaleDateString()} - {new Date(calculation.period.end_date).toLocaleDateString()}
+                {new Date(calculation.period.startDate).toLocaleDateString()} - {new Date(calculation.period.endDate).toLocaleDateString()}
               </Typography>
             </Grid>
             <Grid item xs={12} md={6}>

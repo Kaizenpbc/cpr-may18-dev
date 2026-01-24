@@ -141,9 +141,9 @@ function OrganizationPricingDialog({
 
       onSave();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error saving organization pricing:', err);
-      setSubmitError(err.message || 'Failed to save pricing record');
+      setSubmitError(err instanceof Error ? err.message : 'Failed to save pricing record');
     } finally {
       setLoading(false);
     }

@@ -78,18 +78,18 @@ const CourseScheduling = () => {
   });
 
   // Get unique instructors and organizations for filter options
-  const uniqueInstructors = useMemo(() => {
+  const uniqueInstructors = useMemo((): string[] => {
     const instructors = courses
       .map((course: Record<string, unknown>) => course.instructorName as string)
       .filter((name): name is string => !!name && name !== 'Not Assigned');
-    return [...new Set(instructors)].sort();
+    return Array.from(new Set<string>(instructors)).sort();
   }, [courses]);
 
-  const uniqueOrganizations = useMemo(() => {
+  const uniqueOrganizations = useMemo((): string[] => {
     const organizations = courses
       .map((course: Record<string, unknown>) => course.organizationName as string)
       .filter((name): name is string => !!name);
-    return [...new Set(organizations)].sort();
+    return Array.from(new Set<string>(organizations)).sort();
   }, [courses]);
 
   // Filter courses based on selected filters

@@ -42,10 +42,10 @@ import { useVendorInvoiceUpdates } from '../../../hooks/useVendorInvoiceUpdates'
 
 interface VendorInvoice {
   id: number;
-  invoice_number: string;
+  invoiceNumber: string;
   item?: string;
   company?: string;
-  billing_company?: string;
+  billingCompany?: string;
   quantity?: number | null;
   description: string;
   rate: number;
@@ -54,36 +54,38 @@ interface VendorInvoice {
   hst: number;
   total: number;
   status: string;
-  created_at: string;
-  due_date?: string;
-  payment_date?: string;
-  pdf_filename?: string;
-  vendor_name: string;
-  vendor_email: string;
-  admin_notes?: string;
-  approved_by?: string;
-  approved_at?: string;
-  rejected_by?: string;
-  rejected_at?: string;
-  rejection_reason?: string;
-  total_paid?: number | string;
-  balance_due?: number | string;
-  approved_by_name?: string;
-  approved_by_email?: string;
-  sent_to_accounting_at?: string;
+  createdAt: string;
+  dueDate?: string;
+  paymentDate?: string;
+  pdfFilename?: string;
+  vendorName: string;
+  vendorEmail: string;
+  adminNotes?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  totalPaid?: number | string;
+  balanceDue?: number | string;
+  approvedByName?: string;
+  approvedByEmail?: string;
+  sentToAccountingAt?: string;
 }
 
 interface PaymentHistory {
   id: number;
   amount: number;
-  payment_date: string;
-  payment_method: string;
-  reference_number: string;
+  paymentDate: string;
+  paymentMethod: string;
+  referenceNumber: string;
   notes: string;
   status: string;
-  processed_at: string;
-  processed_by_name: string;
+  processedAt: string;
+  processedByName: string;
 }
+
+type ChipColor = 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
 
 const VendorInvoiceApproval: React.FC = () => {
   const [invoices, setInvoices] = useState<VendorInvoice[]>([]);
@@ -130,7 +132,7 @@ const VendorInvoiceApproval: React.FC = () => {
 
   const handleView = async (invoice: VendorInvoice) => {
     setSelectedInvoice(invoice);
-    setModalNotes(invoice.admin_notes || '');
+    setModalNotes(invoice.adminNotes || '');
     
     // Fetch payment history for this invoice
     try {
@@ -191,7 +193,7 @@ const VendorInvoiceApproval: React.FC = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `invoice-${invoice.invoice_number}.pdf`;
+      link.download = `invoice-${invoice.invoiceNumber}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -213,7 +215,7 @@ const VendorInvoiceApproval: React.FC = () => {
       // Update the local invoice data
       setSelectedInvoice({
         ...selectedInvoice,
-        admin_notes: modalNotes
+        adminNotes: modalNotes
       });
       
       // Refresh the invoice list
@@ -228,7 +230,7 @@ const VendorInvoiceApproval: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): ChipColor => {
     switch (status) {
       case 'pending_submission':
         return 'default';
@@ -438,9 +440,9 @@ const VendorInvoiceApproval: React.FC = () => {
           <TableBody>
             {filteredInvoices.map((invoice) => (
               <TableRow key={invoice.id}>
-                <TableCell sx={{ position: 'sticky', left: 0, backgroundColor: 'background.paper', zIndex: 1 }}>{new Date(invoice.created_at).toLocaleDateString()}</TableCell>
-                <TableCell sx={{ position: 'sticky', left: 100, backgroundColor: 'background.paper', zIndex: 1 }}>{invoice.billing_company || invoice.company || invoice.vendor_name || '-'}</TableCell>
-                <TableCell sx={{ position: 'sticky', left: 250, backgroundColor: 'background.paper', zIndex: 1 }}>{invoice.invoice_number}</TableCell>
+                <TableCell sx={{ position: 'sticky', left: 0, backgroundColor: 'background.paper', zIndex: 1 }}>{new Date(invoice.createdAt).toLocaleDateString()}</TableCell>
+                <TableCell sx={{ position: 'sticky', left: 100, backgroundColor: 'background.paper', zIndex: 1 }}>{invoice.billingCompany || invoice.company || invoice.vendorName || '-'}</TableCell>
+                <TableCell sx={{ position: 'sticky', left: 250, backgroundColor: 'background.paper', zIndex: 1 }}>{invoice.invoiceNumber}</TableCell>
                 <TableCell align="right">{invoice.quantity || '-'}</TableCell>
                 <TableCell>{invoice.item || '-'}</TableCell>
                 <TableCell>
@@ -453,10 +455,10 @@ const VendorInvoiceApproval: React.FC = () => {
                     `$${Number(invoice.rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </TableCell>
                 <TableCell align="right">
-                  {invoice.amount && !isNaN(invoice.amount) ? 
-                    `$${parseFloat(invoice.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 
-                    (invoice.total && !isNaN(invoice.total) ? 
-                      `$${parseFloat(invoice.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-')}
+                  {invoice.amount && !isNaN(Number(invoice.amount)) ?
+                    `$${Number(invoice.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` :
+                    (invoice.total && !isNaN(Number(invoice.total)) ?
+                      `$${Number(invoice.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-')}
                 </TableCell>
                 <TableCell align="right">
                   {invoice.subtotal && !isNaN(invoice.subtotal) && invoice.subtotal > 0 ? 
@@ -471,9 +473,9 @@ const VendorInvoiceApproval: React.FC = () => {
                     `$${Number(invoice.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                 </TableCell>
                 <TableCell>
-                  <Chip label={getStatusLabel(invoice.status)} color={getStatusColor(invoice.status) as any} size="small" />
+                  <Chip label={getStatusLabel(invoice.status)} color={getStatusColor(invoice.status)} size="small" />
                 </TableCell>
-                <TableCell>{invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '-'}</TableCell>
+                <TableCell>{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '-'}</TableCell>
                 <TableCell align="center" sx={{ position: 'sticky', right: 0, backgroundColor: 'background.paper', zIndex: 1 }}>
                   <Tooltip title="View Invoice Details">
                     <IconButton size="small" onClick={() => handleView(invoice)} color="primary">
@@ -505,12 +507,12 @@ const VendorInvoiceApproval: React.FC = () => {
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6">
-              Invoice Details - #{selectedInvoice?.invoice_number}
+              Invoice Details - #{selectedInvoice?.invoiceNumber}
             </Typography>
             {selectedInvoice && (
               <Chip
                 label={selectedInvoice.status.replace('_', ' ').toUpperCase()}
-                color={getStatusColor(selectedInvoice.status) as any}
+                color={getStatusColor(selectedInvoice.status)}
                 size="small"
               />
             )}
@@ -528,10 +530,10 @@ const VendorInvoiceApproval: React.FC = () => {
                     </Typography>
                     <Box sx={{ pl: 2 }}>
                       <Typography variant="body1" fontWeight="bold" sx={{ mb: 1 }}>
-                        {selectedInvoice.vendor_name}
+                        {selectedInvoice.vendorName}
                       </Typography>
                       <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-                        📧 {selectedInvoice.vendor_email}
+                        📧 {selectedInvoice.vendorEmail}
                       </Typography>
                     </Box>
                   </Grid>
@@ -546,18 +548,18 @@ const VendorInvoiceApproval: React.FC = () => {
                           (selectedInvoice.amount && typeof selectedInvoice.amount === 'number' && selectedInvoice.amount > 0 ? 
                             selectedInvoice.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00')}
                       </Typography>
-                      {selectedInvoice.total_paid && (
+                      {selectedInvoice.totalPaid && (
                         <Typography variant="body2" color="success.main" sx={{ mb: 1 }}>
-                          Paid: ${typeof selectedInvoice.total_paid === 'string' ? parseFloat(selectedInvoice.total_paid).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : selectedInvoice.total_paid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          Paid: ${typeof selectedInvoice.totalPaid === 'string' ? parseFloat(selectedInvoice.totalPaid).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : selectedInvoice.totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                       )}
-                      {selectedInvoice.balance_due && (
+                      {selectedInvoice.balanceDue && (
                         <Typography variant="body2" color="warning.main" fontWeight="bold">
-                          Balance: ${typeof selectedInvoice.balance_due === 'string' ? parseFloat(selectedInvoice.balance_due).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : selectedInvoice.balance_due.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          Balance: ${typeof selectedInvoice.balanceDue === 'string' ? parseFloat(selectedInvoice.balanceDue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : selectedInvoice.balanceDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                       )}
                       <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                        Invoice #{selectedInvoice.invoice_number}
+                        Invoice #{selectedInvoice.invoiceNumber}
                       </Typography>
                     </Box>
                   </Grid>
@@ -590,17 +592,17 @@ const VendorInvoiceApproval: React.FC = () => {
                       📅 Submission Date
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
-                      {formatDate(selectedInvoice.created_at)}
+                      {formatDate(selectedInvoice.createdAt)}
                     </Typography>
                   </Grid>
                   
-                  {selectedInvoice.due_date && (
+                  {selectedInvoice.dueDate && (
                     <Grid item xs={12} md={6}>
                       <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                         ⏰ Due Date
                       </Typography>
                       <Typography variant="body1" fontWeight="medium">
-                        {formatDate(selectedInvoice.due_date)}
+                        {formatDate(selectedInvoice.dueDate)}
                       </Typography>
                     </Grid>
                   )}
@@ -627,8 +629,8 @@ const VendorInvoiceApproval: React.FC = () => {
                       Amount Paid
                     </Typography>
                     <Typography variant="h6" color="success.main" fontWeight="bold">
-                      {selectedInvoice.total_paid && parseFloat(selectedInvoice.total_paid.toString()) > 0 
-                        ? formatCurrency(parseFloat(selectedInvoice.total_paid.toString()))
+                      {selectedInvoice.totalPaid && parseFloat(selectedInvoice.totalPaid.toString()) > 0 
+                        ? formatCurrency(parseFloat(selectedInvoice.totalPaid.toString()))
                         : formatCurrency(parseFloat(selectedInvoice.total?.toString() || '0'))
                       }
                     </Typography>
@@ -638,7 +640,7 @@ const VendorInvoiceApproval: React.FC = () => {
                       Balance Due
                     </Typography>
                     <Typography variant="h6" color="warning.main" fontWeight="bold">
-                      {formatCurrency(parseFloat(selectedInvoice.balance_due?.toString() || '0'))}
+                      {formatCurrency(parseFloat(selectedInvoice.balanceDue?.toString() || '0'))}
                     </Typography>
                   </Grid>
                 </Grid>
@@ -666,7 +668,7 @@ const VendorInvoiceApproval: React.FC = () => {
                      </Typography>
                      <Chip
                        label={selectedInvoice.status.replace('_', ' ').toUpperCase()}
-                       color={getStatusColor(selectedInvoice.status) as any}
+                       color={getStatusColor(selectedInvoice.status)}
                        size="medium"
                        sx={{ fontWeight: 'bold' }}
                      />
@@ -675,24 +677,24 @@ const VendorInvoiceApproval: React.FC = () => {
                      </Typography>
                    </Grid>
                   
-                  {selectedInvoice.approved_by && (
+                  {selectedInvoice.approvedBy && (
                     <Grid item xs={12} md={6}>
                       <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                         ✅ Approved By
                       </Typography>
                       <Typography variant="body1" fontWeight="medium">
-                        {selectedInvoice.approved_by}
+                        {selectedInvoice.approvedBy}
                       </Typography>
                     </Grid>
                   )}
                   
-                  {selectedInvoice.rejected_by && (
+                  {selectedInvoice.rejectedBy && (
                     <Grid item xs={12} md={6}>
                       <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                         ❌ Rejected By
                       </Typography>
                       <Typography variant="body1" fontWeight="medium">
-                        {selectedInvoice.rejected_by}
+                        {selectedInvoice.rejectedBy}
                       </Typography>
                     </Grid>
                   )}
@@ -763,18 +765,18 @@ const VendorInvoiceApproval: React.FC = () => {
                          <TableBody>
                            {paymentHistory.map((payment) => (
                              <TableRow key={payment.id}>
-                               <TableCell>{new Date(payment.payment_date).toLocaleDateString()}</TableCell>
+                               <TableCell>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>
                                <TableCell>${payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                                <TableCell>
                                  <Chip 
-                                   label={payment.payment_method.replace('_', ' ').toUpperCase()} 
+                                   label={payment.paymentMethod.replace('_', ' ').toUpperCase()} 
                                    size="small" 
                                    color="primary" 
                                    variant="outlined"
                                  />
                                </TableCell>
-                               <TableCell>{payment.reference_number || '-'}</TableCell>
-                               <TableCell>{payment.processed_by_name || 'Unknown'}</TableCell>
+                               <TableCell>{payment.referenceNumber || '-'}</TableCell>
+                               <TableCell>{payment.processedByName || 'Unknown'}</TableCell>
                                <TableCell>
                                  <Chip 
                                    label={payment.status.toUpperCase()} 
@@ -797,7 +799,7 @@ const VendorInvoiceApproval: React.FC = () => {
                    🎯 Available Actions
                  </Typography>
                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', minHeight: 60 }}>
-                   {selectedInvoice.pdf_filename && (
+                   {selectedInvoice.pdfFilename && (
                      <Button
                        variant="outlined"
                        startIcon={<DownloadIcon />}
@@ -857,7 +859,7 @@ const VendorInvoiceApproval: React.FC = () => {
           {selectedInvoice && (
             <Box sx={{ mb: 2 }}>
               <Typography variant="body2" color="textSecondary">
-                Invoice #{selectedInvoice.invoice_number} from {selectedInvoice.vendor_name}
+                Invoice #{selectedInvoice.invoiceNumber} from {selectedInvoice.vendorName}
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Amount: {formatCurrency(selectedInvoice.amount)}

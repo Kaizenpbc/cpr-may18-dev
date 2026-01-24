@@ -21,7 +21,7 @@ import {
   TableRow,
   Paper,
 } from '@mui/material';
-import api, { getInvoiceDetails, postInvoiceToOrganization } from '../../services/api';
+import api, { getInvoiceDetails, postInvoiceToOrganization, emailInvoice, updateInvoice } from '../../services/api';
 import { tokenService } from '../../services/tokenService';
 import EmailIcon from '@mui/icons-material/Email';
 import PostAddIcon from '@mui/icons-material/PostAdd';
@@ -34,10 +34,70 @@ import ServiceDetailsTable from '../common/ServiceDetailsTable';
 import PaymentHistoryTable from '../common/PaymentHistoryTable';
 
 // Helper function to format currency
-const formatCurrency = amount => {
+const formatCurrency = (amount: number | string | null | undefined): string => {
   if (amount == null) return 'N/A';
-  return `$${parseFloat(amount).toFixed(2)}`;
+  return `$${parseFloat(String(amount)).toFixed(2)}`;
 };
+
+interface InvoiceData {
+  id?: number;
+  amount?: number;
+  duedate?: string;
+  paymentstatus?: string;
+  notes?: string;
+  coursenumber?: string;
+  invoicenumber?: string;
+  organizationname?: string;
+  organizationid?: number;
+  invoicedate?: string;
+  coursetype?: string;
+  courseid?: number;
+  location?: string;
+  studentsattended?: number;
+  registeredstudents?: number;
+  paidtodate?: number;
+  // Additional fields for display
+  name?: string;
+  datecompleted?: string;
+  studentsattendance?: number;
+  ratePerStudent?: number;
+  addressstreet?: string;
+  addresscity?: string;
+  addressprovince?: string;
+  addresspostalcode?: string;
+  contactname?: string;
+  contactemail?: string;
+  approval_status?: string;
+  approved_by_username?: string;
+  approved_at?: string;
+  posted_to_org?: boolean;
+  emailsentat?: string;
+  approvalStatus?: string;
+  [key: string]: unknown;
+}
+
+interface StudentRecord {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  attended: boolean;
+}
+
+interface Payment {
+  id: number;
+  invoiceId: number;
+  amount?: number;
+  amountPaid?: number;
+  paymentDate: string;
+  paymentMethod: string;
+  referenceNumber?: string;
+  notes?: string;
+  status: string;
+  createdAt: string;
+  submittedByOrgAt?: string;
+  verifiedByAccountingAt?: string;
+}
 
 const InvoiceDetailDialog = ({
   open,
@@ -46,8 +106,15 @@ const InvoiceDetailDialog = ({
   onActionSuccess,
   onActionError,
   showPostToOrgButton = true, // New prop to control Post to Org button visibility
+}: {
+  open: boolean;
+  onClose: () => void;
+  invoiceId: number | null;
+  onActionSuccess?: (message: string) => void;
+  onActionError?: (message: string) => void;
+  showPostToOrgButton?: boolean;
 }) => {
-  const [invoice, setInvoice] = useState(null);
+  const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -67,40 +134,40 @@ const InvoiceDetailDialog = ({
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
   
   // Student list state
-  const [students, setStudents] = useState([]);
+  const [students, setStudents] = useState<StudentRecord[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
-  
+
   // Payment history state
-  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [paymentHistory, setPaymentHistory] = useState<Payment[]>([]);
   const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
   
   // Ref to prevent multiple clicks
   const isPostingRef = useRef(false);
 
   // Transform invoice data into service details format
-  const getServiceDetails = (invoice) => {
-    if (!invoice) return [];
-    
+  const getServiceDetails = (invoiceData: InvoiceData | null) => {
+    if (!invoiceData) return [];
+
     return [{
-      date: invoice.datecompleted,
-      location: invoice.location,
-      course: `${invoice.name} (${invoice.coursenumber})`,
-      students: invoice.studentsattendance || 0,
-      ratePerStudent: invoice.rate_per_student || 0,
-      baseCost: invoice.rate_per_student ? (invoice.rate_per_student * invoice.studentsattendance) : 0,
-      tax: invoice.rate_per_student ? (invoice.rate_per_student * invoice.studentsattendance * 0.13) : 0,
-      total: invoice.rate_per_student ? (invoice.rate_per_student * invoice.studentsattendance * 1.13) : 0,
+      date: invoiceData.datecompleted,
+      location: invoiceData.location,
+      course: `${invoiceData.name} (${invoiceData.coursenumber})`,
+      students: invoiceData.studentsattendance || 0,
+      ratePerStudent: invoiceData.ratePerStudent || 0,
+      baseCost: invoiceData.ratePerStudent ? (invoiceData.ratePerStudent * (invoiceData.studentsattendance || 0)) : 0,
+      tax: invoiceData.ratePerStudent ? (invoiceData.ratePerStudent * (invoiceData.studentsattendance || 0) * 0.13) : 0,
+      total: invoiceData.ratePerStudent ? (invoiceData.ratePerStudent * (invoiceData.studentsattendance || 0) * 1.13) : 0,
     }];
   };
 
   // Fetch student attendance data for a specific course
-  const fetchStudents = async (courseId) => {
+  const fetchStudents = async (courseId: string | number) => {
     if (!courseId) {
       console.error('No course ID provided for fetching students');
       setStudents([]);
       return;
     }
-    
+
     setLoadingStudents(true);
     try {
       const response = await api.get(`/accounting/courses/${courseId}/students`);
@@ -115,17 +182,17 @@ const InvoiceDetailDialog = ({
   };
 
   // Fetch payment history for an invoice
-  const fetchPaymentHistory = async (invoiceId) => {
-    if (!invoiceId) {
+  const fetchPaymentHistory = async (invId: number) => {
+    if (!invId) {
       console.error('No invoice ID provided for fetching payment history');
       setPaymentHistory([]);
       return;
     }
-    
+
     setLoadingPaymentHistory(true);
     try {
-      const response = await api.get(`/accounting/invoices/${invoiceId}/payments`);
-      
+      const response = await api.get(`/accounting/invoices/${invId}/payments`);
+
       if (response.data && response.data.success && Array.isArray(response.data.data)) {
         setPaymentHistory(response.data.data);
       } else if (response.data && Array.isArray(response.data)) {
@@ -162,35 +229,36 @@ const InvoiceDetailDialog = ({
         setInvoice(null);
         logger.info(`Fetching invoice details for ID: ${invoiceId}`);
         try {
-          const data = await getInvoiceDetails(invoiceId);
+          const data = await getInvoiceDetails(invoiceId) as InvoiceData;
           logger.info(`Invoice details fetched successfully: ${invoiceId}`);
           setInvoice(data);
           setFormData({
-            amount: data.amount || '',
+            amount: data.amount != null ? String(data.amount) : '',
             dueDate: data.duedate || '',
             status: data.paymentstatus || '',
             notes: data.notes || '',
           });
-          
+
           // Fetch students for this course
-                  if (data.coursenumber) {
-          fetchStudents(data.coursenumber);
-        }
+          if (data.coursenumber) {
+            fetchStudents(data.coursenumber);
+          }
         
         // Fetch payment history
         fetchPaymentHistory(invoiceId);
-        } catch (err) {
+        } catch (err: unknown) {
           logger.error('Failed to fetch invoice details:', err);
-          
+
           // Handle authentication errors specifically
-          if (err.message?.includes('No token provided') || err.message?.includes('Unauthorized')) {
+          const errObj = err as { message?: string };
+          if (errObj.message?.includes('No token provided') || errObj.message?.includes('Unauthorized')) {
             setError('Please log in to view invoice details. Redirecting to login...');
             // Redirect to login after a short delay
             setTimeout(() => {
               window.location.href = '/login';
             }, 2000);
           } else {
-            setError(err.message || 'Failed to load invoice details');
+            setError(errObj.message || 'Failed to load invoice details');
           }
         } finally {
           setIsLoading(false);
@@ -216,15 +284,16 @@ const InvoiceDetailDialog = ({
         let message = response.message || 'Invoice posted to organization and complete invoice PDF with attendance sent via email.';
         if (onActionSuccess) onActionSuccess(message);
         // Refresh invoice data to show updated status
-        const updatedInvoice = await getInvoiceDetails(invoiceId);
+        const updatedInvoice = await getInvoiceDetails(invoiceId) as InvoiceData;
         setInvoice(updatedInvoice);
       } else {
         const errorMsg = response?.message || 'Failed to post invoice to organization.';
         throw new Error(errorMsg);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error(`Error posting invoice to organization ${invoiceId}:`, err);
-      if (onActionError) onActionError(err?.message || 'Failed to post invoice to organization.');
+      const errObj = err as { message?: string };
+      if (onActionError) onActionError(errObj?.message || 'Failed to post invoice to organization.');
     } finally {
       isPostingRef.current = false;
     }
@@ -237,7 +306,7 @@ const InvoiceDetailDialog = ({
       `[InvoiceDetailDialog] Attempting to send email for Invoice ID: ${invoiceId}`
     );
     try {
-      const response = await api.emailInvoice(invoiceId);
+      const response = await emailInvoice(invoiceId);
       if (response && response.success) {
         let message = response.message || 'Email queued successfully.';
         setPreviewUrl(response.previewUrl || null);
@@ -246,33 +315,35 @@ const InvoiceDetailDialog = ({
         const errorMsg = response?.message || 'Failed to send email via API.';
         throw new Error(errorMsg);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error(`Error sending email for invoice ${invoiceId}:`, err);
-      if (onActionError) onActionError(err?.message || 'Failed to send email.');
+      const errObj = err as { message?: string };
+      if (onActionError) onActionError(errObj?.message || 'Failed to send email.');
     } finally {
       setIsSendingEmail(false);
     }
   };
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
     try {
       logger.info('Saving invoice details:', formData);
-      const savedInvoice = await api.saveInvoice(invoiceId, formData);
+      const savedInvoice = await updateInvoice(invoiceId, formData);
       logger.info('Invoice saved successfully:', savedInvoice);
       onClose();
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error('Failed to save invoice:', err);
-      setError(err.message || 'Failed to save invoice');
+      const errObj = err as { message?: string };
+      setError(errObj.message || 'Failed to save invoice');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleChange = e => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -362,9 +433,10 @@ const InvoiceDetailDialog = ({
       }, 1000);
 
       logger.info('[PDF Download] Download initiated successfully');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('[PDF Download] Error:', error);
-      if (onActionError) onActionError(`Failed to download PDF: ${error.message}`);
+      const errObj = error as { message?: string };
+      if (onActionError) onActionError(`Failed to download PDF: ${errObj.message || 'Unknown error'}`);
     }
   };
 
@@ -376,7 +448,8 @@ const InvoiceDetailDialog = ({
       // Ctrl+Enter = Approve invoice
       if (event.ctrlKey && event.key === 'Enter') {
         event.preventDefault();
-        if (['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes((invoice?.approval_status || '').toLowerCase())) {
+        const status = String(invoice?.approvalStatus || invoice?.approval_status || '').toLowerCase();
+        if (['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes(status)) {
           handleProcessPayment();
         }
       }
@@ -396,7 +469,7 @@ const InvoiceDetailDialog = ({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, invoice?.approval_status]);
+  }, [open, invoice?.approvalStatus]);
 
   const handleProcessPayment = async () => {
     if (!invoice?.id) return;
@@ -426,14 +499,15 @@ const InvoiceDetailDialog = ({
       const message = `Invoice approved, posted to organization, and email sent successfully`;
       
       // Refresh the invoice data to show updated status
-      const updatedInvoice = await getInvoiceDetails(invoice.id);
+      const updatedInvoice = await getInvoiceDetails(invoice.id) as InvoiceData;
       setInvoice(updatedInvoice);
-      
+
       if (onActionSuccess) onActionSuccess(message);
       onClose();
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error(`Error processing invoice approval, posting, and email:`, err);
-      if (onActionError) onActionError(err?.message || `Failed to approve, post, and email invoice`);
+      const errObj = err as { message?: string };
+      if (onActionError) onActionError(errObj?.message || `Failed to approve, post, and email invoice`);
     } finally {
       setProcessingPayment(false);
     }
@@ -552,7 +626,7 @@ const InvoiceDetailDialog = ({
                         <TableRow key={student.id}>
                           <TableCell>
                             <Typography variant="body2" fontWeight="medium">
-                              {student.first_name} {student.last_name}
+                              {student.firstName} {student.lastName}
                             </Typography>
                           </TableCell>
                           <TableCell>

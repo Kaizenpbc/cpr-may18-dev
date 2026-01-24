@@ -1,45 +1,51 @@
 export interface User {
   id: number;
   username: string;
-  email: string;
+  email?: string;
   role: string;
-  full_name?: string;
-  first_name?: string;
-  last_name?: string;
-  organization_id?: number;
-  created_at?: string;
-  updated_at?: string;
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
+  organizationId?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  // Allow additional properties
+  [key: string]: unknown;
 }
 
 export interface Class {
   id: number;
-  course_id: number;
-  instructor_id: number;
-  start_time: string;
-  end_time: string;
-  startTime?: string;
-  endTime?: string;
+  courseId: number;
+  instructorId: number;
+  startTime: string;
+  endTime: string;
   status: string;
   location: string;
-  max_students: number;
+  maxStudents: number;
   completed: boolean;
-  created_at: string;
-  updated_at: string;
-  course_name: string;
-  coursetypename: string;
-  organizationname: string;
+  createdAt: string;
+  updatedAt: string;
+  courseName: string;
+  courseTypeName?: string;
+  organizationName?: string;
   notes: string;
-  studentcount: number;
-  studentsattendance: number;
+  studentCount?: number;
+  studentsAttendance?: number;
   date?: string;
+  type?: string;
+  // Legacy snake_case aliases for backward compatibility
+  coursetypename?: string;
+  organizationname?: string;
+  studentcount?: number;
+  studentsattendance?: number;
 }
 
 export interface Availability {
   id: string;
-  instructor_id: string;
+  instructorId: string;
   date: string;
-  start_time: string;
-  end_time: string;
+  startTime: string;
+  endTime: string;
   status: 'available' | 'booked' | 'unavailable';
 }
 
@@ -75,50 +81,50 @@ export interface CourseData {
   id?: number;
   name?: string;
   description?: string;
-  course_type_id?: number;
-  duration_hours?: number;
-  max_students?: number;
-  is_active?: boolean;
+  courseTypeId?: number;
+  durationHours?: number;
+  maxStudents?: number;
+  isActive?: boolean;
   [key: string]: unknown;
 }
 
 export interface InstructorData {
   id?: number;
-  user_id?: number;
-  first_name?: string;
-  last_name?: string;
+  userId?: number;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   phone?: string;
-  is_active?: boolean;
+  isActive?: boolean;
   [key: string]: unknown;
 }
 
 export interface OrganizationData {
   id?: number;
   name?: string;
-  contact_name?: string;
-  contact_email?: string;
-  contact_phone?: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
   address?: string;
-  is_active?: boolean;
+  isActive?: boolean;
   [key: string]: unknown;
 }
 
 export interface VendorData {
   id?: number;
   name?: string;
-  contact_name?: string;
-  contact_email?: string;
-  contact_phone?: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
   address?: string;
-  is_active?: boolean;
+  isActive?: boolean;
   [key: string]: unknown;
 }
 
 export interface StudentData {
   id?: number;
-  first_name?: string;
-  last_name?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   attended?: boolean;
   [key: string]: unknown;
@@ -126,19 +132,19 @@ export interface StudentData {
 
 export interface PricingData {
   id?: number;
-  organization_id?: number | string;
-  course_type_id?: number | string;
+  organizationId?: number | string;
+  courseTypeId?: number | string;
   price?: number;
-  price_per_student?: number;
-  effective_date?: string;
+  pricePerStudent?: number;
+  effectiveDate?: string;
   [key: string]: unknown;
 }
 
 export interface PaymentData {
-  amount: number;
-  payment_date?: string;
-  payment_method?: string;
-  reference_number?: string;
+  amount: number | string;
+  paymentDate?: string;
+  paymentMethod?: string;
+  referenceNumber?: string;
   notes?: string;
   [key: string]: unknown;
 }
@@ -150,12 +156,12 @@ export interface EmailTemplateData {
   subject?: string;
   body?: string;
   category?: string;
-  is_active?: boolean;
+  isActive?: boolean;
   [key: string]: unknown;
 }
 
 export interface NotificationPreferences {
-  email_enabled?: boolean;
-  in_app_enabled?: boolean;
+  emailEnabled?: boolean;
+  inAppEnabled?: boolean;
   [key: string]: unknown;
 }

@@ -297,7 +297,7 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
                         {request.retryCount > 0 ? (
                           <RefreshIcon />
                         ) : (
-                          <CloudQueue />
+                          <QueueIcon />
                         )}
                       </ListItemIcon>
                       <ListItemText

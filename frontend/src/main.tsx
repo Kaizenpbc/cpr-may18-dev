@@ -43,7 +43,7 @@ const queryClient = new QueryClient({
   },
 });
 
-const handleRootError = (error: Error, errorInfo: any) => {
+const handleRootError = (error: Error, errorInfo: React.ErrorInfo) => {
   console.error('[Root Error Boundary] Critical application error:', error, errorInfo);
 };
 

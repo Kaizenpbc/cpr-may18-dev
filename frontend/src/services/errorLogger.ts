@@ -8,7 +8,7 @@ interface LogEntry {
   message: string;
   statusCode: number;
   context?: ErrorContext;
-  details?: any;
+  details?: Record<string, unknown>;
   traceId?: string;
   stack?: string;
   environment: string;
@@ -56,7 +56,7 @@ export class ErrorLogger {
    */
   static async logRouteError(
     error: StandardError, 
-    routeContext: { route: string; params?: any }
+    routeContext: { route: string; params?: Record<string, unknown> }
   ): Promise<void> {
     const enhancedError: StandardError = {
       ...error,
@@ -76,11 +76,11 @@ export class ErrorLogger {
    */
   static async logApiError(
     error: StandardError,
-    apiContext: { 
-      endpoint: string; 
-      method: string; 
-      requestData?: any;
-      responseData?: any;
+    apiContext: {
+      endpoint: string;
+      method: string;
+      requestData?: unknown;
+      responseData?: unknown;
     }
   ): Promise<void> {
     const enhancedError: StandardError = {
@@ -134,7 +134,7 @@ export class ErrorLogger {
       message: error.message,
       statusCode: error.statusCode,
       context: error.context,
-      details: error.details,
+      details: error.details as Record<string, unknown> | undefined,
       traceId: error.traceId,
       stack: error instanceof Error ? error.stack : undefined,
       environment: import.meta.env.MODE || 'unknown',
@@ -184,7 +184,7 @@ export class ErrorLogger {
   /**
    * Get appropriate console method
    */
-  private static getConsoleMethod(level: string): (...args: any[]) => void {
+  private static getConsoleMethod(level: string): (...args: unknown[]) => void {
     switch (level) {
       case 'ERROR':
         return console.error;
@@ -259,8 +259,9 @@ export class ErrorLogger {
   private static async sendToAnalytics(logEntry: LogEntry): Promise<void> {
     try {
       // Example: Send to analytics service
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'exception', {
+      const win = window as Window & { gtag?: (cmd: string, action: string, params: Record<string, unknown>) => void };
+      if (typeof window !== 'undefined' && win.gtag) {
+        win.gtag('event', 'exception', {
           description: `${logEntry.code}: ${logEntry.message}`,
           fatal: logEntry.level === 'ERROR',
           custom_map: {

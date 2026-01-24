@@ -105,8 +105,8 @@ const PaymentRequestDetailDialog: React.FC<PaymentRequestDetailDialogProps> = ({
   if (!request) return null;
 
   // Calculate payment breakdown if available
-  const baseAmount = request.base_amount || (request.total_hours * (request.hourly_rate || 25));
-  const bonusAmount = request.bonus_amount || (request.courses_taught * (request.course_bonus || 50));
+  const baseAmount = request.baseAmount || (request.totalHours * (request.hourlyRate || 25));
+  const bonusAmount = request.bonusAmount || (request.coursesTaught * (request.courseBonus || 50));
   const totalAmount = request.amount || (baseAmount + bonusAmount);
 
   return (
@@ -132,9 +132,9 @@ const PaymentRequestDetailDialog: React.FC<PaymentRequestDetailDialogProps> = ({
                 <Typography variant="h6" gutterBottom color="primary">
                   👤 Instructor Information
                 </Typography>
-                <Typography><strong>Name:</strong> {request.instructor_name}</Typography>
-                <Typography><strong>Email:</strong> {request.instructor_email}</Typography>
-                <Typography><strong>ID:</strong> {request.instructor_id}</Typography>
+                <Typography><strong>Name:</strong> {request.instructorName}</Typography>
+                <Typography><strong>Email:</strong> {request.instructorEmail}</Typography>
+                <Typography><strong>ID:</strong> {request.instructorId}</Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -149,8 +149,8 @@ const PaymentRequestDetailDialog: React.FC<PaymentRequestDetailDialogProps> = ({
                 <Typography variant="h5" color="success.main" fontWeight="bold">
                   ${Number(totalAmount).toFixed(2)}
                 </Typography>
-                <Typography><strong>Payment Date:</strong> {new Date(request.payment_date).toLocaleDateString()}</Typography>
-                <Typography><strong>Payment Method:</strong> {request.payment_method?.replace('_', ' ').toUpperCase()}</Typography>
+                <Typography><strong>Payment Date:</strong> {new Date(request.paymentDate).toLocaleDateString()}</Typography>
+                <Typography><strong>Payment Method:</strong> {request.paymentMethod?.replace('_', ' ').toUpperCase()}</Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -162,11 +162,11 @@ const PaymentRequestDetailDialog: React.FC<PaymentRequestDetailDialogProps> = ({
                 <Typography variant="h6" gutterBottom color="primary">
                   📅 Timesheet Information
                 </Typography>
-                <Typography><strong>Week Starting:</strong> {new Date(request.week_start_date).toLocaleDateString()}</Typography>
-                <Typography><strong>Total Hours:</strong> {request.total_hours} hours</Typography>
-                <Typography><strong>Courses Taught:</strong> {request.courses_taught} courses</Typography>
-                {request.timesheet_comment && (
-                  <Typography><strong>HR Comment:</strong> {request.timesheet_comment}</Typography>
+                <Typography><strong>Week Starting:</strong> {new Date(request.weekStartDate).toLocaleDateString()}</Typography>
+                <Typography><strong>Total Hours:</strong> {request.totalHours} hours</Typography>
+                <Typography><strong>Courses Taught:</strong> {request.coursesTaught} courses</Typography>
+                {request.timesheetComment && (
+                  <Typography><strong>HR Comment:</strong> {request.timesheetComment}</Typography>
                 )}
               </CardContent>
             </Card>
@@ -179,22 +179,22 @@ const PaymentRequestDetailDialog: React.FC<PaymentRequestDetailDialogProps> = ({
                 <Typography variant="h6" gutterBottom color="primary">
                   🧮 Payment Breakdown
                 </Typography>
-                <Typography><strong>Hourly Rate:</strong> ${request.hourly_rate || 25}/hr</Typography>
-                <Typography><strong>Course Bonus:</strong> ${request.course_bonus || 50}/course</Typography>
-                <Typography><strong>Base Amount:</strong> ${Number(baseAmount).toFixed(2)} ({request.total_hours}h × ${request.hourly_rate || 25})</Typography>
-                <Typography><strong>Bonus Amount:</strong> ${Number(bonusAmount).toFixed(2)} ({request.courses_taught} courses × ${request.course_bonus || 50})</Typography>
+                <Typography><strong>Hourly Rate:</strong> ${request.hourlyRate || 25}/hr</Typography>
+                <Typography><strong>Course Bonus:</strong> ${request.courseBonus || 50}/course</Typography>
+                <Typography><strong>Base Amount:</strong> ${Number(baseAmount).toFixed(2)} ({request.totalHours}h × ${request.hourlyRate || 25})</Typography>
+                <Typography><strong>Bonus Amount:</strong> ${Number(bonusAmount).toFixed(2)} ({request.coursesTaught} courses × ${request.courseBonus || 50})</Typography>
                 <Typography variant="h6" color="success.main" fontWeight="bold">
                   Total: ${Number(totalAmount).toFixed(2)}
                 </Typography>
-                {request.tier_name && (
-                  <Typography><strong>Pay Tier:</strong> {request.tier_name}</Typography>
+                {request.tierName && (
+                  <Typography><strong>Pay Tier:</strong> {request.tierName}</Typography>
                 )}
               </CardContent>
             </Card>
           </Grid>
 
           {/* Class Details */}
-          {request.class_details && request.class_details.length > 0 && (
+          {request.classDetails && request.classDetails.length > 0 && (
             <Grid item xs={12}>
               <Card variant="outlined">
                 <CardContent>
@@ -202,7 +202,7 @@ const PaymentRequestDetailDialog: React.FC<PaymentRequestDetailDialogProps> = ({
                     📚 Classes Covered
                   </Typography>
                   <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
-                    {request.class_details.map((classDetail, index) => (
+                    {request.classDetails.map((classDetail, index) => (
                       <Box key={index} sx={{ mb: 1, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
                         <Typography variant="subtitle2" fontWeight="bold">
                           {classDetail.course_name}
@@ -228,11 +228,11 @@ const PaymentRequestDetailDialog: React.FC<PaymentRequestDetailDialogProps> = ({
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={6}>
-                    <Typography><strong>Created:</strong> {new Date(request.created_at).toLocaleString()}</Typography>
-                    <Typography><strong>Updated:</strong> {new Date(request.updated_at).toLocaleString()}</Typography>
+                    <Typography><strong>Created:</strong> {new Date(request.createdAt).toLocaleString()}</Typography>
+                    <Typography><strong>Updated:</strong> {new Date(request.updatedAt).toLocaleString()}</Typography>
                   </Grid>
                   <Grid item xs={12} md={6}>
-                    <Typography><strong>Timesheet ID:</strong> {request.timesheet_id}</Typography>
+                    <Typography><strong>Timesheet ID:</strong> {request.timesheetId}</Typography>
                     <Typography><strong>Request ID:</strong> {request.id}</Typography>
                   </Grid>
                   {request.notes && (
@@ -585,9 +585,9 @@ const PaymentRequestsDashboard: React.FC = () => {
                     </TableCell>
                     <TableCell>{request.id}</TableCell>
                     <TableCell>
-                      <Typography variant="body2">{request.instructor_name}</Typography>
+                      <Typography variant="body2">{request.instructorName}</Typography>
                       <Typography variant="caption" color="textSecondary">
-                        ID: {request.instructor_id}
+                        ID: {request.instructorId}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -595,10 +595,10 @@ const PaymentRequestsDashboard: React.FC = () => {
                         ${Number(request.amount).toFixed(2)}
                       </Typography>
                     </TableCell>
-                    <TableCell>{request.week_start_date}</TableCell>
+                    <TableCell>{request.weekStartDate}</TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {request.total_hours}h / {request.courses_taught} courses
+                        {request.totalHours}h / {request.coursesTaught} courses
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -609,7 +609,7 @@ const PaymentRequestsDashboard: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell>
-                      {new Date(request.created_at).toLocaleDateString()}
+                      {new Date(request.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
                       <Tooltip title="View Details">

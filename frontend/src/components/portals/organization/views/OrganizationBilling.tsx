@@ -75,14 +75,24 @@ interface Invoice {
 
 interface Payment {
   id: number;
-  invoice_id: number;
-  amount_paid: number;
-  payment_date: string;
-  payment_method: string;
-  reference_number?: string;
+  invoiceId: number;
+  amount?: number;
+  amountPaid?: number;
+  paymentDate: string;
+  paymentMethod: string;
+  referenceNumber?: string;
   notes?: string;
   status: string;
-  created_at: string;
+  createdAt: string;
+  submittedByOrgAt?: string;
+  verifiedByAccountingAt?: string;
+  // Legacy snake_case aliases for backward compatibility
+  invoice_id?: number;
+  amount_paid?: number;
+  payment_date?: string;
+  payment_method?: string;
+  reference_number?: string;
+  created_at?: string;
   submitted_by_org_at?: string;
   verified_by_accounting_at?: string;
 }
@@ -311,9 +321,10 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         // Refresh the page or update the invoice list
         window.location.reload();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error marking invoice as paid:', error);
-      setMarkAsPaidError(error.response?.data?.message || 'Failed to mark invoice as paid');
+      const errObj = error as { response?: { data?: { message?: string } } };
+      setMarkAsPaidError(errObj.response?.data?.message || 'Failed to mark invoice as paid');
     } finally {
       setMarkingAsPaid(null);
     }
@@ -382,12 +393,12 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
           handleDialogClose();
         }, 3000); // Increased delay to allow user to read the message
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Payment submission error:', error);
-      
+
       // Simple error message
-      let errorMessage = 'Payment Failed';
-      
+      const errorMessage = 'Payment Failed';
+
       setPaymentError(errorMessage);
     } finally {
       console.log('Payment submission completed, resetting states');
@@ -525,7 +536,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
     balanceCalculationTimer.current = setTimeout(async () => {
       try {
         setCalculatingBalance(true);
-        const response = await api.getBalanceCalculation(invoiceId.toString(), parseFloat(paymentAmount));
+        const response = await api.get(`/invoices/${invoiceId}/calculate-balance`, { params: { amount: parseFloat(paymentAmount) } });
         
         if (response.data.success) {
           setBalanceCalculation(response.data.data);

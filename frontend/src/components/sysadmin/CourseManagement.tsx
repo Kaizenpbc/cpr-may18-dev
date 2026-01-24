@@ -51,14 +51,14 @@ const CourseManagement = ({ onShowSnackbar }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    duration_hours: '',
-    duration_minutes: '',
+    durationHours: '',
+    durationMinutes: '',
     prerequisites: [],
-    certification_type: '',
-    validity_period_months: '',
-    course_category: '',
-    regulatory_compliance: [],
-    is_active: true,
+    certificationType: '',
+    validityPeriodMonths: '',
+    courseCategory: '',
+    regulatoryCompliance: [],
+    isActive: true,
   });
 
   const courseCategories = [
@@ -103,14 +103,14 @@ const CourseManagement = ({ onShowSnackbar }) => {
     setFormData({
       name: '',
       description: '',
-      duration_hours: '',
-      duration_minutes: '',
+      durationHours: '',
+      durationMinutes: '',
       prerequisites: [],
-      certification_type: '',
-      validity_period_months: '',
-      course_category: '',
-      regulatory_compliance: [],
-      is_active: true,
+      certificationType: '',
+      validityPeriodMonths: '',
+      courseCategory: '',
+      regulatoryCompliance: [],
+      isActive: true,
     });
     setShowDialog(true);
   };
@@ -120,14 +120,14 @@ const CourseManagement = ({ onShowSnackbar }) => {
     setFormData({
       name: course.name || '',
       description: course.description || '',
-      duration_hours: course.duration_hours || '',
-      duration_minutes: course.duration_minutes || '',
+      durationHours: course.durationHours || '',
+      durationMinutes: course.durationMinutes || '',
       prerequisites: course.prerequisites || [],
-      certification_type: course.certification_type || '',
-      validity_period_months: course.validity_period_months || '',
-      course_category: course.course_category || '',
-      regulatory_compliance: course.regulatory_compliance || [],
-      is_active: course.is_active !== false,
+      certificationType: course.certificationType || '',
+      validityPeriodMonths: course.validityPeriodMonths || '',
+      courseCategory: course.courseCategory || '',
+      regulatoryCompliance: course.regulatoryCompliance || [],
+      isActive: course.isActive !== false,
     });
     setShowDialog(true);
   };
@@ -150,7 +150,7 @@ const CourseManagement = ({ onShowSnackbar }) => {
   };
 
   const handleToggleActive = async course => {
-    const action = course.is_active ? 'deactivate' : 'reactivate';
+    const action = course.isActive ? 'deactivate' : 'reactivate';
     if (
       window.confirm(
         `Are you sure you want to ${action} the course "${course.name}"?`
@@ -178,14 +178,14 @@ const CourseManagement = ({ onShowSnackbar }) => {
     try {
       const submitData = {
         ...formData,
-        duration_hours: formData.duration_hours
-          ? parseInt(formData.duration_hours)
+        durationHours: formData.durationHours
+          ? parseInt(formData.durationHours)
           : null,
-        duration_minutes: formData.duration_minutes
-          ? parseInt(formData.duration_minutes)
+        durationMinutes: formData.durationMinutes
+          ? parseInt(formData.durationMinutes)
           : null,
-        validity_period_months: formData.validity_period_months
-          ? parseInt(formData.validity_period_months)
+        validityPeriodMonths: formData.validityPeriodMonths
+          ? parseInt(formData.validityPeriodMonths)
           : null,
       };
 
@@ -339,7 +339,7 @@ const CourseManagement = ({ onShowSnackbar }) => {
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={course.course_code || 'N/A'}
+                      label={course.courseCode || 'N/A'}
                       size='small'
                       color='primary'
                       variant='outlined'
@@ -347,39 +347,39 @@ const CourseManagement = ({ onShowSnackbar }) => {
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2'>
-                      {course.course_category || '-'}
+                      {course.courseCategory || '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2'>
                       {formatDuration(
-                        course.duration_hours,
-                        course.duration_minutes
+                        course.durationHours,
+                        course.durationMinutes
                       )}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2'>
-                      {course.certification_type || '-'}
+                      {course.certificationType || '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2'>
-                      {course.validity_period_months
-                        ? `${course.validity_period_months} months`
+                      {course.validityPeriodMonths
+                        ? `${course.validityPeriodMonths} months`
                         : '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={course.is_active ? 'Active' : 'Inactive'}
-                      color={course.is_active ? 'success' : 'default'}
+                      label={course.isActive ? 'Active' : 'Inactive'}
+                      color={course.isActive ? 'success' : 'default'}
                       size='small'
                     />
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2'>
-                      {formatDate(course.created_at)}
+                      {formatDate(course.createdAt)}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -393,7 +393,7 @@ const CourseManagement = ({ onShowSnackbar }) => {
                           <EditIcon />
                         </IconButton>
                       </Tooltip>
-                      {course.is_active ? (
+                      {course.isActive ? (
                         <Tooltip title='Deactivate Course'>
                           <IconButton
                             onClick={() => handleToggleActive(course)}
@@ -450,8 +450,8 @@ const CourseManagement = ({ onShowSnackbar }) => {
                 <FormControl fullWidth>
                   <InputLabel>Course Category</InputLabel>
                   <Select
-                    name='course_category'
-                    value={formData.course_category}
+                    name='courseCategory'
+                    value={formData.courseCategory}
                     label='Course Category'
                     onChange={handleChange}
                   >
@@ -479,8 +479,8 @@ const CourseManagement = ({ onShowSnackbar }) => {
                   fullWidth
                   type='number'
                   label='Duration (Hours)'
-                  name='duration_hours'
-                  value={formData.duration_hours}
+                  name='durationHours'
+                  value={formData.durationHours}
                   onChange={handleChange}
                   inputProps={{ min: 0 }}
                 />
@@ -490,8 +490,8 @@ const CourseManagement = ({ onShowSnackbar }) => {
                   fullWidth
                   type='number'
                   label='Duration (Minutes)'
-                  name='duration_minutes'
-                  value={formData.duration_minutes}
+                  name='durationMinutes'
+                  value={formData.durationMinutes}
                   onChange={handleChange}
                   inputProps={{ min: 0, max: 59 }}
                 />
@@ -500,8 +500,8 @@ const CourseManagement = ({ onShowSnackbar }) => {
                 <FormControl fullWidth>
                   <InputLabel>Certification Type</InputLabel>
                   <Select
-                    name='certification_type'
-                    value={formData.certification_type}
+                    name='certificationType'
+                    value={formData.certificationType}
                     label='Certification Type'
                     onChange={handleChange}
                   >
@@ -518,8 +518,8 @@ const CourseManagement = ({ onShowSnackbar }) => {
                   fullWidth
                   type='number'
                   label='Validity Period (Months)'
-                  name='validity_period_months'
-                  value={formData.validity_period_months}
+                  name='validityPeriodMonths'
+                  value={formData.validityPeriodMonths}
                   onChange={handleChange}
                   inputProps={{ min: 1 }}
                 />
@@ -528,9 +528,9 @@ const CourseManagement = ({ onShowSnackbar }) => {
                 <FormControlLabel
                   control={
                     <Switch
-                      checked={formData.is_active}
+                      checked={formData.isActive}
                       onChange={handleChange}
-                      name='is_active'
+                      name='isActive'
                       color='primary'
                     />
                   }

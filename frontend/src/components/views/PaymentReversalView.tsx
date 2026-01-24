@@ -60,7 +60,7 @@ const PaymentReversalView = () => {
 
   // Reverse payment mutation
   const reversePaymentMutation = useMutation({
-    mutationFn: async ({ paymentId, reason }) => {
+    mutationFn: async ({ paymentId, reason }: { paymentId: number; reason: string }) => {
       const response = await api.post(
         `/accounting/payments/${paymentId}/reverse`,
         { reason }
@@ -68,14 +68,14 @@ const PaymentReversalView = () => {
       return response.data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries(['verified-payments-for-reversal']);
-      queryClient.invalidateQueries(['accounting-invoices']);
+      queryClient.invalidateQueries({ queryKey: ['verified-payments-for-reversal'] });
+      queryClient.invalidateQueries({ queryKey: ['accounting-invoices'] });
       setReversalDialogOpen(false);
       setReversalReason('');
       setSuccessMessage(`Payment reversed successfully! Amount: $${data.data.reversedAmount}`);
       setErrorMessage('');
     },
-    onError: (error) => {
+    onError: (error: Error & { response?: { data?: { message?: string } } }) => {
       console.error('Payment reversal error:', error);
       setErrorMessage(error.response?.data?.message || 'Failed to reverse payment. Please try again.');
       setSuccessMessage('');

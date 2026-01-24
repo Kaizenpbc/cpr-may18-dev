@@ -1,23 +1,29 @@
-import { api } from './api';
+import api from './api';
 
-export const getStudentsForCourse = async courseId => {
-  return api.getStudentsForCourse(courseId);
+export const getStudentsForCourse = async (courseId: number) => {
+  const response = await api.get(`/instructor/classes/${courseId}/students`);
+  return response.data;
 };
 
 export const updateStudentAttendance = async (
-  courseId,
-  studentId,
-  attendanceData
+  courseId: number,
+  studentId: number,
+  attendanceData: { attended: boolean }
 ) => {
-  return api.updateStudentAttendance(courseId, studentId, attendanceData);
+  const response = await api.put(
+    `/instructor/classes/${courseId}/students/${studentId}/attendance`,
+    attendanceData
+  );
+  return response.data;
 };
 
-export const uploadStudents = async (courseId, studentsData) => {
-  return api.uploadStudents(courseId, studentsData);
+export const uploadStudents = async (courseId: number, studentsData: unknown) => {
+  const response = await api.post(`/instructor/classes/${courseId}/students`, studentsData);
+  return response.data;
 };
 
-export const getCourseStudents = async courseId => {
-  return api.getStudentsForCourse(courseId);
+export const getCourseStudents = async (courseId: number) => {
+  return getStudentsForCourse(courseId);
 };
 
 export default {

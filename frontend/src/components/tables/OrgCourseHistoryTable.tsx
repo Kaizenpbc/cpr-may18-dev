@@ -46,7 +46,7 @@ const OrgCourseHistoryTable = ({ courses = [] }) => {
 
   // TODO: Add sorting/filtering state and handlers if needed
   const sortedCourses = [...courses].sort(
-    (a, b) => new Date(b.daterequested) - new Date(a.daterequested)
+    (a, b) => new Date(b.daterequested).getTime() - new Date(a.daterequested).getTime()
   ); // Default sort by most recent request
 
   return (

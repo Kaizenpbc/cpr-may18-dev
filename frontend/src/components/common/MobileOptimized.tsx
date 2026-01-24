@@ -1,12 +1,17 @@
 import React, { ReactNode } from 'react';
-import { Box, useMediaQuery, useTheme } from '@mui/material';
+import { Box, useMediaQuery, useTheme, SxProps, Theme } from '@mui/material';
 import { useResponsive } from '../../hooks/useResponsive';
+
+interface ResponsiveProps {
+  sx?: SxProps<Theme>;
+  [key: string]: any;
+}
 
 interface MobileOptimizedProps {
   children: ReactNode;
-  mobileProps?: Record<string, any>;
-  desktopProps?: Record<string, any>;
-  tabletProps?: Record<string, any>;
+  mobileProps?: ResponsiveProps;
+  desktopProps?: ResponsiveProps;
+  tabletProps?: ResponsiveProps;
   className?: string;
 }
 
@@ -63,18 +68,20 @@ const MobileOptimized: React.FC<MobileOptimizedProps> = ({
       };
     }
     
-    return {};
+    return { sx: {} };
   };
+
+  const responsiveProps = getResponsiveProps();
+  const responsiveSx = responsiveProps.sx || {};
 
   return (
     <Box
       className={className}
-      {...getResponsiveProps()}
       sx={{
         // Base responsive styles
         width: '100%',
         minHeight: isMobile ? '100vh' : 'auto',
-        ...getResponsiveProps().sx,
+        ...(typeof responsiveSx === 'object' && !Array.isArray(responsiveSx) ? responsiveSx : {}),
       }}
     >
       {children}

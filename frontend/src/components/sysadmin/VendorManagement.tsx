@@ -48,24 +48,24 @@ const VendorManagement = ({ onShowSnackbar }) => {
   const [showDialog, setShowDialog] = useState(false);
   const [editingVendor, setEditingVendor] = useState(null);
   const [formData, setFormData] = useState({
-    vendor_name: '',
-    contact_first_name: '',
-    contact_last_name: '',
+    vendorName: '',
+    contactFirstName: '',
+    contactLastName: '',
     email: '',
     mobile: '',
     phone: '',
-    address_street: '',
-    address_city: '',
-    address_province: '',
-    address_postal_code: '',
-    vendor_type: '',
+    addressStreet: '',
+    addressCity: '',
+    addressProvince: '',
+    addressPostalCode: '',
+    vendorType: '',
     services: [],
-    contract_start_date: '',
-    contract_end_date: '',
-    performance_rating: 0,
-    insurance_expiry: '',
-    certification_status: '',
-    billing_contact_email: '',
+    contractStartDate: '',
+    contractEndDate: '',
+    performanceRating: 0,
+    insuranceExpiry: '',
+    certificationStatus: '',
+    billingContactEmail: '',
     comments: '',
     status: 'active',
   });
@@ -122,24 +122,24 @@ const VendorManagement = ({ onShowSnackbar }) => {
   const handleAddNew = () => {
     setEditingVendor(null);
     setFormData({
-      vendor_name: '',
-      contact_first_name: '',
-      contact_last_name: '',
+      vendorName: '',
+      contactFirstName: '',
+      contactLastName: '',
       email: '',
       mobile: '',
       phone: '',
-      address_street: '',
-      address_city: '',
-      address_province: '',
-      address_postal_code: '',
-      vendor_type: '',
+      addressStreet: '',
+      addressCity: '',
+      addressProvince: '',
+      addressPostalCode: '',
+      vendorType: '',
       services: [],
-      contract_start_date: '',
-      contract_end_date: '',
-      performance_rating: 0,
-      insurance_expiry: '',
-      certification_status: '',
-      billing_contact_email: '',
+      contractStartDate: '',
+      contractEndDate: '',
+      performanceRating: 0,
+      insuranceExpiry: '',
+      certificationStatus: '',
+      billingContactEmail: '',
       comments: '',
       status: 'active',
     });
@@ -149,30 +149,30 @@ const VendorManagement = ({ onShowSnackbar }) => {
   const handleEdit = vendor => {
     setEditingVendor(vendor);
     setFormData({
-      vendor_name: vendor.vendor_name || '',
-      contact_first_name: vendor.contact_first_name || '',
-      contact_last_name: vendor.contact_last_name || '',
+      vendorName: vendor.vendorName || '',
+      contactFirstName: vendor.contactFirstName || '',
+      contactLastName: vendor.contactLastName || '',
       email: vendor.email || '',
       mobile: vendor.mobile || '',
       phone: vendor.phone || '',
-      address_street: vendor.address_street || '',
-      address_city: vendor.address_city || '',
-      address_province: vendor.address_province || '',
-      address_postal_code: vendor.address_postal_code || '',
-      vendor_type: vendor.vendor_type || '',
+      addressStreet: vendor.addressStreet || '',
+      addressCity: vendor.addressCity || '',
+      addressProvince: vendor.addressProvince || '',
+      addressPostalCode: vendor.addressPostalCode || '',
+      vendorType: vendor.vendorType || '',
       services: vendor.services || [],
-      contract_start_date: vendor.contract_start_date
-        ? vendor.contract_start_date.split('T')[0]
+      contractStartDate: vendor.contractStartDate
+        ? vendor.contractStartDate.split('T')[0]
         : '',
-      contract_end_date: vendor.contract_end_date
-        ? vendor.contract_end_date.split('T')[0]
+      contractEndDate: vendor.contractEndDate
+        ? vendor.contractEndDate.split('T')[0]
         : '',
-      performance_rating: vendor.performance_rating || 0,
-      insurance_expiry: vendor.insurance_expiry
-        ? vendor.insurance_expiry.split('T')[0]
+      performanceRating: vendor.performanceRating || 0,
+      insuranceExpiry: vendor.insuranceExpiry
+        ? vendor.insuranceExpiry.split('T')[0]
         : '',
-      certification_status: vendor.certification_status || '',
-      billing_contact_email: vendor.billing_contact_email || '',
+      certificationStatus: vendor.certificationStatus || '',
+      billingContactEmail: vendor.billingContactEmail || '',
       comments: vendor.comments || '',
       status: vendor.status || 'active',
     });
@@ -182,7 +182,7 @@ const VendorManagement = ({ onShowSnackbar }) => {
   const handleDelete = async vendor => {
     if (
       window.confirm(
-        `Are you sure you want to deactivate the vendor "${vendor.vendor_name}"?`
+        `Are you sure you want to deactivate the vendor "${vendor.vendorName}"?`
       )
     ) {
       try {
@@ -199,7 +199,7 @@ const VendorManagement = ({ onShowSnackbar }) => {
   const handleSubmit = async e => {
     e.preventDefault();
 
-    if (!formData.vendor_name.trim()) {
+    if (!formData.vendorName.trim()) {
       onShowSnackbar?.('Vendor name is required', 'error');
       return;
     }
@@ -207,10 +207,10 @@ const VendorManagement = ({ onShowSnackbar }) => {
     try {
       const submitData = {
         ...formData,
-        contract_start_date: formData.contract_start_date || null,
-        contract_end_date: formData.contract_end_date || null,
-        insurance_expiry: formData.insurance_expiry || null,
-        performance_rating: formData.performance_rating || null,
+        contractStartDate: formData.contractStartDate || null,
+        contractEndDate: formData.contractEndDate || null,
+        insuranceExpiry: formData.insuranceExpiry || null,
+        performanceRating: formData.performanceRating || null,
       };
 
       if (editingVendor) {
@@ -375,7 +375,7 @@ const VendorManagement = ({ onShowSnackbar }) => {
                 >
                   <TableCell>
                     <Typography variant='body2' fontWeight='medium'>
-                      {vendor.vendor_name}
+                      {vendor.vendorName}
                     </Typography>
                     {vendor.email && (
                       <Typography
@@ -389,7 +389,7 @@ const VendorManagement = ({ onShowSnackbar }) => {
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2'>
-                      {`${vendor.contact_first_name || ''} ${vendor.contact_last_name || ''}`.trim() ||
+                      {`${vendor.contactFirstName || ''} ${vendor.contactLastName || ''}`.trim() ||
                         '-'}
                     </Typography>
                     {vendor.mobile && (
@@ -404,7 +404,7 @@ const VendorManagement = ({ onShowSnackbar }) => {
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2'>
-                      {vendor.vendor_type || '-'}
+                      {vendor.vendorType || '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -436,17 +436,17 @@ const VendorManagement = ({ onShowSnackbar }) => {
                     </Box>
                   </TableCell>
                   <TableCell>
-                    {vendor.performance_rating ? (
+                    {vendor.performanceRating ? (
                       <Box
                         sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
                       >
                         <Rating
-                          value={vendor.performance_rating}
+                          value={vendor.performanceRating}
                           readOnly
                           size='small'
                         />
                         <Typography variant='caption'>
-                          ({vendor.performance_rating}/5)
+                          ({vendor.performanceRating}/5)
                         </Typography>
                       </Box>
                     ) : (
@@ -457,24 +457,24 @@ const VendorManagement = ({ onShowSnackbar }) => {
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={vendor.certification_status || 'Not Set'}
+                      label={vendor.certificationStatus || 'Not Set'}
                       size='small'
-                      color={getCertificationColor(vendor.certification_status)}
+                      color={getCertificationColor(vendor.certificationStatus)}
                     />
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2'>
-                      {vendor.contract_start_date
-                        ? formatDate(vendor.contract_start_date)
+                      {vendor.contractStartDate
+                        ? formatDate(vendor.contractStartDate)
                         : '-'}
                     </Typography>
-                    {vendor.contract_end_date && (
+                    {vendor.contractEndDate && (
                       <Typography
                         variant='caption'
                         color='text.secondary'
                         display='block'
                       >
-                        to {formatDate(vendor.contract_end_date)}
+                        to {formatDate(vendor.contractEndDate)}
                       </Typography>
                     )}
                   </TableCell>
@@ -539,8 +539,8 @@ const VendorManagement = ({ onShowSnackbar }) => {
                   fullWidth
                   required
                   label='Vendor Name'
-                  name='vendor_name'
-                  value={formData.vendor_name}
+                  name='vendorName'
+                  value={formData.vendorName}
                   onChange={handleChange}
                 />
               </Grid>
@@ -548,8 +548,8 @@ const VendorManagement = ({ onShowSnackbar }) => {
                 <FormControl fullWidth>
                   <InputLabel>Vendor Type</InputLabel>
                   <Select
-                    name='vendor_type'
-                    value={formData.vendor_type}
+                    name='vendorType'
+                    value={formData.vendorType}
                     label='Vendor Type'
                     onChange={handleChange}
                   >
@@ -572,8 +572,8 @@ const VendorManagement = ({ onShowSnackbar }) => {
                 <TextField
                   fullWidth
                   label='Contact First Name'
-                  name='contact_first_name'
-                  value={formData.contact_first_name}
+                  name='contactFirstName'
+                  value={formData.contactFirstName}
                   onChange={handleChange}
                 />
               </Grid>
@@ -581,8 +581,8 @@ const VendorManagement = ({ onShowSnackbar }) => {
                 <TextField
                   fullWidth
                   label='Contact Last Name'
-                  name='contact_last_name'
-                  value={formData.contact_last_name}
+                  name='contactLastName'
+                  value={formData.contactLastName}
                   onChange={handleChange}
                 />
               </Grid>
@@ -644,8 +644,8 @@ const VendorManagement = ({ onShowSnackbar }) => {
                   fullWidth
                   type='date'
                   label='Contract Start Date'
-                  name='contract_start_date'
-                  value={formData.contract_start_date}
+                  name='contractStartDate'
+                  value={formData.contractStartDate}
                   onChange={handleChange}
                   InputLabelProps={{ shrink: true }}
                 />
@@ -655,8 +655,8 @@ const VendorManagement = ({ onShowSnackbar }) => {
                   fullWidth
                   type='date'
                   label='Contract End Date'
-                  name='contract_end_date'
-                  value={formData.contract_end_date}
+                  name='contractEndDate'
+                  value={formData.contractEndDate}
                   onChange={handleChange}
                   InputLabelProps={{ shrink: true }}
                 />
@@ -665,12 +665,12 @@ const VendorManagement = ({ onShowSnackbar }) => {
                 <Box>
                   <Typography component='legend'>Performance Rating</Typography>
                   <Rating
-                    name='performance_rating'
-                    value={formData.performance_rating}
+                    name='performanceRating'
+                    value={formData.performanceRating}
                     onChange={(event, newValue) => {
                       setFormData(prev => ({
                         ...prev,
-                        performance_rating: newValue,
+                        performanceRating: newValue,
                       }));
                     }}
                   />
@@ -680,8 +680,8 @@ const VendorManagement = ({ onShowSnackbar }) => {
                 <FormControl fullWidth>
                   <InputLabel>Certification Status</InputLabel>
                   <Select
-                    name='certification_status'
-                    value={formData.certification_status}
+                    name='certificationStatus'
+                    value={formData.certificationStatus}
                     label='Certification Status'
                     onChange={handleChange}
                   >
