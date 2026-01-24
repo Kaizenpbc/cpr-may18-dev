@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Box, CircularProgress, Alert, Button } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import { tokenService } from '../services/tokenService';
+
+const isDev = import.meta.env.DEV;
+const devLog = (...args: unknown[]) => { if (isDev) console.log(...args); };
 
 interface PrivateRouteProps {
   children: React.ReactNode;
@@ -17,18 +20,27 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
   const location = useLocation();
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount to prevent memory leaks
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const token = tokenService.getAccessToken();
-    console.log('[TRACE] PrivateRoute - Token check:', { 
-      hasToken: !!token, 
-      hasUser: !!user, 
+    devLog('[TRACE] PrivateRoute - Token check:', {
+      hasToken: !!token,
+      hasUser: !!user,
       loading,
-      pathname: location.pathname 
+      pathname: location.pathname
     });
-    
+
     if (token && !user && !loading) {
-      console.log('[TRACE] PrivateRoute - Attempting auth check');
+      devLog('[TRACE] PrivateRoute - Attempting auth check');
       checkAuth();
     }
   }, [user, loading, checkAuth, location.pathname]);
@@ -37,17 +49,20 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
   useEffect(() => {
     const validateRouteAccess = async () => {
       if (user && !loading) {
-        console.log('[TRACE] PrivateRoute - Validating route access for:', location.pathname);
-        setIsValidating(true);
-        setValidationError(null);
-        
+        devLog('[TRACE] PrivateRoute - Validating route access for:', location.pathname);
+        if (isMountedRef.current) setIsValidating(true);
+        if (isMountedRef.current) setValidationError(null);
+
         try {
           const validationResult = await validateTokenOnPageLoad();
-          
+
+          // Check if still mounted before updating state
+          if (!isMountedRef.current) return;
+
           if (!validationResult.isValid) {
-            console.log('[TRACE] PrivateRoute - Route validation failed:', validationResult.error);
+            devLog('[TRACE] PrivateRoute - Route validation failed:', validationResult.error);
             setValidationError(validationResult.error || 'Access denied');
-            
+
             if (validationResult.requiresReauth) {
               // Clear tokens and redirect to login
               tokenService.clearTokens();
@@ -55,14 +70,15 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
               sessionStorage.removeItem('location_restoration_attempted');
             }
           } else {
-            console.log('[TRACE] PrivateRoute - Route validation successful');
+            devLog('[TRACE] PrivateRoute - Route validation successful');
             setValidationError(null);
           }
         } catch (err) {
-          console.error('[TRACE] PrivateRoute - Validation error:', err);
+          if (!isMountedRef.current) return;
+          devLog('[TRACE] PrivateRoute - Validation error:', err);
           setValidationError('Route validation failed');
         } finally {
-          setIsValidating(false);
+          if (isMountedRef.current) setIsValidating(false);
         }
       }
     };
@@ -152,7 +168,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
 
   // Role-based access control
   if (role && user.role !== role) {
-    console.log('[TRACE] PrivateRoute - Role mismatch:', {
+    devLog('[TRACE] PrivateRoute - Role mismatch:', {
       required: role,
       actual: user.role,
       pathname: location.pathname

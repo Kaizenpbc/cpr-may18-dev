@@ -103,9 +103,10 @@
   - Risk: Missing auth tokens, inconsistent error handling
   - **FIXED:** Changed to use api wrapper from services/api
 
-- [ ] **Missing useEffect dependencies**
+- [x] **Missing useEffect dependencies**
   - File: `frontend/src/components/PrivateRoute.tsx:21-34, 37-74`
   - Risk: Memory leaks, stale closures
+  - **FIXED:** Added isMountedRef for async cleanup, replaced console.log with devLog
 
 - [x] **Unhandled promise rejections in token queue**
   - File: `frontend/src/services/api.ts:140, 166-173`
@@ -249,6 +250,7 @@
 13. **N+1 query patterns** - Replaced scalar subqueries with LEFT JOIN aggregations in instructor.ts
 14. **Token refresh race condition** - Added shared refreshPromise and atomic queue processing
 15. **Unhandled promise rejections** - Proper try/catch wrapping in token queue handlers
+16. **PrivateRoute memory leak** - Added isMountedRef for async cleanup, replaced console.log with devLog
 
 **Build Error Fixes (required for type checking):**
 13. **encryptionConfig.ts** - Added missing `getActiveKey()` method to EncryptionService class
