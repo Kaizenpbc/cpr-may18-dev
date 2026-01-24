@@ -48,7 +48,7 @@ interface Course {
   organization: string;
   status: string;
   instructor?: string;
-  registered_students?: number;
+  registeredStudents?: number;
 }
 
 const CourseScheduling = () => {
@@ -80,40 +80,40 @@ const CourseScheduling = () => {
   // Get unique instructors and organizations for filter options
   const uniqueInstructors = useMemo(() => {
     const instructors = courses
-      .map((course: any) => course.instructor_name)
-      .filter((name: string) => name && name !== 'Not Assigned');
+      .map((course: Record<string, unknown>) => course.instructorName as string)
+      .filter((name): name is string => !!name && name !== 'Not Assigned');
     return [...new Set(instructors)].sort();
   }, [courses]);
 
   const uniqueOrganizations = useMemo(() => {
     const organizations = courses
-      .map((course: any) => course.organization_name)
-      .filter((name: string) => name);
+      .map((course: Record<string, unknown>) => course.organizationName as string)
+      .filter((name): name is string => !!name);
     return [...new Set(organizations)].sort();
   }, [courses]);
 
   // Filter courses based on selected filters
   const filteredCourses = useMemo(() => {
-    return courses.filter((course: any) => {
+    return courses.filter((course: Record<string, unknown>) => {
       // Instructor filter
-      if (instructorFilter && course.instructor_name !== instructorFilter) {
+      if (instructorFilter && course.instructorName !== instructorFilter) {
         return false;
       }
-      
+
       // Organization filter
-      if (organizationFilter && course.organization_name !== organizationFilter) {
+      if (organizationFilter && course.organizationName !== organizationFilter) {
         return false;
       }
-      
+
       // Date filter
       if (dateFilter) {
-        const courseDate = new Date(course.scheduled_date);
+        const courseDate = new Date(course.scheduledDate as string);
         const filterDate = new Date(dateFilter);
         if (courseDate.toDateString() !== filterDate.toDateString()) {
           return false;
         }
       }
-      
+
       return true;
     });
   }, [courses, instructorFilter, organizationFilter, dateFilter]);
@@ -157,9 +157,10 @@ const CourseScheduling = () => {
       queryClient.invalidateQueries({ queryKey: ['courses'] });
       
       handleCancelClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error cancelling course:', err);
-      showError(err.response?.data?.error?.message || 'Failed to cancel course');
+      const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
+      showError(axiosErr.response?.data?.error?.message || 'Failed to cancel course');
     }
   };
 
@@ -278,16 +279,16 @@ const CourseScheduling = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredCourses.map((course: any) => (
-                <TableRow key={course.id}>
+              filteredCourses.map((course: Record<string, unknown>) => (
+                <TableRow key={course.id as number}>
                   <TableCell>
-                    {formatDateWithoutTimezone(course.scheduled_date)}
+                    {formatDateWithoutTimezone(course.scheduledDate as string)}
                   </TableCell>
-                  <TableCell>{course.course_type_name || course.course_type || '-'}</TableCell>
-                  <TableCell>{course.organization_name}</TableCell>
-                  <TableCell>{course.location}</TableCell>
-                  <TableCell>{course.instructor_name || 'Not Assigned'}</TableCell>
-                  <TableCell>{course.status}</TableCell>
+                  <TableCell>{(course.courseTypeName || course.courseType || '-') as string}</TableCell>
+                  <TableCell>{course.organizationName as string}</TableCell>
+                  <TableCell>{course.location as string}</TableCell>
+                  <TableCell>{(course.instructorName || 'Not Assigned') as string}</TableCell>
+                  <TableCell>{course.status as string}</TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={1}>
                       <Button
@@ -295,7 +296,7 @@ const CourseScheduling = () => {
                         color="error"
                         size="small"
                         startIcon={<CancelIcon />}
-                        onClick={() => handleCancelClick(course)}
+                        onClick={() => handleCancelClick(course as unknown as Course)}
                       >
                         Cancel Course
                       </Button>
@@ -324,7 +325,7 @@ const CourseScheduling = () => {
             <br />
             Location: {courseToCancel?.location}
             <br />
-            Students: {courseToCancel?.registered_students || 0}
+            Students: {courseToCancel?.registeredStudents || 0}
           </Typography>
 
           <Typography variant='body2' color='error' sx={{ mb: 2 }}>

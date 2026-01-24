@@ -52,15 +52,15 @@ const CancelledCourses: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {cancelledCourses?.data?.map((course: any) => (
+            {cancelledCourses?.data?.map((course: { id: number; courseTypeName: string; organizationName: string; scheduledDate: string; cancelledAt: string; cancellationReason: string; location: string; registeredStudents: number }) => (
               <TableRow key={course.id}>
-                <TableCell>{course.course_type_name}</TableCell>
-                <TableCell>{course.organization_name}</TableCell>
-                <TableCell>{formatDateWithoutTimezone(course.scheduled_date)}</TableCell>
-                <TableCell>{formatDateWithoutTimezone(course.cancelled_at)}</TableCell>
-                <TableCell>{course.cancellation_reason}</TableCell>
+                <TableCell>{course.courseTypeName}</TableCell>
+                <TableCell>{course.organizationName}</TableCell>
+                <TableCell>{formatDateWithoutTimezone(course.scheduledDate)}</TableCell>
+                <TableCell>{formatDateWithoutTimezone(course.cancelledAt)}</TableCell>
+                <TableCell>{course.cancellationReason}</TableCell>
                 <TableCell>{course.location}</TableCell>
-                <TableCell>{course.registered_students}</TableCell>
+                <TableCell>{course.registeredStudents}</TableCell>
               </TableRow>
             ))}
             {(!cancelledCourses?.data || cancelledCourses.data.length === 0) && (

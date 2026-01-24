@@ -59,30 +59,30 @@ console.log('[InstructorManagement] Module loaded');
 
 interface Instructor {
   id: number;
-  instructor_name: string;
+  instructorName: string;
   username: string;
   email: string;
-  availability_date?: string;
-  availability_status?: string;
-  assignment_status?: string;
-  assigned_organization?: string;
-  assigned_location?: string;
-  assigned_course_type?: string;
+  availabilityDate?: string;
+  availabilityStatus?: string;
+  assignmentStatus?: string;
+  assignedOrganization?: string;
+  assignedLocation?: string;
+  assignedCourseType?: string;
   notes?: string;
   availability?: {
     day: string;
-    start_time: string;
-    end_time: string;
+    startTime: string;
+    endTime: string;
   }[];
 }
 
 interface AvailableInstructor {
   id: number;
-  instructor_name: string;
+  instructorName: string;
   email: string;
-  first_name?: string;
-  last_name?: string;
-  availability_status?: string;
+  firstName?: string;
+  lastName?: string;
+  availabilityStatus?: string;
 }
 
 interface FormData {
@@ -97,6 +97,40 @@ interface AvailabilityFormData {
   end_time: string;
 }
 
+interface Course {
+  id: number;
+  courseType?: string;
+  courseTypeName?: string;
+  organizationName?: string;
+  location?: string;
+  scheduledDate?: string;
+  confirmedDate?: string;
+  confirmedStartTime?: string;
+  confirmedEndTime?: string;
+  requestSubmittedDate?: string;
+  registeredStudents?: number;
+  studentsAttended?: number;
+  notes?: string;
+  instructorId?: number;
+  instructorName?: string;
+  status?: string;
+  readyForBilling?: boolean;
+  [key: string]: unknown;
+}
+
+interface ScheduleItem {
+  type: 'class' | 'availability';
+  displayDate: string;
+  status: string;
+  key: string;
+  organizationname?: string;
+  location?: string;
+  name?: string;
+  studentsregistered?: number;
+  notes?: string;
+  originalData?: Record<string, unknown>;
+}
+
 const InstructorManagement: React.FC = () => {
   const queryClient = useQueryClient();
   const { isConnected, lastUpdate } = useRealtime();
@@ -104,9 +138,9 @@ const InstructorManagement: React.FC = () => {
   const [availableInstructors, setAvailableInstructors] = useState<
     AvailableInstructor[]
   >([]);
-  const [pendingCourses, setPendingCourses] = useState<any[]>([]);
-  const [confirmedCourses, setConfirmedCourses] = useState<any[]>([]);
-  const [completedCourses, setCompletedCourses] = useState<any[]>([]);
+  const [pendingCourses, setPendingCourses] = useState<Course[]>([]);
+  const [confirmedCourses, setConfirmedCourses] = useState<Course[]>([]);
+  const [completedCourses, setCompletedCourses] = useState<Course[]>([]);
   const [open, setOpen] = useState(false);
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -118,13 +152,13 @@ const InstructorManagement: React.FC = () => {
   const [viewingInstructor, setViewingInstructor] = useState<Instructor | null>(
     null
   );
-  const [selectedCourse, setSelectedCourse] = useState<any>(null);
-  const [courseToEdit, setCourseToEdit] = useState<any>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [courseToEdit, setCourseToEdit] = useState<Course | null>(null);
   const [availabilityData, setAvailabilityData] = useState<
     AvailabilityFormData[]
   >([]);
-  const [instructorSchedule, setInstructorSchedule] = useState<any[]>([]);
-  const [instructorAvailability, setInstructorAvailability] = useState<any[]>(
+  const [instructorSchedule, setInstructorSchedule] = useState<ScheduleItem[]>([]);
+  const [instructorAvailability, setInstructorAvailability] = useState<Record<string, unknown>[]>(
     []
   );
   const [formData, setFormData] = useState<FormData>({
@@ -160,7 +194,7 @@ const InstructorManagement: React.FC = () => {
   // State for viewing students
   const [viewStudentsOpen, setViewStudentsOpen] = useState(false);
   const [selectedCourseForStudents, setSelectedCourseForStudents] =
-    useState<any>(null);
+    useState<Course | null>(null);
 
   // State for showing/hiding completed assignments
   const [showCompleted, setShowCompleted] = useState(false);
@@ -224,34 +258,34 @@ const InstructorManagement: React.FC = () => {
   // Get unique instructors and organizations for filter options
   const uniqueInstructors = useMemo(() => {
     const instructors = confirmedCourses
-      .map((course: any) => course.instructor_name)
-      .filter((name: string) => name && name !== 'Not Assigned');
+      .map((course) => course.instructorName)
+      .filter((name): name is string => !!name && name !== 'Not Assigned');
     return [...new Set(instructors)].sort();
   }, [confirmedCourses]);
 
   const uniqueOrganizations = useMemo(() => {
     const organizations = confirmedCourses
-      .map((course: any) => course.organization_name)
-      .filter((name: string) => name);
+      .map((course) => course.organizationName)
+      .filter((name): name is string => !!name);
     return [...new Set(organizations)].sort();
   }, [confirmedCourses]);
 
   // Filter confirmed courses based on selected filters
   const filteredConfirmedCourses = useMemo(() => {
-    return confirmedCourses.filter((course: any) => {
+    return confirmedCourses.filter((course) => {
       // Instructor filter
-      if (instructorFilter && course.instructor_name !== instructorFilter) {
+      if (instructorFilter && course.instructorName !== instructorFilter) {
         return false;
       }
       
       // Organization filter
-      if (organizationFilter && course.organization_name !== organizationFilter) {
+      if (organizationFilter && course.organizationName !== organizationFilter) {
         return false;
       }
       
       // Date filter
       if (dateFilter) {
-        const courseDate = new Date(course.confirmed_date);
+        const courseDate = new Date(course.confirmedDate);
         const filterDate = new Date(dateFilter);
         if (courseDate.toDateString() !== filterDate.toDateString()) {
           return false;
@@ -330,23 +364,23 @@ const InstructorManagement: React.FC = () => {
       ]);
       
       // Process schedule data
-      const scheduleData = (scheduleRes.data.data || []).map((item: any) => ({
+      const scheduleData = (scheduleRes.data.data || []).map((item: Record<string, unknown>): ScheduleItem => ({
         type: 'class',
-        displayDate: item.date,
-        status: item.status,
+        displayDate: item.date as string,
+        status: item.status as string,
         key: `class-${item.id}`,
-        organizationname: item.organization,
-        location: item.location,
-        name: item.type,
-        studentsregistered: item.studentcount,
-        notes: item.notes,
+        organizationname: item.organization as string,
+        location: item.location as string,
+        name: item.type as string,
+        studentsregistered: item.studentcount as number,
+        notes: item.notes as string,
         originalData: item
       }));
-      
+
       // Process availability data and convert to schedule format
-      const availabilityData = (availabilityRes.data.data || []).map((avail: any) => ({
+      const availabilityData = (availabilityRes.data.data || []).map((avail: Record<string, unknown>): ScheduleItem => ({
         type: 'availability',
-        displayDate: avail.date,
+        displayDate: avail.date as string,
         status: 'Available',
         key: `availability-${avail.date}`,
         originalData: avail
@@ -374,7 +408,7 @@ const InstructorManagement: React.FC = () => {
     return (
       <Box sx={{ mt: 2 }}>
         <Typography variant="h6" gutterBottom>
-          Schedule for {viewingInstructor.instructor_name}
+          Schedule for {viewingInstructor.instructorName}
         </Typography>
         <TableContainer component={Paper}>
           <Table size="small">
@@ -422,20 +456,20 @@ const InstructorManagement: React.FC = () => {
     );
   };
 
-  const handleAssignOpen = async (course: any) => {
+  const handleAssignOpen = async (course: Course) => {
     setSelectedCourse(course);
     setAssignmentData({
       instructorId: '',
-      scheduledDate: course.scheduled_date || '', // Pre-fill with the scheduled date from org
+      scheduledDate: course.scheduledDate || '', // Pre-fill with the scheduled date from org
       startTime: '09:00',
       endTime: '12:00',
     });
 
     // Fetch available instructors for the scheduled date
-    if (course.scheduled_date) {
+    if (course.scheduledDate) {
       try {
         // Extract just the date part (YYYY-MM-DD) from the scheduled_date
-        const dateOnly = course.scheduled_date.split('T')[0];
+        const dateOnly = course.scheduledDate.split('T')[0];
         const response = await api.get(
           `/instructors/available/${dateOnly}`
         );
@@ -443,22 +477,23 @@ const InstructorManagement: React.FC = () => {
 
         if (response.data.data.length === 0) {
           setError(
-            `No instructors are available on ${formatDisplayDate(course.scheduled_date)}. Instructors must mark their availability for this date.`
+            `No instructors are available on ${formatDisplayDate(course.scheduledDate)}. Instructors must mark their availability for this date.`
           );
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Error fetching available instructors:', err);
-        console.error('Error response:', err.response);
-        console.error('Error status:', err.response?.status);
-        console.error('Error data:', err.response?.data);
+        const axiosErr = err as { response?: { status?: number; data?: { error?: { message?: string } } }; message?: string };
+        console.error('Error response:', axiosErr.response);
+        console.error('Error status:', axiosErr.response?.status);
+        console.error('Error data:', axiosErr.response?.data);
 
-        if (err.response?.status === 401) {
+        if (axiosErr.response?.status === 401) {
           setError('Authentication error. Please log in again.');
-        } else if (err.response?.status === 403) {
+        } else if (axiosErr.response?.status === 403) {
           setError('You do not have permission to view available instructors.');
         } else {
           setError(
-            `Failed to fetch available instructors: ${err.response?.data?.error?.message || err.message}`
+            `Failed to fetch available instructors: ${axiosErr.response?.data?.error?.message || axiosErr.message}`
           );
         }
         setAvailableInstructors([]);
@@ -478,33 +513,33 @@ const InstructorManagement: React.FC = () => {
     setSelectedCourse(null);
   };
 
-  const handleEditScheduleOpen = async (course: any) => {
+  const handleEditScheduleOpen = async (course: Course) => {
     setCourseToEdit(course);
     setEditScheduleData({
-      scheduledDate: course.confirmed_date || '',
-      startTime: course.confirmed_start_time || '09:00',
-      endTime: course.confirmed_end_time || '12:00',
-      instructorId: course.instructor_id || '',
+      scheduledDate: course.confirmedDate || '',
+      startTime: course.confirmedStartTime || '09:00',
+      endTime: course.confirmedEndTime || '12:00',
+      instructorId: course.instructorId || '',
     });
 
     // Fetch available instructors for the confirmed date
-    if (course.confirmed_date) {
+    if (course.confirmedDate) {
       try {
         // Extract just the date part (YYYY-MM-DD) from the confirmed_date
-        const dateOnly = course.confirmed_date.split('T')[0];
+        const dateOnly = course.confirmedDate.split('T')[0];
         const response = await api.get(
           `/instructors/available/${dateOnly}`
         );
         // Include the current instructor even if they're not available (to allow keeping them)
         const availableList = response.data.data;
         if (
-          course.instructor_id &&
-          !availableList.find((i: any) => i.id === course.instructor_id)
+          course.instructorId &&
+          !availableList.find((i: AvailableInstructor) => i.id === course.instructorId)
         ) {
           // Add current instructor to the list
           availableList.unshift({
-            id: course.instructor_id,
-            instructor_name: course.instructor_name,
+            id: course.instructorId,
+            instructor_name: course.instructorName,
             email: '',
             availability_status: 'Currently Assigned',
           });
@@ -604,9 +639,10 @@ const InstructorManagement: React.FC = () => {
       );
       setSuccess('Availability removed successfully');
       queryClient.invalidateQueries({ queryKey: ['instructors'] });
-    } catch (err: any) {
-      if (err.response?.data?.error?.message) {
-        setError(err.response.data.error.message);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
+      if (axiosErr.response?.data?.error?.message) {
+        setError(axiosErr.response.data.error.message);
       } else {
         setError('Failed to remove availability');
       }
@@ -651,9 +687,9 @@ const InstructorManagement: React.FC = () => {
       if (response.data.success) {
         // Get instructor name for the confirmation message
         const assignedInstructor = availableInstructors.find(
-          (instructor: any) => instructor.id === parseInt(assignmentData.instructorId)
+          (instructor) => instructor.id === parseInt(assignmentData.instructorId)
         );
-        const instructorName = assignedInstructor?.instructor_name || 'Instructor';
+        const instructorName = assignedInstructor?.instructorName || 'Instructor';
         
         // Create a comprehensive success message
         const successMessage = `✅ Course successfully assigned to ${instructorName}! 
@@ -663,10 +699,10 @@ const InstructorManagement: React.FC = () => {
 • Organization contact
 
 📅 Course Details:
-• Date: ${formatDisplayDate(selectedCourse.scheduled_date)}
+• Date: ${formatDisplayDate(selectedCourse.scheduledDate)}
 • Time: ${assignmentData.startTime} - ${assignmentData.endTime}
 • Location: ${selectedCourse.location}
-• Students: ${selectedCourse.registered_students || 0}
+• Students: ${selectedCourse.registeredStudents || 0}
 
 The course status has been updated to "Confirmed" and moved to the confirmed courses list.`;
 
@@ -687,9 +723,10 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
       } else {
         setError('Failed to assign instructor: ' + (response.data.message || 'Unknown error'));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error assigning instructor:', err);
-      setError(err.response?.data?.error?.message || 'Failed to assign instructor');
+      const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
+      setError(axiosErr.response?.data?.error?.message || 'Failed to assign instructor');
     }
   };
 
@@ -708,7 +745,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
 
         // Check if current instructor is available on new date
         const currentInstructorAvailable = availableList.find(
-          (i: any) => i.id === editScheduleData.instructorId
+          (i: AvailableInstructor) => i.id === Number(editScheduleData.instructorId)
         );
 
         if (!currentInstructorAvailable && editScheduleData.instructorId) {
@@ -753,17 +790,17 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
   };
 
   // Function to check if course is within 7 days
-  const isCourseWithinSevenDays = (course: any) => {
-    const scheduledDate = new Date(course.scheduled_date);
+  const isCourseWithinSevenDays = (course: Course) => {
+    const scheduledDate = new Date(course.scheduledDate);
     const today = new Date();
     const diffTime = scheduledDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     // Return true if the course is within 7 days (inclusive) and not past scheduled date
-    return diffDays <= 7 && diffDays > 0 && !course.instructor_id && !isCoursePastScheduledDate(course);
+    return diffDays <= 7 && diffDays > 0 && !course.instructorId && !isCoursePastScheduledDate(course);
   };
 
-  const isCoursePastScheduledDate = (course: any) => {
-    const scheduledDate = new Date(course.scheduled_date);
+  const isCoursePastScheduledDate = (course: Course) => {
+    const scheduledDate = new Date(course.scheduledDate);
     const today = new Date();
     // Set both dates to midnight for accurate day comparison
     scheduledDate.setHours(0, 0, 0, 0);
@@ -789,14 +826,14 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
   };
 
   // Function to get status label based on course status
-  const getStatusLabel = (course: any) => {
+  const getStatusLabel = (course: Course) => {
     if (isCoursePastScheduledDate(course)) {
       return 'Past Due';
     }
     return course.status.charAt(0).toUpperCase() + course.status.slice(1);
   };
 
-  const handleViewStudentsOpen = (course: any) => {
+  const handleViewStudentsOpen = (course: Course) => {
     setSelectedCourseForStudents(course);
     setViewStudentsOpen(true);
   };
@@ -844,13 +881,14 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
       console.log('✅ [BILLING] Billing successful:', response.data);
       setSuccess('Course sent to billing successfully');
       queryClient.invalidateQueries({ queryKey: ['completedCourses'] });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ [BILLING] Error:', err);
-      console.error('❌ [BILLING] Error response:', err.response?.data);
-      
+      const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
+      console.error('❌ [BILLING] Error response:', axiosErr.response?.data);
+
       // Handle specific validation errors
-      if (err.response?.data?.error?.message) {
-        const errorMessage = err.response.data.error.message;
+      if (axiosErr.response?.data?.error?.message) {
+        const errorMessage = axiosErr.response.data.error.message;
         if (errorMessage.includes('Cannot send course to billing:')) {
           setError(errorMessage);
         } else {
@@ -874,9 +912,9 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
     }
   };
 
-  const handleEditClick = (course: any) => {
+  const handleEditClick = (course: Course) => {
     setSelectedCourse(course);
-    setNewScheduledDate(course.scheduled_date);
+    setNewScheduledDate(course.scheduledDate);
     setEditDialogOpen(true);
   };
 
@@ -1016,17 +1054,17 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
               {pendingCourses.map(course => (
                 <TableRow key={course.id}>
                   <TableCell>
-                    {formatDisplayDate(course.request_submitted_date)}
+                    {formatDisplayDate(course.requestSubmittedDate)}
                   </TableCell>
                   <TableCell>
-                    {course.scheduled_date
-                      ? formatDisplayDate(course.scheduled_date)
+                    {course.scheduledDate
+                      ? formatDisplayDate(course.scheduledDate)
                       : '-'}
                   </TableCell>
-                  <TableCell>{course.organization_name}</TableCell>
+                  <TableCell>{course.organizationName}</TableCell>
                   <TableCell>{course.location}</TableCell>
-                  <TableCell>{course.course_type_name || course.course_type || '-'}</TableCell>
-                  <TableCell>{course.registered_students || 0}</TableCell>
+                  <TableCell>{course.courseTypeName || course.courseType || '-'}</TableCell>
+                  <TableCell>{course.registeredStudents || 0}</TableCell>
                   <TableCell>{course.notes}</TableCell>
                   <TableCell>
                     <Stack direction='row' spacing={1}>
@@ -1153,7 +1191,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
                   >
                     <TableCell>
                       <Typography variant='body2' fontWeight='medium'>
-                        {instructor.instructor_name}
+                        {instructor.instructorName}
                       </Typography>
                       <Typography variant='caption' color='textSecondary'>
                         {instructor.email}
@@ -1419,39 +1457,39 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
               {filteredConfirmedCourses.map(course => (
                 <TableRow key={course.id}>
                   <TableCell>
-                    {formatDisplayDate(course.request_submitted_date)}
+                    {formatDisplayDate(course.requestSubmittedDate)}
                   </TableCell>
                   <TableCell>
-                    {course.scheduled_date
-                      ? formatDisplayDate(course.scheduled_date)
+                    {course.scheduledDate
+                      ? formatDisplayDate(course.scheduledDate)
                       : '-'}
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2' fontWeight='medium'>
-                      {course.confirmed_date
-                        ? formatDisplayDate(course.confirmed_date)
+                      {course.confirmedDate
+                        ? formatDisplayDate(course.confirmedDate)
                         : '-'}
                     </Typography>
-                    {course.confirmed_start_time &&
-                      course.confirmed_end_time && (
+                    {course.confirmedStartTime &&
+                      course.confirmedEndTime && (
                         <Typography
                           variant='caption'
                           color='textSecondary'
                           display='block'
                         >
-                          {course.confirmed_start_time.slice(0, 5)} -{' '}
-                          {course.confirmed_end_time.slice(0, 5)}
+                          {course.confirmedStartTime.slice(0, 5)} -{' '}
+                          {course.confirmedEndTime.slice(0, 5)}
                         </Typography>
                       )}
                   </TableCell>
-                  <TableCell>{course.organization_name}</TableCell>
+                  <TableCell>{course.organizationName}</TableCell>
                   <TableCell>{course.location}</TableCell>
-                  <TableCell>{course.course_type_name || course.course_type || '-'}</TableCell>
+                  <TableCell>{course.courseTypeName || course.courseType || '-'}</TableCell>
                   <TableCell align='center'>
-                    {course.registered_students || 0}
+                    {course.registeredStudents || 0}
                   </TableCell>
                   <TableCell align='center'>
-                    {course.students_attended || 0}
+                    {course.studentsAttended || 0}
                   </TableCell>
                   <TableCell>
                     <Typography
@@ -1471,7 +1509,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
                       color='primary'
                       fontWeight='medium'
                     >
-                      {course.instructor_name || 'Not Assigned'}
+                      {course.instructorName || 'Not Assigned'}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -1566,34 +1604,34 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
               {completedCourses.map(course => (
                 <TableRow key={course.id}>
                   <TableCell>
-                    {formatDisplayDate(course.request_submitted_date)}
+                    {formatDisplayDate(course.requestSubmittedDate)}
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2' fontWeight='medium'>
-                      {course.confirmed_date
-                        ? formatDisplayDate(course.confirmed_date)
+                      {course.confirmedDate
+                        ? formatDisplayDate(course.confirmedDate)
                         : '-'}
                     </Typography>
-                    {course.confirmed_start_time &&
-                      course.confirmed_end_time && (
+                    {course.confirmedStartTime &&
+                      course.confirmedEndTime && (
                         <Typography
                           variant='caption'
                           color='textSecondary'
                           display='block'
                         >
-                          {course.confirmed_start_time.slice(0, 5)} -{' '}
-                          {course.confirmed_end_time.slice(0, 5)}
+                          {course.confirmedStartTime.slice(0, 5)} -{' '}
+                          {course.confirmedEndTime.slice(0, 5)}
                         </Typography>
                       )}
                   </TableCell>
-                  <TableCell>{course.organization_name}</TableCell>
+                  <TableCell>{course.organizationName}</TableCell>
                   <TableCell>{course.location}</TableCell>
-                  <TableCell>{course.course_type_name || course.course_type || '-'}</TableCell>
+                  <TableCell>{course.courseTypeName || course.courseType || '-'}</TableCell>
                   <TableCell align='center'>
-                    {course.registered_students || 0}
+                    {course.registeredStudents || 0}
                   </TableCell>
                   <TableCell align='center'>
-                    {course.students_attended || 0}
+                    {course.studentsAttended || 0}
                   </TableCell>
                   <TableCell>
                     <Typography
@@ -1613,7 +1651,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
                       color='primary'
                       fontWeight='medium'
                     >
-                      {course.instructor_name || 'Not Assigned'}
+                      {course.instructorName || 'Not Assigned'}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -1632,7 +1670,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
                       </Button>
                       <Tooltip 
                         title={
-                          course.ready_for_billing 
+                          course.readyForBilling 
                             ? 'Course has been sent to billing'
                             : 'Click to send course to billing'
                         }
@@ -1645,9 +1683,9 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
                             size='small'
                             startIcon={<BillingIcon />}
                             onClick={() => handleReadyForBilling(course.id)}
-                            disabled={course.ready_for_billing}
+                            disabled={course.readyForBilling}
                           >
-                            {course.ready_for_billing
+                            {course.readyForBilling
                               ? 'Sent to Billing'
                               : 'Send to Billing'}
                           </Button>
@@ -1728,7 +1766,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
         <DialogTitle>Manage Instructor Availability</DialogTitle>
         <DialogContent>
           <Typography variant='subtitle1' gutterBottom>
-            Set availability slots for {editingInstructor?.instructor_name}
+            Set availability slots for {editingInstructor?.instructorName}
           </Typography>
 
           {availabilityData.map((slot, index) => (
@@ -1815,7 +1853,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
         fullWidth
       >
         <DialogTitle>
-          Instructor Schedule - {viewingInstructor?.instructor_name}
+          Instructor Schedule - {viewingInstructor?.instructorName}
         </DialogTitle>
         <DialogContent>
           {renderScheduleDialogContent()}
@@ -1835,17 +1873,17 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
         <DialogTitle>Assign Instructor to Course</DialogTitle>
         <DialogContent>
           <Typography variant='subtitle1' gutterBottom sx={{ mb: 2 }}>
-            Course Name: {selectedCourse?.course_type_name || selectedCourse?.course_type || '-'}
+            Course Name: {selectedCourse?.courseTypeName || selectedCourse?.courseType || '-'}
             <br />
-            Organization: {selectedCourse?.organization_name}
+            Organization: {selectedCourse?.organizationName}
             <br />
             Location: {selectedCourse?.location}
             <br />
-            Students: {selectedCourse?.registered_students || 0}
+            Students: {selectedCourse?.registeredStudents || 0}
             <br />
             Date Scheduled:{' '}
-            {selectedCourse?.scheduled_date
-              ? formatDisplayDate(selectedCourse.scheduled_date)
+            {selectedCourse?.scheduledDate
+              ? formatDisplayDate(selectedCourse.scheduledDate)
               : 'Not set'}
           </Typography>
 
@@ -1853,8 +1891,8 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
             {availableInstructors.length === 0 ? (
               <Alert severity='warning'>
                 No instructors are available for{' '}
-                {selectedCourse?.scheduled_date
-                  ? formatDisplayDate(selectedCourse.scheduled_date)
+                {selectedCourse?.scheduledDate
+                  ? formatDisplayDate(selectedCourse.scheduledDate)
                   : 'this date'}
                 .
                 <br />
@@ -1874,12 +1912,12 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
                 }
                 fullWidth
                 required
-                helperText={`${availableInstructors.length} instructor(s) available on ${formatDisplayDate(selectedCourse?.scheduled_date)}`}
+                helperText={`${availableInstructors.length} instructor(s) available on ${formatDisplayDate(selectedCourse?.scheduledDate)}`}
               >
                 <MenuItem value=''>Select an instructor</MenuItem>
                 {availableInstructors.map(instructor => (
                   <MenuItem key={instructor.id} value={instructor.id}>
-                    {instructor.instructor_name} ({instructor.email})
+                    {instructor.instructorName} ({instructor.email})
                   </MenuItem>
                 ))}
               </TextField>
@@ -1949,13 +1987,13 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
         <DialogTitle>Edit Course Schedule</DialogTitle>
         <DialogContent>
           <Typography variant='subtitle1' gutterBottom sx={{ mb: 2 }}>
-            Course Name: {courseToEdit?.course_type_name || courseToEdit?.course_type || '-'}
+            Course Name: {courseToEdit?.courseTypeName || courseToEdit?.courseType || '-'}
             <br />
-            Organization: {courseToEdit?.organization_name}
+            Organization: {courseToEdit?.organizationName}
             <br />
             Location: {courseToEdit?.location}
             <br />
-            Students: {courseToEdit?.registered_students || 0}
+            Students: {courseToEdit?.registeredStudents || 0}
           </Typography>
 
           <Stack spacing={2} sx={{ mt: 2 }}>
@@ -1989,7 +2027,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
               <MenuItem value=''>Select an instructor</MenuItem>
               {availableInstructors.map(instructor => (
                 <MenuItem key={instructor.id} value={instructor.id}>
-                  {instructor.instructor_name}{' '}
+                  {instructor.instructorName}{' '}
                   {instructor.availability_status === 'Currently Assigned'
                     ? '(Currently Assigned)'
                     : `(${instructor.email})`}
@@ -2045,8 +2083,8 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
         onClose={handleViewStudentsClose}
         courseId={selectedCourseForStudents?.id || null}
         courseInfo={{
-          course_type: selectedCourseForStudents?.course_type_name || selectedCourseForStudents?.course_type,
-          organization_name: selectedCourseForStudents?.organization_name,
+          course_type: selectedCourseForStudents?.courseTypeName || selectedCourseForStudents?.courseType,
+          organization_name: selectedCourseForStudents?.organizationName,
           location: selectedCourseForStudents?.location,
         }}
       />
@@ -2057,7 +2095,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
         <DialogContent>
           <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle1" gutterBottom>
-              Current Schedule: {selectedCourse && formatDisplayDate(selectedCourse.scheduled_date)}
+              Current Schedule: {selectedCourse && formatDisplayDate(selectedCourse.scheduledDate)}
             </Typography>
             <TextField
               type="datetime-local"
@@ -2079,7 +2117,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
             onClick={handleEditSave} 
             variant="contained" 
             color="primary"
-            disabled={!newScheduledDate || newScheduledDate === selectedCourse?.scheduled_date}
+            disabled={!newScheduledDate || newScheduledDate === selectedCourse?.scheduledDate}
           >
             Save Changes
           </Button>
