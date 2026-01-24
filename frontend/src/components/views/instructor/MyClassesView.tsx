@@ -51,7 +51,7 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
   combinedSchedule.forEach((item, index) => {
     if (item.type === 'class') {
       console.log(`🔍 [TRACE] Class ${index}:`, {
-        course_id: item.course_id,
+        course_id: item.courseId,
         studentsregistered: item.studentsregistered,
         displayDate: item.displayDate,
         organizationname: item.organizationname
@@ -96,8 +96,8 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
     if (!sortField) return combinedSchedule;
 
     return [...combinedSchedule].sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
+      let aValue: Date | string;
+      let bValue: Date | string;
 
       if (sortField === 'date') {
         aValue = new Date(a.displayDate);
@@ -316,13 +316,13 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
               sortedSchedule.map((item, index) => {
                 console.log(`🔍 [TRACE] Rendering item ${index}:`, {
                   type: item.type,
-                  course_id: item.course_id,
+                  course_id: item.courseId,
                   studentsregistered: item.studentsregistered,
                   displayDate: item.displayDate
                 });
                 
                 return (
-                  <TableRow key={`${item.type}-${item.course_id || item.originalData?.id || index}`} hover>
+                  <TableRow key={`${item.type}-${item.courseId || item.originalData?.id || index}`} hover>
                     <TableCell>{item.displayDate}</TableCell>
                     <TableCell>{item.type === 'class' ? item.organizationname : ''}</TableCell>
                     <TableCell>{item.type === 'class' ? item.location : ''}</TableCell>
@@ -331,7 +331,7 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
                     <TableCell align='center'>
                       {item.type === 'class' ? (
                         (() => {
-                          console.log(`🔍 [TRACE] Displaying studentsregistered for course ${item.course_id}:`, item.studentsregistered);
+                          console.log(`🔍 [TRACE] Displaying studentsregistered for course ${item.courseId}:`, item.studentsregistered);
                           return item.studentsregistered;
                         })()
                       ) : ''}

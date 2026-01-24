@@ -59,14 +59,14 @@ interface Student {
 }
 
 interface ClassData {
-  course_id: number;
+  courseId: number;
   name: string;
   organizationname: string;
   location: string;
-  start_time: string;
-  end_time: string;
-  max_students: number;
-  current_students: number;
+  startTime: string;
+  endTime: string;
+  maxStudents: number;
+  currentStudents: number;
   studentcount: number;
   studentsattendance: number;
   date: string;
@@ -113,7 +113,7 @@ const ClassAttendanceView: React.FC = () => {
   // Load students when a class is selected
   useEffect(() => {
     if (selectedClass) {
-      loadStudents(selectedClass.course_id);
+      loadStudents(selectedClass.courseId);
     }
   }, [selectedClass]);
 
@@ -134,7 +134,7 @@ const ClassAttendanceView: React.FC = () => {
       }
 
       setError('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Debug] Error loading today\'s classes:', error);
       handleError(error, { component: 'ClassAttendanceView', action: 'load today classes' });
       setError("Failed to load today's classes");
@@ -150,7 +150,7 @@ const ClassAttendanceView: React.FC = () => {
       console.log('[Debug] Students loaded from backend:', response.data);
       setStudents(response.data?.data || response.data || []);
       setError('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       handleError(error, { component: 'ClassAttendanceView', action: 'load students' });
       setError('Failed to load students for this class');
     } finally {
@@ -158,9 +158,9 @@ const ClassAttendanceView: React.FC = () => {
     }
   };
 
-  const handleClassChange = (event: any) => {
+  const handleClassChange = (event: { target: { value: number } }) => {
     const classId = event.target.value;
-    const selected = todaysClasses.find(c => c.course_id === classId);
+    const selected = todaysClasses.find(c => c.courseId === classId);
     setSelectedClass(selected || null);
     setInstructorComments(''); // Reset comments when changing classes
   };
@@ -169,11 +169,11 @@ const ClassAttendanceView: React.FC = () => {
     if (!selectedClass) return;
 
     try {
-      const response = await instructorApi.updateStudentAttendance(selectedClass.course_id, studentId, attended);
+      const response = await instructorApi.updateStudentAttendance(selectedClass.courseId, studentId, attended);
 
       // Reload students from backend to ensure we have the latest attendance status
-      await loadStudents(selectedClass.course_id);
-    } catch (error: any) {
+      await loadStudents(selectedClass.courseId);
+    } catch (error: unknown) {
       handleError(error, { component: 'ClassAttendanceView', action: 'update attendance' });
       setError('Failed to update attendance');
     }
@@ -186,7 +186,7 @@ const ClassAttendanceView: React.FC = () => {
     }
 
     try {
-      const response = await instructorApi.addStudent(selectedClass.course_id, newStudent);
+      const response = await instructorApi.addStudent(selectedClass.courseId, newStudent);
 
       // Add new student to the list
       setStudents(prev => [...prev, response.data?.data || response.data]);
@@ -196,9 +196,10 @@ const ClassAttendanceView: React.FC = () => {
       setAddStudentDialog(false);
       setError('');
       setSuccessMessage('Student added successfully!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Show the specific error message from the backend
-      const errorMessage = error.response?.data?.error || 'Failed to add student';
+      const axiosErr = error as { response?: { data?: { error?: string } } };
+      const errorMessage = axiosErr.response?.data?.error || 'Failed to add student';
       setError(errorMessage);
       console.error('Add student error:', error);
     }
@@ -209,7 +210,7 @@ const ClassAttendanceView: React.FC = () => {
 
     try {
       setCompleting(true);
-      const response = await instructorApi.completeClass(selectedClass.course_id, instructorComments);
+      const response = await instructorApi.completeClass(selectedClass.courseId, instructorComments);
       setError('');
       setSuccessMessage('Class completed successfully! It has been moved to your archive.');
       // Refresh the class list
@@ -218,7 +219,7 @@ const ClassAttendanceView: React.FC = () => {
       setStudents([]);
       setInstructorComments('');
       setCompleteDialog(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       handleError(error, { component: 'ClassAttendanceView', action: 'complete class' });
       setError('Failed to complete class');
     } finally {
@@ -331,12 +332,12 @@ const ClassAttendanceView: React.FC = () => {
               <FormControl fullWidth>
                 <InputLabel>Today's Classes</InputLabel>
                 <Select
-                  value={selectedClass?.course_id || ''}
+                  value={selectedClass?.courseId || ''}
                   label="Today's Classes"
                   onChange={handleClassChange}
                 >
                   {todaysClasses.map(course => (
-                    <MenuItem key={course.course_id} value={course.course_id}>
+                    <MenuItem key={course.courseId} value={course.courseId}>
                       <Box>
                         <Typography variant='body1'>
                           {course.name} - {course.organizationname}
