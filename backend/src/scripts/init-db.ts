@@ -5,6 +5,14 @@ export async function initializeDatabase() {
   console.log('🔧 Initializing database...');
 
   try {
+    // CRITICAL: Drop any legacy views FIRST to prevent column reference errors
+    // This handles views that may have been created by older code versions
+    console.log('🧹 Cleaning up legacy views...');
+    await pool.query(`DROP VIEW IF EXISTS course_request_details CASCADE`);
+    await pool.query(`DROP VIEW IF EXISTS invoice_with_breakdown CASCADE`);
+    await pool.query(`DROP VIEW IF EXISTS course_student_counts CASCADE`);
+    console.log('✅ Legacy views cleaned up');
+
     // Create organizations table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS organizations (
