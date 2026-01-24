@@ -659,7 +659,7 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
   );
 
   if (courseRequestCheck.rows.length === 0) {
-    throw new AppError(403, errorCodes.FORBIDDEN, 'Not authorized or course request not found');
+    throw new AppError(403, errorCodes.ACCESS_DENIED, 'Not authorized or course request not found');
   }
 
   // Check if student already exists for this course_request

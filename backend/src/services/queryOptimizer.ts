@@ -107,7 +107,7 @@ class QueryOptimizer {
    */
   async getOptimizedDashboardStats(role: string, organizationId?: number) {
     let query: string;
-    let params: (string | number)[];
+    let params: (string | number | null)[];
 
     if (role === 'admin') {
       query = `
@@ -131,7 +131,7 @@ class QueryOptimizer {
         FROM course_requests
         WHERE organization_id = $1
       `;
-      params = [organizationId];
+      params = [organizationId ?? null];
     }
 
     return this.executeWithTiming(query, params);

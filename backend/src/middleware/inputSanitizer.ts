@@ -112,13 +112,13 @@ export const sanitizeInput = (
 
     // Sanitize query parameters
     if (req.query && typeof req.query === 'object') {
-      req.query = sanitizeObject(req.query);
+      req.query = sanitizeObject(req.query) as typeof req.query;
       console.log('🧼 [INPUT SANITIZER] Query parameters sanitized');
     }
 
     // Sanitize URL parameters
     if (req.params && typeof req.params === 'object') {
-      req.params = sanitizeObject(req.params);
+      req.params = sanitizeObject(req.params) as typeof req.params;
       console.log('🧼 [INPUT SANITIZER] URL parameters sanitized');
     }
 

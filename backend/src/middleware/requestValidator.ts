@@ -189,8 +189,8 @@ export const requestValidator = (config: Partial<ValidationConfig> = {}) => {
       // 2. Sanitize input if enabled
       if (validationConfig.sanitizeInput) {
         req.body = sanitizeInput(req.body, validationConfig);
-        req.query = sanitizeInput(req.query, validationConfig);
-        req.params = sanitizeInput(req.params, validationConfig);
+        req.query = sanitizeInput(req.query, validationConfig) as typeof req.query;
+        req.params = sanitizeInput(req.params, validationConfig) as typeof req.params;
       }
 
       // 3. Validate file uploads

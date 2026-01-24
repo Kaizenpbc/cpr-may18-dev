@@ -114,7 +114,8 @@ export function errorHandler(
 }
 
 // Async handler to catch errors in async routes
-type AsyncRequestHandler = (req: Request, res: Response, next: NextFunction) => Promise<void | Response>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AsyncRequestHandler = (req: Request<any, any, any, any>, res: Response, next: NextFunction) => Promise<void | Response<any>>;
 
 export function asyncHandler(fn: AsyncRequestHandler) {
   return (req: Request, res: Response, next: NextFunction) => {
