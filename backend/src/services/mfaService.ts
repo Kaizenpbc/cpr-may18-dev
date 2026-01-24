@@ -1,6 +1,7 @@
 import { pool } from '../config/database.js';
-import { 
-  MFAConfig, 
+import { Request } from 'express';
+import {
+  MFAConfig,
   MFAUserData, 
   MFAVerificationResult, 
   MFAType, 
@@ -102,7 +103,7 @@ export class MFAService {
     code: string,
     type: MFAType,
     deviceFingerprint?: string,
-    req?: any
+    req?: Request
   ): Promise<MFAVerificationResult> {
     try {
       // Check rate limiting
@@ -275,7 +276,7 @@ export class MFAService {
   }
 
   // Disable MFA for user
-  async disableMFA(userId: string, req?: any): Promise<{
+  async disableMFA(userId: string, req?: Request): Promise<{
     success: boolean;
     message: string;
   }> {

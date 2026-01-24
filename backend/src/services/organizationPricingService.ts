@@ -145,7 +145,7 @@ export class OrganizationPricingService {
       WHERE op.deleted_at IS NULL
     `;
 
-    const params: any[] = [];
+    const params: (string | number | boolean)[] = [];
     let paramIndex = 1;
 
     if (filters?.organizationId) {
@@ -214,7 +214,7 @@ export class OrganizationPricingService {
     data: UpdateOrganizationPricingData
   ): Promise<OrganizationPricing | null> {
     const updateFields: string[] = [];
-    const params: any[] = [];
+    const params: (string | number | boolean)[] = [];
     let paramIndex = 1;
 
     if (data.pricePerStudent !== undefined) {

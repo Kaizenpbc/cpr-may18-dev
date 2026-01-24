@@ -198,15 +198,15 @@ export class PaymentRequestService {
     instructor_id?: number;
     page?: number;
     limit?: number;
-  } = {}): Promise<{ requests: PaymentRequestDetail[]; pagination: any }> {
+  } = {}): Promise<{ requests: PaymentRequestDetail[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> {
     const client = await pool.connect();
-    
+
     try {
       const { status, instructor_id, page = 1, limit = 10 } = filters;
       const offset = (page - 1) * limit;
-      
+
       let whereClause = "WHERE 1=1";
-      let params: any[] = [];
+      const params: (string | number)[] = [];
       let paramIndex = 1;
       
       if (status) {
@@ -289,7 +289,7 @@ export class PaymentRequestService {
           page,
           limit,
           total: parseInt(countResult.rows[0].total),
-          pages: Math.ceil(parseInt(countResult.rows[0].total) / limit)
+          totalPages: Math.ceil(parseInt(countResult.rows[0].total) / limit)
         }
       };
     } finally {
@@ -434,9 +434,9 @@ export class PaymentRequestService {
   static async getReturnedPaymentRequests(filters: {
     page?: number;
     limit?: number;
-  } = {}): Promise<{ requests: PaymentRequestDetail[]; pagination: any }> {
+  } = {}): Promise<{ requests: PaymentRequestDetail[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> {
     const client = await pool.connect();
-    
+
     try {
       const { page = 1, limit = 10 } = filters;
       const offset = (page - 1) * limit;
@@ -489,7 +489,7 @@ export class PaymentRequestService {
           page,
           limit,
           total: parseInt(countResult.rows[0].total),
-          pages: Math.ceil(parseInt(countResult.rows[0].total) / limit)
+          totalPages: Math.ceil(parseInt(countResult.rows[0].total) / limit)
         }
       };
     } finally {

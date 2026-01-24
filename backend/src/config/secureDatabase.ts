@@ -189,8 +189,8 @@ export class SecureDatabase {
   // Health check with security monitoring
   public async healthCheck(): Promise<{
     healthy: boolean;
-    stats: any;
-    security: any;
+    stats: Record<string, unknown> | null;
+    security: Record<string, unknown>;
   }> {
     try {
       const startTime = Date.now();
