@@ -911,6 +911,108 @@ export async function initializeDatabase() {
 
     console.log('✅ Tables created');
 
+    // ==========================================
+    // DATABASE INTEGRITY FIXES
+    // ==========================================
+    console.log('🔒 Applying database integrity constraints...');
+
+    // Foreign Key Constraints
+    const foreignKeyConstraints = [
+      // Course Requests
+      { table: 'course_requests', constraint: 'fk_course_requests_organization', sql: 'FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE' },
+      { table: 'course_requests', constraint: 'fk_course_requests_instructor', sql: 'FOREIGN KEY (instructor_id) REFERENCES users(id) ON DELETE SET NULL' },
+      { table: 'course_requests', constraint: 'fk_course_requests_course_type', sql: 'FOREIGN KEY (course_type_id) REFERENCES class_types(id) ON DELETE RESTRICT' },
+      // Course Students
+      { table: 'course_students', constraint: 'fk_course_students_course_request', sql: 'FOREIGN KEY (course_request_id) REFERENCES course_requests(id) ON DELETE CASCADE' },
+      // Invoices
+      { table: 'invoices', constraint: 'fk_invoices_organization', sql: 'FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE RESTRICT' },
+      { table: 'invoices', constraint: 'fk_invoices_course_request', sql: 'FOREIGN KEY (course_request_id) REFERENCES course_requests(id) ON DELETE SET NULL' },
+      // Payments
+      { table: 'payments', constraint: 'fk_payments_invoice', sql: 'FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE' },
+      // Instructor Availability
+      { table: 'instructor_availability', constraint: 'fk_instructor_availability_user', sql: 'FOREIGN KEY (instructor_id) REFERENCES users(id) ON DELETE CASCADE' },
+      // Classes
+      { table: 'classes', constraint: 'fk_classes_instructor', sql: 'FOREIGN KEY (instructor_id) REFERENCES users(id) ON DELETE SET NULL' },
+      { table: 'classes', constraint: 'fk_classes_type', sql: 'FOREIGN KEY (type_id) REFERENCES class_types(id) ON DELETE RESTRICT' },
+      // Users
+      { table: 'users', constraint: 'fk_users_organization', sql: 'FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL' },
+    ];
+
+    for (const fk of foreignKeyConstraints) {
+      try {
+        await pool.query(`ALTER TABLE ${fk.table} DROP CONSTRAINT IF EXISTS ${fk.constraint}`);
+        await pool.query(`ALTER TABLE ${fk.table} ADD CONSTRAINT ${fk.constraint} ${fk.sql}`);
+      } catch (e: any) {
+        // Constraint might fail if data violates it - log but continue
+        if (!e.message.includes('already exists')) {
+          console.log(`Note: Could not add constraint ${fk.constraint}: ${e.message}`);
+        }
+      }
+    }
+
+    // CHECK Constraints for data integrity
+    const checkConstraints = [
+      { table: 'invoices', constraint: 'check_invoice_amount_positive', sql: 'CHECK (amount >= 0)' },
+      { table: 'invoices', constraint: 'check_invoice_base_cost_positive', sql: 'CHECK (base_cost IS NULL OR base_cost >= 0)' },
+      { table: 'invoices', constraint: 'check_invoice_tax_positive', sql: 'CHECK (tax_amount IS NULL OR tax_amount >= 0)' },
+      { table: 'payments', constraint: 'check_payment_amount_positive', sql: 'CHECK (amount > 0)' },
+      { table: 'course_pricing', constraint: 'check_pricing_positive', sql: 'CHECK (price_per_student >= 0)' },
+      { table: 'invoices', constraint: 'check_invoice_due_date', sql: 'CHECK (due_date IS NULL OR invoice_date IS NULL OR due_date >= invoice_date)' },
+      { table: 'course_requests', constraint: 'check_course_times', sql: 'CHECK (confirmed_end_time IS NULL OR confirmed_start_time IS NULL OR confirmed_end_time > confirmed_start_time)' },
+    ];
+
+    for (const chk of checkConstraints) {
+      try {
+        await pool.query(`ALTER TABLE ${chk.table} DROP CONSTRAINT IF EXISTS ${chk.constraint}`);
+        await pool.query(`ALTER TABLE ${chk.table} ADD CONSTRAINT ${chk.constraint} ${chk.sql}`);
+      } catch (e: any) {
+        if (!e.message.includes('already exists')) {
+          console.log(`Note: Could not add constraint ${chk.constraint}: ${e.message}`);
+        }
+      }
+    }
+
+    // Create audit_log table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id SERIAL PRIMARY KEY,
+        table_name VARCHAR(100) NOT NULL,
+        record_id INTEGER NOT NULL,
+        action VARCHAR(20) NOT NULL CHECK (action IN ('INSERT', 'UPDATE', 'DELETE')),
+        old_values JSONB,
+        new_values JSONB,
+        changed_by INTEGER REFERENCES users(id),
+        changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ip_address VARCHAR(45),
+        user_agent TEXT
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_table_record ON audit_log(table_name, record_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_changed_at ON audit_log(changed_at)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_changed_by ON audit_log(changed_by)`);
+
+    // Add soft delete columns
+    await pool.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL`);
+    await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL`);
+    await pool.query(`ALTER TABLE course_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL`);
+
+    // Soft delete indexes
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_invoices_not_deleted ON invoices(id) WHERE deleted_at IS NULL`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_not_deleted ON payments(id) WHERE deleted_at IS NULL`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_course_requests_not_deleted ON course_requests(id) WHERE deleted_at IS NULL`);
+
+    // Clear sensitive credentials from system_configurations (move to env vars)
+    await pool.query(`
+      UPDATE system_configurations
+      SET config_value = '[MOVED_TO_ENV_VARS]',
+          description = 'Value moved to environment variables for security'
+      WHERE config_key IN ('email_smtp_pass', 'email_smtp_user', 'email_api_key')
+        AND config_value NOT LIKE '[MOVED%]'
+        AND config_value != ''
+    `);
+
+    console.log('✅ Database integrity constraints applied');
+
     // Create views for common queries
     console.log('📊 Creating database views...');
 
