@@ -9,6 +9,12 @@ import { devLog } from '../../utils/devLog.js';
 
 const router = express.Router();
 
+// Debug test route
+router.get('/test', (req: Request, res: Response) => {
+  console.log('[ORG/TEST] Test route called');
+  res.json({ success: true, message: 'Organization router is working' });
+});
+
 // Get organization details
 router.get('/', authenticateToken, requireRole(['admin', 'organization']), asyncHandler(async (req: Request, res: Response) => {
   const result = await pool.query(
@@ -71,13 +77,14 @@ router.put('/profile', authenticateToken, requireRole(['organization']), asyncHa
   res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
 }));
 
-router.get('/courses', authenticateToken, requireRole(['organization']), asyncHandler(async (req: Request, res: Response) => {
-  console.log('[ORG/COURSES] Endpoint called');
-  if (!req.user) {
-    console.log('[ORG/COURSES] No user found');
-    throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
-  }
-  console.log('[ORG/COURSES] User:', req.user?.username, 'OrgId:', req.user?.organizationId);
+router.get('/courses', authenticateToken, requireRole(['organization']), async (req: Request, res: Response) => {
+  try {
+    console.log('[ORG/COURSES] Endpoint called');
+    if (!req.user) {
+      console.log('[ORG/COURSES] No user found');
+      return res.status(401).json({ success: false, error: { code: 'NO_USER', message: 'User not authenticated' }});
+    }
+    console.log('[ORG/COURSES] User:', req.user?.username, 'OrgId:', req.user?.organizationId);
   devLog('🔍 [TRACE] Organization courses endpoint called');
   devLog('🔍 [TRACE] User:', req.user);
   devLog('🔍 [TRACE] Organization ID:', req.user?.organizationId);
@@ -147,20 +154,29 @@ router.get('/courses', authenticateToken, requireRole(['organization']), asyncHa
     res.json(ApiResponseBuilder.paginate(camelData.map(formatCourseRow), page, limit, total));
     console.log('[ORG/COURSES] Response sent successfully');
   } catch (queryError: any) {
-    console.error('[ORG/COURSES] Query error:', queryError.message);
-    console.error('[ORG/COURSES] Query error stack:', queryError.stack);
-    // Temporarily return error details for debugging
+    console.error('[ORG/COURSES] Inner catch - Query error:', queryError.message);
     return res.status(500).json({
       success: false,
       error: {
-        code: 'DEBUG_ERROR',
+        code: 'DEBUG_QUERY_ERROR',
         message: queryError.message,
         stack: queryError.stack?.split('\n').slice(0, 5).join('\n'),
         where: queryError.where || null
       }
     });
   }
-}));
+  } catch (outerError: any) {
+    console.error('[ORG/COURSES] Outer catch - Error:', outerError.message);
+    return res.status(500).json({
+      success: false,
+      error: {
+        code: 'DEBUG_OUTER_ERROR',
+        message: outerError.message,
+        stack: outerError.stack?.split('\n').slice(0, 5).join('\n')
+      }
+    });
+  }
+});
 
 // Get archived courses for the organization
 router.get('/archive', authenticateToken, requireRole(['organization']), asyncHandler(async (req: Request, res: Response) => {
