@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { body, validationResult } from 'express-validator';
 import { asyncHandler } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
@@ -1876,10 +1876,11 @@ router.get(
 
     try {
       // Parse the month to get start and end dates
-      const startDate = `${month}-01`;
+      const monthStr = String(month);
+      const startDate = `${monthStr}-01`;
       // Get the last day of the month using UTC to avoid timezone issues
-      const year = parseInt(month.split('-')[0]);
-      const monthNum = parseInt(month.split('-')[1]) - 1; // 0-based month
+      const year = parseInt(monthStr.split('-')[0]);
+      const monthNum = parseInt(monthStr.split('-')[1]) - 1; // 0-based month
       const endDate = new Date(Date.UTC(year, monthNum + 1, 0));
       const endDateStr = endDate.toISOString().slice(0, 10);
 
@@ -1933,10 +1934,11 @@ router.get(
 
     try {
       // Parse the month to get start and end dates
-      const startDate = `${month}-01`;
+      const monthStr = String(month);
+      const startDate = `${monthStr}-01`;
       // Get the last day of the month using UTC to avoid timezone issues
-      const year = parseInt(month.split('-')[0]);
-      const monthNum = parseInt(month.split('-')[1]) - 1; // 0-based month
+      const year = parseInt(monthStr.split('-')[0]);
+      const monthNum = parseInt(monthStr.split('-')[1]) - 1; // 0-based month
       const endDate = new Date(Date.UTC(year, monthNum + 1, 0));
       const endDateStr = endDate.toISOString().slice(0, 10);
 
@@ -4636,7 +4638,7 @@ router.get(
         let address_postal_code = '';
         
         if (vendor.address) {
-          const addressParts = vendor.address.split(',').map(part => part.trim());
+          const addressParts = vendor.address.split(',').map((part: string) => part.trim());
           address_street = addressParts[0] || '';
           address_city = addressParts[1] || '';
           address_province = addressParts[2] || '';
@@ -4840,7 +4842,7 @@ router.put(
       if (result.rows.length === 0) {
         throw new AppError(
           404,
-          errorCodes.NOT_FOUND,
+          errorCodes.RESOURCE_NOT_FOUND,
           'Vendor not found'
         );
       }
@@ -5915,7 +5917,7 @@ router.post(
           invoiceNumber,
           organizationName,
           proposedPayment
-        ).catch(error => {
+        ).catch((error: unknown) => {
           console.error('[NOTIFICATION] Error sending payment notification:', error);
         });
 

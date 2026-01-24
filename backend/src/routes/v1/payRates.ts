@@ -1,13 +1,13 @@
 import { Router, Request, Response } from 'express';
-import { pool } from '../../config/database';
-import { authenticateToken, requireRole } from '../../middleware/authMiddleware';
-import { asyncHandler } from '../../middleware/asyncHandler';
-import { AppError } from '../../utils/errorHandler';
+import { pool } from '../../config/database.js';
+import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
+import { asyncHandler } from '../../middleware/asyncHandler.js';
+import { AppError, errorCodes } from '../../utils/errorHandler.js';
 
 const router = Router();
 
 // Get all pay rate tiers
-router.get('/tiers', authenticateToken, requireRole(['hr']), asyncHandler(async (req, res) => {
+router.get('/tiers', authenticateToken, requireRole(['hr']), asyncHandler(async (req: Request, res: Response) => {
   const client = await pool.connect();
   
   try {
@@ -27,11 +27,11 @@ router.get('/tiers', authenticateToken, requireRole(['hr']), asyncHandler(async 
 }));
 
 // Create new pay rate tier
-router.post('/tiers', authenticateToken, requireRole(['hr']), asyncHandler(async (req, res) => {
+router.post('/tiers', authenticateToken, requireRole(['hr']), asyncHandler(async (req: Request, res: Response) => {
   const { name, description, base_hourly_rate, course_bonus } = req.body;
   
   if (!name || !base_hourly_rate) {
-    throw new AppError('Name and base hourly rate are required.', 400);
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Name and base hourly rate are required.');
   }
   
   const client = await pool.connect();
@@ -54,7 +54,7 @@ router.post('/tiers', authenticateToken, requireRole(['hr']), asyncHandler(async
 }));
 
 // Update pay rate tier
-router.put('/tiers/:id', authenticateToken, requireRole(['hr']), asyncHandler(async (req, res) => {
+router.put('/tiers/:id', authenticateToken, requireRole(['hr']), asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, description, base_hourly_rate, course_bonus, is_active } = req.body;
   
@@ -74,7 +74,7 @@ router.put('/tiers/:id', authenticateToken, requireRole(['hr']), asyncHandler(as
     `, [name, description, base_hourly_rate, course_bonus, is_active, id]);
     
     if (result.rows.length === 0) {
-      throw new AppError('Pay rate tier not found.', 404);
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Pay rate tier not found.');
     }
     
     res.json({
@@ -88,7 +88,7 @@ router.put('/tiers/:id', authenticateToken, requireRole(['hr']), asyncHandler(as
 }));
 
 // Get instructor pay rates (with pagination and filtering)
-router.get('/instructors', authenticateToken, requireRole(['hr']), asyncHandler(async (req, res) => {
+router.get('/instructors', authenticateToken, requireRole(['hr']), asyncHandler(async (req: Request, res: Response) => {
   const { page = 1, limit = 10, search = '', has_rate = '' } = req.query;
   const offset = (Number(page) - 1) * Number(limit);
   
@@ -166,7 +166,7 @@ router.get('/instructors', authenticateToken, requireRole(['hr']), asyncHandler(
 }));
 
 // Get specific instructor's pay rate
-router.get('/instructors/:instructorId', authenticateToken, requireRole(['hr']), asyncHandler(async (req, res) => {
+router.get('/instructors/:instructorId', authenticateToken, requireRole(['hr']), asyncHandler(async (req: Request, res: Response) => {
   const { instructorId } = req.params;
   
   const client = await pool.connect();
@@ -212,7 +212,7 @@ router.get('/instructors/:instructorId', authenticateToken, requireRole(['hr']),
     `, [instructorId]);
     
     if (instructorResult.rows.length === 0) {
-      throw new AppError('Instructor not found.', 404);
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Instructor not found.');
     }
     
     res.json({
@@ -229,13 +229,13 @@ router.get('/instructors/:instructorId', authenticateToken, requireRole(['hr']),
 }));
 
 // Set instructor pay rate
-router.post('/instructors/:instructorId', authenticateToken, requireRole(['hr']), asyncHandler(async (req, res) => {
+router.post('/instructors/:instructorId', authenticateToken, requireRole(['hr']), asyncHandler(async (req: Request, res: Response) => {
   const { instructorId } = req.params;
   const { hourly_rate, course_bonus, tier_id, effective_date, notes, change_reason } = req.body;
   const userId = (req as any).user.userId;
   
   if (!hourly_rate) {
-    throw new AppError('Hourly rate is required.', 400);
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Hourly rate is required.');
   }
   
   const client = await pool.connect();
@@ -249,7 +249,7 @@ router.post('/instructors/:instructorId', authenticateToken, requireRole(['hr'])
     `, [instructorId]);
     
     if (instructorResult.rows.length === 0) {
-      throw new AppError('Instructor not found.', 404);
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Instructor not found.');
     }
     
     // End the current active rate if it exists
@@ -326,7 +326,7 @@ router.post('/instructors/:instructorId', authenticateToken, requireRole(['hr'])
 }));
 
 // Update instructor pay rate
-router.put('/instructors/:instructorId', authenticateToken, requireRole(['hr']), asyncHandler(async (req, res) => {
+router.put('/instructors/:instructorId', authenticateToken, requireRole(['hr']), asyncHandler(async (req: Request, res: Response) => {
   const { instructorId } = req.params;
   const { hourly_rate, course_bonus, tier_id, notes, change_reason } = req.body;
   const userId = (req as any).user.userId;
@@ -345,7 +345,7 @@ router.put('/instructors/:instructorId', authenticateToken, requireRole(['hr']),
     `, [instructorId]);
     
     if (currentRateResult.rows.length === 0) {
-      throw new AppError('No active pay rate found for this instructor.', 404);
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'No active pay rate found for this instructor.');
     }
     
     const currentRate = currentRateResult.rows[0];
@@ -403,7 +403,7 @@ router.put('/instructors/:instructorId', authenticateToken, requireRole(['hr']),
 }));
 
 // Get instructor's current pay rate for payroll calculation
-router.get('/instructors/:instructorId/current', authenticateToken, requireRole(['hr']), asyncHandler(async (req, res) => {
+router.get('/instructors/:instructorId/current', authenticateToken, requireRole(['hr']), asyncHandler(async (req: Request, res: Response) => {
   const { instructorId } = req.params;
   const { date = new Date().toISOString().split('T')[0] } = req.query;
   
@@ -451,16 +451,16 @@ router.get('/instructors/:instructorId/current', authenticateToken, requireRole(
 }));
 
 // Bulk update pay rates (for multiple instructors)
-router.post('/bulk-update', authenticateToken, requireRole(['hr']), asyncHandler(async (req, res) => {
+router.post('/bulk-update', authenticateToken, requireRole(['hr']), asyncHandler(async (req: Request, res: Response) => {
   const { instructor_ids, hourly_rate, course_bonus, tier_id, effective_date, notes, change_reason } = req.body;
   const userId = (req as any).user.userId;
   
   if (!instructor_ids || !Array.isArray(instructor_ids) || instructor_ids.length === 0) {
-    throw new AppError('Instructor IDs array is required.', 400);
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor IDs array is required.');
   }
   
   if (!hourly_rate) {
-    throw new AppError('Hourly rate is required.', 400);
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Hourly rate is required.');
   }
   
   const client = await pool.connect();

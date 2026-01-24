@@ -78,9 +78,9 @@ router.get('/', authenticateToken, requireTimesheetAccess, asyncHandler(async (r
     let paramIndex = 1;
     
     // HR can see all timesheets, instructors can only see their own
-    if (req.user.role === 'instructor') {
+    if (req.user!.role === 'instructor') {
       whereClause += ` AND t.instructor_id = $${paramIndex}`;
-      params.push(req.user.id);
+      params.push(req.user!.id);
       paramIndex++;
     }
     
@@ -146,12 +146,12 @@ router.get('/:timesheetId', authenticateToken, requireTimesheetAccess, asyncHand
   
   try {
     let whereClause = "WHERE t.id = $1";
-    let params = [timesheetId];
-    
+    const params: (string | number)[] = [timesheetId];
+
     // Instructors can only view their own timesheets
-    if (req.user.role === 'instructor') {
+    if (req.user!.role === 'instructor') {
       whereClause += " AND t.instructor_id = $2";
-      params.push(req.user.id);
+      params.push(req.user!.id);
     }
     
     const timesheetResult = await client.query(`
@@ -179,7 +179,7 @@ router.get('/:timesheetId', authenticateToken, requireTimesheetAccess, asyncHand
 
 // Submit Timesheet (Instructors only)
 router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  if (req.user.role !== 'instructor') {
+  if (req.user!.role !== 'instructor') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only instructors can submit timesheets.');
   }
 
@@ -204,7 +204,7 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
     const existingResult = await client.query(`
       SELECT id FROM timesheets 
       WHERE instructor_id = $1 AND week_start_date = $2
-    `, [req.user.id, week_start_date]);
+    `, [req.user!.id, week_start_date]);
     
     if (existingResult.rows.length > 0) {
       throw new AppError(400, errorCodes.RESOURCE_ALREADY_EXISTS, 'Timesheet already exists for this week.');
@@ -233,7 +233,7 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
       AND cr.confirmed_date <= $3::date
       AND cr.status IN ('confirmed', 'completed')
       ORDER BY cr.confirmed_date, cr.confirmed_start_time
-    `, [req.user.id, week_start_date, endDate.toISOString().split('T')[0]]);
+    `, [req.user!.id, week_start_date, endDate.toISOString().split('T')[0]]);
 
     const courseDetails = coursesResult.rows;
     
@@ -244,7 +244,7 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
         courses_taught, notes, status, course_details, created_at, updated_at
       ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, NOW(), NOW())
       RETURNING *
-    `, [req.user.id, week_start_date, total_hours || 0, courses_taught || 0, notes || '', JSON.stringify(courseDetails)]);
+    `, [req.user!.id, week_start_date, total_hours || 0, courses_taught || 0, notes || '', JSON.stringify(courseDetails)]);
     
     res.json({
       success: true,
@@ -261,7 +261,7 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
 
 // Update Timesheet (Instructors only)
 router.put('/:timesheetId', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  if (req.user.role !== 'instructor') {
+  if (req.user!.role !== 'instructor') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only instructors can update timesheets.');
   }
 
@@ -275,7 +275,7 @@ router.put('/:timesheetId', authenticateToken, asyncHandler(async (req: Request,
     const existingResult = await client.query(`
       SELECT id, status FROM timesheets 
       WHERE id = $1 AND instructor_id = $2
-    `, [timesheetId, req.user.id]);
+    `, [timesheetId, req.user!.id]);
     
     if (existingResult.rows.length === 0) {
       throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Timesheet not found.');
@@ -291,7 +291,7 @@ router.put('/:timesheetId', authenticateToken, asyncHandler(async (req: Request,
       SET total_hours = $1, courses_taught = $2, notes = $3, updated_at = NOW()
       WHERE id = $4 AND instructor_id = $5
       RETURNING *
-    `, [total_hours, courses_taught || 0, notes || '', timesheetId, req.user.id]);
+    `, [total_hours, courses_taught || 0, notes || '', timesheetId, req.user!.id]);
     
     res.json({
       success: true,
@@ -305,7 +305,7 @@ router.put('/:timesheetId', authenticateToken, asyncHandler(async (req: Request,
 
 // Approve/Reject Timesheet (HR only)
 router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  if (req.user.role !== 'hr') {
+  if (req.user!.role !== 'hr') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. HR role required.');
   }
 
@@ -349,7 +349,7 @@ router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req:
       try {
         // Import the service dynamically to avoid circular dependencies
         const { PaymentRequestService } = await import('../../services/paymentRequestService.js');
-        paymentRequest = await PaymentRequestService.createPaymentRequest(timesheetId);
+        paymentRequest = await PaymentRequestService.createPaymentRequest(Number(timesheetId));
       } catch (paymentError) {
         console.error('Error creating payment request:', paymentError);
         // Don't fail the timesheet approval if payment request creation fails
@@ -427,7 +427,7 @@ router.get('/instructor/:instructorId/summary', authenticateToken, requireTimesh
 
 // Get courses for a specific week (Monday to Sunday)
 router.get('/week/:weekStartDate/courses', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  if (req.user.role !== 'instructor') {
+  if (req.user!.role !== 'instructor') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only instructors can access this endpoint.');
   }
 
@@ -468,7 +468,7 @@ router.get('/week/:weekStartDate/courses', authenticateToken, asyncHandler(async
       AND cr.confirmed_date <= $3::date
       AND cr.status IN ('confirmed', 'completed')
       ORDER BY cr.confirmed_date, cr.confirmed_start_time
-    `, [req.user.id, weekStartDate, endDate.toISOString().split('T')[0]]);
+    `, [req.user!.id, weekStartDate, endDate.toISOString().split('T')[0]]);
     
     res.json({
       success: true,
@@ -499,14 +499,14 @@ router.post('/:timesheetId/notes', authenticateToken, asyncHandler(async (req: R
   }
 
   // Determine user role for note
-  let userRole = req.user.role;
-  if (note_type === 'instructor' && req.user.role !== 'instructor') {
+  let userRole = req.user!.role;
+  if (note_type === 'instructor' && req.user!.role !== 'instructor') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only instructors can add instructor notes.');
   }
-  if (note_type === 'hr' && req.user.role !== 'hr') {
+  if (note_type === 'hr' && req.user!.role !== 'hr') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only HR can add HR notes.');
   }
-  if (note_type === 'accounting' && req.user.role !== 'accountant') {
+  if (note_type === 'accounting' && req.user!.role !== 'accountant') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only accountants can add accounting notes.');
   }
 
@@ -515,12 +515,12 @@ router.post('/:timesheetId/notes', authenticateToken, asyncHandler(async (req: R
   try {
     // Check if timesheet exists and user has access
     let whereClause = "WHERE t.id = $1";
-    let params = [timesheetId];
-    
+    const params: (string | number)[] = [timesheetId];
+
     // Instructors can only add notes to their own timesheets
-    if (req.user.role === 'instructor') {
+    if (req.user!.role === 'instructor') {
       whereClause += " AND t.instructor_id = $2";
-      params.push(req.user.id);
+      params.push(req.user!.id);
     }
     
     const timesheetResult = await client.query(`
@@ -536,7 +536,7 @@ router.post('/:timesheetId/notes', authenticateToken, asyncHandler(async (req: R
       INSERT INTO timesheet_notes (timesheet_id, user_id, user_role, note_text, note_type)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
-    `, [timesheetId, req.user.id, userRole, note_text.trim(), note_type]);
+    `, [timesheetId, req.user!.id, userRole, note_text.trim(), note_type]);
 
     // Get the note with user info
     const noteWithUserResult = await client.query(`
@@ -606,7 +606,7 @@ router.delete('/:timesheetId/notes/:noteId', authenticateToken, asyncHandler(asy
     const note = noteResult.rows[0];
     
     // Check permissions: user can delete their own notes, HR can delete any note
-    if (note.user_id !== req.user.id && req.user.role !== 'hr') {
+    if (note.user_id !== req.user!.id && req.user!.role !== 'hr') {
       throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Cannot delete this note.');
     }
     

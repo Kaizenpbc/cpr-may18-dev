@@ -86,7 +86,7 @@ export const DEFAULT_ENCRYPTION_CONFIG: EncryptionConfig = {
   security: {
     requireEncryptionForSensitiveData: true,
     auditEncryptionOperations: true,
-    auditLogs: true,
+    encryptLogs: true,
     keyDerivationIterations: 100000
   }
 };
@@ -264,10 +264,14 @@ export class EncryptionService {
 
     // Generate random IV
     const iv = crypto.randomBytes(this.config.ivLength);
-    
-    // Create cipher
-    const cipher = crypto.createCipher(key.algorithm, key.key);
-    cipher.setAAD(Buffer.from(key.id, 'utf8'));
+
+    // Create cipher using createCipheriv for proper GCM support
+    const cipher = crypto.createCipheriv(key.algorithm as crypto.CipherGCMTypes, key.key, iv) as crypto.CipherGCM;
+
+    // Set AAD for GCM mode
+    if (key.algorithm.includes('gcm')) {
+      cipher.setAAD(Buffer.from(key.id, 'utf8'));
+    }
 
     // Encrypt data
     let encrypted = cipher.update(data, 'utf8', 'hex');
@@ -276,7 +280,7 @@ export class EncryptionService {
     // Get authentication tag (for GCM mode)
     let tag: string | undefined;
     if (key.algorithm.includes('gcm')) {
-      tag = cipher.getAuthTag().toString('hex');
+      tag = (cipher as crypto.CipherGCM).getAuthTag().toString('hex');
     }
 
     // Update key usage
@@ -310,13 +314,15 @@ export class EncryptionService {
       throw new Error(`Encryption key not found: ${keyId}`);
     }
 
-    // Create decipher
-    const decipher = crypto.createDecipher(key.algorithm, key.key);
-    decipher.setAAD(Buffer.from(key.id, 'utf8'));
+    // Create decipher using createDecipheriv for proper GCM support
+    const decipher = crypto.createDecipheriv(key.algorithm as crypto.CipherGCMTypes, key.key, Buffer.from(iv, 'hex')) as crypto.DecipherGCM;
 
-    // Set authentication tag (for GCM mode)
-    if (tag && key.algorithm.includes('gcm')) {
-      decipher.setAuthTag(Buffer.from(tag, 'hex'));
+    // Set AAD and authentication tag for GCM mode
+    if (key.algorithm.includes('gcm')) {
+      decipher.setAAD(Buffer.from(key.id, 'utf8'));
+      if (tag) {
+        (decipher as crypto.DecipherGCM).setAuthTag(Buffer.from(tag, 'hex'));
+      }
     }
 
     // Decrypt data

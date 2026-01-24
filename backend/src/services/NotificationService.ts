@@ -360,6 +360,35 @@ export class NotificationService {
   }
 
   /**
+   * Notify accountants when payment is submitted
+   */
+  async notifyPaymentSubmitted(
+    invoiceId: number,
+    invoiceNumber: string,
+    organizationName: string,
+    amount: number
+  ): Promise<Notification[]> {
+    // Get all accountant users
+    const accountantsResult = await this.pool.query(
+      `SELECT id FROM users WHERE role IN ('accounting', 'accountant', 'admin', 'sysadmin')`
+    );
+
+    const notifications: Notification[] = [];
+    for (const accountant of accountantsResult.rows) {
+      const notification = await this.createNotification({
+        user_id: accountant.id,
+        title: 'Payment Submitted',
+        message: `${organizationName} has submitted a payment of $${amount.toFixed(2)} for invoice ${invoiceNumber}. Please verify.`,
+        type: 'info',
+        category: 'billing',
+        link: `/accounting/payments`
+      });
+      notifications.push(notification);
+    }
+    return notifications;
+  }
+
+  /**
    * Notify organization when invoice is posted
    */
   async notifyInvoicePosted(
@@ -387,6 +416,77 @@ export class NotificationService {
     }
     return notifications;
   }
+
+  // ============================================
+  // Notification Preferences
+  // ============================================
+
+  /**
+   * Get notification preferences for a user
+   */
+  async getPreferences(userId: number): Promise<NotificationPreferences> {
+    const query = `
+      SELECT type, email_enabled, push_enabled, sound_enabled
+      FROM notification_preferences
+      WHERE user_id = $1
+    `;
+
+    const result = await this.pool.query(query, [userId]);
+    const preferences: NotificationPreferences = {};
+
+    for (const row of result.rows) {
+      preferences[row.type] = {
+        type: row.type,
+        email_enabled: row.email_enabled,
+        push_enabled: row.push_enabled,
+        sound_enabled: row.sound_enabled
+      };
+    }
+
+    return preferences;
+  }
+
+  /**
+   * Update notification preferences for a user
+   */
+  async updatePreferences(
+    userId: number,
+    type: string,
+    settings: { email_enabled?: boolean; push_enabled?: boolean; sound_enabled?: boolean }
+  ): Promise<NotificationPreference> {
+    const query = `
+      INSERT INTO notification_preferences (user_id, type, email_enabled, push_enabled, sound_enabled)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (user_id, type) DO UPDATE SET
+        email_enabled = COALESCE($3, notification_preferences.email_enabled),
+        push_enabled = COALESCE($4, notification_preferences.push_enabled),
+        sound_enabled = COALESCE($5, notification_preferences.sound_enabled),
+        updated_at = NOW()
+      RETURNING type, email_enabled, push_enabled, sound_enabled
+    `;
+
+    const result = await this.pool.query(query, [
+      userId,
+      type,
+      settings.email_enabled ?? true,
+      settings.push_enabled ?? true,
+      settings.sound_enabled ?? true
+    ]);
+
+    return result.rows[0];
+  }
+}
+
+// Preference types
+export interface NotificationPreference {
+  type: string;
+  email_enabled: boolean;
+  push_enabled: boolean;
+  sound_enabled: boolean;
+}
+
+export interface NotificationPreferences {
+  [type: string]: NotificationPreference;
 }
 
 export const notificationService = new NotificationService();

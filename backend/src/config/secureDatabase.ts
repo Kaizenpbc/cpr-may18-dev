@@ -113,12 +113,12 @@ export class SecureDatabase {
     
     // Wrap client methods to track activity
     const originalQuery = client.query.bind(client);
-    client.query = async (text: any, params?: any[], callback?: any) => {
+    (client as any).query = async (text: any, params?: any[], callback?: any) => {
       this.connectionMonitor.updateActivity(connectionId);
       if (callback) {
-        return originalQuery(text, params, callback);
+        return originalQuery(text, params ?? [], callback);
       }
-      return originalQuery(text, params);
+      return originalQuery(text, params ?? []);
     };
     
     // Wrap release method

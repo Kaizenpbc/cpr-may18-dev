@@ -1,20 +1,20 @@
-import express from 'express';
-import { authenticateToken } from '../../middleware/authMiddleware';
-import { asyncHandler, AppError } from '../../utils/errorHandler.js';
-import { pool } from '../../config/database';
+import express, { Request, Response, NextFunction } from 'express';
+import { authenticateToken } from '../../middleware/authMiddleware.js';
+import { asyncHandler, AppError, errorCodes } from '../../utils/errorHandler.js';
+import { pool } from '../../config/database.js';
 
 const router = express.Router();
 
 // Middleware to ensure HR role
-const requireHRRole = (req: any, res: any, next: any) => {
-  if (req.user.role !== 'hr') {
-    throw new AppError('Access denied. HR role required.', 403);
+const requireHRRole = (req: Request, res: Response, next: NextFunction) => {
+  if ((req as any).user?.role !== 'hr') {
+    throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. HR role required.');
   }
   next();
 };
 
 // Get Payroll Statistics
-router.get('/stats', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.get('/stats', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const client = await pool.connect();
   
   try {
@@ -57,7 +57,7 @@ router.get('/stats', authenticateToken, requireHRRole, asyncHandler(async (req, 
 }));
 
 // Get Payroll Payments (with filtering)
-router.get('/payments', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.get('/payments', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const client = await pool.connect();
   
   try {
@@ -124,7 +124,7 @@ router.get('/payments', authenticateToken, requireHRRole, asyncHandler(async (re
 }));
 
 // Get Payment Details
-router.get('/payments/:paymentId', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.get('/payments/:paymentId', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const { paymentId } = req.params;
   const client = await pool.connect();
   
@@ -140,7 +140,7 @@ router.get('/payments/:paymentId', authenticateToken, requireHRRole, asyncHandle
     `, [paymentId]);
     
     if (paymentResult.rows.length === 0) {
-      throw new AppError('Payment not found.', 404);
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Payment not found.');
     }
     
     res.json({
@@ -153,12 +153,12 @@ router.get('/payments/:paymentId', authenticateToken, requireHRRole, asyncHandle
 }));
 
 // Calculate Payroll for Instructor
-router.post('/calculate/:instructorId', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.post('/calculate/:instructorId', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const { instructorId } = req.params;
   const { start_date, end_date, hourly_rate } = req.body;
   
   if (!start_date || !end_date) {
-    throw new AppError('Start date and end date are required.', 400);
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Start date and end date are required.');
   }
   
   const client = await pool.connect();
@@ -224,7 +224,7 @@ router.post('/calculate/:instructorId', authenticateToken, requireHRRole, asyncH
     `, [instructorId]);
     
     if (instructorResult.rows.length === 0) {
-      throw new AppError('Instructor not found.', 404);
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Instructor not found.');
     }
     
     const calculation = {
@@ -258,11 +258,11 @@ router.post('/calculate/:instructorId', authenticateToken, requireHRRole, asyncH
 }));
 
 // Create Payment
-router.post('/payments', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.post('/payments', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const { instructor_id, amount, payment_date, payment_method, notes } = req.body;
   
   if (!instructor_id || !amount || !payment_date) {
-    throw new AppError('Instructor ID, amount, and payment date are required.', 400);
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor ID, amount, and payment date are required.');
   }
   
   const client = await pool.connect();
@@ -274,7 +274,7 @@ router.post('/payments', authenticateToken, requireHRRole, asyncHandler(async (r
     `, [instructor_id]);
     
     if (instructorResult.rows.length === 0) {
-      throw new AppError('Instructor not found.', 404);
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Instructor not found.');
     }
     
     // Create payment
@@ -297,12 +297,12 @@ router.post('/payments', authenticateToken, requireHRRole, asyncHandler(async (r
 }));
 
 // Process Payment
-router.post('/payments/:paymentId/process', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.post('/payments/:paymentId/process', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const { paymentId } = req.params;
   const { action, transaction_id, notes } = req.body; // action: 'approve' or 'reject'
   
   if (!['approve', 'reject'].includes(action)) {
-    throw new AppError('Invalid action. Must be "approve" or "reject".', 400);
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid action. Must be "approve" or "reject".');
   }
   
   const client = await pool.connect();
@@ -316,7 +316,7 @@ router.post('/payments/:paymentId/process', authenticateToken, requireHRRole, as
     `, [paymentId]);
     
     if (paymentResult.rows.length === 0) {
-      throw new AppError('Payment not found or already processed.', 404);
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Payment not found or already processed.');
     }
     
     const newStatus = action === 'approve' ? 'completed' : 'rejected';
@@ -343,7 +343,7 @@ router.post('/payments/:paymentId/process', authenticateToken, requireHRRole, as
 }));
 
 // Get Payroll Report
-router.get('/report', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.get('/report', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const { start_date, end_date, instructor_id } = req.query;
   const client = await pool.connect();
   
@@ -425,7 +425,7 @@ router.get('/report', authenticateToken, requireHRRole, asyncHandler(async (req,
 }));
 
 // Get Instructor Payroll Summary
-router.get('/instructor/:instructorId/summary', authenticateToken, requireHRRole, asyncHandler(async (req, res) => {
+router.get('/instructor/:instructorId/summary', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const { instructorId } = req.params;
   const client = await pool.connect();
   
@@ -436,7 +436,7 @@ router.get('/instructor/:instructorId/summary', authenticateToken, requireHRRole
     `, [instructorId]);
     
     if (instructorResult.rows.length === 0) {
-      throw new AppError('Instructor not found.', 404);
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Instructor not found.');
     }
     
     // Get payroll summary for the instructor

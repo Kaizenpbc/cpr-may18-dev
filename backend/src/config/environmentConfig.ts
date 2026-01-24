@@ -378,11 +378,11 @@ export function validateConfiguration(): { valid: boolean; errors: string[]; war
   
   if (nodeEnv === 'production') {
     // Production-specific validations
-    if (process.env.JWT_SECRET === 'your-jwt-secret' || process.env.JWT_SECRET?.length < 32) {
+    if (process.env.JWT_SECRET === 'your-jwt-secret' || (process.env.JWT_SECRET?.length ?? 0) < 32) {
       errors.push('JWT_SECRET must be a strong secret in production (minimum 32 characters)');
     }
-    
-    if (process.env.DB_PASSWORD === 'password' || process.env.DB_PASSWORD?.length < 12) {
+
+    if (process.env.DB_PASSWORD === 'password' || (process.env.DB_PASSWORD?.length ?? 0) < 12) {
       errors.push('DB_PASSWORD must be a strong password in production (minimum 12 characters)');
     }
     

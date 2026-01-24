@@ -10,7 +10,7 @@ export interface SSLConfig {
   caPath?: string;
   passphrase?: string;
   secureProtocol: string;
-  ciphers: string[];
+  ciphers: string;  // Colon-separated cipher list
   honorCipherOrder: boolean;
   secureOptions: number[];
   minVersion: string;
@@ -263,10 +263,15 @@ export async function initializeSSL(): Promise<boolean> {
 export function checkSSLHealth(): {
   enabled: boolean;
   valid: boolean;
-  config: Partial<SSLConfig>;
+  config: {
+    secureProtocol: string;
+    minVersion: string;
+    maxVersion: string;
+    ciphersCount: number;
+  };
 } {
   const config = getSSLConfig();
-  
+
   return {
     enabled: config.enabled,
     valid: config.enabled ? validateSSLCertificates(config) : true,
@@ -274,7 +279,7 @@ export function checkSSLHealth(): {
       secureProtocol: config.secureProtocol,
       minVersion: config.minVersion,
       maxVersion: config.maxVersion,
-      ciphers: config.ciphers.split(':').length
+      ciphersCount: config.ciphers.split(':').length
     }
   };
 }

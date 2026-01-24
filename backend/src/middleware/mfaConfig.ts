@@ -1,6 +1,50 @@
 import crypto from 'crypto';
 import { logSecurityEvent, AuditEventSeverity } from './auditLogger.js';
 
+// Base32 encoding/decoding helpers (RFC 4648)
+const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+function base32Encode(buffer: Buffer): string {
+  let result = '';
+  let bits = 0;
+  let value = 0;
+
+  for (const byte of buffer) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      result += BASE32_ALPHABET[(value >> bits) & 0x1f];
+    }
+  }
+
+  if (bits > 0) {
+    result += BASE32_ALPHABET[(value << (5 - bits)) & 0x1f];
+  }
+
+  return result;
+}
+
+function base32Decode(encoded: string): Buffer {
+  const cleanedInput = encoded.replace(/=+$/, '').toUpperCase();
+  const bytes: number[] = [];
+  let bits = 0;
+  let value = 0;
+
+  for (const char of cleanedInput) {
+    const index = BASE32_ALPHABET.indexOf(char);
+    if (index === -1) continue;
+    value = (value << 5) | index;
+    bits += 5;
+    if (bits >= 8) {
+      bits -= 8;
+      bytes.push((value >> bits) & 0xff);
+    }
+  }
+
+  return Buffer.from(bytes);
+}
+
 // MFA Types
 export type MFAType = 'totp' | 'sms' | 'email' | 'backup';
 export type MFAStatus = 'disabled' | 'enabled' | 'required' | 'verified';
@@ -112,7 +156,7 @@ export interface MFAVerificationResult {
 
 // Generate TOTP Secret
 export function generateTOTPSecret(): string {
-  return crypto.randomBytes(20).toString('base32');
+  return base32Encode(crypto.randomBytes(20));
 }
 
 // Generate Backup Codes
@@ -163,7 +207,7 @@ export function validateTOTPCode(secret: string, code: string, window: number = 
 
 // Generate TOTP Code for specific time
 function generateTOTPCode(secret: string, time: number): string {
-  const key = Buffer.from(secret, 'base32');
+  const key = base32Decode(secret);
   const timeBuffer = Buffer.alloc(8);
   timeBuffer.writeUInt32BE(0, 0);
   timeBuffer.writeUInt32BE(time, 4);
