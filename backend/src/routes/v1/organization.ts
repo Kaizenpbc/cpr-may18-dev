@@ -149,7 +149,16 @@ router.get('/courses', authenticateToken, requireRole(['organization']), asyncHa
   } catch (queryError: any) {
     console.error('[ORG/COURSES] Query error:', queryError.message);
     console.error('[ORG/COURSES] Query error stack:', queryError.stack);
-    throw queryError;
+    // Temporarily return error details for debugging
+    return res.status(500).json({
+      success: false,
+      error: {
+        code: 'DEBUG_ERROR',
+        message: queryError.message,
+        stack: queryError.stack?.split('\n').slice(0, 5).join('\n'),
+        where: queryError.where || null
+      }
+    });
   }
 }));
 
