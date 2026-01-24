@@ -1095,6 +1095,82 @@ export async function initializeDatabase() {
       END $$;
     `);
 
+    // Add missing columns to course_students table
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'course_students' AND column_name = 'student_name') THEN
+          ALTER TABLE course_students ADD COLUMN student_name VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'course_students' AND column_name = 'student_email') THEN
+          ALTER TABLE course_students ADD COLUMN student_email VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'course_students' AND column_name = 'certificate_number') THEN
+          ALTER TABLE course_students ADD COLUMN certificate_number VARCHAR(100);
+        END IF;
+      END $$;
+    `);
+
+    // Add missing columns to vendor_invoices table
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'pdf_path') THEN
+          ALTER TABLE vendor_invoices ADD COLUMN pdf_path VARCHAR(500);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'submitted_to_admin') THEN
+          ALTER TABLE vendor_invoices ADD COLUMN submitted_to_admin BOOLEAN DEFAULT false;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'submitted_to_admin_at') THEN
+          ALTER TABLE vendor_invoices ADD COLUMN submitted_to_admin_at TIMESTAMP;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'admin_approved') THEN
+          ALTER TABLE vendor_invoices ADD COLUMN admin_approved BOOLEAN;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'admin_approved_at') THEN
+          ALTER TABLE vendor_invoices ADD COLUMN admin_approved_at TIMESTAMP;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'admin_approved_by') THEN
+          ALTER TABLE vendor_invoices ADD COLUMN admin_approved_by INTEGER REFERENCES users(id);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'payment_reference') THEN
+          ALTER TABLE vendor_invoices ADD COLUMN payment_reference VARCHAR(100);
+        END IF;
+      END $$;
+    `);
+
+    // Add missing columns to instructor_certifications table
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'instructor_certifications' AND column_name = 'certification_name') THEN
+          ALTER TABLE instructor_certifications ADD COLUMN certification_name VARCHAR(255);
+        END IF;
+      END $$;
+    `);
+
+    // Add missing columns to timesheets table
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'timesheets' AND column_name = 'course_request_id') THEN
+          ALTER TABLE timesheets ADD COLUMN course_request_id INTEGER REFERENCES course_requests(id);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'timesheets' AND column_name = 'date') THEN
+          ALTER TABLE timesheets ADD COLUMN date DATE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'timesheets' AND column_name = 'hours_worked') THEN
+          ALTER TABLE timesheets ADD COLUMN hours_worked DECIMAL(5,2);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'timesheets' AND column_name = 'hourly_rate') THEN
+          ALTER TABLE timesheets ADD COLUMN hourly_rate DECIMAL(10,2);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'timesheets' AND column_name = 'total_amount') THEN
+          ALTER TABLE timesheets ADD COLUMN total_amount DECIMAL(10,2);
+        END IF;
+      END $$;
+    `);
+
     console.log('✅ Tables created');
 
     // ==========================================
