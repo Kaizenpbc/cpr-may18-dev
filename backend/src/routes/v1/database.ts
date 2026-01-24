@@ -529,10 +529,10 @@ router.get(
         ).length,
       },
       cache_performance: {
-        enabled: cacheStats.enabled,
-        connected: cacheStats.isConnected,
-        status: cacheStats.enabled
-          ? cacheStats.isConnected
+        enabled: cacheStats?.enabled ?? false,
+        connected: cacheStats?.isConnected ?? false,
+        status: cacheStats?.enabled
+          ? cacheStats?.isConnected
             ? 'Healthy'
             : 'Disconnected'
           : 'Disabled',

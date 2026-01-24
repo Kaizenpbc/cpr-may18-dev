@@ -7,6 +7,32 @@ interface CacheOptions {
   forceRefresh?: boolean; // Force cache refresh
 }
 
+interface CachedUser {
+  id: number;
+  username: string;
+  email?: string;
+  role: string;
+  organization_id?: number;
+  full_name?: string;
+  first_name?: string;
+  last_name?: string;
+  password_hash?: string;
+}
+
+interface DashboardStats {
+  pending_courses: number;
+  completed_this_month: number;
+  upcoming_courses: number;
+  [key: string]: unknown;
+}
+
+interface CacheStats {
+  hits: number;
+  misses: number;
+  size: number;
+  uptime: number;
+}
+
 class CacheService {
   private static instance: CacheService;
   private readonly DEFAULT_TTL = 900; // 15 minutes
@@ -120,7 +146,7 @@ class CacheService {
   /**
    * Cache user data by ID
    */
-  async getUser(userId: string | number, forceRefresh = false): Promise<any> {
+  async getUser(userId: string | number, forceRefresh = false): Promise<CachedUser | null> {
     return this.cache(
       `user:${userId}`,
       async () => {
@@ -140,7 +166,7 @@ class CacheService {
   async getUserByUsername(
     username: string,
     forceRefresh = false
-  ): Promise<any> {
+  ): Promise<CachedUser | null> {
     return this.cache(
       `user:username:${username}`,
       async () => {
@@ -160,7 +186,7 @@ class CacheService {
   async getOrganization(
     orgId: string | number,
     forceRefresh = false
-  ): Promise<any> {
+  ): Promise<Record<string, unknown> | null> {
     return this.cache(
       `organization:${orgId}`,
       async () => {
@@ -265,7 +291,7 @@ class CacheService {
     role: string,
     userId?: string | number,
     forceRefresh = false
-  ): Promise<any> {
+  ): Promise<Record<string, unknown> | null> {
     const cacheKey = userId ? `dashboard:${role}:${userId}` : `dashboard:${role}`;
 
     return this.cache(
@@ -379,7 +405,7 @@ class CacheService {
   /**
    * Get cache statistics
    */
-  async getStats(): Promise<any> {
+  async getStats(): Promise<Record<string, unknown> | null> {
     if (!this.isRedisEnabled) {
       return {
         enabled: false,

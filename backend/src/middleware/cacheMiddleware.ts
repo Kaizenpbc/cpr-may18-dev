@@ -52,7 +52,7 @@ export function cacheMiddleware(options: CacheOptions = {}) {
       const originalJson = res.json.bind(res);
 
       // Override json method to cache response
-      res.json = function(data: any) {
+      res.json = function(data: unknown) {
         // Cache successful responses
         if (res.statusCode === 200) {
           const ttl = options.ttl || 3600; // Default 1 hour
@@ -72,7 +72,7 @@ export function cacheMiddleware(options: CacheOptions = {}) {
 /**
  * Cache API response in background
  */
-export async function cacheResponse(key: string, data: any, ttl: number = 3600): Promise<void> {
+export async function cacheResponse(key: string, data: unknown, ttl: number = 3600): Promise<void> {
   if (!redisManager.isReady()) {
     return;
   }
@@ -100,10 +100,10 @@ export const cacheConfigs = {
     cacheMiddleware({
       ttl,
       keyGenerator: req => {
-        const user = (req as any).user;
+        const user = req.user;
         return `user:${user?.id || 'anon'}:${req.path}`;
       },
-      skipCache: req => !(req as any).user, // Skip if no user
+      skipCache: req => !req.user, // Skip if no user
     }),
 
   // Organization-specific data - cache for 30 minutes
@@ -111,7 +111,7 @@ export const cacheConfigs = {
     cacheMiddleware({
       ttl,
       keyGenerator: req => {
-        const user = (req as any).user;
+        const user = req.user;
         return `org:${user?.organizationId || 'none'}:${req.path}`;
       },
       varyBy: ['role'],
@@ -122,7 +122,7 @@ export const cacheConfigs = {
     cacheMiddleware({
       ttl,
       keyGenerator: req => {
-        const user = (req as any).user;
+        const user = req.user;
         return `dashboard:${user?.role}:${user?.organizationId || 'none'}`;
       },
     }),
@@ -145,7 +145,9 @@ export const cacheInvalidation = (
     // Store original end function
     const originalEnd = res.end.bind(res);
 
-    res.end = function (chunk?: any, encoding?: any) {
+    const origEnd = res.end;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (res as any).end = function (...args: unknown[]) {
       // Only invalidate on successful modifications (2xx status codes)
       if (res.statusCode >= 200 && res.statusCode < 300) {
         // Get patterns to invalidate
@@ -160,7 +162,7 @@ export const cacheInvalidation = (
         });
       }
 
-      return originalEnd(chunk, encoding);
+      return origEnd.apply(res, args as Parameters<typeof origEnd>);
     };
 
     next();
