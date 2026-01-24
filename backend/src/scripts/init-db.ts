@@ -395,6 +395,30 @@ export async function initializeDatabase() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'approved_at') THEN
           ALTER TABLE invoices ADD COLUMN approved_at TIMESTAMP;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'students_billed') THEN
+          ALTER TABLE invoices ADD COLUMN students_billed INTEGER;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'rate_per_student') THEN
+          ALTER TABLE invoices ADD COLUMN rate_per_student DECIMAL(10,2);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'course_type_name') THEN
+          ALTER TABLE invoices ADD COLUMN course_type_name VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'location') THEN
+          ALTER TABLE invoices ADD COLUMN location VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'date_completed') THEN
+          ALTER TABLE invoices ADD COLUMN date_completed DATE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'notes') THEN
+          ALTER TABLE invoices ADD COLUMN notes TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'email_sent_at') THEN
+          ALTER TABLE invoices ADD COLUMN email_sent_at TIMESTAMP;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'deleted_at') THEN
+          ALTER TABLE invoices ADD COLUMN deleted_at TIMESTAMP;
+        END IF;
       END $$;
     `);
 
