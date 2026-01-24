@@ -8,6 +8,7 @@ import { AppError } from '../../utils/errorHandler.js';
 import { errorCodes } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { keysToCamel } from '../../utils/caseConverter.js';
+import { devLog } from '../../utils/devLog.js';
 
 const router = express.Router();
 
@@ -95,7 +96,7 @@ router.get('/dashboard/stats', authenticateToken, requireRole(['instructor', 'ad
       }))
     };
 
-    console.log('[DEBUG] Instructor dashboard stats for user', userId, ':', stats);
+    devLog('[DEBUG] Instructor dashboard stats for user', userId, ':', stats);
     res.json(ApiResponseBuilder.success(keysToCamel(stats)));
   } catch (error) {
     console.error('Error fetching instructor dashboard stats:', error);
@@ -117,7 +118,7 @@ router.get('/availability', authenticateToken, requireRole(['instructor', 'admin
        ORDER BY date ASC`,
       [userId]
     );
-    console.log('[DEBUG] Availability query result for user', userId, ':', JSON.stringify(result.rows, null, 2));
+    devLog('[DEBUG] Availability query result for user', userId, ':', JSON.stringify(result.rows, null, 2));
 
     // Format dates to YYYY-MM-DD for frontend compatibility
     const formattedData = result.rows.map(row => ({
@@ -125,7 +126,7 @@ router.get('/availability', authenticateToken, requireRole(['instructor', 'admin
       date: row.date ? new Date(row.date).toISOString().split('T')[0] : null
     }));
 
-    console.log('[DEBUG] Formatted availability data:', JSON.stringify(formattedData, null, 2));
+    devLog('[DEBUG] Formatted availability data:', JSON.stringify(formattedData, null, 2));
     res.json(ApiResponseBuilder.success(keysToCamel(formattedData)));
   } catch (error) {
     console.error('Error fetching instructor availability:', error);
@@ -360,7 +361,7 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor', 'admi
     todayStr = currentDateResult.rows[0].current_date.toISOString().split('T')[0];
   }
 
-  console.log('[TRACE] /classes/today - Using date:', todayStr, 'Client provided:', clientDate || 'none');
+  devLog('[TRACE] /classes/today - Using date:', todayStr, 'Client provided:', clientDate || 'none');
 
   // Get confirmed course requests from course_requests table for today with actual student counts
   const courseRequestsDbResult = await pool.query(
@@ -393,7 +394,7 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor', 'admi
   // Use only course_requests data
   const allData = courseRequestsDbResult.rows;
 
-  console.log('[TRACE] Raw DB result (today):', JSON.stringify(allData, null, 2));
+  devLog('[TRACE] Raw DB result (today):', JSON.stringify(allData, null, 2));
   const result3 = allData.map(row => {
     // Extract date from start_time for compatibility
     const date = row.start_time ? new Date(row.start_time).toISOString().split('T')[0] : null;
@@ -402,7 +403,7 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor', 'admi
       date: date
     };
   });
-  console.log('[TRACE] API response data (today):', JSON.stringify(result3, null, 2));
+  devLog('[TRACE] API response data (today):', JSON.stringify(result3, null, 2));
   res.json(ApiResponseBuilder.success(keysToCamel(result3)));
 });
 
@@ -497,7 +498,7 @@ router.get('/classes/:classId/students', authenticateToken, requireRole(['instru
       attendanceMarked: row.attendance_marked || false,
     }));
 
-    console.log('[Debug] Students loaded for course_request:', courseRequestId, 'count:', students.length);
+    devLog('[Debug] Students loaded for course_request:', courseRequestId, 'count:', students.length);
     res.json(ApiResponseBuilder.success(keysToCamel(students)));
   } catch (error) {
     console.error('Error fetching class students:', error);
@@ -561,7 +562,7 @@ router.put('/classes/:classId/students/:studentId/attendance', authenticateToken
     return res.status(400).json({ error: 'Attended status must be a boolean' });
   }
 
-  console.log('[Debug] Updating attendance for student ID:', studentId, 'course_request ID:', classId, 'attended:', attended);
+  devLog('[Debug] Updating attendance for student ID:', studentId, 'course_request ID:', classId, 'attended:', attended);
 
   // The frontend is sending course_request_id as classId, so verify it belongs to this instructor
   const courseRequestCheck = await pool.query(
@@ -595,7 +596,7 @@ router.put('/classes/:classId/students/:studentId/attendance', authenticateToken
   );
 
   const attendedCount = parseInt(attendanceCountResult.rows[0].attended_count);
-  console.log('[Debug] Attendance count for course request:', classId, 'is:', attendedCount);
+  devLog('[Debug] Attendance count for course request:', classId, 'is:', attendedCount);
 
   const updatedStudent = {
     studentid: result.rows[0].id.toString(),
@@ -666,7 +667,7 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
       attendanceMarked: insertResult.rows[0].attendance_marked || false,
     };
 
-    console.log('[Debug] Student added to course_request:', courseRequestId, 'student:', addedStudent);
+    devLog('[Debug] Student added to course_request:', courseRequestId, 'student:', addedStudent);
     res.json(ApiResponseBuilder.success(keysToCamel(addedStudent)));
   } catch (error) {
     console.error('Error adding student:', error);
@@ -813,7 +814,7 @@ router.post('/classes/:classId/complete', authenticateToken, requireRole(['instr
       status: 'completed',
       timestamp: new Date().toISOString()
     });
-    console.log('📡 [WEBSOCKET] Emitted course completion event for course:', courseRequestId);
+    devLog('📡 [WEBSOCKET] Emitted course completion event for course:', courseRequestId);
   }
 
   // Create in-app notifications asynchronously
@@ -854,7 +855,7 @@ router.post('/classes/:classId/complete', authenticateToken, requireRole(['instr
           );
         }
 
-        console.log('✅ [NOTIFICATION] In-app notifications created for course completion');
+        devLog('✅ [NOTIFICATION] In-app notifications created for course completion');
       }
     } catch (notifError) {
       console.error('❌ [NOTIFICATION] Error creating completion notifications:', notifError);

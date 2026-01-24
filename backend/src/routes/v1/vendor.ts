@@ -10,6 +10,7 @@ import pdfGenerationService from '../../services/pdfGenerationService.js';
 import { asyncHandler, AppError, errorCodes } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { keysToCamel } from '../../utils/caseConverter.js';
+import { devLog } from '../../utils/devLog.js';
 
 const router = express.Router();
 
@@ -143,7 +144,7 @@ router.put('/profile', authenticateToken, asyncHandler(async (req: Request, res:
 
 // Get vendor dashboard stats
 router.get('/dashboard', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  console.log('[VENDOR DEBUG] User object:', req.user);
+  devLog('[VENDOR DEBUG] User object:', req.user);
 
   // Get user email and role from database using user ID
   const userResult = await pool.query(
@@ -152,19 +153,19 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: Request, re
   );
 
   if (userResult.rows.length === 0) {
-    console.log('[VENDOR DEBUG] User not found in database');
+    devLog('[VENDOR DEBUG] User not found in database');
     throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'User not found');
   }
 
   const userEmail = userResult.rows[0].email;
   const userRole = userResult.rows[0].role;
 
-  console.log('[VENDOR DEBUG] User email from database:', userEmail);
-  console.log('[VENDOR DEBUG] User role from database:', userRole);
+  devLog('[VENDOR DEBUG] User email from database:', userEmail);
+  devLog('[VENDOR DEBUG] User role from database:', userRole);
 
   // Check if user has vendor role
   if (userRole !== 'vendor') {
-    console.log('[VENDOR DEBUG] Access denied - user role is not vendor:', userRole);
+    devLog('[VENDOR DEBUG] Access denied - user role is not vendor:', userRole);
     throw new AppError(403, errorCodes.ACCESS_DENIED, 'Access denied. Vendor role required.');
   }
 
@@ -173,10 +174,10 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: Request, re
     [userEmail]
   );
 
-  console.log('[VENDOR DEBUG] Vendor query result:', vendorResult.rows);
+  devLog('[VENDOR DEBUG] Vendor query result:', vendorResult.rows);
 
   if (vendorResult.rows.length === 0) {
-    console.log('[VENDOR DEBUG] No vendor found for email:', userEmail);
+    devLog('[VENDOR DEBUG] No vendor found for email:', userEmail);
     throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Vendor not found');
   }
 
@@ -227,7 +228,7 @@ router.get('/invoices', authenticateToken, asyncHandler(async (req: Request, res
   const userEmail = userResult.rows[0].email;
   const userRole = userResult.rows[0].role;
 
-  console.log('🔍 [VENDOR INVOICES] User info:', {
+  devLog('🔍 [VENDOR INVOICES] User info:', {
     id: req.user!.id,
     email: userEmail,
     role: userRole
@@ -235,14 +236,14 @@ router.get('/invoices', authenticateToken, asyncHandler(async (req: Request, res
 
   // Check if user has vendor role
   if (userRole !== 'vendor') {
-    console.log('🔍 [VENDOR INVOICES] Access denied - user role is not vendor:', userRole);
+    devLog('🔍 [VENDOR INVOICES] Access denied - user role is not vendor:', userRole);
     throw new AppError(403, errorCodes.ACCESS_DENIED, 'Access denied. Vendor role required.');
   }
 
   // Check if this is a vendor user (GTACPR employee who manages all vendor invoices)
   const isVendorUser = userRole === 'vendor';
 
-  console.log('🔍 [VENDOR INVOICES] isVendorUser:', isVendorUser);
+  devLog('🔍 [VENDOR INVOICES] isVendorUser:', isVendorUser);
 
   let vendorId = null;
   const params: (string | number)[] = [];
@@ -304,12 +305,12 @@ router.get('/invoices', authenticateToken, asyncHandler(async (req: Request, res
 
   query += ' ORDER BY vi.created_at DESC';
 
-  console.log('🔍 [VENDOR INVOICES] Query:', query);
-  console.log('🔍 [VENDOR INVOICES] Params:', params);
-  console.log('🔍 [VENDOR INVOICES] isVendorUser:', isVendorUser);
+  devLog('🔍 [VENDOR INVOICES] Query:', query);
+  devLog('🔍 [VENDOR INVOICES] Params:', params);
+  devLog('🔍 [VENDOR INVOICES] isVendorUser:', isVendorUser);
 
   const result = await pool.query(query, params);
-  console.log('🔍 [VENDOR INVOICES] Result rows:', result.rows.length);
+  devLog('🔍 [VENDOR INVOICES] Result rows:', result.rows.length);
 
   res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
 }));
@@ -351,7 +352,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncH
 
   if (detected_vendor_id && detected_vendor_id !== '') {
     // Use detected vendor ID if provided and valid
-    console.log('🔍 [VENDOR DETECTION] Using detected vendor ID:', detected_vendor_id);
+    devLog('🔍 [VENDOR DETECTION] Using detected vendor ID:', detected_vendor_id);
 
     const detectedVendorResult = await pool.query(
       'SELECT id FROM vendors WHERE id = $1 AND is_active = true',
@@ -360,9 +361,9 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncH
 
     if (detectedVendorResult.rows.length > 0) {
       vendor_id = detectedVendorResult.rows[0].id;
-      console.log('✅ [VENDOR DETECTION] Using detected vendor ID:', vendor_id);
+      devLog('✅ [VENDOR DETECTION] Using detected vendor ID:', vendor_id);
     } else {
-      console.log('⚠️ [VENDOR DETECTION] Detected vendor ID not found, falling back to authenticated user');
+      devLog('⚠️ [VENDOR DETECTION] Detected vendor ID not found, falling back to authenticated user');
       // Fall back to authenticated user's vendor ID
       const vendorResult = await pool.query(
         'SELECT id FROM vendors WHERE contact_email = $1 AND is_active = true',
@@ -376,7 +377,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncH
     }
   } else {
     // Use authenticated user's vendor ID (fallback)
-    console.log('🔍 [VENDOR DETECTION] No detected vendor ID, using authenticated user');
+    devLog('🔍 [VENDOR DETECTION] No detected vendor ID, using authenticated user');
     const vendorResult = await pool.query(
       'SELECT id FROM vendors WHERE contact_email = $1 AND is_active = true',
       [userEmail]
@@ -424,7 +425,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncH
 
 // OCR endpoint for scanning invoices
 router.post('/invoices/scan', authenticateToken, upload.single('invoice_pdf'), asyncHandler(async (req: Request, res: Response) => {
-  console.log('🔍 [VENDOR OCR] Starting invoice scan request');
+  devLog('🔍 [VENDOR OCR] Starting invoice scan request');
 
   if (!req.file) {
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invoice PDF is required');
@@ -437,7 +438,7 @@ router.post('/invoices/scan', authenticateToken, upload.single('invoice_pdf'), a
   const extractedData = await ocrService.extractInvoiceData(extractedText);
 
   // 🔍 PHASE 1: Enhanced OCR with Vendor Detection
-  console.log('🔍 [VENDOR DETECTION] Starting vendor auto-detection...');
+  devLog('🔍 [VENDOR DETECTION] Starting vendor auto-detection...');
 
   // Detect vendor from extracted vendor name
   const vendorDetection = await vendorDetectionService.detectVendor(extractedData.vendorName);
@@ -454,8 +455,8 @@ router.post('/invoices/scan', authenticateToken, upload.single('invoice_pdf'), a
     }
   };
 
-  console.log('✅ [VENDOR OCR] Invoice scan completed with vendor detection');
-  console.log('📊 [VENDOR DETECTION] Results:', {
+  devLog('✅ [VENDOR OCR] Invoice scan completed with vendor detection');
+  devLog('📊 [VENDOR DETECTION] Results:', {
     extractedVendorName: extractedData.vendorName,
     detectedVendor: vendorDetection.vendorName,
     confidence: `${(vendorDetection.confidence * 100).toFixed(1)}%`

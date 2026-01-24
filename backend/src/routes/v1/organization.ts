@@ -5,6 +5,7 @@ import { asyncHandler, AppError } from '../../utils/errorHandler.js';
 import { errorCodes } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { keysToCamel } from '../../utils/caseConverter.js';
+import { devLog } from '../../utils/devLog.js';
 
 const router = express.Router();
 
@@ -74,9 +75,9 @@ router.get('/courses', authenticateToken, requireRole(['organization']), asyncHa
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
-  console.log('🔍 [TRACE] Organization courses endpoint called');
-  console.log('🔍 [TRACE] User:', req.user);
-  console.log('🔍 [TRACE] Organization ID:', req.user?.organizationId);
+  devLog('🔍 [TRACE] Organization courses endpoint called');
+  devLog('🔍 [TRACE] User:', req.user);
+  devLog('🔍 [TRACE] Organization ID:', req.user?.organizationId);
 
   // Pagination parameters
   const page = parseInt(req.query.page as string) || 1;
@@ -94,8 +95,8 @@ router.get('/courses', authenticateToken, requireRole(['organization']), asyncHa
     LIMIT $2 OFFSET $3
   `;
 
-  console.log('🔍 [TRACE] SQL Query:', query);
-  console.log('🔍 [TRACE] Query parameters:', [req.user?.organizationId, limit, offset]);
+  devLog('🔍 [TRACE] SQL Query:', query);
+  devLog('🔍 [TRACE] Query parameters:', [req.user?.organizationId, limit, offset]);
 
   const result = await pool.query(query, [req.user?.organizationId, limit, offset]);
 
@@ -106,19 +107,19 @@ router.get('/courses', authenticateToken, requireRole(['organization']), asyncHa
   );
   const total = parseInt(countResult.rows[0].count);
 
-  console.log('🔍 [TRACE] Query executed successfully');
-  console.log('🔍 [TRACE] Number of rows returned:', result.rows.length);
-  console.log('🔍 [TRACE] Total count:', total);
+  devLog('🔍 [TRACE] Query executed successfully');
+  devLog('🔍 [TRACE] Number of rows returned:', result.rows.length);
+  devLog('🔍 [TRACE] Total count:', total);
 
   if (result.rows.length > 0) {
-    console.log('🔍 [TRACE] First row sample:');
+    devLog('🔍 [TRACE] First row sample:');
     const firstRow = result.rows[0];
     Object.keys(firstRow).forEach(key => {
-      console.log(`  🔍 [TRACE] ${key}: ${firstRow[key]} (type: ${typeof firstRow[key]})`);
+      devLog(`  🔍 [TRACE] ${key}: ${firstRow[key]} (type: ${typeof firstRow[key]})`);
     });
   }
 
-  console.log('🔍 [TRACE] Sending response with data length:', result.rows.length);
+  devLog('🔍 [TRACE] Sending response with data length:', result.rows.length);
 
   // Format date fields to YYYY-MM-DD
   const formatDateOnly = (dt: Date | string | null | undefined): string | null =>
@@ -142,9 +143,9 @@ router.get('/archive', authenticateToken, requireRole(['organization']), asyncHa
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
-  console.log('🔍 [TRACE] Organization archive endpoint called');
-  console.log('🔍 [TRACE] User:', req.user);
-  console.log('🔍 [TRACE] Organization ID:', req.user?.organizationId);
+  devLog('🔍 [TRACE] Organization archive endpoint called');
+  devLog('🔍 [TRACE] User:', req.user);
+  devLog('🔍 [TRACE] Organization ID:', req.user?.organizationId);
 
   const query = `
     SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor,
@@ -156,13 +157,13 @@ router.get('/archive', authenticateToken, requireRole(['organization']), asyncHa
     ORDER BY cr.archived_at DESC
   `;
 
-  console.log('🔍 [TRACE] SQL Query:', query);
-  console.log('🔍 [TRACE] Query parameters:', [req.user?.organizationId]);
+  devLog('🔍 [TRACE] SQL Query:', query);
+  devLog('🔍 [TRACE] Query parameters:', [req.user?.organizationId]);
 
   const result = await pool.query(query, [req.user?.organizationId]);
 
-  console.log('🔍 [TRACE] Query executed successfully');
-  console.log('🔍 [TRACE] Number of rows returned:', result.rows.length);
+  devLog('🔍 [TRACE] Query executed successfully');
+  devLog('🔍 [TRACE] Number of rows returned:', result.rows.length);
 
   // Format date fields to YYYY-MM-DD
   const formatDateOnly = (dt: Date | string | null | undefined): string | null =>

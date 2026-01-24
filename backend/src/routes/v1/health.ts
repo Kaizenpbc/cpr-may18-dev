@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { Pool } from 'pg';
+import { devLog } from '../../utils/devLog.js';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ const dbPool = new Pool({
 
 // Health check endpoint
 router.get('/', async (req, res) => {
-    console.log('🔍 [HEALTH] Basic health check requested');
+    devLog('🔍 [HEALTH] Basic health check requested');
 
     try {
         // Check database connection
@@ -34,7 +35,7 @@ router.get('/', async (req, res) => {
             }
         };
 
-        console.log('✅ [HEALTH] Basic health check successful');
+        devLog('✅ [HEALTH] Basic health check successful');
         res.status(200).json(health);
     } catch (error) {
         console.error('❌ [HEALTH] Basic health check failed:', error);

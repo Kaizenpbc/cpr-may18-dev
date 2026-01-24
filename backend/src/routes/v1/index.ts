@@ -33,6 +33,7 @@ import { createServer } from 'http';
 import bcrypt from 'bcryptjs';
 import path from 'path';
 import fs from 'fs';
+import { devLog } from '../../utils/devLog.js';
 
 const router = Router();
 
@@ -47,47 +48,47 @@ router.use('/organization', organizationRouter);
 
 // Mount organization pricing routes
 router.use('/organization-pricing', organizationPricingRouter);
-console.log('✅ Organization pricing routes mounted');
+devLog('✅ Organization pricing routes mounted');
 
 // Mount sysadmin routes
 router.use('/sysadmin', sysadminRouter);
-console.log('✅ Sysadmin routes mounted');
+devLog('✅ Sysadmin routes mounted');
 
 // Mount profile changes routes
 router.use('/profile-changes', profileChangesRouter);
-console.log('✅ Profile changes routes mounted');
+devLog('✅ Profile changes routes mounted');
 
 // Mount HR dashboard routes
 router.use('/hr-dashboard', hrDashboardRouter);
-console.log('✅ HR dashboard routes mounted');
+devLog('✅ HR dashboard routes mounted');
 
 // Mount timesheet routes
 router.use('/timesheet', timesheetRouter);
-console.log('✅ Timesheet routes mounted');
+devLog('✅ Timesheet routes mounted');
 
 // Mount payroll routes
 router.use('/payroll', payrollRouter);
-console.log('✅ Payroll routes mounted');
+devLog('✅ Payroll routes mounted');
 
 // Mount pay rates routes
 router.use('/pay-rates', payRatesRouter);
-console.log('✅ Pay rates routes mounted');
+devLog('✅ Pay rates routes mounted');
 
 // Mount notifications routes
 router.use('/notifications', notificationsRouter);
-console.log('✅ Notifications routes mounted');
+devLog('✅ Notifications routes mounted');
 
 // Mount vendor routes
 router.use('/vendor', vendorRouter);
-console.log('✅ Vendor routes mounted');
+devLog('✅ Vendor routes mounted');
 
 // Mount auth routes
 router.use('/auth', authRouter);
-console.log('✅ Auth routes mounted');
+devLog('✅ Auth routes mounted');
 
 // Mount holidays routes
 router.use('/holidays', holidaysRouter);
-console.log('✅ Holidays routes mounted');
+devLog('✅ Holidays routes mounted');
 
 // Get available instructors for a specific date (needs to be before auth middleware)
 router.get(
@@ -105,7 +106,7 @@ router.get(
         );
       }
 
-      console.log('[Available Instructors] Checking for date:', date);
+      devLog('[Available Instructors] Checking for date:', date);
 
       // Simple query: Get all instructors who have marked themselves available for this date
       const result = await pool.query(
@@ -123,13 +124,13 @@ router.get(
         [date]
       );
 
-      console.log(
+      devLog(
         '[Available Instructors] Found:',
         result.rows.length,
         'instructors for date:',
         date
       );
-      console.log('[Available Instructors] Results:', result.rows);
+      devLog('[Available Instructors] Results:', result.rows);
 
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
     } catch (error: any) {
@@ -195,7 +196,7 @@ router.get(
 router.get(
   '/certifications',
   asyncHandler(async (req: Request, res: Response) => {
-    console.log('[Debug] Getting certifications with cache');
+    devLog('[Debug] Getting certifications with cache');
 
     try {
       // Use cached certifications
@@ -254,7 +255,7 @@ router.get(
 router.get(
   '/dashboard',
   asyncHandler(async (req: Request, res: Response) => {
-    console.log('[Debug] Getting dashboard data with cache');
+    devLog('[Debug] Getting dashboard data with cache');
 
     try {
       const user = (req as any).user;
@@ -337,7 +338,7 @@ router.get(
 router.get(
   '/course-types',
   asyncHandler(async (req: Request, res: Response) => {
-    console.log('[Debug] Getting course types with cache');
+    devLog('[Debug] Getting course types with cache');
 
     try {
       // Use cached course types
@@ -468,7 +469,7 @@ router.post(
               newCourse.id
             );
 
-            console.log('✅ [NOTIFICATION] In-app notifications created for new course request');
+            devLog('✅ [NOTIFICATION] In-app notifications created for new course request');
           }
         } catch (notifError) {
           console.error('❌ [NOTIFICATION] Error creating new course request notifications:', notifError);
@@ -919,7 +920,7 @@ router.put(
             reason: reason,
             timestamp: new Date().toISOString()
           });
-          console.log('📡 [WEBSOCKET] Emitted course cancellation event for course:', id);
+          devLog('📡 [WEBSOCKET] Emitted course cancellation event for course:', id);
         }
 
         // Create in-app notifications asynchronously
@@ -966,7 +967,7 @@ router.put(
                 );
               }
 
-              console.log('✅ [NOTIFICATION] In-app notifications created for course cancellation');
+              devLog('✅ [NOTIFICATION] In-app notifications created for course cancellation');
             }
           } catch (notifError) {
             console.error('❌ [NOTIFICATION] Error creating cancellation notifications:', notifError);
@@ -1138,7 +1139,7 @@ router.put(
             instructorId: updatedCourse.instructor_id,
             timestamp: new Date().toISOString()
           });
-          console.log('📡 [WEBSOCKET] Emitted course reschedule event for course:', id);
+          devLog('📡 [WEBSOCKET] Emitted course reschedule event for course:', id);
         }
 
         return res.json({
@@ -1327,11 +1328,11 @@ router.put(
             scheduledDate: scheduledDate,
             timestamp: new Date().toISOString()
           });
-          console.log('📡 [WEBSOCKET] Emitted course assignment event for course:', id);
+          devLog('📡 [WEBSOCKET] Emitted course assignment event for course:', id);
         }
 
         // Send email notifications asynchronously (don't block the response)
-        console.log('📧 [EMAIL] Sending email notifications asynchronously...');
+        devLog('📧 [EMAIL] Sending email notifications asynchronously...');
         
         // Fire and forget - don't await the emails
         (async () => {
@@ -1359,7 +1360,7 @@ router.put(
                   students: courseRequest.registered_students || 0,
                 }
               );
-              console.log('✅ [EMAIL] Instructor notification sent:', emailSent);
+              devLog('✅ [EMAIL] Instructor notification sent:', emailSent);
             }
             
             // Send organization email
@@ -1377,10 +1378,10 @@ router.put(
                   students: courseRequest.registered_students || 0,
                 }
               );
-              console.log('✅ [EMAIL] Organization notification sent:', emailSent);
+              devLog('✅ [EMAIL] Organization notification sent:', emailSent);
             }
             
-            console.log('✅ [EMAIL] All email notifications sent successfully');
+            devLog('✅ [EMAIL] All email notifications sent successfully');
           } catch (emailError) {
             console.error('❌ [EMAIL] Error sending email notifications:', emailError);
             // Don't fail the entire operation if email fails
@@ -1409,7 +1410,7 @@ router.put(
               parseInt(id)
             );
 
-            console.log('✅ [NOTIFICATION] In-app notifications created for course assignment');
+            devLog('✅ [NOTIFICATION] In-app notifications created for course assignment');
           } catch (notifError) {
             console.error('❌ [NOTIFICATION] Error creating in-app notifications:', notifError);
           }
@@ -1513,7 +1514,7 @@ router.get(
       const { courseId } = req.params;
       const organizationId = req.user?.organizationId;
 
-      console.log('[ORG STUDENTS] Request details:', {
+      devLog('[ORG STUDENTS] Request details:', {
         courseId,
         organizationId,
         userId: req.user?.id,
@@ -1521,7 +1522,7 @@ router.get(
       });
 
       if (!organizationId) {
-        console.log('[ORG STUDENTS] No organizationId in user token');
+        devLog('[ORG STUDENTS] No organizationId in user token');
         throw new AppError(
           400,
           errorCodes.VALIDATION_ERROR,
@@ -1535,10 +1536,10 @@ router.get(
         [courseId]
       );
 
-      console.log('[ORG STUDENTS] Course check result:', courseCheck.rows);
+      devLog('[ORG STUDENTS] Course check result:', courseCheck.rows);
 
       if (courseCheck.rows.length === 0) {
-        console.log('[ORG STUDENTS] Course not found');
+        devLog('[ORG STUDENTS] Course not found');
         throw new AppError(
           404,
           errorCodes.RESOURCE_NOT_FOUND,
@@ -1547,7 +1548,7 @@ router.get(
       }
 
       if (courseCheck.rows[0].organization_id !== organizationId) {
-        console.log('[ORG STUDENTS] Course does not belong to organization:', {
+        devLog('[ORG STUDENTS] Course does not belong to organization:', {
           courseOrgId: courseCheck.rows[0].organization_id,
           userOrgId: organizationId
         });
@@ -1575,7 +1576,7 @@ router.get(
         [courseId]
       );
 
-      console.log('[ORG STUDENTS] Students found:', result.rows.length);
+      devLog('[ORG STUDENTS] Students found:', result.rows.length);
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
     } catch (error: any) {
       console.error('[ORG STUDENTS] Error fetching course students:', error);
@@ -1864,7 +1865,7 @@ router.get(
     const { month } = req.query;
     const instructorId = req.user?.userId;
 
-    console.log('[Instructor Stats] Request params:', { month, instructorId });
+    devLog('[Instructor Stats] Request params:', { month, instructorId });
 
     if (!instructorId) {
       throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor ID is required');
@@ -1884,7 +1885,7 @@ router.get(
       const endDate = new Date(Date.UTC(year, monthNum + 1, 0));
       const endDateStr = endDate.toISOString().slice(0, 10);
 
-      console.log('[Instructor Stats] Executing query with params:', [instructorId, startDate, endDateStr]);
+      devLog('[Instructor Stats] Executing query with params:', [instructorId, startDate, endDateStr]);
       const result = await pool.query(`
         SELECT 
           COUNT(DISTINCT cr.id) as total_courses,
@@ -1909,7 +1910,7 @@ router.get(
         )
       `, [instructorId, startDate, endDateStr]);
 
-      console.log('[Instructor Stats] Query result:', result.rows[0]);
+      devLog('[Instructor Stats] Query result:', result.rows[0]);
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
     } catch (error) {
       console.error('[Instructor Stats] Detailed error:', error);
@@ -1926,7 +1927,7 @@ router.get(
     const { month } = req.query;
     const user = req.user;
 
-    console.log('[Dashboard Summary] Request params:', { month, userId: user?.userId, role: user?.role });
+    devLog('[Dashboard Summary] Request params:', { month, userId: user?.userId, role: user?.role });
 
     if (!month) {
       throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Month parameter is required (format: YYYY-MM)');
@@ -1950,7 +1951,7 @@ router.get(
           throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor ID is required');
         }
 
-        console.log('[Dashboard Summary] Executing instructor query with params:', [user.userId, startDate, endDateStr]);
+        devLog('[Dashboard Summary] Executing instructor query with params:', [user.userId, startDate, endDateStr]);
         result = await pool.query(`
           SELECT 
             COUNT(DISTINCT cr.id) as total_courses,
@@ -1986,7 +1987,7 @@ router.get(
         `, [user.userId, startDate, endDateStr]);
       } else if (user?.role === 'admin') {
         // Admin overview stats
-        console.log('[Dashboard Summary] Executing admin query with params:', [startDate, endDateStr]);
+        devLog('[Dashboard Summary] Executing admin query with params:', [startDate, endDateStr]);
         result = await pool.query(`
           SELECT 
             COUNT(DISTINCT u.id) as total_instructors,
@@ -2024,7 +2025,7 @@ router.get(
         throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin or instructor role required.');
       }
 
-      console.log('[Dashboard Summary] Query result:', result.rows[0]);
+      devLog('[Dashboard Summary] Query result:', result.rows[0]);
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
     } catch (error) {
       console.error('[Dashboard Summary] Detailed error:', error);
@@ -2041,14 +2042,14 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const { startDate, endDate } = req.query;
 
-    console.log('[Instructor Workload Report] Request params:', { startDate, endDate });
+    devLog('[Instructor Workload Report] Request params:', { startDate, endDate });
 
     if (!startDate || !endDate) {
       throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Start date and end date parameters are required (format: YYYY-MM-DD)');
     }
 
     try {
-      console.log('[Instructor Workload Report] Executing query with params:', [startDate, endDate]);
+      devLog('[Instructor Workload Report] Executing query with params:', [startDate, endDate]);
       
       const result = await pool.query(`
         SELECT 
@@ -2090,7 +2091,7 @@ router.get(
         ORDER BY totalCount DESC, completionRate DESC
       `, [startDate, endDate]);
 
-      console.log('[Instructor Workload Report] Query result:', result.rows);
+      devLog('[Instructor Workload Report] Query result:', result.rows);
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
     } catch (error) {
       console.error('[Instructor Workload Report] Detailed error:', error);
@@ -2511,7 +2512,7 @@ router.get(
   '/accounting/course-pricing',
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
-    console.log('[Debug] Getting course pricing with cache');
+    devLog('[Debug] Getting course pricing with cache');
 
     try {
       const user = (req as any).user;
@@ -2611,7 +2612,7 @@ router.get(
   '/accounting/organizations',
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
-    console.log('[Debug] Getting organizations with cache');
+    devLog('[Debug] Getting organizations with cache');
 
     try {
       // Use cached organizations
@@ -2898,7 +2899,7 @@ router.post(
         const taxAmount = baseCost * 0.13; // 13% HST
         const totalAmount = baseCost + taxAmount;
 
-        console.log(`[DEBUG] Invoice creation calculations:`, {
+        devLog(`[DEBUG] Invoice creation calculations:`, {
           students_attended: course.students_attended,
           price_per_student: course.price_per_student,
           base_cost: baseCost,
@@ -2984,7 +2985,7 @@ router.put(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      console.log(`[DEBUG] Fixing calculations for invoice ID: ${id}`);
+      devLog(`[DEBUG] Fixing calculations for invoice ID: ${id}`);
 
       const client = await pool.connect();
 
@@ -3030,7 +3031,7 @@ router.put(
         const taxAmount = baseCost * 0.13; // 13% HST
         const totalAmount = baseCost + taxAmount;
 
-        console.log(`[DEBUG] Fixing invoice calculations:`, {
+        devLog(`[DEBUG] Fixing invoice calculations:`, {
           invoice_id: invoice.id,
           students_billed: invoice.students_billed,
           price_per_student: invoice.price_per_student,
@@ -3150,7 +3151,7 @@ router.put(
             [req.user?.id, invoice.course_request_id]
           );
           
-          console.log(`📁 [POST TO ORG] Course ${invoice.course_request_id} archived after invoice posting`);
+          devLog(`📁 [POST TO ORG] Course ${invoice.course_request_id} archived after invoice posting`);
         }
 
         // Send invoice PDF with attendance to organization asynchronously
@@ -3236,7 +3237,7 @@ router.put(
                 [id]
               );
 
-              console.log(`📧 [POST TO ORG] Invoice PDF with attendance sent to ${invoice.contact_email}`);
+              devLog(`📧 [POST TO ORG] Invoice PDF with attendance sent to ${invoice.contact_email}`);
             } catch (emailError) {
               console.error('❌ [POST TO ORG] Email with PDF failed:', emailError);
               // Don't fail the entire operation if email fails
@@ -3284,7 +3285,7 @@ router.get(
         );
       }
       
-      console.log(`[DEBUG] Fetching all invoices list for accounting user: ${user.username}`);
+      devLog(`[DEBUG] Fetching all invoices list for accounting user: ${user.username}`);
       
       const result = await pool.query(`
       SELECT 
@@ -3338,9 +3339,9 @@ router.get(
       ORDER BY i.created_at DESC
     `);
 
-      console.log(`[DEBUG] All invoices result rows:`, result.rows.length);
+      devLog(`[DEBUG] All invoices result rows:`, result.rows.length);
       if (result.rows.length > 0) {
-        console.log(`[DEBUG] First invoice from list:`, {
+        devLog(`[DEBUG] First invoice from list:`, {
           invoiceid: result.rows[0].invoiceid,
           invoicenumber: result.rows[0].invoicenumber,
           coursenumber: result.rows[0].coursenumber,
@@ -3369,7 +3370,7 @@ router.get(
     try {
       const { id } = req.params;
 
-      console.log(`[DEBUG] Fetching invoice details for ID: ${id}`);
+      devLog(`[DEBUG] Fetching invoice details for ID: ${id}`);
       
       const result = await pool.query(
         `
@@ -3435,10 +3436,10 @@ router.get(
         [id]
       );
 
-      console.log(`[DEBUG] Query result rows:`, result.rows.length);
+      devLog(`[DEBUG] Query result rows:`, result.rows.length);
       if (result.rows.length > 0) {
         const row = result.rows[0];
-        console.log(`[DEBUG] Invoice data:`, {
+        devLog(`[DEBUG] Invoice data:`, {
           id: row.id,
           invoice_number: row.invoicenumber,
           organization_id: row.organization_id,
@@ -3603,7 +3604,7 @@ router.post(
           [id]
         );
 
-        console.log(`📧 [EMAIL] Invoice notification sent to ${invoice.contact_email}`);
+        devLog(`📧 [EMAIL] Invoice notification sent to ${invoice.contact_email}`);
         
         res.json({
           success: true,
@@ -3773,7 +3774,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      console.log(`[PDF] Generating PDF for invoice ${id}`);
+      devLog(`[PDF] Generating PDF for invoice ${id}`);
 
       // Get invoice details
       const result = await pool.query(
@@ -3819,7 +3820,7 @@ router.get(
       );
 
       if (result.rows.length === 0) {
-        console.log(`[PDF] Invoice ${id} not found`);
+        devLog(`[PDF] Invoice ${id} not found`);
         throw new AppError(
           404,
           errorCodes.RESOURCE_NOT_FOUND,
@@ -3828,10 +3829,10 @@ router.get(
       }
 
       const invoice = result.rows[0];
-      console.log(`[PDF] Generating PDF for invoice ${invoice.invoice_number}`);
+      devLog(`[PDF] Generating PDF for invoice ${invoice.invoice_number}`);
 
       const pdfBuffer = await PDFService.generateInvoicePDF(invoice);
-      console.log(
+      devLog(
         `[PDF] PDF generated successfully, size: ${pdfBuffer.length} bytes`
       );
 
@@ -4958,7 +4959,7 @@ router.get(
 router.get(
   '/sysadmin/organizations',
   asyncHandler(async (req: Request, res: Response) => {
-    console.log('[Debug] Getting all organizations for sysadmin');
+    devLog('[Debug] Getting all organizations for sysadmin');
 
     const query = `
     SELECT 
@@ -4989,7 +4990,7 @@ router.get(
 router.post(
   '/sysadmin/organizations',
   asyncHandler(async (req: Request, res: Response) => {
-    console.log('[Debug] Creating new organization:', req.body);
+    devLog('[Debug] Creating new organization:', req.body);
 
     const {
       name,
@@ -5030,7 +5031,7 @@ router.put(
   '/sysadmin/organizations/:id',
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    console.log('[Debug] Updating organization:', id, req.body);
+    devLog('[Debug] Updating organization:', id, req.body);
 
     const {
       name,
@@ -5079,7 +5080,7 @@ router.delete(
   '/sysadmin/organizations/:id',
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    console.log('[Debug] Deleting organization:', id);
+    devLog('[Debug] Deleting organization:', id);
 
     // Check for dependencies
     const checkQuery = `
@@ -5196,7 +5197,7 @@ router.get(
     try {
       const { courseId } = req.params;
 
-      console.log(`[VALIDATION] Checking billing readiness for course ${courseId}`);
+      devLog(`[VALIDATION] Checking billing readiness for course ${courseId}`);
 
       // Get course details with all required information
       const courseResult = await pool.query(
@@ -5235,7 +5236,7 @@ router.get(
       const validationErrors = [];
       const warnings = [];
 
-      console.log(`[VALIDATION] Course ${courseId} details:`, {
+      devLog(`[VALIDATION] Course ${courseId} details:`, {
         status: course.status,
         organization: course.organization_name,
         course_type: course.course_type_name,
@@ -5282,7 +5283,7 @@ router.get(
 
       const isValid = validationErrors.length === 0;
 
-      console.log(`[VALIDATION] Course ${courseId} validation result:`, {
+      devLog(`[VALIDATION] Course ${courseId} validation result:`, {
         isValid,
         errors: validationErrors.length,
         warnings: warnings.length
@@ -5318,7 +5319,7 @@ router.put(
     try {
       const { courseId } = req.params;
 
-      console.log(`[BILLING] Attempting to mark course ${courseId} as ready for billing`);
+      devLog(`[BILLING] Attempting to mark course ${courseId} as ready for billing`);
 
       // Step 1: Run validation check first
       const validationResult = await pool.query(
@@ -5383,7 +5384,7 @@ router.put(
 
       // If validation fails, return error without modifying the course
       if (validationErrors.length > 0) {
-        console.log(`[BILLING] Validation failed for course ${courseId}:`, validationErrors);
+        devLog(`[BILLING] Validation failed for course ${courseId}:`, validationErrors);
         throw new AppError(
           400,
           errorCodes.VALIDATION_ERROR,
@@ -5392,7 +5393,7 @@ router.put(
       }
 
       // Step 2: If validation passes, proceed with marking as ready for billing
-      console.log(`[BILLING] Validation passed for course ${courseId}, marking as ready for billing`);
+      devLog(`[BILLING] Validation passed for course ${courseId}, marking as ready for billing`);
       
       const result = await pool.query(
         `
@@ -5406,7 +5407,7 @@ router.put(
         [courseId]
       );
 
-      console.log(`[BILLING] Successfully marked course ${courseId} as ready for billing`);
+      devLog(`[BILLING] Successfully marked course ${courseId} as ready for billing`);
 
       res.json({
         success: true,
@@ -5466,8 +5467,8 @@ router.get(
 
       const orderClause = `ORDER BY i.${sort_by} ${sort_order.toString().toUpperCase()}`;
 
-      console.log(`[DEBUG] Organization invoices query params:`, queryParams);
-      console.log(`[DEBUG] Organization invoices whereClause:`, whereClause);
+      devLog(`[DEBUG] Organization invoices query params:`, queryParams);
+      devLog(`[DEBUG] Organization invoices whereClause:`, whereClause);
       
       const result = await pool.query(
         `
@@ -5507,9 +5508,9 @@ router.get(
         [...queryParams, Number(limit), offset]
       );
 
-      console.log(`[DEBUG] Organization invoices result rows:`, result.rows.length);
+      devLog(`[DEBUG] Organization invoices result rows:`, result.rows.length);
       if (result.rows.length > 0) {
-        console.log(`[DEBUG] First invoice data:`, {
+        devLog(`[DEBUG] First invoice data:`, {
           invoice_id: result.rows[0].invoice_id,
           invoice_number: result.rows[0].invoice_number,
           course_request_id: result.rows[0].course_request_id,
@@ -5750,7 +5751,7 @@ router.post(
         payment_proof_url,
       } = req.body;
 
-      console.log('[PAYMENT SUBMISSION] Request details:', {
+      devLog('[PAYMENT SUBMISSION] Request details:', {
         invoiceId: id,
         userRole: user.role,
         userOrgId: user.organizationId,
@@ -5759,7 +5760,7 @@ router.post(
       });
 
       if (user.role !== 'organization') {
-        console.log('[PAYMENT SUBMISSION] Wrong role:', user.role);
+        devLog('[PAYMENT SUBMISSION] Wrong role:', user.role);
         throw new AppError(
           403,
           errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
@@ -6169,7 +6170,7 @@ router.post(
       const { id } = req.params;
       const { action, notes } = req.body; // action: 'approve' or 'reject'
 
-      console.log('🔍 [PAYMENT VERIFICATION] Request received:', {
+      devLog('🔍 [PAYMENT VERIFICATION] Request received:', {
         paymentId: id,
         action,
         notes,
@@ -6181,7 +6182,7 @@ router.post(
       });
 
       if (user.role !== 'accountant' && user.role !== 'admin') {
-        console.log('🔍 [PAYMENT VERIFICATION] Access denied for role:', user.role);
+        devLog('🔍 [PAYMENT VERIFICATION] Access denied for role:', user.role);
         throw new AppError(
           403,
           errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
@@ -6190,7 +6191,7 @@ router.post(
       }
 
       if (!action || !['approve', 'reject'].includes(action)) {
-        console.log('🔍 [PAYMENT VERIFICATION] Invalid action:', action);
+        devLog('🔍 [PAYMENT VERIFICATION] Invalid action:', action);
         throw new AppError(
           400,
           errorCodes.VALIDATION_ERROR,
@@ -6199,7 +6200,7 @@ router.post(
       }
 
       if (action === 'reject' && !notes?.trim()) {
-        console.log('🔍 [PAYMENT VERIFICATION] Reject action requires notes');
+        devLog('🔍 [PAYMENT VERIFICATION] Reject action requires notes');
         throw new AppError(
           400,
           errorCodes.VALIDATION_ERROR,
@@ -6211,7 +6212,7 @@ router.post(
 
       try {
         await client.query('BEGIN');
-        console.log('🔍 [PAYMENT VERIFICATION] Database transaction started');
+        devLog('🔍 [PAYMENT VERIFICATION] Database transaction started');
 
         // Get payment and invoice details
         const paymentResult = await client.query(
@@ -6224,14 +6225,14 @@ router.post(
           [id]
         );
 
-        console.log('🔍 [PAYMENT VERIFICATION] Payment lookup result:', {
+        devLog('🔍 [PAYMENT VERIFICATION] Payment lookup result:', {
           paymentId: id,
           rowsFound: paymentResult.rows.length,
           paymentData: paymentResult.rows[0] || null
         });
 
         if (paymentResult.rows.length === 0) {
-          console.log('🔍 [PAYMENT VERIFICATION] Payment not found or already processed');
+          devLog('🔍 [PAYMENT VERIFICATION] Payment not found or already processed');
           throw new AppError(
             404,
             errorCodes.RESOURCE_NOT_FOUND,
@@ -6240,7 +6241,7 @@ router.post(
         }
 
         const payment = paymentResult.rows[0];
-        console.log('🔍 [PAYMENT VERIFICATION] Processing payment:', {
+        devLog('🔍 [PAYMENT VERIFICATION] Processing payment:', {
           paymentId: payment.id,
           amount: payment.amount,
           status: payment.status,
@@ -6249,7 +6250,7 @@ router.post(
         });
 
         if (action === 'approve') {
-          console.log('🔍 [PAYMENT VERIFICATION] Approving payment...');
+          devLog('🔍 [PAYMENT VERIFICATION] Approving payment...');
           
           // Approve payment
           const updateResult = await client.query(
@@ -6264,7 +6265,7 @@ router.post(
             [id, `Verified by ${user.username}: ${notes || 'Payment approved'}`]
           );
 
-          console.log('🔍 [PAYMENT VERIFICATION] Payment update result:', {
+          devLog('🔍 [PAYMENT VERIFICATION] Payment update result:', {
             rowsAffected: updateResult.rowCount,
             updatedPayment: updateResult.rows[0]
           });
@@ -6282,7 +6283,7 @@ router.post(
           const totalPaid = parseFloat(totalPaidResult.rows[0].total_paid);
           const invoiceAmount = parseFloat(payment.invoice_amount);
 
-          console.log('🔍 [PAYMENT VERIFICATION] Invoice payment calculation:', {
+          devLog('🔍 [PAYMENT VERIFICATION] Invoice payment calculation:', {
             totalPaid,
             invoiceAmount,
             isFullyPaid: totalPaid >= invoiceAmount
@@ -6300,7 +6301,7 @@ router.post(
               `,
               [payment.invoice_id]
             );
-            console.log('🔍 [PAYMENT VERIFICATION] Invoice marked as paid:', {
+            devLog('🔍 [PAYMENT VERIFICATION] Invoice marked as paid:', {
               rowsAffected: invoiceUpdateResult.rowCount,
               updatedInvoice: invoiceUpdateResult.rows[0]
             });
@@ -6315,13 +6316,13 @@ router.post(
               `,
               [payment.invoice_id]
             );
-            console.log('🔍 [PAYMENT VERIFICATION] Invoice marked as pending (partial payment):', {
+            devLog('🔍 [PAYMENT VERIFICATION] Invoice marked as pending (partial payment):', {
               rowsAffected: invoiceUpdateResult.rowCount,
               updatedInvoice: invoiceUpdateResult.rows[0]
             });
           }
         } else if (action === 'reject') {
-          console.log('🔍 [PAYMENT VERIFICATION] Rejecting payment...');
+          devLog('🔍 [PAYMENT VERIFICATION] Rejecting payment...');
           
           // Reject payment - mark as rejected
           const updateResult = await client.query(
@@ -6336,7 +6337,7 @@ router.post(
             [id, `Rejected by ${user.username}: ${notes}`]
           );
 
-          console.log('🔍 [PAYMENT VERIFICATION] Payment rejection result:', {
+          devLog('🔍 [PAYMENT VERIFICATION] Payment rejection result:', {
             rowsAffected: updateResult.rowCount,
             updatedPayment: updateResult.rows[0]
           });
@@ -6351,14 +6352,14 @@ router.post(
             `,
             [payment.invoice_id]
           );
-          console.log('🔍 [PAYMENT VERIFICATION] Invoice reverted to pending:', {
+          devLog('🔍 [PAYMENT VERIFICATION] Invoice reverted to pending:', {
             rowsAffected: invoiceUpdateResult.rowCount,
             updatedInvoice: invoiceUpdateResult.rows[0]
           });
         }
 
         await client.query('COMMIT');
-        console.log('🔍 [PAYMENT VERIFICATION] Database transaction committed successfully');
+        devLog('🔍 [PAYMENT VERIFICATION] Database transaction committed successfully');
 
         // Emit real-time update event for payment verification
         const io = req.app.get('io');
@@ -6372,7 +6373,7 @@ router.post(
             amount: payment.amount,
             timestamp: new Date().toISOString()
           });
-          console.log(`📡 [WEBSOCKET] Emitted payment ${action} event for payment: ${id}, invoice: ${payment.invoice_id}`);
+          devLog(`📡 [WEBSOCKET] Emitted payment ${action} event for payment: ${id}, invoice: ${payment.invoice_id}`);
         }
 
         // Send success response
@@ -6386,7 +6387,7 @@ router.post(
           }
         };
         
-        console.log('🔍 [PAYMENT VERIFICATION] Sending success response:', responseData);
+        devLog('🔍 [PAYMENT VERIFICATION] Sending success response:', responseData);
         res.json(responseData);
       } catch (error) {
         await client.query('ROLLBACK');
@@ -6394,7 +6395,7 @@ router.post(
         throw error;
       } finally {
         client.release();
-        console.log('🔍 [PAYMENT VERIFICATION] Database client released');
+        devLog('🔍 [PAYMENT VERIFICATION] Database client released');
       }
     } catch (error) {
       console.error('🔍 [PAYMENT VERIFICATION] Error in payment verification endpoint:', error);
@@ -6695,7 +6696,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      console.log(`[PDF] Generating payment receipt for payment ${id}`);
+      devLog(`[PDF] Generating payment receipt for payment ${id}`);
 
       // Get payment details with invoice and organization info
       const result = await pool.query(
@@ -6732,7 +6733,7 @@ router.get(
       );
 
       if (result.rows.length === 0) {
-        console.log(`[PDF] Payment ${id} not found`);
+        devLog(`[PDF] Payment ${id} not found`);
         throw new AppError(
           404,
           errorCodes.RESOURCE_NOT_FOUND,
@@ -6741,10 +6742,10 @@ router.get(
       }
 
       const payment = result.rows[0];
-      console.log(`[PDF] Generating receipt for payment ${payment.payment_id}`);
+      devLog(`[PDF] Generating receipt for payment ${payment.payment_id}`);
 
       const pdfBuffer = await PDFService.generatePaymentReceipt(payment);
-      console.log(
+      devLog(
         `[PDF] Payment receipt generated successfully, size: ${pdfBuffer.length} bytes`
       );
 
@@ -7142,7 +7143,7 @@ router.get(
       const userRole = req.user?.role;
       
       // Debug logging
-      console.log('[ACCOUNTING ENDPOINT] User info:', {
+      devLog('[ACCOUNTING ENDPOINT] User info:', {
         userId: req.user?.id,
         username: req.user?.username,
         role: userRole,
@@ -7151,7 +7152,7 @@ router.get(
 
       // Only accounting users can access this endpoint
       if (userRole !== 'accounting' && userRole !== 'accountant') {
-        console.log('[ACCOUNTING ENDPOINT] Access denied for role:', userRole);
+        devLog('[ACCOUNTING ENDPOINT] Access denied for role:', userRole);
         throw new AppError(
           403,
           errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
@@ -7215,7 +7216,7 @@ router.get(
     try {
       const { courseId } = req.params;
 
-      console.log(`[VALIDATION] Checking billing readiness for course ${courseId}`);
+      devLog(`[VALIDATION] Checking billing readiness for course ${courseId}`);
 
       // Get course details with all required information
       const courseResult = await pool.query(
@@ -7254,7 +7255,7 @@ router.get(
       const validationErrors = [];
       const warnings = [];
 
-      console.log(`[VALIDATION] Course ${courseId} details:`, {
+      devLog(`[VALIDATION] Course ${courseId} details:`, {
         status: course.status,
         organization: course.organization_name,
         course_type: course.course_type_name,
@@ -7301,7 +7302,7 @@ router.get(
 
       const isValid = validationErrors.length === 0;
 
-      console.log(`[VALIDATION] Course ${courseId} validation result:`, {
+      devLog(`[VALIDATION] Course ${courseId} validation result:`, {
         isValid,
         errors: validationErrors.length,
         warnings: warnings.length
@@ -7339,7 +7340,7 @@ router.get(
       const { id } = req.params;
       const { payment_amount = 0 } = req.query;
 
-      console.log('[BALANCE CALCULATION] Request details:', {
+      devLog('[BALANCE CALCULATION] Request details:', {
         invoiceId: id,
         userRole: user.role,
         userOrgId: user.organizationId,
@@ -7347,7 +7348,7 @@ router.get(
       });
 
       if (user.role !== 'organization') {
-        console.log('[BALANCE CALCULATION] Wrong role:', user.role);
+        devLog('[BALANCE CALCULATION] Wrong role:', user.role);
         throw new AppError(
           403,
           errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,

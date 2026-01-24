@@ -12,6 +12,7 @@ import { pool } from '../../config/database.js';
 import { cacheService } from '../../services/cacheService.js';
 import fs from 'fs/promises';
 import path from 'path';
+import { devLog } from '../../utils/devLog.js';
 
 const router = express.Router();
 
@@ -27,7 +28,7 @@ router.use(requireRole(['admin']));
 router.post(
   '/optimize',
   asyncHandler(async (req: Request, res: Response) => {
-    console.log('🔧 [DB OPTIMIZATION] Starting database optimization...');
+    devLog('🔧 [DB OPTIMIZATION] Starting database optimization...');
 
     // Read and execute the optimization script
     const scriptPath = path.join(__dirname, '../../db/optimize-database.sql');
@@ -77,7 +78,7 @@ router.post(
       }
     }
 
-    console.log(
+    devLog(
       `🔧 [DB OPTIMIZATION] Completed: ${successful} successful, ${failed} failed`
     );
 
@@ -96,7 +97,7 @@ router.post(
 router.get(
   '/performance-analysis',
   asyncHandler(async (req: Request, res: Response) => {
-    console.log('📊 [DB ANALYSIS] Running performance analysis...');
+    devLog('📊 [DB ANALYSIS] Running performance analysis...');
 
     const recommendations = await queryOptimizer.analyzePerformance();
     const dbStats = await queryOptimizer.getDatabaseStats();
@@ -152,7 +153,7 @@ router.get(
 router.get(
   '/test-optimized-queries',
   asyncHandler(async (req: Request, res: Response) => {
-    console.log('🧪 [DB TEST] Testing optimized queries...');
+    devLog('🧪 [DB TEST] Testing optimized queries...');
 
     const results = [];
 
@@ -275,7 +276,7 @@ router.post(
       );
     }
 
-    console.log(`🔧 [DB MAINTENANCE] Running ${operation} operation...`);
+    devLog(`🔧 [DB MAINTENANCE] Running ${operation} operation...`);
 
     const results: string[] = [];
 
@@ -471,7 +472,7 @@ router.get(
 router.get(
   '/performance-report',
   asyncHandler(async (req: Request, res: Response) => {
-    console.log('📊 [PERFORMANCE REPORT] Generating comprehensive report...');
+    devLog('📊 [PERFORMANCE REPORT] Generating comprehensive report...');
 
     const [dbStats, recommendations, maintenanceRecs, cacheStats] =
       await Promise.all([

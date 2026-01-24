@@ -7,6 +7,7 @@ import { authorizeRoles } from '../../middleware/authMiddleware.js';
 import { errorCodes } from '../../utils/errorHandler.js';
 import { validateEmailTemplate } from '../../middleware/inputSanitizer.js';
 import { emailService } from '../../services/emailService.js';
+import { devLog } from '../../utils/devLog.js';
 
 interface EmailTemplateRequestBody {
   name: string;
@@ -36,15 +37,15 @@ router.get(
       req: Request<{}, {}, {}, EmailTemplateQueryParams>,
       res: Response
     ) => {
-      console.log(
+      devLog(
         '[EMAIL TEMPLATES] GET /api/v1/email-templates - Request received'
       );
-      console.log('[EMAIL TEMPLATES] Query params:', req.query);
-      console.log('[EMAIL TEMPLATES] User:', req.user);
+      devLog('[EMAIL TEMPLATES] Query params:', req.query);
+      devLog('[EMAIL TEMPLATES] User:', req.user);
 
       const { category, active, search } = req.query;
 
-      console.log('[EMAIL TEMPLATES] Parsed params:', {
+      devLog('[EMAIL TEMPLATES] Parsed params:', {
         category,
         active,
         search,
@@ -56,14 +57,14 @@ router.get(
         search as string
       );
 
-      console.log('[EMAIL TEMPLATES] Templates found:', templates.length);
-      console.log(
+      devLog('[EMAIL TEMPLATES] Templates found:', templates.length);
+      devLog(
         '[EMAIL TEMPLATES] Template categories:',
         templates.map(t => `${t.name}: ${t.category}`)
       );
 
       const response = ApiResponseBuilder.success(keysToCamel(templates));
-      console.log(
+      devLog(
         '[EMAIL TEMPLATES] Sending response with',
         templates.length,
         'templates'
@@ -99,7 +100,7 @@ router.post(
     async (req: Request<{}, {}, EmailTemplateRequestBody>, res: Response) => {
       const { name, category, subCategory, subject, body, htmlContent, textContent, isActive } = req.body;
 
-      console.log('Creating email template with data:', req.body);
+      devLog('Creating email template with data:', req.body);
 
       // Use htmlContent if available, otherwise fall back to body, then textContent
       const emailBody = htmlContent || body || textContent || '';
