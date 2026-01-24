@@ -41,17 +41,17 @@ import { formatDisplayDate } from '../../../../utils/dateUtils';
 // TypeScript interfaces
 interface Course {
   id: string | number;
-  date_requested: string;
-  course_type_name: string;
+  dateRequested: string;
+  courseTypeName: string;
   location: string;
-  registered_students: number;
+  registeredStudents: number;
   status: string;
   instructor: string;
   notes?: string;
-  confirmed_date?: string;
-  request_submitted_date: string;
-  scheduled_date?: string;
-  students_attended?: number;
+  confirmedDate?: string;
+  requestSubmittedDate: string;
+  scheduledDate?: string;
+  studentsAttended?: number;
 }
 
 interface Student {
@@ -108,27 +108,27 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
   // Filter courses based on search and filters
   const filteredCourses = courses.filter(course => {
     const matchesSearch = searchTerm === '' || 
-      course.course_type_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.courseTypeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       course.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
       course.instructor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       course.notes?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === '' || course.status.toLowerCase() === statusFilter.toLowerCase();
-    const matchesCourseType = courseTypeFilter === '' || course.course_type_name.toLowerCase() === courseTypeFilter.toLowerCase();
+    const matchesCourseType = courseTypeFilter === '' || course.courseTypeName.toLowerCase() === courseTypeFilter.toLowerCase();
     
     return matchesSearch && matchesStatus && matchesCourseType;
   });
 
   // Get unique course types for filter
   // Debug: Log courses with missing or invalid course_type_name
-  const coursesWithMissingType = courses.filter(course => !course.course_type_name || typeof course.course_type_name !== 'string');
+  const coursesWithMissingType = courses.filter(course => !course.courseTypeName || typeof course.courseTypeName !== 'string');
   if (coursesWithMissingType.length > 0) {
     console.warn('[DEBUG] Courses with missing or invalid course_type_name:', coursesWithMissingType);
   }
   const courseTypes = Array.from(
     new Set(
       courses
-        .map(course => course.course_type_name)
+        .map(course => course.courseTypeName)
         .filter((type): type is string => typeof type === 'string' && !!type)
     )
   ).sort();
@@ -141,9 +141,9 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
     }
 
     // Disable if it's the day of the class (confirmed_date)
-    if (course.confirmed_date) {
+    if (course.confirmedDate) {
       const today = new Date();
-      const classDate = new Date(course.confirmed_date);
+      const classDate = new Date(course.confirmedDate);
 
       // Set both dates to start of day for accurate comparison
       today.setHours(0, 0, 0, 0);
@@ -162,9 +162,9 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
       return `Cannot upload students - Course is ${course.status?.toLowerCase()}`;
     }
 
-    if (course.confirmed_date) {
+    if (course.confirmedDate) {
       const today = new Date();
-      const classDate = new Date(course.confirmed_date);
+      const classDate = new Date(course.confirmedDate);
 
       today.setHours(0, 0, 0, 0);
       classDate.setHours(0, 0, 0, 0);
@@ -202,10 +202,11 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
         console.log('[TRACE] OrganizationCourses - API returned success: false');
         setStudentError('Failed to load students');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errObj = error as { response?: { data?: { error?: { message?: string } } } };
       console.error('[TRACE] OrganizationCourses - Error fetching students:', error);
-      console.error('[TRACE] OrganizationCourses - Error response:', error.response);
-      setStudentError(error.response?.data?.error?.message || 'Failed to load students');
+      console.error('[TRACE] OrganizationCourses - Error response:', errObj.response);
+      setStudentError(errObj.response?.data?.error?.message || 'Failed to load students');
     } finally {
       console.log('[TRACE] OrganizationCourses - Setting loading to false');
       setLoadingStudents(false);
@@ -309,19 +310,19 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
                   return (
                     <TableRow key={course.id}>
                       <TableCell>
-                        {course.request_submitted_date && !isNaN(new Date(course.request_submitted_date).getTime())
-                          ? formatDisplayDate(course.request_submitted_date)
+                        {course.requestSubmittedDate && !isNaN(new Date(course.requestSubmittedDate).getTime())
+                          ? formatDisplayDate(course.requestSubmittedDate)
                           : 'N/A'}
                       </TableCell>
                       <TableCell>
-                        {course.scheduled_date
-                          ? formatDisplayDate(course.scheduled_date)
+                        {course.scheduledDate
+                          ? formatDisplayDate(course.scheduledDate)
                           : '-'}
                       </TableCell>
-                      <TableCell>{course.course_type_name}</TableCell>
+                      <TableCell>{course.courseTypeName}</TableCell>
                       <TableCell>{course.location}</TableCell>
-                      <TableCell>{course.registered_students || 0}</TableCell>
-                      <TableCell>{course.students_attended || 0}</TableCell>
+                      <TableCell>{course.registeredStudents || 0}</TableCell>
+                      <TableCell>{course.studentsAttended || 0}</TableCell>
                       <TableCell>
                         {course.notes && (
                           <Typography variant="body2" color="text.secondary">
@@ -409,7 +410,7 @@ const OrganizationCourses: React.FC<OrganizationCoursesProps> = ({
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">
-              Students for {selectedCourse?.course_type_name}
+              Students for {selectedCourse?.courseTypeName}
             </Typography>
             <IconButton onClick={handleCloseStudentDialog}>
               <CloseIcon />
