@@ -201,9 +201,9 @@ export class InvoiceTemplateService {
   /**
    * Extract data using template patterns
    */
-  extractDataWithTemplate(text: string, template: InvoiceTemplate): any {
-    const result: any = {};
-    const confidence: any = {};
+  extractDataWithTemplate(text: string, template: InvoiceTemplate): { data: Record<string, string | null>; confidence: Record<string, number>; overallConfidence: number } {
+    const result: Record<string, string | null> = {};
+    const confidence: Record<string, number> = {};
 
     // Extract each field using template patterns
     Object.keys(template.fieldPatterns).forEach(field => {
@@ -248,7 +248,7 @@ export class InvoiceTemplateService {
   /**
    * Learn from successful extractions to improve templates
    */
-  learnFromExtraction(vendorId: number, text: string, successfulExtraction: any): void {
+  learnFromExtraction(vendorId: number, text: string, successfulExtraction: Record<string, unknown>): void {
     const template = this.getTemplateForVendor(vendorId);
     if (!template) {
       return;

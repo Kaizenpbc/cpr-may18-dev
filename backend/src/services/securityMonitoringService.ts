@@ -2,6 +2,7 @@ import { pool } from '../config/database.js';
 import { logSecurityEvent, AuditEventSeverity } from '../middleware/auditLogger.js';
 import { encryptionService } from '../config/encryptionConfig.js';
 import { mfaService } from './mfaService.js';
+import { Request } from 'express';
 
 // Security Metrics Interface
 export interface SecurityMetrics {
@@ -43,7 +44,7 @@ export interface SecurityEvent {
   userId?: string;
   ipAddress?: string;
   userAgent?: string;
-  metadata: any;
+  metadata: Record<string, unknown>;
   timestamp: Date;
   resolved: boolean;
 }
@@ -58,7 +59,7 @@ export interface SecurityAlert {
   timestamp: Date;
   acknowledged: boolean;
   resolved: boolean;
-  metadata: any;
+  metadata: Record<string, unknown>;
 }
 
 // Security Dashboard Data Interface
@@ -305,7 +306,7 @@ export class SecurityMonitoringService {
     title: string,
     description: string,
     source: string,
-    metadata: any = {}
+    metadata: Record<string, unknown> = {}
   ): Promise<SecurityAlert> {
     try {
       const alertId = crypto.randomUUID();
@@ -334,7 +335,7 @@ export class SecurityMonitoringService {
       logSecurityEvent(
         'SECURITY_ALERT_CREATED',
         AuditEventSeverity.MEDIUM,
-        {} as any,
+        {} as Request,
         { alertId, type, title, source }
       );
 

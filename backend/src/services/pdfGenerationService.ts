@@ -49,7 +49,7 @@ class PDFGenerationService {
     });
   }
 
-  private addHeader(doc: any, invoiceData: InvoiceData) {
+  private addHeader(doc: PDFKit.PDFDocument, invoiceData: InvoiceData) {
     doc.fontSize(24)
        .font('Helvetica-Bold')
        .text('INVOICE', { align: 'center' })
@@ -65,7 +65,7 @@ class PDFGenerationService {
        .moveDown(2);
   }
 
-  private addCompanyInfo(doc: any, invoiceData: InvoiceData) {
+  private addCompanyInfo(doc: PDFKit.PDFDocument, invoiceData: InvoiceData) {
     const companyName = invoiceData.billing_company || invoiceData.company || 'Company Name';
     
     doc.fontSize(16)
@@ -82,7 +82,7 @@ class PDFGenerationService {
        .moveDown(2);
   }
 
-  private addInvoiceDetails(doc: any, invoiceData: InvoiceData) {
+  private addInvoiceDetails(doc: PDFKit.PDFDocument, invoiceData: InvoiceData) {
     if (invoiceData.due_date) {
       const dueDate = new Date(invoiceData.due_date).toLocaleDateString('en-CA');
       doc.fontSize(10)
@@ -97,7 +97,7 @@ class PDFGenerationService {
        .moveDown(2);
   }
 
-  private addBillToSection(doc: any, invoiceData: InvoiceData) {
+  private addBillToSection(doc: PDFKit.PDFDocument, invoiceData: InvoiceData) {
     doc.fontSize(12)
        .font('Helvetica-Bold')
        .text('Bill To:')
@@ -112,7 +112,7 @@ class PDFGenerationService {
        .moveDown(2);
   }
 
-  private addInvoiceTable(doc: any, invoiceData: InvoiceData) {
+  private addInvoiceTable(doc: PDFKit.PDFDocument, invoiceData: InvoiceData) {
     const tableTop = doc.y;
     const itemX = 50;
     const quantityX = 300;
@@ -163,7 +163,7 @@ class PDFGenerationService {
        .stroke();
   }
 
-  private addTotalsSection(doc: any, invoiceData: InvoiceData) {
+  private addTotalsSection(doc: PDFKit.PDFDocument, invoiceData: InvoiceData) {
     const totalsX = 400;
     let currentY = doc.y + 20;
 
@@ -200,12 +200,12 @@ class PDFGenerationService {
        .stroke();
   }
 
-  private addFooter(doc: any, invoiceData: InvoiceData) {
+  private addFooter(doc: PDFKit.PDFDocument, invoiceData: InvoiceData) {
     const footerY = 750;
-    
+
     doc.fontSize(8)
        .font('Helvetica')
-       .text('Thank you for your business!', { align: 'center' }, footerY)
+       .text('Thank you for your business!', 50, footerY, { align: 'center', width: 500 })
        .moveDown(0.5)
        .text(`Generated on ${new Date().toLocaleDateString('en-CA')} at ${new Date().toLocaleTimeString('en-CA')}`, { align: 'center' })
        .moveDown(0.5)

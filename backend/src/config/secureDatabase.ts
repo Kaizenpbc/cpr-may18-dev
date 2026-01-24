@@ -3,6 +3,7 @@ import { createSecureDatabaseConfig, DatabaseAccessLogger, DatabaseConnectionMon
 import { logSecurityEvent, AuditEventSeverity } from '../middleware/auditLogger.js';
 import { retry } from '@lifeomic/attempt';
 import crypto from 'crypto';
+import { Request } from 'express';
 
 // Secure database wrapper class
 export class SecureDatabase {
@@ -25,7 +26,7 @@ export class SecureDatabase {
       logSecurityEvent(
         'DATABASE_POOL_ERROR',
         AuditEventSeverity.HIGH,
-        {} as any,
+        {} as Request,
         {
           error: err.message,
           timestamp: new Date().toISOString()
@@ -48,7 +49,7 @@ export class SecureDatabase {
   // Secure query execution with logging and monitoring
   public async query<T extends QueryResultRow = QueryResultRow>(
     text: string,
-    params?: any[],
+    params?: unknown[],
     userId?: string
   ): Promise<QueryResult<T>> {
     const startTime = Date.now();
@@ -113,6 +114,7 @@ export class SecureDatabase {
     
     // Wrap client methods to track activity
     const originalQuery = client.query.bind(client);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (client as any).query = async (text: any, params?: any[], callback?: any) => {
       this.connectionMonitor.updateActivity(connectionId);
       if (callback) {

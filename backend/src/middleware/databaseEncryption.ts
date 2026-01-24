@@ -10,15 +10,15 @@ export const databaseEncryption = (req: Request, res: Response, next: NextFuncti
     const originalJson = res.json;
 
     // Override res.json to decrypt response data
-    res.json = function(data: any) {
+    res.json = function(data: unknown) {
       if (data && typeof data === 'object') {
-        data = decryptResponseData(data);
+        data = decryptResponseData(data as Record<string, unknown>);
       }
       return originalJson.call(this, data);
     };
 
     // Override res.send to decrypt response data
-    res.send = function(data: any) {
+    res.send = function(data: unknown) {
       if (data && typeof data === 'string') {
         try {
           const parsed = JSON.parse(data);
@@ -45,12 +45,12 @@ export const databaseEncryption = (req: Request, res: Response, next: NextFuncti
 };
 
 // Encrypt request data before database operations
-function encryptRequestData(data: any, req: Request): any {
+function encryptRequestData(data: Record<string, unknown>, req: Request): Record<string, unknown> {
   if (!data || typeof data !== 'object') {
     return data;
   }
 
-  const encryptedData = { ...data };
+  const encryptedData: Record<string, unknown> = { ...data };
 
   // Get table name from request path or body
   const tableName = getTableNameFromRequest(req);
@@ -88,20 +88,21 @@ function encryptRequestData(data: any, req: Request): any {
 }
 
 // Decrypt response data after database operations
-function decryptResponseData(data: any): any {
+// Using generic unknown type for recursive data structures
+function decryptResponseData(data: unknown): unknown {
   if (!data || typeof data !== 'object') {
     return data;
   }
-
-  const decryptedData = { ...data };
 
   // Handle arrays
   if (Array.isArray(data)) {
     return data.map(item => decryptResponseData(item));
   }
 
+  const decryptedData: Record<string, unknown> = { ...(data as Record<string, unknown>) };
+
   // Decrypt encrypted fields
-  for (const [fieldName, value] of Object.entries(data)) {
+  for (const [fieldName, value] of Object.entries(data as Record<string, unknown>)) {
     if (value && typeof value === 'string') {
       try {
         // Check if this looks like encrypted data
@@ -154,10 +155,11 @@ function getTableNameFromRequest(req: Request): string | null {
 
 // Field-level encryption decorator
 export function encryptField(tableName: string, fieldName: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return function(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
 
-    descriptor.value = async function(...args: any[]) {
+    descriptor.value = async function(...args: unknown[]) {
       const result = await originalMethod.apply(this, args);
       
       if (result && typeof result === 'object') {
@@ -181,10 +183,11 @@ export function encryptField(tableName: string, fieldName: string) {
 
 // Field-level decryption decorator
 export function decryptField(tableName: string, fieldName: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return function(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
 
-    descriptor.value = async function(...args: any[]) {
+    descriptor.value = async function(...args: unknown[]) {
       const result = await originalMethod.apply(this, args);
       
       if (result && typeof result === 'object') {

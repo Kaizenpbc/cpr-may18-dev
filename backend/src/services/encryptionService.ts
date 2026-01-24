@@ -1,15 +1,16 @@
 import { pool } from '../config/database.js';
 import { encryptionService, EncryptionResult, DecryptionResult } from '../config/encryptionConfig.js';
 import { logSecurityEvent, AuditEventSeverity } from '../middleware/auditLogger.js';
+import { Request } from 'express';
 
 // Database Encryption Service
 export class DatabaseEncryptionService {
   
   // Encrypt data before storing in database
-  async encryptDataForStorage(data: any, tableName: string, fieldName: string): Promise<string> {
+  async encryptDataForStorage(data: unknown, tableName: string, fieldName: string): Promise<string> {
     try {
       if (!data || typeof data !== 'string') {
-        return data;
+        return data as string;
       }
 
       // Check if field should be encrypted
@@ -24,7 +25,7 @@ export class DatabaseEncryptionService {
       logSecurityEvent(
         'DATA_ENCRYPTED_FOR_STORAGE',
         AuditEventSeverity.LOW,
-        {} as any,
+        {} as Request,
         {
           tableName,
           fieldName,
@@ -66,7 +67,7 @@ export class DatabaseEncryptionService {
         logSecurityEvent(
           'DATA_DECRYPTED_FROM_STORAGE',
           AuditEventSeverity.LOW,
-          {} as any,
+          {} as Request,
           {
             tableName,
             fieldName,
@@ -87,8 +88,8 @@ export class DatabaseEncryptionService {
   }
 
   // Encrypt entire record
-  async encryptRecord(record: any, tableName: string): Promise<any> {
-    const encryptedRecord = { ...record };
+  async encryptRecord(record: Record<string, unknown>, tableName: string): Promise<Record<string, unknown>> {
+    const encryptedRecord: Record<string, unknown> = { ...record };
 
     for (const [fieldName, value] of Object.entries(record)) {
       if (value && typeof value === 'string' && encryptionService.shouldEncryptField(tableName, fieldName)) {
@@ -100,8 +101,8 @@ export class DatabaseEncryptionService {
   }
 
   // Decrypt entire record
-  async decryptRecord(record: any, tableName: string): Promise<any> {
-    const decryptedRecord = { ...record };
+  async decryptRecord(record: Record<string, unknown>, tableName: string): Promise<Record<string, unknown>> {
+    const decryptedRecord: Record<string, unknown> = { ...record };
 
     for (const [fieldName, value] of Object.entries(record)) {
       if (value && typeof value === 'string') {
@@ -113,12 +114,12 @@ export class DatabaseEncryptionService {
   }
 
   // Encrypt array of records
-  async encryptRecords(records: any[], tableName: string): Promise<any[]> {
+  async encryptRecords(records: Record<string, unknown>[], tableName: string): Promise<Record<string, unknown>[]> {
     return Promise.all(records.map(record => this.encryptRecord(record, tableName)));
   }
 
   // Decrypt array of records
-  async decryptRecords(records: any[], tableName: string): Promise<any[]> {
+  async decryptRecords(records: Record<string, unknown>[], tableName: string): Promise<Record<string, unknown>[]> {
     return Promise.all(records.map(record => this.decryptRecord(record, tableName)));
   }
 
@@ -167,7 +168,7 @@ export class DatabaseEncryptionService {
       logSecurityEvent(
         'ENCRYPTION_KEYS_ROTATED',
         AuditEventSeverity.MEDIUM,
-        {} as any,
+        {} as Request,
         {
           newKeyId: newKey.id,
           algorithm: newKey.algorithm,
