@@ -4,6 +4,7 @@ import { authenticateToken, requireRole } from '../../middleware/authMiddleware.
 import { asyncHandler, AppError } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { keysToCamel } from '../../utils/caseConverter.js';
+import { isDatabaseError } from '../../types/index.js';
 
 const router = express.Router();
 
@@ -38,8 +39,8 @@ router.post('/', authenticateToken, requireRole(['admin', 'sysadmin']), asyncHan
     );
 
     res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
-  } catch (error: any) {
-    if (error.code === '23505') { // Unique violation
+  } catch (error) {
+    if (isDatabaseError(error) && error.code === '23505') { // Unique violation
       throw new AppError(400, 'VALIDATION_ERROR', 'College with this name already exists');
     }
     throw error;
@@ -54,7 +55,7 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'sysadmin']), asyncH
   const activeValue = isActive !== undefined ? isActive : is_active;
 
   const updates: string[] = [];
-  const values: any[] = [];
+  const values: (string | number | boolean | null)[] = [];
   let paramCount = 1;
 
   if (name !== undefined) {
@@ -84,8 +85,8 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'sysadmin']), asyncH
     }
 
     res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
-  } catch (error: any) {
-    if (error.code === '23505') {
+  } catch (error) {
+    if (isDatabaseError(error) && error.code === '23505') {
       throw new AppError(400, 'VALIDATION_ERROR', 'College with this name already exists');
     }
     throw error;

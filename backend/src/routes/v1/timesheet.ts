@@ -74,7 +74,7 @@ router.get('/', authenticateToken, requireTimesheetAccess, asyncHandler(async (r
     const offset = (Number(page) - 1) * Number(limit);
     
     let whereClause = "WHERE 1=1";
-    let params: any[] = [];
+    let params: unknown[] = [];
     let paramIndex = 1;
     
     // HR can see all timesheets, instructors can only see their own
@@ -359,7 +359,7 @@ router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req:
     
     await client.query('COMMIT');
     
-    const response: any = {
+    const response: { success: boolean; message: string; data: { timesheet: typeof timesheet & { status: string; course_details: unknown[] }; paymentRequest?: typeof paymentRequest } } = {
       success: true,
       message: `Timesheet ${action}d successfully.`,
       data: {
@@ -370,7 +370,7 @@ router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req:
         }
       }
     };
-    
+
     if (paymentRequest) {
       response.data.paymentRequest = paymentRequest;
       response.message = `Timesheet approved and payment request created for $${paymentRequest.amount}.`;

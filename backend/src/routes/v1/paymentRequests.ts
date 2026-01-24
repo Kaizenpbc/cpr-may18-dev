@@ -9,7 +9,7 @@ const router = express.Router();
 
 // Middleware to ensure accountant role
 const requireAccountantRole = (req: Request, res: Response, next: NextFunction) => {
-  if ((req as any).user.role !== 'accountant') {
+  if (!req.user || req.user.role !== 'accountant') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Accountant role required.');
   }
   next();

@@ -254,7 +254,7 @@ router.post('/reset-password', asyncHandler(async (req: Request, res: Response) 
 // Change password (for logged-in users)
 router.post('/change-password', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const { currentPassword, newPassword } = req.body;
-  const userId = (req as any).user?.id;
+  const userId = req.user?.id;
 
   if (!userId) {
     return res.status(401).json({
@@ -315,7 +315,7 @@ router.post(
       if (accessToken) {
         try {
           // Decode the token to get expiration time
-          const decoded = jwt.decode(accessToken) as any;
+          const decoded = jwt.decode(accessToken) as { exp?: number } | null;
           const expiresAt = decoded?.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 24 * 60 * 60 * 1000); // Default to 24 hours
 
           await TokenBlacklist.addToBlacklist(accessToken, expiresAt);

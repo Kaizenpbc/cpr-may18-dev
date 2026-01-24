@@ -137,7 +137,7 @@ router.get('/admin',
         throw new AppError(403, 'FORBIDDEN', 'Admin access required');
       }
 
-      const filters: any = {};
+      const filters: Record<string, unknown> = {};
       if (req.query.organizationId) filters.organizationId = parseInt(req.query.organizationId as string);
       if (req.query.classTypeId) filters.classTypeId = parseInt(req.query.classTypeId as string);
       if (req.query.isActive !== undefined) filters.isActive = req.query.isActive === 'true';

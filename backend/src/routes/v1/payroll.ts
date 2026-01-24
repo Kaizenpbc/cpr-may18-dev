@@ -7,7 +7,7 @@ const router = express.Router();
 
 // Middleware to ensure HR role
 const requireHRRole = (req: Request, res: Response, next: NextFunction) => {
-  if ((req as any).user?.role !== 'hr') {
+  if (req.user?.role !== 'hr') {
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. HR role required.');
   }
   next();
@@ -65,7 +65,7 @@ router.get('/payments', authenticateToken, requireHRRole, asyncHandler(async (re
     const offset = (Number(page) - 1) * Number(limit);
     
     let whereClause = "WHERE 1=1";
-    let params: any[] = [];
+    let params: unknown[] = [];
     let paramIndex = 1;
     
     if (status) {
@@ -349,7 +349,7 @@ router.get('/report', authenticateToken, requireHRRole, asyncHandler(async (req:
   
   try {
     let whereClause = "WHERE 1=1";
-    let params: any[] = [];
+    let params: unknown[] = [];
     let paramIndex = 1;
     
     if (start_date) {
