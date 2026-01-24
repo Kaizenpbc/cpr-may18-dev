@@ -231,6 +231,12 @@ console.log('3. Environment info:', {
 // Create Express app
 console.log('4. Creating Express app...');
 const app = express();
+
+// Trust proxy - required for rate limiting behind Render's reverse proxy
+// This ensures X-Forwarded-For headers are used correctly for client IP detection
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 console.log('✅ Express app created');
 
 // Create HTTP server
