@@ -13,203 +13,179 @@ import { devLog } from '../../utils/devLog.js';
 const router = express.Router();
 
 // Get instructor dashboard statistics
-router.get('/dashboard/stats', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.get('/dashboard/stats', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
 
   const userId = req.user.id;
 
-  try {
-    // Get current month stats
-    const currentDate = new Date();
-    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+  // Get total courses
+  const totalCoursesResult = await pool.query(
+    `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1`,
+    [userId]
+  );
 
-    // Get total courses
-    const totalCoursesResult = await pool.query(
-      `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1`,
-      [userId]
-    );
+  // Get scheduled courses (confirmed but not completed)
+  const scheduledCoursesResult = await pool.query(
+    `SELECT COUNT(*) as count FROM course_requests
+     WHERE instructor_id = $1 AND status = 'confirmed'`,
+    [userId]
+  );
 
-    // Get scheduled courses (confirmed but not completed)
-    const scheduledCoursesResult = await pool.query(
-      `SELECT COUNT(*) as count FROM course_requests 
-       WHERE instructor_id = $1 AND status = 'confirmed'`,
-      [userId]
-    );
+  // Get completed courses
+  const completedCoursesResult = await pool.query(
+    `SELECT COUNT(*) as count FROM course_requests
+     WHERE instructor_id = $1 AND status = 'completed'`,
+    [userId]
+  );
 
-    // Get completed courses
-    const completedCoursesResult = await pool.query(
-      `SELECT COUNT(*) as count FROM course_requests 
-       WHERE instructor_id = $1 AND status = 'completed'`,
-      [userId]
-    );
+  // Get cancelled courses
+  const cancelledCoursesResult = await pool.query(
+    `SELECT COUNT(*) as count FROM course_requests
+     WHERE instructor_id = $1 AND status = 'cancelled'`,
+    [userId]
+  );
 
-    // Get cancelled courses
-    const cancelledCoursesResult = await pool.query(
-      `SELECT COUNT(*) as count FROM course_requests 
-       WHERE instructor_id = $1 AND status = 'cancelled'`,
-      [userId]
-    );
+  // Get total students across all courses
+  const totalStudentsResult = await pool.query(
+    `SELECT COALESCE(SUM(cs.student_count), 0) as total_students
+     FROM (
+       SELECT course_request_id, COUNT(*) as student_count
+       FROM course_students
+       GROUP BY course_request_id
+     ) cs
+     JOIN course_requests cr ON cs.course_request_id = cr.id
+     WHERE cr.instructor_id = $1`,
+    [userId]
+  );
 
-    // Get total students across all courses
-    const totalStudentsResult = await pool.query(
-      `SELECT COALESCE(SUM(cs.student_count), 0) as total_students
-       FROM (
-         SELECT course_request_id, COUNT(*) as student_count
-         FROM course_students
-         GROUP BY course_request_id
-       ) cs
-       JOIN course_requests cr ON cs.course_request_id = cr.id
-       WHERE cr.instructor_id = $1`,
-      [userId]
-    );
+  // Get recent classes (last 5 completed or confirmed)
+  const recentClassesResult = await pool.query(
+    `SELECT
+      cr.id,
+      cr.confirmed_date as date,
+      ct.name as type,
+      COALESCE(cs_counts.student_count, 0) as students
+     FROM course_requests cr
+     JOIN class_types ct ON cr.course_type_id = ct.id
+     LEFT JOIN (
+       SELECT course_request_id, COUNT(*) as student_count
+       FROM course_students
+       GROUP BY course_request_id
+     ) cs_counts ON cs_counts.course_request_id = cr.id
+     WHERE cr.instructor_id = $1
+     AND cr.status IN ('confirmed', 'completed')
+     ORDER BY cr.confirmed_date DESC
+     LIMIT 5`,
+    [userId]
+  );
 
-    // Get recent classes (last 5 completed or confirmed)
-    const recentClassesResult = await pool.query(
-      `SELECT
-        cr.id,
-        cr.confirmed_date as date,
-        ct.name as type,
-        COALESCE(cs_counts.student_count, 0) as students
-       FROM course_requests cr
-       JOIN class_types ct ON cr.course_type_id = ct.id
-       LEFT JOIN (
-         SELECT course_request_id, COUNT(*) as student_count
-         FROM course_students
-         GROUP BY course_request_id
-       ) cs_counts ON cs_counts.course_request_id = cr.id
-       WHERE cr.instructor_id = $1
-       AND cr.status IN ('confirmed', 'completed')
-       ORDER BY cr.confirmed_date DESC
-       LIMIT 5`,
-      [userId]
-    );
+  const stats = {
+    totalCourses: parseInt(totalCoursesResult.rows[0]?.count || 0),
+    scheduledClasses: parseInt(scheduledCoursesResult.rows[0]?.count || 0),
+    completedClasses: parseInt(completedCoursesResult.rows[0]?.count || 0),
+    cancelledClasses: parseInt(cancelledCoursesResult.rows[0]?.count || 0),
+    totalStudents: parseInt(totalStudentsResult.rows[0]?.total_students || 0),
+    recentClasses: recentClassesResult.rows.map(row => ({
+      id: row.id,
+      date: row.date ? new Date(row.date).toISOString().split('T')[0] : null,
+      type: row.type,
+      students: parseInt(row.students || 0)
+    }))
+  };
 
-    const stats = {
-      totalCourses: parseInt(totalCoursesResult.rows[0]?.count || 0),
-      scheduledClasses: parseInt(scheduledCoursesResult.rows[0]?.count || 0),
-      completedClasses: parseInt(completedCoursesResult.rows[0]?.count || 0),
-      cancelledClasses: parseInt(cancelledCoursesResult.rows[0]?.count || 0),
-      totalStudents: parseInt(totalStudentsResult.rows[0]?.total_students || 0),
-      recentClasses: recentClassesResult.rows.map(row => ({
-        id: row.id,
-        date: row.date ? new Date(row.date).toISOString().split('T')[0] : null,
-        type: row.type,
-        students: parseInt(row.students || 0)
-      }))
-    };
-
-    devLog('[DEBUG] Instructor dashboard stats for user', userId, ':', stats);
-    res.json(ApiResponseBuilder.success(keysToCamel(stats)));
-  } catch (error) {
-    console.error('Error fetching instructor dashboard stats:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  devLog('[DEBUG] Instructor dashboard stats for user', userId, ':', stats);
+  res.json(ApiResponseBuilder.success(keysToCamel(stats)));
+}));
 
 // Get instructor's availability
-router.get('/availability', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.get('/availability', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user.id;
-  try {
-    const result = await pool.query(
-      `SELECT id, instructor_id, date, status, created_at, updated_at
-       FROM instructor_availability
-       WHERE instructor_id = $1
-       ORDER BY date ASC`,
-      [userId]
-    );
-    devLog('[DEBUG] Availability query result for user', userId, ':', JSON.stringify(result.rows, null, 2));
 
-    // Format dates to YYYY-MM-DD for frontend compatibility
-    const formattedData = result.rows.map(row => ({
-      ...row,
-      date: row.date ? new Date(row.date).toISOString().split('T')[0] : null
-    }));
+  const result = await pool.query(
+    `SELECT id, instructor_id, date, status, created_at, updated_at
+     FROM instructor_availability
+     WHERE instructor_id = $1
+     ORDER BY date ASC`,
+    [userId]
+  );
+  devLog('[DEBUG] Availability query result for user', userId, ':', JSON.stringify(result.rows, null, 2));
 
-    devLog('[DEBUG] Formatted availability data:', JSON.stringify(formattedData, null, 2));
-    res.json(ApiResponseBuilder.success(keysToCamel(formattedData)));
-  } catch (error) {
-    console.error('Error fetching instructor availability:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  // Format dates to YYYY-MM-DD for frontend compatibility
+  const formattedData = result.rows.map(row => ({
+    ...row,
+    date: row.date ? new Date(row.date).toISOString().split('T')[0] : null
+  }));
+
+  devLog('[DEBUG] Formatted availability data:', JSON.stringify(formattedData, null, 2));
+  res.json(ApiResponseBuilder.success(keysToCamel(formattedData)));
+}));
 
 // Add availability
-router.post('/availability', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.post('/availability', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user.id;
-  try {
-    const { date } = req.body;
+  const { date } = req.body;
 
-    // Validate date format
-    const dateObj = new Date(date);
-    if (isNaN(dateObj.getTime())) {
-      return res.status(400).json({ error: 'Invalid date format' });
-    }
-
-    // Check if availability already exists
-    const existingResult = await pool.query(
-      'SELECT id FROM instructor_availability WHERE instructor_id = $1 AND date = $2',
-      [userId, date]
-    );
-
-    if (existingResult.rows.length > 0) {
-      return res.status(400).json({ error: 'Availability already exists for this date' });
-    }
-
-    // Insert new availability
-    const result = await pool.query(
-      `INSERT INTO instructor_availability (instructor_id, date, status)
-       VALUES ($1, $2, 'available')
-       RETURNING id, instructor_id, date, status, created_at, updated_at`,
-      [userId, date]
-    );
-
-    res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
-  } catch (error) {
-    console.error('Error adding instructor availability:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  // Validate date format
+  const dateObj = new Date(date);
+  if (isNaN(dateObj.getTime())) {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid date format');
   }
-});
+
+  // Check if availability already exists
+  const existingResult = await pool.query(
+    'SELECT id FROM instructor_availability WHERE instructor_id = $1 AND date = $2',
+    [userId, date]
+  );
+
+  if (existingResult.rows.length > 0) {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Availability already exists for this date');
+  }
+
+  // Insert new availability
+  const result = await pool.query(
+    `INSERT INTO instructor_availability (instructor_id, date, status)
+     VALUES ($1, $2, 'available')
+     RETURNING id, instructor_id, date, status, created_at, updated_at`,
+    [userId, date]
+  );
+
+  res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
+}));
 
 // Remove availability
-router.delete('/availability/:date', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.delete('/availability/:date', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user.id;
-  try {
-    const { date } = req.params;
+  const { date } = req.params;
 
-    // Validate date format
-    const dateObj = new Date(date);
-    if (isNaN(dateObj.getTime())) {
-      return res.status(400).json({ error: 'Invalid date format' });
-    }
-
-    // Delete availability
-    const result = await pool.query(
-      'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date = $2 RETURNING id',
-      [userId, date]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Availability not found' });
-    }
-
-    res.json({ success: true, message: 'Availability removed successfully' });
-  } catch (error) {
-    console.error('Error removing instructor availability:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  // Validate date format
+  const dateObj = new Date(date);
+  if (isNaN(dateObj.getTime())) {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid date format');
   }
-});
+
+  // Delete availability
+  const result = await pool.query(
+    'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date = $2 RETURNING id',
+    [userId, date]
+  );
+
+  if (result.rows.length === 0) {
+    throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Availability not found');
+  }
+
+  res.json(ApiResponseBuilder.success({ message: 'Availability removed successfully' }));
+}));
 
 // Get instructor's classes (all confirmed course_requests)
 router.get('/classes', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
@@ -492,60 +468,55 @@ router.get('/schedule', authenticateToken, requireRole(['instructor', 'admin', '
 });
 
 // Get students for a specific class
-router.get('/classes/:classId/students', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.get('/classes/:classId/students', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user.id;
-  try {
-    const { classId } = req.params;
+  const { classId } = req.params;
 
-    // The frontend is sending course_request_id as classId, so use it directly
-    const courseRequestId = classId;
+  // The frontend is sending course_request_id as classId, so use it directly
+  const courseRequestId = classId;
 
-    // Verify this course request belongs to the instructor
-    const courseRequestCheck = await pool.query(
-      `SELECT id FROM course_requests 
-       WHERE id = $1 AND instructor_id = $2`,
-      [courseRequestId, userId]
-    );
+  // Verify this course request belongs to the instructor
+  const courseRequestCheck = await pool.query(
+    `SELECT id FROM course_requests
+     WHERE id = $1 AND instructor_id = $2`,
+    [courseRequestId, userId]
+  );
 
-    if (courseRequestCheck.rows.length === 0) {
-      return res.json(ApiResponseBuilder.success([]));
-    }
-
-    // Now get students from course_students table
-    const result = await pool.query(
-      `SELECT 
-         cs.id,
-         cs.first_name,
-         cs.last_name,
-         cs.email,
-         cs.attended,
-         cs.attendance_marked
-       FROM course_students cs
-       WHERE cs.course_request_id = $1
-       ORDER BY cs.first_name, cs.last_name`,
-      [courseRequestId]
-    );
-
-    // Transform the data to match frontend expectations
-    const students = result.rows.map(row => ({
-      studentid: row.id.toString(),
-      firstname: row.first_name,
-      lastname: row.last_name,
-      email: row.email || '',
-      attendance: row.attended || false,
-      attendanceMarked: row.attendance_marked || false,
-    }));
-
-    devLog('[Debug] Students loaded for course_request:', courseRequestId, 'count:', students.length);
-    res.json(ApiResponseBuilder.success(keysToCamel(students)));
-  } catch (error) {
-    console.error('Error fetching class students:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  if (courseRequestCheck.rows.length === 0) {
+    return res.json(ApiResponseBuilder.success([]));
   }
-});
+
+  // Now get students from course_students table
+  const result = await pool.query(
+    `SELECT
+       cs.id,
+       cs.first_name,
+       cs.last_name,
+       cs.email,
+       cs.attended,
+       cs.attendance_marked
+     FROM course_students cs
+     WHERE cs.course_request_id = $1
+     ORDER BY cs.first_name, cs.last_name`,
+    [courseRequestId]
+  );
+
+  // Transform the data to match frontend expectations
+  const students = result.rows.map(row => ({
+    studentid: row.id.toString(),
+    firstname: row.first_name,
+    lastname: row.last_name,
+    email: row.email || '',
+    attendance: row.attended || false,
+    attendanceMarked: row.attendance_marked || false,
+  }));
+
+  devLog('[Debug] Students loaded for course_request:', courseRequestId, 'count:', students.length);
+  res.json(ApiResponseBuilder.success(keysToCamel(students)));
+}));
 
 // Get specific class details
 router.get('/classes/:classId', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
@@ -652,7 +623,7 @@ router.put('/classes/:classId/students/:studentId/attendance', authenticateToken
 });
 
 // Add students to a class
-router.post('/classes/:classId/students', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.post('/classes/:classId/students', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -661,7 +632,7 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
   const { firstName, lastName, email, phone, college } = req.body;
 
   if (!firstName || !lastName || !email || !phone) {
-    return res.status(400).json({ error: 'First name, last name, email, and phone are required' });
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'First name, last name, email, and phone are required');
   }
 
   // The frontend is sending course_request_id as classId, so use it directly
@@ -674,50 +645,45 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
   );
 
   if (courseRequestCheck.rows.length === 0) {
-    return res.status(403).json({ error: 'Not authorized or course request not found' });
+    throw new AppError(403, errorCodes.FORBIDDEN, 'Not authorized or course request not found');
   }
 
-  try {
-    // Check if student already exists for this course_request
-    const exists = await pool.query(
-      'SELECT id FROM course_students WHERE course_request_id = $1 AND email = $2',
-      [courseRequestId, email]
-    );
+  // Check if student already exists for this course_request
+  const exists = await pool.query(
+    'SELECT id FROM course_students WHERE course_request_id = $1 AND email = $2',
+    [courseRequestId, email]
+  );
 
-    if (exists.rows.length > 0) {
-      return res.status(400).json({ error: 'Student with this email already exists for this course' });
-    }
-
-    // Insert student
-    const insertResult = await pool.query(
-      `INSERT INTO course_students (course_request_id, first_name, last_name, email, phone, college)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, first_name, last_name, email, phone, college, attended, attendance_marked, created_at`,
-      [courseRequestId, firstName, lastName, email, phone, college || null]
-    );
-
-    // Transform the response to match frontend expectations
-    const addedStudent = {
-      studentid: insertResult.rows[0].id.toString(),
-      firstname: insertResult.rows[0].first_name,
-      lastname: insertResult.rows[0].last_name,
-      email: insertResult.rows[0].email || '',
-      phone: insertResult.rows[0].phone || '',
-      college: insertResult.rows[0].college || '',
-      attendance: insertResult.rows[0].attended || false,
-      attendanceMarked: insertResult.rows[0].attendance_marked || false,
-    };
-
-    devLog('[Debug] Student added to course_request:', courseRequestId, 'student:', addedStudent);
-    res.json(ApiResponseBuilder.success(keysToCamel(addedStudent)));
-  } catch (error) {
-    console.error('Error adding student:', error);
-    res.status(500).json({ error: 'Failed to add student' });
+  if (exists.rows.length > 0) {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Student with this email already exists for this course');
   }
-});
+
+  // Insert student
+  const insertResult = await pool.query(
+    `INSERT INTO course_students (course_request_id, first_name, last_name, email, phone, college)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id, first_name, last_name, email, phone, college, attended, attendance_marked, created_at`,
+    [courseRequestId, firstName, lastName, email, phone, college || null]
+  );
+
+  // Transform the response to match frontend expectations
+  const addedStudent = {
+    studentid: insertResult.rows[0].id.toString(),
+    firstname: insertResult.rows[0].first_name,
+    lastname: insertResult.rows[0].last_name,
+    email: insertResult.rows[0].email || '',
+    phone: insertResult.rows[0].phone || '',
+    college: insertResult.rows[0].college || '',
+    attendance: insertResult.rows[0].attended || false,
+    attendanceMarked: insertResult.rows[0].attendance_marked || false,
+  };
+
+  devLog('[Debug] Student added to course_request:', courseRequestId, 'student:', addedStudent);
+  res.json(ApiResponseBuilder.success(keysToCamel(addedStudent)));
+}));
 
 // Update instructor availability (PUT method)
-router.put('/availability', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.put('/availability', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -725,7 +691,7 @@ router.put('/availability', authenticateToken, requireRole(['instructor', 'admin
   const { availability } = req.body;
 
   if (!Array.isArray(availability)) {
-    return res.status(400).json({ error: 'Availability array is required' });
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Availability array is required');
   }
 
   // Start a transaction
@@ -771,7 +737,7 @@ router.put('/availability', authenticateToken, requireRole(['instructor', 'admin
   } finally {
     client.release();
   }
-});
+}));
 
 // Update instructor profile
 router.put('/profile', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {

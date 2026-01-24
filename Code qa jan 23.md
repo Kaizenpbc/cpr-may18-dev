@@ -75,9 +75,10 @@
   - File: `backend/src/routes/v1/vendor.ts:58, 96, 151, 220, 231, 340`
   - Risk: Runtime crashes
 
-- [ ] **Incomplete error handling in async routes**
+- [x] **Incomplete error handling in async routes**
   - File: `backend/src/routes/v1/instructor.ts:49-138, 141-168`
   - Risk: No error propagation to middleware
+  - **FIXED:** Wrapped routes with asyncHandler, replaced manual 500 responses with AppError throws
 
 - [x] **Test endpoints exposed in production**
   - File: `backend/src/routes/v1/instructor.ts:14-46`
@@ -253,6 +254,7 @@
 14. **Token refresh race condition** - Added shared refreshPromise and atomic queue processing
 15. **Unhandled promise rejections** - Proper try/catch wrapping in token queue handlers
 16. **PrivateRoute memory leak** - Added isMountedRef for async cleanup, replaced console.log with devLog
+17. **Incomplete async error handling** - Wrapped instructor.ts routes with asyncHandler for consistent error propagation
 
 **Build Error Fixes (required for type checking):**
 13. **encryptionConfig.ts** - Added missing `getActiveKey()` method to EncryptionService class
