@@ -53,10 +53,14 @@ const upload = multer({
 
 // Get vendor profile
 router.get('/profile', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) {
+    throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
+  }
+
   // Get user email from database using user ID
   const userResult = await pool.query(
     'SELECT email FROM users WHERE id = $1',
-    [req.user!.id]
+    [req.user.id]
   );
 
   if (userResult.rows.length === 0) {
@@ -79,6 +83,10 @@ router.get('/profile', authenticateToken, asyncHandler(async (req: Request, res:
 
 // Update vendor profile
 router.put('/profile', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) {
+    throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
+  }
+
   const {
     vendor_name,
     contact_first_name,
@@ -94,7 +102,7 @@ router.put('/profile', authenticateToken, asyncHandler(async (req: Request, res:
   // Get user email from database using user ID
   const userResult = await pool.query(
     'SELECT email FROM users WHERE id = $1',
-    [req.user!.id]
+    [req.user.id]
   );
 
   if (userResult.rows.length === 0) {
@@ -144,12 +152,16 @@ router.put('/profile', authenticateToken, asyncHandler(async (req: Request, res:
 
 // Get vendor dashboard stats
 router.get('/dashboard', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) {
+    throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
+  }
+
   devLog('[VENDOR DEBUG] User object:', req.user);
 
   // Get user email and role from database using user ID
   const userResult = await pool.query(
     'SELECT email, role FROM users WHERE id = $1',
-    [req.user!.id]
+    [req.user.id]
   );
 
   if (userResult.rows.length === 0) {
@@ -215,10 +227,14 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: Request, re
 
 // Get vendor invoices
 router.get('/invoices', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) {
+    throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
+  }
+
   // Get user email and role from database using user ID
   const userResult = await pool.query(
     'SELECT email, role FROM users WHERE id = $1',
-    [req.user!.id]
+    [req.user.id]
   );
 
   if (userResult.rows.length === 0) {
@@ -229,7 +245,7 @@ router.get('/invoices', authenticateToken, asyncHandler(async (req: Request, res
   const userRole = userResult.rows[0].role;
 
   devLog('🔍 [VENDOR INVOICES] User info:', {
-    id: req.user!.id,
+    id: req.user.id,
     email: userEmail,
     role: userRole
   });
@@ -317,6 +333,10 @@ router.get('/invoices', authenticateToken, asyncHandler(async (req: Request, res
 
 // Submit new invoice
 router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) {
+    throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
+  }
+
   const {
     invoice_number,
     amount,
@@ -338,7 +358,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncH
   // Get user email from database using user ID
   const userResult = await pool.query(
     'SELECT email FROM users WHERE id = $1',
-    [req.user!.id]
+    [req.user.id]
   );
 
   if (userResult.rows.length === 0) {
@@ -412,7 +432,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncH
       parseFloat(req.body.subtotal) || parseFloat(amount),
       parseFloat(req.body.hst) || 0,
       parseFloat(req.body.total) || parseFloat(amount),
-      req.user!.id // submitted_by - user ID who submitted the invoice
+      req.user.id // submitted_by - user ID who submitted the invoice
     ]
   );
 
@@ -471,10 +491,14 @@ router.post('/invoices/scan', authenticateToken, upload.single('invoice_pdf'), a
 
 // Get specific invoice
 router.get('/invoices/:id', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) {
+    throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
+  }
+
   // Get user email from database using user ID
   const userResult = await pool.query(
     'SELECT email FROM users WHERE id = $1',
-    [req.user!.id]
+    [req.user.id]
   );
 
   if (userResult.rows.length === 0) {
@@ -520,10 +544,14 @@ router.get('/invoices/:id', authenticateToken, asyncHandler(async (req: Request,
 
 // Get vendor invoice details with payment history
 router.get('/invoices/:id/details', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) {
+    throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
+  }
+
   // Get user email from database using user ID
   const userResult = await pool.query(
     'SELECT email FROM users WHERE id = $1',
-    [req.user!.id]
+    [req.user.id]
   );
 
   if (userResult.rows.length === 0) {

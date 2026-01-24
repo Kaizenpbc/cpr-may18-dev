@@ -71,9 +71,10 @@
   - Files: Multiple middleware, routes, utilities
   - Risk: Runtime errors from type mismatches
 
-- [ ] **Missing null/undefined checks** - Using `!` assertion without validation
+- [x] **Missing null/undefined checks** - Using `!` assertion without validation
   - File: `backend/src/routes/v1/vendor.ts:58, 96, 151, 220, 231, 340`
   - Risk: Runtime crashes
+  - **FIXED:** Added explicit user authentication checks at start of each route handler
 
 - [x] **Incomplete error handling in async routes**
   - File: `backend/src/routes/v1/instructor.ts:49-138, 141-168`
@@ -255,6 +256,7 @@
 15. **Unhandled promise rejections** - Proper try/catch wrapping in token queue handlers
 16. **PrivateRoute memory leak** - Added isMountedRef for async cleanup, replaced console.log with devLog
 17. **Incomplete async error handling** - Wrapped instructor.ts routes with asyncHandler for consistent error propagation
+18. **Missing null/undefined checks** - Added explicit user authentication checks to vendor.ts routes
 
 **Build Error Fixes (required for type checking):**
 13. **encryptionConfig.ts** - Added missing `getActiveKey()` method to EncryptionService class
