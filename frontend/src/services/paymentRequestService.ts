@@ -2,21 +2,21 @@ import { api } from './api';
 
 export interface PaymentRequest {
   id: number;
-  instructor_id: number;
-  timesheet_id: number;
+  instructorId: number;
+  timesheetId: number;
   amount: number;
-  payment_date: string;
-  payment_method: string;
+  paymentDate: string;
+  paymentMethod: string;
   notes: string;
   status: 'pending' | 'approved' | 'rejected' | 'completed';
-  created_at: string;
-  updated_at: string;
-  instructor_name?: string;
-  instructor_email?: string;
-  week_start_date?: string;
-  total_hours?: number;
-  courses_taught?: number;
-  timesheet_comment?: string;
+  createdAt: string;
+  updatedAt: string;
+  instructorName?: string;
+  instructorEmail?: string;
+  weekStartDate?: string;
+  totalHours?: number;
+  coursesTaught?: number;
+  timesheetComment?: string;
 }
 
 export interface PaymentRequestStats {

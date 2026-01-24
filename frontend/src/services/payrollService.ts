@@ -2,18 +2,18 @@ import { api } from './api';
 
 export interface PayrollPayment {
   id: number;
-  instructor_id: number;
-  instructor_name?: string;
-  instructor_email?: string;
+  instructorId: number;
+  instructorName?: string;
+  instructorEmail?: string;
   amount: number;
-  payment_date: string;
-  payment_method: string;
+  paymentDate: string;
+  paymentMethod: string;
   notes?: string;
   status: 'pending' | 'completed' | 'rejected';
-  transaction_id?: string;
-  hr_notes?: string;
-  created_at: string;
-  updated_at: string;
+  transactionId?: string;
+  hrNotes?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PayrollStats {
@@ -29,8 +29,8 @@ export interface PayrollCalculation {
     email: string;
   };
   period: {
-    start_date: string;
-    end_date: string;
+    startDate: string;
+    endDate: string;
   };
   timesheets: {
     count: number;
@@ -72,25 +72,25 @@ export interface PaymentProcessing {
 
 export interface PayrollReport {
   summary: {
-    total_payments: number;
-    completed_payments: number;
-    pending_payments: number;
-    rejected_payments: number;
-    total_paid: number;
-    average_payment: number;
+    totalPayments: number;
+    completedPayments: number;
+    pendingPayments: number;
+    rejectedPayments: number;
+    totalPaid: number;
+    averagePayment: number;
   };
   byInstructor: Array<{
-    instructor_id: number;
-    instructor_name: string;
-    payment_count: number;
-    total_paid: number;
-    average_payment: number;
+    instructorId: number;
+    instructorName: string;
+    paymentCount: number;
+    totalPaid: number;
+    averagePayment: number;
   }>;
   byMonth: Array<{
     year: number;
     month: number;
-    payment_count: number;
-    total_paid: number;
+    paymentCount: number;
+    totalPaid: number;
   }>;
 }
 
@@ -100,12 +100,12 @@ export interface InstructorPayrollSummary {
     email: string;
   };
   summary: {
-    total_payments: number;
-    completed_payments: number;
-    pending_payments: number;
-    total_paid: number;
-    average_payment: number;
-    last_payment_date: string;
+    totalPayments: number;
+    completedPayments: number;
+    pendingPayments: number;
+    totalPaid: number;
+    averagePayment: number;
+    lastPaymentDate: string;
   };
   recentPayments: PayrollPayment[];
 }

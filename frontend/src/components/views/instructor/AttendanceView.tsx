@@ -57,7 +57,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
 
   // Use centralized service hooks
   const { data: todaysClasses = [], isLoading: loading, error: classesError } = useTodayClasses();
-  const { data: classStudents = [], isLoading: studentsQueryLoading } = useClassStudents(selectedClass?.course_id);
+  const { data: classStudents = [], isLoading: studentsQueryLoading } = useClassStudents(selectedClass?.courseId);
   const markAttendanceMutation = useMarkAttendance();
 
   // Update students when class students data changes
@@ -76,7 +76,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
 
   const handleClassChange = event => {
     const classId = event.target.value;
-    const selected = todaysClasses.find(c => c.course_id === classId);
+    const selected = todaysClasses.find(c => c.courseId === classId);
     setSelectedClass(selected);
   };
 
@@ -87,7 +87,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
       // Update local state immediately for better UX
       setStudents(prev =>
         prev.map(student =>
-          student.studentid === studentId
+          student.studentId === studentId
             ? { ...student, attendance: attended, attendanceMarked: true }
             : student
         )
@@ -95,10 +95,10 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
 
       // Use centralized mutation
       await markAttendanceMutation.mutateAsync({
-        courseId: selectedClass.course_id,
+        courseId: selectedClass.courseId,
         students: students.map(student => ({
-          studentId: student.studentid,
-          attended: student.studentid === studentId ? attended : student.attendance
+          studentId: student.studentId,
+          attended: student.studentId === studentId ? attended : student.attendance
         }))
       });
 
@@ -119,7 +119,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
     }
 
     try {
-      const response = await instructorApi.addStudent(selectedClass.course_id, newStudent);
+      const response = await instructorApi.addStudent(selectedClass.courseId, newStudent);
 
       // Add new student to the list
       setStudents(prev => [...prev, response.data]);
@@ -200,19 +200,19 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
             <FormControl fullWidth>
               <InputLabel>Today's Classes</InputLabel>
               <Select
-                value={selectedClass?.course_id || ''}
+                value={selectedClass?.courseId || ''}
                 label="Today's Classes"
                 onChange={handleClassChange}
               >
                 {todaysClasses.map(course => (
-                  <MenuItem key={course.course_id} value={course.course_id}>
+                  <MenuItem key={course.courseId} value={course.courseId}>
                     <Box>
                       <Typography variant='body1'>
-                        {course.name} - {course.organizationname}
+                        {course.name} - {course.organizationName}
                       </Typography>
                       <Typography variant='body2' color='text.secondary'>
-                        {formatTime(course.start_time)} -{' '}
-                        {formatTime(course.end_time)} | {course.location}
+                        {formatTime(course.startTime)} -{' '}
+                        {formatTime(course.endTime)} | {course.location}
                       </Typography>
                     </Box>
                   </MenuItem>
@@ -254,12 +254,12 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
               >
                 <Typography variant='subtitle1' gutterBottom>
                   {selectedClass.name} -{' '}
-                  {selectedClass.organizationname}
+                  {selectedClass.organizationName}
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                   <Chip
                     icon={<ScheduleIcon />}
-                    label={`${formatTime(selectedClass.start_time)} - ${formatTime(selectedClass.end_time)}`}
+                    label={`${formatTime(selectedClass.startTime)} - ${formatTime(selectedClass.endTime)}`}
                     size='small'
                   />
                   <Chip
@@ -315,9 +315,9 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
                     </TableHead>
                     <TableBody>
                       {students.map(student => (
-                        <TableRow key={student.studentid}>
+                        <TableRow key={student.studentId}>
                           <TableCell>
-                            {student.firstname} {student.lastname}
+                            {student.firstName} {student.lastName}
                           </TableCell>
                           <TableCell>{student.email || '-'}</TableCell>
                           <TableCell align='center'>
@@ -325,7 +325,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
                               checked={student.attendance || false}
                               onChange={e =>
                                 handleAttendanceChange(
-                                  student.studentid,
+                                  student.studentId,
                                   e.target.checked
                                 )
                               }

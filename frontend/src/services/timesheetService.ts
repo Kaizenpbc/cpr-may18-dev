@@ -2,18 +2,18 @@ import { api } from './api';
 
 export interface Timesheet {
   id: number;
-  instructor_id: number;
-  instructor_name?: string;
-  instructor_email?: string;
-  week_start_date: string;
-  total_hours: number;
-  courses_taught: number;
+  instructorId: number;
+  instructorName?: string;
+  instructorEmail?: string;
+  weekStartDate: string;
+  totalHours: number;
+  coursesTaught: number;
   notes?: string;
   status: 'pending' | 'approved' | 'rejected';
-  hr_comment?: string;
-  created_at: string;
-  updated_at: string;
-  course_details?: any[];
+  hrComment?: string;
+  createdAt: string;
+  updatedAt: string;
+  courseDetails?: { courseId: number; courseType: string; date: string; hours: number }[];
 }
 
 export interface TimesheetStats {
@@ -24,13 +24,13 @@ export interface TimesheetStats {
 }
 
 export interface TimesheetSummary {
-  total_timesheets: number;
-  approved_timesheets: number;
-  pending_timesheets: number;
-  rejected_timesheets: number;
-  total_approved_hours: number;
-  total_courses_taught: number;
-  last_submission_date: string;
+  totalTimesheets: number;
+  approvedTimesheets: number;
+  pendingTimesheets: number;
+  rejectedTimesheets: number;
+  totalApprovedHours: number;
+  totalCoursesTaught: number;
+  lastSubmissionDate: string;
 }
 
 export interface TimesheetFilters {
@@ -49,20 +49,20 @@ export interface TimesheetSubmission {
 }
 
 export interface WeekCourses {
-  week_start_date: string;
-  week_end_date: string;
+  weekStartDate: string;
+  weekEndDate: string;
   courses: Array<{
     id: number;
     date: string;
-    start_time: string;
-    end_time: string;
+    startTime: string;
+    endTime: string;
     status: string;
     location: string;
-    course_type: string;
-    organization_name: string;
-    student_count: number;
+    courseType: string;
+    organizationName: string;
+    studentCount: number;
   }>;
-  total_courses: number;
+  totalCourses: number;
 }
 
 export interface TimesheetUpdate {
@@ -78,15 +78,15 @@ export interface TimesheetApproval {
 
 export interface TimesheetNote {
   id: number;
-  timesheet_id: number;
-  user_id: number;
-  user_role: string;
-  note_text: string;
-  note_type: 'instructor' | 'hr' | 'accounting' | 'general';
-  created_at: string;
-  updated_at: string;
-  added_by: string;
-  added_by_email: string;
+  timesheetId: number;
+  userId: number;
+  userRole: string;
+  noteText: string;
+  noteType: 'instructor' | 'hr' | 'accounting' | 'general';
+  createdAt: string;
+  updatedAt: string;
+  addedBy: string;
+  addedByEmail: string;
 }
 
 export interface TimesheetNoteSubmission {

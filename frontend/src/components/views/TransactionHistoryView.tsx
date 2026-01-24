@@ -83,16 +83,16 @@ const TransactionHistoryView = () => {
       const lowerSearch = searchTerm.toLowerCase();
       result = result.filter(
         inv =>
-          inv.invoice_number?.toLowerCase().includes(lowerSearch) ||
-          inv.course_type_name?.toLowerCase().includes(lowerSearch) ||
-          inv.organization_name?.toLowerCase().includes(lowerSearch)
+          inv.invoiceNumber?.toLowerCase().includes(lowerSearch) ||
+          inv.courseTypeName?.toLowerCase().includes(lowerSearch) ||
+          inv.organizationName?.toLowerCase().includes(lowerSearch)
       );
     }
 
     // Apply Organization filter
     if (selectedOrgId) {
       result = result.filter(
-        inv => inv.organization_id === parseInt(selectedOrgId)
+        inv => inv.organizationId === parseInt(selectedOrgId)
       );
     }
 
@@ -107,8 +107,8 @@ const TransactionHistoryView = () => {
         nextMonth.setMonth(start.getMonth() + 1);
 
         result = result.filter(inv => {
-          if (!inv.invoice_date) return false;
-          const invoiceDate = new Date(inv.invoice_date);
+          if (!inv.invoiceDate) return false;
+          const invoiceDate = new Date(inv.invoiceDate);
           // Check if invoiceDate is >= start and < nextMonth
           return invoiceDate >= start && invoiceDate < nextMonth;
         });
@@ -122,7 +122,7 @@ const TransactionHistoryView = () => {
       // Case-insensitive comparison is safer
       result = result.filter(
         inv =>
-          inv.payment_status?.toLowerCase() === selectedStatus.toLowerCase()
+          inv.paymentStatus?.toLowerCase() === selectedStatus.toLowerCase()
       );
     }
 
@@ -289,7 +289,7 @@ const TransactionHistoryView = () => {
                       .reduce(
                         (sum, inv) =>
                           sum +
-                          parseFloat(inv.paidtodate || inv.paid_to_date || 0),
+                          parseFloat(inv.paidToDate || 0),
                         0
                       )
                       .toFixed(2)}
@@ -305,9 +305,7 @@ const TransactionHistoryView = () => {
                       .reduce(
                         (sum, inv) =>
                           sum +
-                          parseFloat(
-                            inv.balancedue || inv.balance_due || inv.amount || 0
-                          ),
+                          parseFloat(inv.balanceDue || inv.amount || 0),
                         0
                       )
                       .toFixed(2)}

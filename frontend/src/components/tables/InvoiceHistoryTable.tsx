@@ -384,7 +384,7 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
         </TableHead>
         <TableBody>
           {invoices.map((invoice, index) => (
-            <React.Fragment key={invoice.invoiceid || invoice.invoice_id || index}>
+            <React.Fragment key={invoice.invoiceId || index}>
               <TableRow
                 hover
                 sx={{
@@ -397,9 +397,9 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
                   <IconButton
                     aria-label='expand row'
                     size='small'
-                    onClick={() => handleExpandClick(invoice.invoiceid || invoice.invoice_id)}
+                    onClick={() => handleExpandClick(invoice.invoiceId)}
                   >
-                    {expandedRowId === (invoice.invoiceid || invoice.invoice_id) ? (
+                    {expandedRowId === invoice.invoiceId ? (
                       <KeyboardArrowUpIcon />
                     ) : (
                       <KeyboardArrowDownIcon />
@@ -408,115 +408,97 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
                 </TableCell>
                 <TableCell>
                   <strong>
-                    {invoice.invoicenumber || invoice.invoice_number}
+                    {invoice.invoiceNumber}
                   </strong>
                 </TableCell>
               <TableCell>
-                {formatDisplayDate(invoice.invoicedate || invoice.invoice_date)}
+                {formatDisplayDate(invoice.invoiceDate)}
               </TableCell>
               <TableCell>
-                {formatDisplayDate(invoice.duedate || invoice.due_date)}
+                {formatDisplayDate(invoice.dueDate)}
               </TableCell>
               <TableCell>
                 <MuiLink
                   component={RouterLink}
-                  to={`/accounting/organizations/${invoice.organizationid || invoice.organization_id}`}
+                  to={`/accounting/organizations/${invoice.organizationId}`}
                   underline='hover'
                 >
-                  {invoice.organizationname || invoice.organization_name || '-'}
+                  {invoice.organizationName || '-'}
                 </MuiLink>
               </TableCell>
               <TableCell>
-                {invoice.course_type_name || '-'}
+                {invoice.courseTypeName || '-'}
               </TableCell>
               <TableCell>{invoice.location || '-'}</TableCell>
               <TableCell>
-                {formatDisplayDate(invoice.date_completed || invoice.course_date)}
+                {formatDisplayDate(invoice.dateCompleted || invoice.courseDate)}
               </TableCell>
               <TableCell align='center'>
-                {invoice.students_billed || '-'}
+                {invoice.studentsBilled || '-'}
               </TableCell>
               <TableCell align='right'>
-                {invoice.rate_per_student ? 
-                  <strong>${Number(invoice.rate_per_student || 0).toFixed(2)}</strong> : 
+                {invoice.ratePerStudent ?
+                  <strong>${Number(invoice.ratePerStudent || 0).toFixed(2)}</strong> :
                   <Typography variant="body2" color="error.main" fontSize="small">
                     Pricing not configured
                   </Typography>
                 }
               </TableCell>
               <TableCell align='right'>
-                {invoice.rate_per_student && invoice.students_billed ? 
-                  <strong>${(Number(invoice.rate_per_student) * Number(invoice.students_billed)).toFixed(2)}</strong> : 
+                {invoice.ratePerStudent && invoice.studentsBilled ?
+                  <strong>${(Number(invoice.ratePerStudent) * Number(invoice.studentsBilled)).toFixed(2)}</strong> :
                   <Typography variant="body2" color="error.main" fontSize="small">
                     N/A
                   </Typography>
                 }
               </TableCell>
               <TableCell align='right'>
-                {invoice.rate_per_student && invoice.students_billed ? 
-                  <strong>${(Number(invoice.rate_per_student) * Number(invoice.students_billed) * 0.13).toFixed(2)}</strong> : 
+                {invoice.ratePerStudent && invoice.studentsBilled ?
+                  <strong>${(Number(invoice.ratePerStudent) * Number(invoice.studentsBilled) * 0.13).toFixed(2)}</strong> :
                   <Typography variant="body2" color="error.main" fontSize="small">
                     N/A
                   </Typography>
                 }
               </TableCell>
               <TableCell align='right'>
-                {invoice.rate_per_student && invoice.students_billed ? 
-                  <strong>${(Number(invoice.rate_per_student) * Number(invoice.students_billed) * 1.13).toFixed(2)}</strong> : 
+                {invoice.ratePerStudent && invoice.studentsBilled ?
+                  <strong>${(Number(invoice.ratePerStudent) * Number(invoice.studentsBilled) * 1.13).toFixed(2)}</strong> :
                   <Typography variant="body2" color="error.main" fontSize="small">
                     N/A
                   </Typography>
                 }
               </TableCell>
               <TableCell align='right'>
-                {formatCurrency(
-                  invoice.paidtodate || invoice.paid_to_date || 0
-                )}
+                {formatCurrency(invoice.paidToDate || 0)}
               </TableCell>
               <TableCell align='right'>
                 <strong>
-                  {formatCurrency(invoice.balancedue || 0)}
+                  {formatCurrency(invoice.balanceDue || 0)}
                 </strong>
               </TableCell>
               <TableCell align='center'>
                 <Chip
-                  icon={getStatusIcon(
-                    invoice.paymentstatus ||
-                      invoice.payment_status ||
-                      invoice.status
-                  )}
-                  label={
-                    invoice.paymentstatus ||
-                    invoice.payment_status ||
-                    invoice.status ||
-                    'Unknown'
-                  }
-                  color={getStatusChipColor(
-                    invoice.paymentstatus ||
-                      invoice.payment_status ||
-                      invoice.status
-                  )}
+                  icon={getStatusIcon(invoice.paymentStatus || invoice.status)}
+                  label={invoice.paymentStatus || invoice.status || 'Unknown'}
+                  color={getStatusChipColor(invoice.paymentStatus || invoice.status)}
                   size='small'
                 />
               </TableCell>
               <TableCell align='center'>
                 <Chip
-                  icon={getApprovalStatusIcon(invoice.approval_status)}
-                  label={
-                    invoice.approval_status ||
-                    'Unknown'
-                  }
-                  color={getApprovalStatusChipColor(invoice.approval_status)}
+                  icon={getApprovalStatusIcon(invoice.approvalStatus)}
+                  label={invoice.approvalStatus || 'Unknown'}
+                  color={getApprovalStatusChipColor(invoice.approvalStatus)}
                   size='small'
                 />
               </TableCell>
               <TableCell>
-                {invoice.agingbucket || invoice.aging_bucket || '-'}
+                {invoice.agingBucket || '-'}
               </TableCell>
               <TableCell align='center'>
                 <Chip
-                  label={invoice.posted_to_org ? 'Yes' : 'No'}
-                  color={invoice.posted_to_org ? 'success' : 'default'}
+                  label={invoice.postedToOrg ? 'Yes' : 'No'}
+                  color={invoice.postedToOrg ? 'success' : 'default'}
                   size='small'
                   variant='outlined'
                 />
@@ -533,9 +515,7 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
                   <Tooltip title='Preview Invoice'>
                     <IconButton
                       size='small'
-                      onClick={() =>
-                        handlePreview(invoice.invoiceid || invoice.invoice_id)
-                      }
+                      onClick={() => handlePreview(invoice.invoiceId)}
                       color='primary'
                     >
                       <PreviewIcon fontSize='small' />
@@ -545,10 +525,7 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
                     <IconButton
                       size='small'
                       onClick={() =>
-                        handleDownloadPDF(
-                          invoice.invoiceid || invoice.invoice_id,
-                          invoice.invoicenumber || invoice.invoice_number
-                        )
+                        handleDownloadPDF(invoice.invoiceId, invoice.invoiceNumber)
                       }
                       color='secondary'
                     >
@@ -566,14 +543,14 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
               >
                 {/* Adjust colSpan based on total columns */}
                 <Collapse
-                  in={expandedRowId === (invoice.invoiceid || invoice.invoice_id)}
+                  in={expandedRowId === invoice.invoiceId}
                   timeout='auto'
                   unmountOnExit
                 >
                                   {/* Render PaymentDetails component only when expanded */}
-                {expandedRowId === (invoice.invoiceid || invoice.invoice_id) && (
-                  <PaymentDetails 
-                    invoiceId={invoice.invoiceid || invoice.invoice_id} 
+                {expandedRowId === invoice.invoiceId && (
+                  <PaymentDetails
+                    invoiceId={invoice.invoiceId}
                     onViewInvoice={handlePreview}
                   />
                 )}

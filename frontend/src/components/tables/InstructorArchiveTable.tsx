@@ -19,7 +19,7 @@ import {
 import { formatDisplayDate } from '../../utils/dateUtils';
 
 interface InstructorArchiveTableProps {
-  courses: any[];
+  courses: { id?: number; courseId?: number; date?: string; displayDate?: string; organizationName?: string; organizationname?: string; location?: string; courseType?: string; coursetypename?: string; status?: string; studentsregistered?: number; studentsattendance?: number; maxStudents?: number; registeredStudents?: number; studentsAttended?: number; updatedAt?: string; name?: string }[];
 }
 
 /**
@@ -123,7 +123,7 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
 
                 return (
                   <TableRow
-                    key={course.course_id || index}
+                    key={course.courseId || index}
                     sx={{
                       '&:hover': {
                         backgroundColor: '#f0f7ff',
@@ -159,7 +159,7 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
                       sx={{ backgroundColor: rowColor }}
                     >
                       <Typography variant='body2'>
-                        {course.max_students || course.registered_students || 0}
+                        {course.maxStudents || course.registeredStudents || 0}
                       </Typography>
                     </TableCell>
 
@@ -177,7 +177,7 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
                       >
                         <PersonIcon fontSize='small' color='action' />
                         <Typography variant='body2'>
-                          {course.studentsattendance || course.students_attended || 0}
+                          {course.studentsattendance || course.studentsAttended || 0}
                         </Typography>
                       </Box>
                     </TableCell>
@@ -185,7 +185,7 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
                     <TableCell sx={{ backgroundColor: rowColor }}>
                       <Typography variant='body2' color='text.secondary'>
                         {formatDisplayDate(
-                          course.updated_at || course.date
+                          course.updatedAt || course.date
                         )}
                       </Typography>
                     </TableCell>

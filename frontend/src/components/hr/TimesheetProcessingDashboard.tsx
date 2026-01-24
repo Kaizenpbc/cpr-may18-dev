@@ -49,6 +49,19 @@ interface TimesheetProcessingDashboardProps {
   // Add any props if needed
 }
 
+interface CourseDetail {
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  organizationName?: string;
+  location?: string;
+  courseType: string;
+  studentCount: number;
+  status: string;
+}
+
+type ChipColor = 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
+
 const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> = () => {
   const [stats, setStats] = useState<TimesheetStats | null>(null);
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
@@ -188,7 +201,7 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
     }
   }, [success]);
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): ChipColor => {
     switch (status) {
       case 'pending': return 'warning';
       case 'approved': return 'success';
@@ -390,30 +403,30 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
                         <TableCell>
                           <Box>
                             <Typography variant="body2" fontWeight="bold">
-                              {timesheet.instructor_name}
+                              {timesheet.instructorName}
                             </Typography>
                             <Typography variant="caption" color="textSecondary">
-                              {timesheet.instructor_email}
+                              {timesheet.instructorEmail}
                             </Typography>
                           </Box>
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
-                            {format(new Date(timesheet.week_start_date), 'MMM dd, yyyy')} - {format(new Date(new Date(timesheet.week_start_date).getTime() + 6 * 24 * 60 * 60 * 1000), 'MMM dd, yyyy')}
+                            {format(new Date(timesheet.weekStartDate), 'MMM dd, yyyy')} - {format(new Date(new Date(timesheet.weekStartDate).getTime() + 6 * 24 * 60 * 60 * 1000), 'MMM dd, yyyy')}
                           </Typography>
                         </TableCell>
-                        <TableCell>{timesheet.total_hours}</TableCell>
-                        <TableCell>{timesheet.courses_taught}</TableCell>
+                        <TableCell>{timesheet.totalHours}</TableCell>
+                        <TableCell>{timesheet.coursesTaught}</TableCell>
                         <TableCell>
                           <Chip
                             icon={getStatusIcon(timesheet.status)}
                             label={timesheet.status}
-                            color={getStatusColor(timesheet.status) as any}
+                            color={getStatusColor(timesheet.status)}
                             size="small"
                           />
                         </TableCell>
                         <TableCell>
-                          {format(new Date(timesheet.created_at), 'MMM dd, yyyy')}
+                          {format(new Date(timesheet.createdAt), 'MMM dd, yyyy')}
                         </TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', gap: 1 }}>
@@ -462,7 +475,7 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
             <Chip
               icon={getStatusIcon(selectedTimesheet.status)}
               label={selectedTimesheet.status}
-              color={getStatusColor(selectedTimesheet.status) as any}
+              color={getStatusColor(selectedTimesheet.status)}
               sx={{ ml: 2 }}
             />
           )}
@@ -476,7 +489,7 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
                     Instructor
                   </Typography>
                   <Typography variant="body1">
-                    {selectedTimesheet.instructor_name} ({selectedTimesheet.instructor_email})
+                    {selectedTimesheet.instructorName} ({selectedTimesheet.instructorEmail})
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -484,22 +497,22 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
                     Week Period
                   </Typography>
                   <Typography variant="body1">
-                    {format(new Date(selectedTimesheet.week_start_date), 'EEEE, MMMM dd, yyyy')} - {format(new Date(new Date(selectedTimesheet.week_start_date).getTime() + 6 * 24 * 60 * 60 * 1000), 'EEEE, MMMM dd, yyyy')}
+                    {format(new Date(selectedTimesheet.weekStartDate), 'EEEE, MMMM dd, yyyy')} - {format(new Date(new Date(selectedTimesheet.weekStartDate).getTime() + 6 * 24 * 60 * 60 * 1000), 'EEEE, MMMM dd, yyyy')}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="textSecondary">
                     Total Hours
                   </Typography>
-                  <Typography variant="body1">{selectedTimesheet.total_hours}</Typography>
+                  <Typography variant="body1">{selectedTimesheet.totalHours}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="textSecondary">
                     Courses Taught
                   </Typography>
-                  <Typography variant="body1">{selectedTimesheet.courses_taught}</Typography>
+                  <Typography variant="body1">{selectedTimesheet.coursesTaught}</Typography>
                 </Grid>
-                {selectedTimesheet.course_details && selectedTimesheet.course_details.length > 0 && (
+                {selectedTimesheet.courseDetails && selectedTimesheet.courseDetails.length > 0 && (
                   <Grid item xs={12}>
                     <Typography variant="subtitle2" color="textSecondary" sx={{ mb: 2 }}>
                       Course Details
@@ -518,23 +531,23 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {selectedTimesheet.course_details.map((course: any, index: number) => (
+                          {selectedTimesheet.courseDetails.map((course: CourseDetail, index: number) => (
                             <TableRow key={index}>
                               <TableCell>{format(new Date(course.date), 'MMM dd, yyyy')}</TableCell>
                               <TableCell>
-                                {course.start_time && course.end_time 
-                                  ? `${course.start_time} - ${course.end_time}`
+                                {course.startTime && course.endTime
+                                  ? `${course.startTime} - ${course.endTime}`
                                   : 'TBD'
                                 }
                               </TableCell>
-                              <TableCell>{course.organization_name || 'TBD'}</TableCell>
+                              <TableCell>{course.organizationName || 'TBD'}</TableCell>
                               <TableCell>{course.location || 'TBD'}</TableCell>
-                              <TableCell>{course.course_type}</TableCell>
-                              <TableCell>{course.student_count}</TableCell>
+                              <TableCell>{course.courseType}</TableCell>
+                              <TableCell>{course.studentCount}</TableCell>
                               <TableCell>
-                                <Chip 
-                                  label={course.status} 
-                                  color={course.status === 'completed' ? 'success' : 'primary'} 
+                                <Chip
+                                  label={course.status}
+                                  color={course.status === 'completed' ? 'success' : 'primary'}
                                   size="small"
                                 />
                               </TableCell>
@@ -558,7 +571,7 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
                     Submitted
                   </Typography>
                   <Typography variant="body1">
-                    {format(new Date(selectedTimesheet.created_at), 'MMM dd, yyyy HH:mm')}
+                    {format(new Date(selectedTimesheet.createdAt), 'MMM dd, yyyy HH:mm')}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -566,7 +579,7 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
                     Last Updated
                   </Typography>
                   <Typography variant="body1">
-                    {format(new Date(selectedTimesheet.updated_at), 'MMM dd, yyyy HH:mm')}
+                    {format(new Date(selectedTimesheet.updatedAt), 'MMM dd, yyyy HH:mm')}
                   </Typography>
                 </Grid>
               </Grid>

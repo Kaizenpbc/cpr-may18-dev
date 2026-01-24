@@ -48,10 +48,10 @@ interface Instructor {
 
 interface Class {
   id: number;
-  course_id: number;
-  instructor_id: number;
+  courseId: number;
+  instructorId: number;
   date: string;
-  start_time: string;
+  startTime: string;
   capacity: number;
   location: string;
   course: Course;
@@ -65,10 +65,10 @@ const ClassManagement: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [formData, setFormData] = useState({
-    course_id: '',
-    instructor_id: '',
+    courseId: '',
+    instructorId: '',
     date: new Date(),
-    start_time: new Date(),
+    startTime: new Date(),
     capacity: 10,
     location: '',
   });
@@ -112,20 +112,20 @@ const ClassManagement: React.FC = () => {
     if (classItem) {
       setEditingClass(classItem);
       setFormData({
-        course_id: classItem.course_id.toString(),
-        instructor_id: classItem.instructor_id.toString(),
+        courseId: classItem.courseId.toString(),
+        instructorId: classItem.instructorId.toString(),
         date: new Date(classItem.date),
-        start_time: new Date(`2000-01-01T${classItem.start_time}`),
+        startTime: new Date(`2000-01-01T${classItem.startTime}`),
         capacity: classItem.capacity,
         location: classItem.location,
       });
     } else {
       setEditingClass(null);
       setFormData({
-        course_id: '',
-        instructor_id: '',
+        courseId: '',
+        instructorId: '',
         date: new Date(),
-        start_time: new Date(),
+        startTime: new Date(),
         capacity: 10,
         location: '',
       });
@@ -146,7 +146,7 @@ const ClassManagement: React.FC = () => {
     }));
   };
 
-  const handleSelectChange = (e: any) => {
+  const handleSelectChange = (e: { target: { name: string; value: string } }) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -167,7 +167,7 @@ const ClassManagement: React.FC = () => {
     if (time) {
       setFormData(prev => ({
         ...prev,
-        start_time: time,
+        startTime: time,
       }));
     }
   };
@@ -176,11 +176,12 @@ const ClassManagement: React.FC = () => {
     e.preventDefault();
     try {
       const formattedData = {
-        ...formData,
         date: formData.date.toISOString().split('T')[0],
-        start_time: formData.start_time.toTimeString().slice(0, 5),
-        course_id: parseInt(formData.course_id),
-        instructor_id: parseInt(formData.instructor_id),
+        start_time: formData.startTime.toTimeString().slice(0, 5),
+        course_id: parseInt(formData.courseId),
+        instructor_id: parseInt(formData.instructorId),
+        capacity: formData.capacity,
+        location: formData.location,
       };
 
       if (editingClass) {
@@ -266,7 +267,7 @@ const ClassManagement: React.FC = () => {
                 <TableCell>
                   {new Date(classItem.date).toLocaleDateString()}
                 </TableCell>
-                <TableCell>{classItem.start_time}</TableCell>
+                <TableCell>{classItem.startTime}</TableCell>
                 <TableCell>{classItem.location}</TableCell>
                 <TableCell>{classItem.capacity}</TableCell>
                 <TableCell>
@@ -297,8 +298,8 @@ const ClassManagement: React.FC = () => {
           <FormControl fullWidth margin='dense'>
             <InputLabel>Course</InputLabel>
             <Select
-              name='course_id'
-              value={formData.course_id}
+              name='courseId'
+              value={formData.courseId}
               onChange={handleSelectChange}
               label='Course'
             >
@@ -313,8 +314,8 @@ const ClassManagement: React.FC = () => {
           <FormControl fullWidth margin='dense'>
             <InputLabel>Instructor</InputLabel>
             <Select
-              name='instructor_id'
-              value={formData.instructor_id}
+              name='instructorId'
+              value={formData.instructorId}
               onChange={handleSelectChange}
               label='Instructor'
             >
@@ -338,7 +339,7 @@ const ClassManagement: React.FC = () => {
             <Box sx={{ mt: 2 }}>
               <TimePicker
                 label='Start Time'
-                value={formData.start_time}
+                value={formData.startTime}
                 onChange={handleTimeChange}
                 sx={{ width: '100%' }}
               />
