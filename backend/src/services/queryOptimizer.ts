@@ -14,6 +14,13 @@ interface OptimizationRecommendation {
   estimatedImprovement: string;
 }
 
+interface PostgresExplainPlan {
+  'Index Name'?: string;
+  'Node Type'?: string;
+  Plans?: PostgresExplainPlan[];
+  [key: string]: unknown;
+}
+
 class QueryOptimizer {
   private static instance: QueryOptimizer;
 
@@ -100,7 +107,7 @@ class QueryOptimizer {
    */
   async getOptimizedDashboardStats(role: string, organizationId?: number) {
     let query: string;
-    let params: any[];
+    let params: (string | number)[];
 
     if (role === 'admin') {
       query = `
@@ -237,7 +244,7 @@ class QueryOptimizer {
    */
   private async executeWithTiming(
     query: string,
-    params: any[]
+    params: (string | number | null)[]
   ): Promise<QueryPerformance> {
     const startTime = process.hrtime.bigint();
 
@@ -278,13 +285,13 @@ class QueryOptimizer {
   /**
    * Recursively extract index names from execution plan
    */
-  private extractIndexesFromPlan(plan: any, indexes: string[]): void {
+  private extractIndexesFromPlan(plan: PostgresExplainPlan, indexes: string[]): void {
     if (plan['Index Name']) {
       indexes.push(plan['Index Name']);
     }
 
     if (plan.Plans) {
-      plan.Plans.forEach((subPlan: any) => {
+      plan.Plans.forEach((subPlan: PostgresExplainPlan) => {
         this.extractIndexesFromPlan(subPlan, indexes);
       });
     }

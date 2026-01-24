@@ -110,7 +110,7 @@ export const commonValidations = {
 };
 
 // Input sanitization
-export function sanitizeInput(input: any, config: ValidationConfig = DEFAULT_VALIDATION_CONFIG): any {
+export function sanitizeInput(input: unknown, config: ValidationConfig = DEFAULT_VALIDATION_CONFIG): unknown {
   if (typeof input === 'string') {
     // Remove potentially dangerous characters
     return input
@@ -120,16 +120,16 @@ export function sanitizeInput(input: any, config: ValidationConfig = DEFAULT_VAL
       .trim()
       .substring(0, config.maxStringLength);
   }
-  
+
   if (Array.isArray(input)) {
     if (input.length > config.maxArrayLength) {
       return input.slice(0, config.maxArrayLength);
     }
     return input.map(item => sanitizeInput(item, config));
   }
-  
+
   if (typeof input === 'object' && input !== null) {
-    const sanitized: any = {};
+    const sanitized: Record<string, unknown> = {};
     let depth = 0;
     
     for (const [key, value] of Object.entries(input)) {

@@ -63,8 +63,9 @@ router.post(
           successful++;
           results.push(`✅ ${statement.substring(0, 100)}...`);
         }
-      } catch (error: any) {
-        if (error.message.includes('already exists')) {
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('already exists')) {
           results.push(
             `⚠️ ${statement.substring(0, 100)}... (already exists)`
           );
@@ -72,7 +73,7 @@ router.post(
         } else {
           failed++;
           results.push(
-            `❌ ${statement.substring(0, 100)}... (${error.message})`
+            `❌ ${statement.substring(0, 100)}... (${errorMessage})`
           );
         }
       }
@@ -174,11 +175,11 @@ router.get(
           indexes_used: courseRequestsResult.indexesUsed,
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       results.push({
         test: 'Optimized Course Requests Query',
         status: 'error',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
 
@@ -195,11 +196,11 @@ router.get(
         rows_returned: availabilityResult.rowsReturned,
         indexes_used: availabilityResult.indexesUsed,
       });
-    } catch (error: any) {
+    } catch (error) {
       results.push({
         test: 'Optimized Instructor Availability Query',
         status: 'error',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
 
@@ -214,11 +215,11 @@ router.get(
         rows_returned: dashboardResult.rowsReturned,
         indexes_used: dashboardResult.indexesUsed,
       });
-    } catch (error: any) {
+    } catch (error) {
       results.push({
         test: 'Optimized Dashboard Stats Query',
         status: 'error',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
 
@@ -232,11 +233,11 @@ router.get(
         rows_returned: agingResult.rowsReturned,
         indexes_used: agingResult.indexesUsed,
       });
-    } catch (error: any) {
+    } catch (error) {
       results.push({
         test: 'Optimized Aging Report Query',
         status: 'error',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
 
@@ -290,8 +291,8 @@ router.post(
           try {
             await pool.query(recommendation);
             results.push(`✅ ${recommendation}`);
-          } catch (error: any) {
-            results.push(`❌ ${recommendation} - ${error.message}`);
+          } catch (error) {
+            results.push(`❌ ${recommendation} - ${error instanceof Error ? error.message : String(error)}`);
           }
         }
       }
@@ -327,8 +328,8 @@ router.post(
               await pool.query(query);
               results.push(`✅ ${query}`);
             }
-          } catch (error: any) {
-            results.push(`❌ ${table.tablename} - ${error.message}`);
+          } catch (error) {
+            results.push(`❌ ${table.tablename} - ${error instanceof Error ? error.message : String(error)}`);
           }
         }
       }

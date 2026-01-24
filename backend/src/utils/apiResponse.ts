@@ -1,10 +1,10 @@
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: {
     code: string;
     message: string;
-    details?: any;
+    details?: Record<string, unknown> | string;
   };
   meta?: {
     timestamp: string;
@@ -34,7 +34,7 @@ export class ApiResponseBuilder {
     };
   }
 
-  static error(code: string, message: string, details?: any): ApiResponse {
+  static error(code: string, message: string, details?: Record<string, unknown> | string): ApiResponse {
     return {
       success: false,
       error: {

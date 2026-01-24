@@ -4,13 +4,13 @@ import { ApiResponseBuilder } from './apiResponse.js';
 export class AppError extends Error {
   statusCode: number;
   code: string;
-  details?: any;
+  details?: Record<string, unknown> | string;
 
   constructor(
     statusCode: number,
     code: string,
     message: string,
-    details?: any
+    details?: Record<string, unknown> | string
   ) {
     super(message);
     this.statusCode = statusCode;
@@ -114,7 +114,9 @@ export function errorHandler(
 }
 
 // Async handler to catch errors in async routes
-export function asyncHandler(fn: Function) {
+type AsyncRequestHandler = (req: Request, res: Response, next: NextFunction) => Promise<void | Response>;
+
+export function asyncHandler(fn: AsyncRequestHandler) {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };

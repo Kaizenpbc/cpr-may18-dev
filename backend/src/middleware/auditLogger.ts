@@ -32,7 +32,7 @@ export interface AuditEvent {
   action: string;
   resource: string;
   outcome: 'SUCCESS' | 'FAILURE' | 'PARTIAL';
-  details?: any;
+  details?: Record<string, unknown>;
   riskScore?: number;
 }
 
@@ -90,7 +90,7 @@ export function createAuditEvent(
   resource: string,
   outcome: 'SUCCESS' | 'FAILURE' | 'PARTIAL',
   req: Request,
-  details?: any
+  details?: Record<string, unknown>
 ): AuditEvent {
   const event: AuditEvent = {
     timestamp: new Date().toISOString(),
@@ -189,7 +189,7 @@ export const logSecurityEvent = (
   action: string,
   severity: AuditEventSeverity,
   req: Request,
-  details?: any
+  details?: Record<string, unknown>
 ) => {
   const event = createAuditEvent(
     AuditEventType.SECURITY_EVENT,
@@ -208,7 +208,7 @@ export const logAuthenticationEvent = (
   action: string,
   outcome: 'SUCCESS' | 'FAILURE',
   req: Request,
-  details?: any
+  details?: Record<string, unknown>
 ) => {
   const severity = outcome === 'FAILURE' ? AuditEventSeverity.HIGH : AuditEventSeverity.MEDIUM;
   
@@ -229,7 +229,7 @@ export const logDataAccessEvent = (
   action: string,
   resource: string,
   req: Request,
-  details?: any
+  details?: Record<string, unknown>
 ) => {
   const event = createAuditEvent(
     AuditEventType.DATA_ACCESS,

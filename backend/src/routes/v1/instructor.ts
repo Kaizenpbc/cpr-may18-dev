@@ -10,6 +10,20 @@ import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { keysToCamel } from '../../utils/caseConverter.js';
 import { devLog } from '../../utils/devLog.js';
 
+interface StudentAttendance {
+  id: number | string;
+  attended: boolean;
+}
+
+interface StudentRecord {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  attended: boolean;
+  attendance_marked: boolean;
+}
+
 const router = express.Router();
 
 // Get instructor dashboard statistics
@@ -906,15 +920,16 @@ router.post('/classes/:classId/attendance', authenticateToken, requireRole(['ins
   }
 
   const courseRequestId = courseRequestResult.rows[0].id;
-  const updatedStudents: any[] = [];
+  const updatedStudents: StudentRecord[] = [];
 
   // Batch update attendance - separate attended and not attended IDs
-  const attendedIds = students
-    .filter((s: any) => s.id && s.attended === true)
-    .map((s: any) => s.id);
-  const notAttendedIds = students
-    .filter((s: any) => s.id && s.attended === false)
-    .map((s: any) => s.id);
+  const typedStudents = students as StudentAttendance[];
+  const attendedIds = typedStudents
+    .filter((s) => s.id && s.attended === true)
+    .map((s) => s.id);
+  const notAttendedIds = typedStudents
+    .filter((s) => s.id && s.attended === false)
+    .map((s) => s.id);
 
   // Update attended students in batch
   if (attendedIds.length > 0) {

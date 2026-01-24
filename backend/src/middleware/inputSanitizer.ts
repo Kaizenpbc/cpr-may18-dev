@@ -51,7 +51,7 @@ export function sanitizeString(input: string): string {
  */
 const SENSITIVE_FIELDS = ['password', 'currentPassword', 'newPassword', 'token', 'refreshToken', 'accessToken', 'confirmPassword'];
 
-export function sanitizeObject(obj: any): any {
+export function sanitizeObject(obj: unknown): unknown {
   if (obj === null || obj === undefined) {
     return obj;
   }
@@ -69,7 +69,7 @@ export function sanitizeObject(obj: any): any {
   }
 
   if (typeof obj === 'object') {
-    const sanitized: any = {};
+    const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       // Sanitize the key as well
       const sanitizedKey = sanitizeString(key);
