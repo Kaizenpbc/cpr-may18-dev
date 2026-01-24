@@ -63,11 +63,11 @@ interface OrganizationData {
 
 interface Course {
   id: string | number;
-  request_submitted_date: string; // When organization submitted the request
-  scheduled_date: string; // Organization's preferred date
-  course_type_name: string;
+  requestSubmittedDate: string; // When organization submitted the request
+  scheduledDate: string; // Organization's preferred date
+  courseTypeName: string;
   location: string;
-  registered_students: number;
+  registeredStudents: number;
   status: string;
   instructor: string;
   notes?: string;
@@ -75,19 +75,19 @@ interface Course {
 
 interface Invoice {
   id: number;
-  invoice_number: string;
-  created_at: string;
-  due_date: string;
+  invoiceNumber: string;
+  createdAt: string;
+  dueDate: string;
   amount: number;
   status: string;
-  students_billed: number;
-  paid_date?: string;
+  studentsBilled: number;
+  paidDate?: string;
   location: string;
-  course_type_name: string;
-  course_date: string;
-  course_request_id: number;
-  amount_paid: number;
-  balance_due: number;
+  courseTypeName: string;
+  courseDate: string;
+  courseRequestId: number;
+  amountPaid: number;
+  balanceDue: number;
 }
 
 interface BillingSummary {
@@ -110,7 +110,7 @@ interface OrganizationPortalProps {
   archivedCourses: Course[];
   invoices: Invoice[];
   paidInvoices: Invoice[];
-  paidInvoicesSummary: any;
+  paidInvoicesSummary: { total_paid: number; total_amount: number; invoices_count: number } | undefined;
   billingSummary: BillingSummary | undefined;
   loading: boolean;
   error: string | null;
@@ -193,7 +193,7 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
   };
 
   // Handle CSV upload success
-  const handleCSVUploadSuccess = (data: any) => {
+  const handleCSVUploadSuccess = (data: { success: boolean; message?: string }) => {
     console.log('[TRACE] OrganizationPortal - handleCSVUploadSuccess called');
     console.log('[TRACE] OrganizationPortal - Selected course ID:', selectedCourseId);
     console.log('[TRACE] OrganizationPortal - Upload data:', data);

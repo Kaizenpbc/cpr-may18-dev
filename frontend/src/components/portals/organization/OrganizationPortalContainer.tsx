@@ -23,11 +23,11 @@ interface OrganizationData {
 
 interface Course {
   id: string | number;
-  request_submitted_date: string;
-  scheduled_date: string;
-  course_type_name: string;
+  requestSubmittedDate: string;
+  scheduledDate: string;
+  courseTypeName: string;
   location: string;
-  registered_students: number;
+  registeredStudents: number;
   status: string;
   instructor: string;
   notes?: string;
@@ -35,19 +35,19 @@ interface Course {
 
 interface Invoice {
   id: number;
-  invoice_number: string;
-  created_at: string;
-  due_date: string;
+  invoiceNumber: string;
+  createdAt: string;
+  dueDate: string;
   amount: number;
   status: string;
-  students_billed: number;
-  paid_date?: string;
+  studentsBilled: number;
+  paidDate?: string;
   location: string;
-  course_type_name: string;
-  course_date: string;
-  course_request_id: number;
-  amount_paid: number;
-  balance_due: number;
+  courseTypeName: string;
+  courseDate: string;
+  courseRequestId: number;
+  amountPaid: number;
+  balanceDue: number;
 }
 
 interface BillingSummary {
@@ -96,7 +96,7 @@ const OrganizationPortalContainer: React.FC = () => {
   }, [currentView, user?.organizationId]);
 
   // Error handler for error boundaries
-  const handleError = useCallback((error: Error, errorInfo: any) => {
+  const handleError = useCallback((error: Error, errorInfo: React.ErrorInfo) => {
     logger.error('Organization Portal Error:', error, errorInfo);
     analytics.trackError(error, 'organization_portal', {
       componentStack: errorInfo.componentStack,
