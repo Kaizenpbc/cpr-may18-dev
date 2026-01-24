@@ -22,12 +22,15 @@ INSERT INTO system_configurations (config_key, config_value, description, catego
 ('invoice_payment_terms', 'Net 30', 'Default payment terms for invoices', 'invoice'),
 
 -- Email Settings
-('email_smtp_host', 'smtp.gmail.com', 'SMTP server host for sending emails', 'email'),
-('email_smtp_port', '587', 'SMTP server port', 'email'),
+-- IMPORTANT: Sensitive values (SMTP_USER, SMTP_PASS) should be set via environment variables:
+--   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM
+-- The values below are placeholders only - the app will use env vars if available
+('email_smtp_host', 'smtp.gmail.com', 'SMTP server host (use SMTP_HOST env var)', 'email'),
+('email_smtp_port', '587', 'SMTP server port (use SMTP_PORT env var)', 'email'),
 ('email_smtp_secure', 'false', 'Use secure connection for SMTP', 'email'),
-('email_smtp_user', 'kpbcma@gmail.com', 'SMTP username', 'email'),
-('email_smtp_pass', 'xnvn dywh kcbo irow', 'SMTP password/app password', 'email'),
-('email_smtp_from', 'kpbcma@gmail.com', 'Default sender email address', 'email'),
+('email_smtp_user', '', 'SMTP username (use SMTP_USER env var instead)', 'email'),
+('email_smtp_pass', '', 'SMTP password (use SMTP_PASS env var instead)', 'email'),
+('email_smtp_from', '', 'Default sender email (use EMAIL_FROM env var)', 'email'),
 
 -- Course Settings
 ('course_default_price', '50.00', 'Default price per student for courses', 'course'),

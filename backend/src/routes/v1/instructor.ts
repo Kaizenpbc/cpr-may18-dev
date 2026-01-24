@@ -34,42 +34,20 @@ router.get('/dashboard/stats', authenticateToken, requireRole(['instructor', 'ad
 
   const userId = req.user.id;
 
-  // Get total courses
-  const totalCoursesResult = await pool.query(
-    `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1`,
-    [userId]
-  );
-
-  // Get scheduled courses (confirmed but not completed)
-  const scheduledCoursesResult = await pool.query(
-    `SELECT COUNT(*) as count FROM course_requests
-     WHERE instructor_id = $1 AND status = 'confirmed'`,
-    [userId]
-  );
-
-  // Get completed courses
-  const completedCoursesResult = await pool.query(
-    `SELECT COUNT(*) as count FROM course_requests
-     WHERE instructor_id = $1 AND status = 'completed'`,
-    [userId]
-  );
-
-  // Get cancelled courses
-  const cancelledCoursesResult = await pool.query(
-    `SELECT COUNT(*) as count FROM course_requests
-     WHERE instructor_id = $1 AND status = 'cancelled'`,
-    [userId]
-  );
-
-  // Get total students across all courses
-  const totalStudentsResult = await pool.query(
-    `SELECT COALESCE(SUM(cs.student_count), 0) as total_students
-     FROM (
+  // Consolidated query - get all stats in one query (fixes N+1 pattern)
+  const statsResult = await pool.query(
+    `SELECT
+      COUNT(*) as total_courses,
+      COUNT(*) FILTER (WHERE status = 'confirmed') as scheduled_courses,
+      COUNT(*) FILTER (WHERE status = 'completed') as completed_courses,
+      COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_courses,
+      COALESCE(SUM(student_counts.student_count), 0) as total_students
+     FROM course_requests cr
+     LEFT JOIN (
        SELECT course_request_id, COUNT(*) as student_count
        FROM course_students
        GROUP BY course_request_id
-     ) cs
-     JOIN course_requests cr ON cs.course_request_id = cr.id
+     ) student_counts ON student_counts.course_request_id = cr.id
      WHERE cr.instructor_id = $1`,
     [userId]
   );
@@ -95,12 +73,13 @@ router.get('/dashboard/stats', authenticateToken, requireRole(['instructor', 'ad
     [userId]
   );
 
+  const statsRow = statsResult.rows[0] || {};
   const stats = {
-    totalCourses: parseInt(totalCoursesResult.rows[0]?.count || 0),
-    scheduledClasses: parseInt(scheduledCoursesResult.rows[0]?.count || 0),
-    completedClasses: parseInt(completedCoursesResult.rows[0]?.count || 0),
-    cancelledClasses: parseInt(cancelledCoursesResult.rows[0]?.count || 0),
-    totalStudents: parseInt(totalStudentsResult.rows[0]?.total_students || 0),
+    totalCourses: parseInt(statsRow.total_courses || 0),
+    scheduledClasses: parseInt(statsRow.scheduled_courses || 0),
+    completedClasses: parseInt(statsRow.completed_courses || 0),
+    cancelledClasses: parseInt(statsRow.cancelled_courses || 0),
+    totalStudents: parseInt(statsRow.total_students || 0),
     recentClasses: recentClassesResult.rows.map(row => ({
       id: row.id,
       date: row.date ? new Date(row.date).toISOString().split('T')[0] : null,

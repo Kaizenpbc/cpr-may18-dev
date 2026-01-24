@@ -93,25 +93,45 @@ class ConfigService {
     }
   }
 
+  // Map config keys to environment variable names (for sensitive values)
+  private static readonly ENV_VAR_MAPPING: Record<string, string> = {
+    'email_smtp_host': 'SMTP_HOST',
+    'email_smtp_port': 'SMTP_PORT',
+    'email_smtp_user': 'SMTP_USER',
+    'email_smtp_pass': 'SMTP_PASS',
+    'email_from_address': 'EMAIL_FROM',
+    'email_api_key': 'EMAIL_API_KEY',
+  };
+
   /**
    * Get a single configuration value
+   * Sensitive values (SMTP credentials) are read from environment variables first
    */
   async getConfigValue(key: string): Promise<string | null> {
     try {
+      // For sensitive keys, prefer environment variables (security best practice)
+      const envVarName = ConfigService.ENV_VAR_MAPPING[key];
+      if (envVarName && process.env[envVarName]) {
+        return process.env[envVarName] || null;
+      }
+
       // Check cache first
       if (this.isCacheValid() && this.cache.has(key)) {
         return this.cache.get(key) || null;
       }
 
       const result = await pool.query(`
-        SELECT config_value 
-        FROM system_configurations 
+        SELECT config_value
+        FROM system_configurations
         WHERE config_key = $1
       `, [key]);
 
       if (result.rows.length > 0) {
         const value = result.rows[0].config_value;
-        this.cache.set(key, value);
+        // Don't cache values that should come from env vars
+        if (!envVarName) {
+          this.cache.set(key, value);
+        }
         return value;
       }
 
