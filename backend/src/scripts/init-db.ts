@@ -933,6 +933,168 @@ export async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)
     `);
 
+    // ============================================
+    // HOLIDAYS TABLE
+    // ============================================
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS holidays (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        date DATE NOT NULL,
+        description TEXT,
+        is_recurring BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(name, date)
+      )
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date)
+    `);
+
+    // ============================================
+    // PAY RATES TABLE (legacy compatibility)
+    // ============================================
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pay_rates (
+        id SERIAL PRIMARY KEY,
+        instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        course_type_id INTEGER REFERENCES class_types(id),
+        rate_per_hour DECIMAL(10,2),
+        rate_per_class DECIMAL(10,2),
+        effective_date DATE DEFAULT CURRENT_DATE,
+        end_date DATE,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_pay_rates_instructor ON pay_rates(instructor_id)
+    `);
+
+    // ============================================
+    // COLUMN MIGRATIONS FOR EXISTING TABLES
+    // ============================================
+
+    // Add missing columns to users table (MFA, security, etc.)
+    await pool.query(`
+      DO $$
+      BEGIN
+        -- MFA columns
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'mfa_enabled') THEN
+          ALTER TABLE users ADD COLUMN mfa_enabled BOOLEAN DEFAULT false;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'mfa_secret') THEN
+          ALTER TABLE users ADD COLUMN mfa_secret VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'mfa_backup_codes') THEN
+          ALTER TABLE users ADD COLUMN mfa_backup_codes TEXT[];
+        END IF;
+        -- Security columns
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'failed_login_attempts') THEN
+          ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'locked_until') THEN
+          ALTER TABLE users ADD COLUMN locked_until TIMESTAMP;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'password_changed_at') THEN
+          ALTER TABLE users ADD COLUMN password_changed_at TIMESTAMP;
+        END IF;
+        -- Contact/profile columns
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'address') THEN
+          ALTER TABLE users ADD COLUMN address TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'emergency_contact_name') THEN
+          ALTER TABLE users ADD COLUMN emergency_contact_name VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'emergency_contact_phone') THEN
+          ALTER TABLE users ADD COLUMN emergency_contact_phone VARCHAR(50);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'certifications') THEN
+          ALTER TABLE users ADD COLUMN certifications TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'pay_rate') THEN
+          ALTER TABLE users ADD COLUMN pay_rate DECIMAL(10,2);
+        END IF;
+      END $$;
+    `);
+
+    // Add missing columns to instructor_availability table
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'instructor_availability' AND column_name = 'available_date') THEN
+          ALTER TABLE instructor_availability ADD COLUMN available_date DATE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'instructor_availability' AND column_name = 'start_time') THEN
+          ALTER TABLE instructor_availability ADD COLUMN start_time TIME;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'instructor_availability' AND column_name = 'end_time') THEN
+          ALTER TABLE instructor_availability ADD COLUMN end_time TIME;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'instructor_availability' AND column_name = 'is_available') THEN
+          ALTER TABLE instructor_availability ADD COLUMN is_available BOOLEAN DEFAULT true;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'instructor_availability' AND column_name = 'notes') THEN
+          ALTER TABLE instructor_availability ADD COLUMN notes TEXT;
+        END IF;
+      END $$;
+    `);
+
+    // Add missing columns to email_templates table
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'email_templates' AND column_name = 'template_type') THEN
+          ALTER TABLE email_templates ADD COLUMN template_type VARCHAR(50);
+        END IF;
+      END $$;
+    `);
+
+    // Add missing columns to vendors table
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'user_id') THEN
+          ALTER TABLE vendors ADD COLUMN user_id INTEGER REFERENCES users(id);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'company_name') THEN
+          ALTER TABLE vendors ADD COLUMN company_name VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'contact_name') THEN
+          ALTER TABLE vendors ADD COLUMN contact_name VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'tax_id') THEN
+          ALTER TABLE vendors ADD COLUMN tax_id VARCHAR(100);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'payment_terms') THEN
+          ALTER TABLE vendors ADD COLUMN payment_terms VARCHAR(100);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'status') THEN
+          ALTER TABLE vendors ADD COLUMN status VARCHAR(50) DEFAULT 'active';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'notes') THEN
+          ALTER TABLE vendors ADD COLUMN notes TEXT;
+        END IF;
+      END $$;
+    `);
+
+    // Add missing columns to audit_log table
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_log' AND column_name = 'user_id') THEN
+          ALTER TABLE audit_log ADD COLUMN user_id INTEGER REFERENCES users(id);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_log' AND column_name = 'created_at') THEN
+          ALTER TABLE audit_log ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+        END IF;
+      END $$;
+    `);
+
     console.log('✅ Tables created');
 
     // ==========================================
