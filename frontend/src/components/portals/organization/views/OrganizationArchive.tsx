@@ -40,27 +40,27 @@ import { formatDisplayDate } from '../../../../utils/dateUtils';
 // TypeScript interfaces
 interface Course {
   id: string | number;
-  date_requested: string;
-  course_type_name: string;
+  dateRequested: string;
+  courseTypeName: string;
   location: string;
-  registered_students: number;
+  registeredStudents: number;
   status: string;
   instructor: string;
   notes?: string;
-  confirmed_date?: string;
-  request_submitted_date: string;
-  scheduled_date?: string;
-  students_attended?: number;
-  archived_at?: string;
+  confirmedDate?: string;
+  requestSubmittedDate: string;
+  scheduledDate?: string;
+  studentsAttended?: number;
+  archivedAt?: string;
 }
 
 interface Student {
   id: number;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   attended?: boolean;
-  attendance_marked?: boolean;
+  attendanceMarked?: boolean;
 }
 
 interface OrganizationArchiveProps {
@@ -127,10 +127,11 @@ const OrganizationArchive: React.FC<OrganizationArchiveProps> = ({
         console.log('[TRACE] OrganizationArchive - API returned success: false');
         setStudentError('Failed to load students');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errObj = error as { response?: { data?: { error?: { message?: string } } } };
       console.error('[TRACE] OrganizationArchive - Error fetching students:', error);
-      console.error('[TRACE] OrganizationArchive - Error response:', error.response);
-      setStudentError(error.response?.data?.error?.message || 'Failed to load students');
+      console.error('[TRACE] OrganizationArchive - Error response:', errObj.response);
+      setStudentError(errObj.response?.data?.error?.message || 'Failed to load students');
     } finally {
       console.log('[TRACE] OrganizationArchive - Setting loading to false');
       setLoadingStudents(false);
@@ -147,18 +148,18 @@ const OrganizationArchive: React.FC<OrganizationArchiveProps> = ({
 
   // Filter courses based on search and filters
   const filteredCourses = courses.filter(course => {
-    const matchesSearch = course.course_type_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = course.courseTypeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          course.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          course.instructor.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || course.status.toLowerCase() === statusFilter.toLowerCase();
-    const matchesCourseType = courseTypeFilter === 'all' || course.course_type_name === courseTypeFilter;
+    const matchesCourseType = courseTypeFilter === 'all' || course.courseTypeName === courseTypeFilter;
     
     return matchesSearch && matchesStatus && matchesCourseType;
   });
 
   // Get unique course types for filter
-  const courseTypes = Array.from(new Set(courses.map(course => course.course_type_name))).sort();
+  const courseTypes = Array.from(new Set(courses.map(course => course.courseTypeName))).sort();
 
   return (
     <Box>
@@ -242,11 +243,11 @@ const OrganizationArchive: React.FC<OrganizationArchiveProps> = ({
                       backgroundColor: index % 2 !== 0 ? '#f9f9f9' : 'inherit',
                     }}
                   >
-                    <TableCell>{course.course_type_name}</TableCell>
+                    <TableCell>{course.courseTypeName}</TableCell>
                     <TableCell>{course.location}</TableCell>
                     <TableCell>{course.instructor || '-'}</TableCell>
                     <TableCell>
-                      {course.students_attended || 0} / {course.registered_students}
+                      {course.studentsAttended || 0} / {course.registeredStudents}
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -284,7 +285,7 @@ const OrganizationArchive: React.FC<OrganizationArchiveProps> = ({
         fullWidth
       >
         <DialogTitle>
-          Students - {selectedCourse?.course_type_name}
+          Students - {selectedCourse?.courseTypeName}
           <IconButton
             aria-label="close"
             onClick={handleCloseStudentDialog}

@@ -38,11 +38,11 @@ interface OrganizationData {
 
 interface Course {
   id: string | number;
-  request_submitted_date: string;
-  scheduled_date: string;
-  course_type_name: string;
+  requestSubmittedDate: string;
+  scheduledDate: string;
+  courseTypeName: string;
   location: string;
-  registered_students: number;
+  registeredStudents: number;
   status: string;
   instructor: string;
   notes?: string;
@@ -50,19 +50,19 @@ interface Course {
 
 interface Invoice {
   id: number;
-  invoice_number: string;
-  created_at: string;
-  due_date: string;
+  invoiceNumber: string;
+  createdAt: string;
+  dueDate: string;
   amount: number;
   status: string;
-  students_billed: number;
-  paid_date?: string;
+  studentsBilled: number;
+  paidDate?: string;
   location: string;
-  course_type_name: string;
-  course_date: string;
-  course_request_id: number;
-  amount_paid: number;
-  balance_due: number;
+  courseTypeName: string;
+  courseDate: string;
+  courseRequestId: number;
+  amountPaid: number;
+  balanceDue: number;
 }
 
 interface OrganizationAnalyticsProps {
@@ -79,7 +79,7 @@ interface OrganizationAnalyticsProps {
     pending_amount: number;
     overdue_amount: number;
     paid_amount: number;
-    recent_invoices: any[];
+    recent_invoices: { id: number; invoice_number: string; amount: number; status: string; due_date: string }[];
   };
   organizationData: OrganizationData | undefined;
 }
@@ -104,12 +104,12 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
   // Calculate correct totals from courses data (including archived)
   const allCourses = [...(courses || []), ...(archivedCourses || [])];
   const totalCourses = allCourses.length;
-  const totalStudents = allCourses.reduce((sum, course) => sum + Number(course?.registered_students || 0), 0);
+  const totalStudents = allCourses.reduce((sum, course) => sum + Number(course?.registeredStudents || 0), 0);
   
   // Course type distribution
   const courseTypeStats = allCourses.reduce((acc, course) => {
-    if (course?.course_type_name) {
-      acc[course.course_type_name] = (acc[course.course_type_name] || 0) + 1;
+    if (course?.courseTypeName) {
+      acc[course.courseTypeName] = (acc[course.courseTypeName] || 0) + 1;
     }
     return acc;
   }, {} as Record<string, number>);
@@ -414,12 +414,12 @@ const OrganizationAnalytics: React.FC<OrganizationAnalyticsProps> = ({
                 <TableBody>
                   {recentCourses.map((course) => (
                     <TableRow key={course.id}>
-                      <TableCell>{course.course_type_name}</TableCell>
+                      <TableCell>{course.courseTypeName}</TableCell>
                       <TableCell>
                         {formatDisplayDate(course.request_submitted_date)}
                       </TableCell>
                       <TableCell>{course.location}</TableCell>
-                      <TableCell>{course.registered_students}</TableCell>
+                      <TableCell>{course.registeredStudents}</TableCell>
                       <TableCell>{course.status}</TableCell>
                       <TableCell>{course.instructor || 'TBD'}</TableCell>
                     </TableRow>

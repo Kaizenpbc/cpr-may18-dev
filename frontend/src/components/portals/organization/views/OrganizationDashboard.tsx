@@ -63,11 +63,11 @@ interface OrganizationData {
 
 interface Course {
   id: string | number;
-  request_submitted_date: string;
-  scheduled_date: string;
-  course_type_name: string;
+  requestSubmittedDate: string;
+  scheduledDate: string;
+  courseTypeName: string;
   location: string;
-  registered_students: number;
+  registeredStudents: number;
   status: string;
   instructor: string;
   notes?: string;
@@ -83,7 +83,7 @@ interface BillingSummary {
   pending_amount: number;
   overdue_amount: number;
   paid_amount: number;
-  recent_invoices: any[];
+  recent_invoices: { id: number; invoice_number: string; amount: number; status: string; due_date: string }[];
 }
 
 interface OrganizationDashboardProps {
@@ -233,7 +233,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
                     Total Students
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 600, color: 'white' }}>
-                    {[...(courses || []), ...(archivedCourses || [])].reduce((sum, course) => sum + Number(course?.registered_students || 0), 0)}
+                    {[...(courses || []), ...(archivedCourses || [])].reduce((sum, course) => sum + Number(course?.registeredStudents || 0), 0)}
                   </Typography>
                 </Box>
               </Box>
@@ -459,7 +459,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
                     <TableRow key={course.id} sx={{ '&:hover': { backgroundColor: '#f8f9fa' } }}>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {course.course_type_name}
+                          {course.courseTypeName}
                         </Typography>
                       </TableCell>
                       <TableCell>{formatDisplayDate(course.request_submitted_date)}</TableCell>
@@ -467,7 +467,7 @@ const OrganizationDashboard: React.FC<OrganizationDashboardProps> = ({
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                           <PeopleIcon sx={{ fontSize: 16, mr: 0.5, color: '#666' }} />
-                          {course.registered_students}
+                          {course.registeredStudents}
                         </Box>
                       </TableCell>
                       <TableCell>
