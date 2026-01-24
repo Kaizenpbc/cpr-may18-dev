@@ -19,8 +19,8 @@ router.use(authenticateToken);
 
 // Get MFA status
 router.get('/status', checkMFAStatus, asyncHandler(async (req: Request, res: Response) => {
-  const user = (req as any).user;
-  const mfaStatus = await mfaService.getMFAStatus(user.id);
+  const user = req.user!;
+  const mfaStatus = await mfaService.getMFAStatus(String(user.id));
   
   res.json({
     success: true,
@@ -28,7 +28,7 @@ router.get('/status', checkMFAStatus, asyncHandler(async (req: Request, res: Res
       mfaStatus,
       user: {
         id: user.id,
-        email: user.email,
+        email: user.email || '',
         role: user.role
       }
     }
@@ -39,9 +39,9 @@ router.get('/status', checkMFAStatus, asyncHandler(async (req: Request, res: Res
 router.post('/initialize', 
   mfaAudit('initialize'),
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     
-    const result = await mfaService.initializeMFA(user.id, user.email, user.role);
+    const result = await mfaService.initializeMFA(String(user.id), user.email || '', user.role);
     
     if (result.success) {
       res.json({
@@ -89,10 +89,10 @@ router.post('/verify-setup',
       });
     }
 
-    const user = (req as any).user;
+    const user = req.user!;
     const { code } = req.body;
 
-    const verificationResult = await mfaService.verifyMFACode(user.id, code, 'totp');
+    const verificationResult = await mfaService.verifyMFACode(String(user.id), code, 'totp');
     
     if (verificationResult.success) {
       res.json({
@@ -137,7 +137,7 @@ router.post('/verify',
       });
     }
 
-    const user = (req as any).user;
+    const user = req.user!;
     const { code, type } = req.body;
 
     // Validate code format
@@ -151,7 +151,7 @@ router.post('/verify',
       });
     }
 
-    const verificationResult = await mfaService.verifyMFACode(user.id, code, type as MFAType, undefined, req);
+    const verificationResult = await mfaService.verifyMFACode(String(user.id), code, type as MFAType, undefined, req);
     
     if (verificationResult.success) {
       res.json({
@@ -181,9 +181,9 @@ router.post('/send-email-code',
   mfaRateLimit(3, 10),
   mfaAudit('send_email_code'),
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     
-    const result = await mfaService.sendEmailMFACode(user.id, user.email);
+    const result = await mfaService.sendEmailMFACode(String(user.id), user.email || '');
     
     if (result.success) {
       res.json({
@@ -207,7 +207,7 @@ router.post('/regenerate-backup-codes',
   requireMFA,
   mfaAudit('regenerate_backup_codes'),
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     
     // Generate new backup codes
     const newBackupCodes = generateBackupCodes(10, 8);
@@ -230,9 +230,9 @@ router.post('/disable',
   requireMFA,
   mfaAudit('disable'),
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     
-    const result = await mfaService.disableMFA(user.id, req);
+    const result = await mfaService.disableMFA(String(user.id), req);
     
     if (result.success) {
       res.json({
@@ -255,10 +255,10 @@ router.post('/disable',
 router.get('/qr-code',
   mfaAudit('get_qr_code'),
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     
     // Get user's TOTP secret
-    const mfaStatus = await mfaService.getMFAStatus(user.id);
+    const mfaStatus = await mfaService.getMFAStatus(String(user.id));
     
     if (!mfaStatus.enabled) {
       return res.status(400).json({
@@ -271,7 +271,7 @@ router.get('/qr-code',
     }
 
     // Generate QR code URL
-    const qrCodeURL = getMFAQRCodeURL(user.email, 'user-secret'); // This would need actual secret
+    const qrCodeURL = getMFAQRCodeURL(user.email || '', 'user-secret'); // This would need actual secret
     
     res.json({
       success: true,

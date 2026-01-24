@@ -11,7 +11,7 @@ router.get(
   '/',
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     const { limit = 50, offset = 0, unread_only = false } = req.query;
     
     const notifications = await notificationService.getNotifications(
@@ -33,7 +33,7 @@ router.get(
   '/unread-count',
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     
     const count = await notificationService.getUnreadCount(user.id);
     
@@ -49,7 +49,7 @@ router.post(
   '/:id/read',
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     const { id } = req.params;
     
     const success = await notificationService.markAsRead(
@@ -73,7 +73,7 @@ router.post(
   '/mark-all-read',
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     
     const count = await notificationService.markAllAsRead(user.id);
     
@@ -90,7 +90,7 @@ router.delete(
   '/:id',
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     const { id } = req.params;
     
     const success = await notificationService.deleteNotification(
@@ -114,7 +114,7 @@ router.get(
   '/preferences',
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     
     const preferences = await notificationService.getPreferences(user.id);
     
@@ -130,7 +130,7 @@ router.put(
   '/preferences/:type',
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     const { type } = req.params;
     const { email_enabled, push_enabled, sound_enabled } = req.body;
     

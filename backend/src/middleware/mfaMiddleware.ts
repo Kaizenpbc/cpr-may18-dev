@@ -6,7 +6,7 @@ import { AuditEventSeverity } from './auditLogger.js';
 // MFA Middleware
 export const requireMFA = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = (req as any).user;
+    const user = req.user;
     
     if (!user) {
       return res.status(401).json({
@@ -24,7 +24,7 @@ export const requireMFA = async (req: Request, res: Response, next: NextFunction
     }
 
     // Check if MFA is verified in this session
-    if ((req as any).mfaVerified) {
+    if (req.mfaVerified) {
       return next();
     }
 
@@ -34,7 +34,7 @@ export const requireMFA = async (req: Request, res: Response, next: NextFunction
       req.ip || req.connection.remoteAddress || ''
     );
 
-    const mfaStatus = await mfaService.getMFAStatus(user.id);
+    const mfaStatus = await mfaService.getMFAStatus(String(user.id));
     
     if (mfaStatus.enabled && mfaStatus.trustedDevices > 0) {
       // Check if current device is trusted
@@ -68,7 +68,7 @@ export const requireMFA = async (req: Request, res: Response, next: NextFunction
 // MFA Verification Middleware
 export const verifyMFA = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = (req as any).user;
+    const user = req.user;
     const { mfaCode, mfaType } = req.body;
 
     if (!user) {
@@ -99,7 +99,7 @@ export const verifyMFA = async (req: Request, res: Response, next: NextFunction)
 
     // Verify MFA code
     const verificationResult = await mfaService.verifyMFACode(
-      user.id,
+      String(user.id),
       mfaCode,
       mfaType,
       deviceFingerprint,
@@ -108,15 +108,15 @@ export const verifyMFA = async (req: Request, res: Response, next: NextFunction)
 
     if (verificationResult.success) {
       // Mark MFA as verified in session
-      (req as any).mfaVerified = true;
-      (req as any).mfaType = mfaType;
-      (req as any).mfaTime = new Date();
+      req.mfaVerified = true;
+      req.mfaType = mfaType;
+      req.mfaTime = new Date();
       
       // Log successful MFA verification
       logMFASecurityEvent(
         'MIDDLEWARE_VERIFICATION_SUCCESS',
         AuditEventSeverity.LOW,
-        user.id,
+        String(user.id),
         { mfaType, deviceFingerprint },
         req
       );
@@ -127,7 +127,7 @@ export const verifyMFA = async (req: Request, res: Response, next: NextFunction)
       logMFASecurityEvent(
         'MIDDLEWARE_VERIFICATION_FAILED',
         AuditEventSeverity.MEDIUM,
-        user.id,
+        String(user.id),
         { mfaType, deviceFingerprint, error: verificationResult.message },
         req
       );
@@ -158,7 +158,7 @@ export const verifyMFA = async (req: Request, res: Response, next: NextFunction)
 // MFA Status Check Middleware
 export const checkMFAStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = (req as any).user;
+    const user = req.user;
     
     if (!user) {
       return res.status(401).json({
@@ -170,10 +170,10 @@ export const checkMFAStatus = async (req: Request, res: Response, next: NextFunc
       });
     }
 
-    const mfaStatus = await mfaService.getMFAStatus(user.id);
+    const mfaStatus = await mfaService.getMFAStatus(String(user.id));
     
     // Add MFA status to request
-    (req as any).mfaStatus = mfaStatus;
+    req.mfaStatus = mfaStatus;
     
     next();
 
@@ -192,7 +192,7 @@ export const checkMFAStatus = async (req: Request, res: Response, next: NextFunc
 // MFA Bypass for Trusted Devices
 export const bypassMFAForTrustedDevice = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = (req as any).user;
+    const user = req.user;
     
     if (!user) {
       return next();
@@ -205,7 +205,7 @@ export const bypassMFAForTrustedDevice = async (req: Request, res: Response, nex
     );
 
     // Check if device is trusted
-    const mfaStatus = await mfaService.getMFAStatus(user.id);
+    const mfaStatus = await mfaService.getMFAStatus(String(user.id));
     
     if (mfaStatus.enabled && mfaStatus.trustedDevices > 0) {
       // This would require additional implementation to check if current device is trusted
@@ -224,7 +224,7 @@ export const bypassMFAForTrustedDevice = async (req: Request, res: Response, nex
 export const mfaRateLimit = (maxAttempts: number = 5, windowMinutes: number = 15) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       
       if (!user) {
         return next();
@@ -232,7 +232,7 @@ export const mfaRateLimit = (maxAttempts: number = 5, windowMinutes: number = 15
 
       // Check rate limiting
       const isRateLimited = mfaService['rateLimiter'].isRateLimited(
-        user.id,
+        String(user.id),
         maxAttempts,
         windowMinutes
       );
@@ -242,7 +242,7 @@ export const mfaRateLimit = (maxAttempts: number = 5, windowMinutes: number = 15
         logMFASecurityEvent(
           'RATE_LIMITED',
           AuditEventSeverity.HIGH,
-          user.id,
+          String(user.id),
           { maxAttempts, windowMinutes },
           req
         );
@@ -270,14 +270,14 @@ export const mfaRateLimit = (maxAttempts: number = 5, windowMinutes: number = 15
 export const mfaAudit = (action: string) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       
       if (user) {
         // Log MFA action
         logMFASecurityEvent(
           `AUDIT_${action.toUpperCase()}`,
           AuditEventSeverity.LOW,
-          user.id,
+          String(user.id),
           { action, endpoint: req.path, method: req.method },
           req
         );

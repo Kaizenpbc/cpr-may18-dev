@@ -15,7 +15,7 @@ router.use(authenticateToken);
 router.get('/dashboard', 
   requireMFA,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     
     const dashboardData = await securityMonitoringService.getSecurityDashboardData();
     
@@ -43,7 +43,7 @@ router.get('/dashboard',
 router.get('/metrics', 
   requireMFA,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     
     const metrics = await securityMonitoringService.getSecurityMetrics();
     
@@ -72,7 +72,7 @@ router.get('/metrics',
 router.get('/events', 
   requireMFA,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     const limit = parseInt(req.query.limit as string) || 50;
     
     const events = await securityMonitoringService.getRecentSecurityEvents(limit);
@@ -104,7 +104,7 @@ router.get('/events',
 router.get('/alerts', 
   requireMFA,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     
     const alerts = await securityMonitoringService.getActiveSecurityAlerts();
     
@@ -135,7 +135,7 @@ router.get('/alerts',
 router.get('/trends', 
   requireMFA,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     const hours = parseInt(req.query.hours as string) || 24;
     
     const trends = await securityMonitoringService.getSecurityTrends(hours);
@@ -193,7 +193,7 @@ router.post('/alerts',
       });
     }
 
-    const user = (req as any).user;
+    const user = req.user!;
     const { type, title, description, source, metadata } = req.body;
     
     const alert = await securityMonitoringService.createSecurityAlert(
@@ -233,7 +233,7 @@ router.post('/alerts',
 router.post('/alerts/:alertId/acknowledge',
   requireMFA,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     const { alertId } = req.params;
     
     const success = await securityMonitoringService.acknowledgeSecurityAlert(alertId);
@@ -272,7 +272,7 @@ router.post('/alerts/:alertId/acknowledge',
 router.post('/alerts/:alertId/resolve',
   requireMFA,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     const { alertId } = req.params;
     
     const success = await securityMonitoringService.resolveSecurityAlert(alertId);
@@ -311,7 +311,7 @@ router.post('/alerts/:alertId/resolve',
 router.get('/health', 
   requireMFA,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     
     const dashboardData = await securityMonitoringService.getSecurityDashboardData();
     
@@ -341,7 +341,7 @@ router.get('/health',
 router.get('/summary', 
   requireMFA,
   asyncHandler(async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user!;
     
     const [metrics, alerts, events] = await Promise.all([
       securityMonitoringService.getSecurityMetrics(),

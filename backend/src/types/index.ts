@@ -7,6 +7,7 @@ export interface TokenPayload {
   id: number;
   userId: string;
   username: string;
+  email?: string;
   role: string;
   organizationId?: number;
   organizationName?: string;
@@ -60,11 +61,25 @@ export function getDbErrorCode(error: unknown): string | undefined {
   return undefined;
 }
 
+/**
+ * MFA status information
+ */
+export interface MFAStatus {
+  enabled: boolean;
+  type?: string;
+  trustedDevices: number;
+  lastVerified?: Date;
+}
+
 // Re-export the global Express augmentation
 declare global {
   namespace Express {
     interface Request {
       user?: TokenPayload;
+      mfaVerified?: boolean;
+      mfaType?: string;
+      mfaTime?: Date;
+      mfaStatus?: MFAStatus;
     }
   }
 }

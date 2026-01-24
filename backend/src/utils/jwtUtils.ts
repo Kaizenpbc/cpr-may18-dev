@@ -21,6 +21,7 @@ export interface TokenPayload {
   id: number;
   userId: string;
   username: string;
+  email?: string;
   role: string;
   organizationId?: number;
   organizationName?: string;
