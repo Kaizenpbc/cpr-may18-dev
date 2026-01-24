@@ -64,8 +64,98 @@ export interface DashboardMetrics {
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
-  error?: string;
-  meta?: any;
+  error?: string | { code?: string; message?: string };
+  meta?: Record<string, unknown>;
   status?: number;
   message?: string;
+}
+
+// Common data types for API requests/responses
+export interface CourseData {
+  id?: number;
+  name?: string;
+  description?: string;
+  course_type_id?: number;
+  duration_hours?: number;
+  max_students?: number;
+  is_active?: boolean;
+  [key: string]: unknown;
+}
+
+export interface InstructorData {
+  id?: number;
+  user_id?: number;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  is_active?: boolean;
+  [key: string]: unknown;
+}
+
+export interface OrganizationData {
+  id?: number;
+  name?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  address?: string;
+  is_active?: boolean;
+  [key: string]: unknown;
+}
+
+export interface VendorData {
+  id?: number;
+  name?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  address?: string;
+  is_active?: boolean;
+  [key: string]: unknown;
+}
+
+export interface StudentData {
+  id?: number;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  attended?: boolean;
+  [key: string]: unknown;
+}
+
+export interface PricingData {
+  id?: number;
+  organization_id?: number | string;
+  course_type_id?: number | string;
+  price?: number;
+  price_per_student?: number;
+  effective_date?: string;
+  [key: string]: unknown;
+}
+
+export interface PaymentData {
+  amount: number;
+  payment_date?: string;
+  payment_method?: string;
+  reference_number?: string;
+  notes?: string;
+  [key: string]: unknown;
+}
+
+export interface EmailTemplateData {
+  id?: number;
+  name?: string;
+  key?: string;
+  subject?: string;
+  body?: string;
+  category?: string;
+  is_active?: boolean;
+  [key: string]: unknown;
+}
+
+export interface NotificationPreferences {
+  email_enabled?: boolean;
+  in_app_enabled?: boolean;
+  [key: string]: unknown;
 }

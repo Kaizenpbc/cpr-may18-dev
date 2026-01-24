@@ -6,6 +6,15 @@ import type {
   Availability,
   ApiResponse,
   User,
+  CourseData,
+  InstructorData,
+  OrganizationData,
+  VendorData,
+  StudentData,
+  PricingData,
+  PaymentData,
+  EmailTemplateData,
+  NotificationPreferences,
 } from '../types/api';
 import { API_URL } from '../config';
 
@@ -198,7 +207,7 @@ api.interceptors.response.use(
 
 // Helper function to extract data from API response (new format)
 const extractData = <T>(response: {
-  data: { success: boolean; data: T; error?: any; message?: string };
+  data: { success: boolean; data: T; error?: { code?: string; message?: string }; message?: string };
 }): T => {
   if (response.data.success === false) {
     throw new Error(
@@ -237,11 +246,11 @@ export const fetchDashboardData = async (): Promise<DashboardMetrics> => {
     // Try all dashboard endpoints in parallel and use the first successful one
     // This is much faster than sequential fallbacks
     const [genericResult, instructorResult, adminResult] = await Promise.allSettled([
-      api.get<ApiResponse<any>>('/dashboard'),
-      api.get<ApiResponse<any>>('/instructor/dashboard/stats'),
+      api.get<ApiResponse<Record<string, unknown>>>('/dashboard'),
+      api.get<ApiResponse<Record<string, unknown>>>('/instructor/dashboard/stats'),
       Promise.all([
-        api.get<ApiResponse<any>>(`/admin/instructor-stats?month=${currentDate}`),
-        api.get<ApiResponse<any>>(`/admin/dashboard-summary?month=${currentDate}`)
+        api.get<ApiResponse<Record<string, unknown>>>(`/admin/instructor-stats?month=${currentDate}`),
+        api.get<ApiResponse<Record<string, unknown>>>(`/admin/dashboard-summary?month=${currentDate}`)
       ])
     ]);
 
@@ -315,7 +324,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
     switch (userRole) {
       case 'instructor':
         try {
-          const response = await api.get<ApiResponse<any>>('/instructor/dashboard/stats');
+          const response = await api.get<ApiResponse<Record<string, unknown>>>('/instructor/dashboard/stats');
           if (response.data.success) {
             const stats = response.data.data;
             dashboardData = {
@@ -334,8 +343,8 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
       case 'courseadmin':
         try {
           const [instructorStats, dashboardSummary] = await Promise.all([
-            api.get<ApiResponse<any>>(`/admin/instructor-stats?month=${currentDate}`),
-            api.get<ApiResponse<any>>(`/admin/dashboard-summary?month=${currentDate}`)
+            api.get<ApiResponse<Record<string, unknown>>>(`/admin/instructor-stats?month=${currentDate}`),
+            api.get<ApiResponse<Record<string, unknown>>>(`/admin/dashboard-summary?month=${currentDate}`)
           ]);
 
           dashboardData = {
@@ -351,7 +360,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
 
       case 'organization':
         try {
-          const response = await api.get<ApiResponse<any>>('/organization/dashboard');
+          const response = await api.get<ApiResponse<Record<string, unknown>>>('/organization/dashboard');
           if (response.data.success) {
             const stats = response.data.data;
             dashboardData = {
@@ -368,7 +377,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
 
       case 'accountant':
         try {
-          const response = await api.get<ApiResponse<any>>('/accounting/dashboard');
+          const response = await api.get<ApiResponse<Record<string, unknown>>>('/accounting/dashboard');
           if (response.data.success) {
             const stats = response.data.data;
             dashboardData = {
@@ -385,7 +394,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
 
       case 'hr':
         try {
-          const response = await api.get<ApiResponse<any>>('/hr/dashboard');
+          const response = await api.get<ApiResponse<Record<string, unknown>>>('/hr/dashboard');
           if (response.data.success) {
             const stats = response.data.data;
             dashboardData = {
@@ -402,7 +411,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
 
       case 'sysadmin':
         try {
-          const response = await api.get<ApiResponse<any>>('/sysadmin/dashboard');
+          const response = await api.get<ApiResponse<Record<string, unknown>>>('/sysadmin/dashboard');
           if (response.data.success) {
             const stats = response.data.data.summary;
             dashboardData = {
@@ -420,7 +429,7 @@ export const fetchRoleSpecificDashboardData = async (userRole: string): Promise<
       default:
         // Try generic dashboard endpoint
         try {
-          const response = await api.get<ApiResponse<any>>('/dashboard');
+          const response = await api.get<ApiResponse<Record<string, unknown>>>('/dashboard');
           if (response.data.success && response.data.data) {
             const dashboardStats = response.data.data.instructorStats;
             dashboardData = {
@@ -486,8 +495,8 @@ export const resetPassword = async (token: string, password: string) => {
 export const courseAdminApi = {
   // Courses
   getCourses: () => api.get('/courses'),
-  createCourse: (data: any) => api.post('/courses', data),
-  updateCourse: (id: number, data: any) =>
+  createCourse: (data: CourseData) => api.post('/courses', data),
+  updateCourse: (id: number, data: CourseData) =>
     api.put(`/courses/${id}`, data),
   deleteCourse: (id: number) => api.delete(`/courses/${id}`),
   assignInstructor: (courseId: number, instructorId: number) =>
@@ -495,18 +504,18 @@ export const courseAdminApi = {
 
   // Classes
   getClasses: () => api.get('/classes'),
-  createClass: (data: any) => api.post('/classes', data),
-  updateClass: (id: number, data: any) =>
+  createClass: (data: Record<string, unknown>) => api.post('/classes', data),
+  updateClass: (id: number, data: Record<string, unknown>) =>
     api.put(`/classes/${id}`, data),
   deleteClass: (id: number) => api.delete(`/classes/${id}`),
 
   // Instructors
   getInstructors: () => api.get('/instructors'),
-  createInstructor: (data: any) => api.post('/instructors', data),
-  updateInstructor: (id: number, data: any) =>
+  createInstructor: (data: InstructorData) => api.post('/instructors', data),
+  updateInstructor: (id: number, data: InstructorData) =>
     api.put(`/instructors/${id}`, data),
   deleteInstructor: (id: number) => api.delete(`/instructors/${id}`),
-  updateInstructorAvailability: (id: number, data: any) =>
+  updateInstructorAvailability: (id: number, data: Record<string, unknown>) =>
     api.put(`/instructors/${id}/availability`, data),
 };
 
@@ -530,10 +539,10 @@ export const organizationApi = {
     const response = await api.get('/course-types');
     return extractData(response);
   },
-  requestCourse: (data: any) => api.post('/organization/course-request', data),
+  requestCourse: (data: Record<string, unknown>) => api.post('/organization/course-request', data),
 
   // Upload students for a course
-  uploadStudents: async (courseRequestId: number, students: any[]) => {
+  uploadStudents: async (courseRequestId: number, students: StudentData[]) => {
     devLog('[TRACE] API - Uploading students for course:', courseRequestId);
     devLog('[TRACE] API - Students data:', students);
 
@@ -566,7 +575,7 @@ export const instructorApi = {
   // Basic instructor data
   getSchedule: () => api.get('/instructor/schedule'),
   getAvailability: () => api.get('/instructor/availability'),
-  updateAvailability: (data: any) =>
+  updateAvailability: (data: Record<string, unknown>) =>
     api.put('/instructor/availability', data),
 
   // Classes and courses
@@ -584,11 +593,11 @@ export const instructorApi = {
   getClassStudents: (courseId: number) => api.get(`/instructor/classes/${courseId}/students`),
   completeClass: (courseId: number, instructorComments?: string) =>
     api.post(`/instructor/classes/${courseId}/complete`, { instructor_comments: instructorComments || '' }),
-  updateAttendance: (courseId: number, students: any[]) =>
+  updateAttendance: (courseId: number, students: StudentData[]) =>
     api.put(`/instructor/classes/${courseId}/attendance`, { students }),
   updateStudentAttendance: (courseId: number, studentId: string, attended: boolean) =>
     api.put(`/instructor/classes/${courseId}/students/${studentId}/attendance`, { attended }),
-  addStudent: (courseId: number, studentData: any) =>
+  addStudent: (courseId: number, studentData: StudentData) =>
     api.post(`/instructor/classes/${courseId}/students`, studentData),
   updateClassNotes: (courseId: number, notes: string) =>
     api.post('/instructor/classes/notes', { courseId, notes }),
@@ -599,7 +608,7 @@ export const instructorApi = {
 
   // Attendance
   getAttendance: () => api.get('/instructor/attendance'),
-  markAttendance: (courseId: number, students: any[]) =>
+  markAttendance: (courseId: number, students: StudentData[]) =>
     api.post(`/instructor/classes/${courseId}/attendance`, { students }),
 
   // Dashboard data
@@ -633,7 +642,7 @@ export const getCoursePricing = async () => {
   return response.data.data || [];
 };
 
-export const updateCoursePrice = async (pricingId: number, data: any) => {
+export const updateCoursePrice = async (pricingId: number, data: PricingData) => {
   const response = await api.put(
     `/accounting/course-pricing/${pricingId}`,
     data
@@ -641,7 +650,7 @@ export const updateCoursePrice = async (pricingId: number, data: any) => {
   return response.data;
 };
 
-export const createCoursePricing = async (data: any): Promise<ApiResponse<any>> => {
+export const createCoursePricing = async (data: PricingData): Promise<ApiResponse<Record<string, unknown>>> => {
   const response = await api.post('/accounting/course-pricing', data);
   return response.data;
 };
@@ -673,12 +682,12 @@ export const getOrganizationPricingById = async (id: number) => {
   return response.data.data;
 };
 
-export const createOrganizationPricing = async (data: any) => {
+export const createOrganizationPricing = async (data: PricingData) => {
   const response = await api.post('/organization-pricing/admin', data);
   return response.data.data;
 };
 
-export const updateOrganizationPricing = async (id: number, data: any) => {
+export const updateOrganizationPricing = async (id: number, data: PricingData) => {
   const response = await api.put(`/organization-pricing/admin/${id}`, data);
   return response.data.data;
 };
@@ -693,7 +702,7 @@ export const getClassTypes = async () => {
   const response = await api.get('/course-types');
   const data = response.data.data || [];
   // Transform the data to match expected format
-  return data.map((item: any) => ({
+  return data.map((item: { id: number; name: string }) => ({
     id: item.id,
     name: item.name
   }));
@@ -720,7 +729,7 @@ export const getInvoiceDetails = async (invoiceId: number) => {
   return extractData(response);
 };
 
-export const updateInvoice = async (invoiceId: number, data: any) => {
+export const updateInvoice = async (invoiceId: number, data: Record<string, unknown>) => {
   const response = await api.put(
     `/accounting/invoices/${invoiceId}`,
     data
@@ -751,7 +760,7 @@ export const getInvoicePayments = async (invoiceId: number) => {
 
 export const recordInvoicePayment = async (
   invoiceId: number,
-  paymentData: any
+  paymentData: PaymentData
 ) => {
   const response = await api.post(
     `/accounting/invoices/${invoiceId}/payments`,
@@ -760,7 +769,7 @@ export const recordInvoicePayment = async (
   return response.data;
 };
 
-export const getRevenueReport = async (year: number): Promise<ApiResponse<any>> => {
+export const getRevenueReport = async (year: number) => {
   const response = await api.get(`/accounting/reports/revenue?year=${year}`);
   return response.data;
 };
@@ -778,11 +787,11 @@ export const sysAdminApi = {
     const response = await api.get('/sysadmin/vendors');
     return response.data;
   },
-  createVendor: async (vendorData: any) => {
+  createVendor: async (vendorData: VendorData) => {
     const response = await api.post('/sysadmin/vendors', vendorData);
     return response.data;
   },
-  updateVendor: async (id: number, vendorData: any) => {
+  updateVendor: async (id: number, vendorData: VendorData) => {
     const response = await api.put(`/sysadmin/vendors/${id}`, vendorData);
     return response.data;
   },
@@ -802,11 +811,11 @@ export const sysAdminApi = {
     const response = await api.get('/sysadmin/courses');
     return response.data;
   },
-  createCourse: async (courseData: any) => {
+  createCourse: async (courseData: CourseData) => {
     const response = await api.post('/sysadmin/courses', courseData);
     return response.data;
   },
-  updateCourse: async (id: number, courseData: any) => {
+  updateCourse: async (id: number, courseData: CourseData) => {
     const response = await api.put(`/sysadmin/courses/${id}`, courseData);
     return response.data;
   },
@@ -824,11 +833,11 @@ export const sysAdminApi = {
     const response = await api.get('/sysadmin/organizations');
     return response.data;
   },
-  createOrganization: async (orgData: any) => {
+  createOrganization: async (orgData: OrganizationData) => {
     const response = await api.post('/sysadmin/organizations', orgData);
     return response.data;
   },
-  updateOrganization: async (id: number, orgData: any) => {
+  updateOrganization: async (id: number, orgData: OrganizationData) => {
     const response = await api.put(`/sysadmin/organizations/${id}`, orgData);
     return response.data;
   },
@@ -841,7 +850,7 @@ export const sysAdminApi = {
 // Organization Analytics API
 export const getOrganizationCourseRequestAnalytics = async (
   timeframe: string = '12'
-): Promise<any> => {
+) => {
   const response = await api.get(
     `/organization/analytics/course-requests?timeframe=${timeframe}`
   );
@@ -850,7 +859,7 @@ export const getOrganizationCourseRequestAnalytics = async (
 
 export const getOrganizationStudentParticipationAnalytics = async (
   timeframe: string = '12'
-): Promise<any> => {
+) => {
   const response = await api.get(
     `/organization/analytics/student-participation?timeframe=${timeframe}`
   );
@@ -870,11 +879,11 @@ export const adminApi = {
     const response = await api.get('/admin/instructors');
     return response.data;
   },
-  createInstructor: async (instructorData: any) => {
+  createInstructor: async (instructorData: InstructorData) => {
     const response = await api.post('/admin/instructors', instructorData);
     return response.data;
   },
-  updateInstructor: async (id: number, instructorData: any) => {
+  updateInstructor: async (id: number, instructorData: InstructorData) => {
     const response = await api.put(`/admin/instructors/${id}`, instructorData);
     return response.data;
   },
@@ -888,11 +897,11 @@ export const adminApi = {
     const response = await api.get('/admin/courses');
     return response.data;
   },
-  createCourse: async (courseData: any) => {
+  createCourse: async (courseData: CourseData) => {
     const response = await api.post('/admin/courses', courseData);
     return response.data;
   },
-  updateCourse: async (id: number, courseData: any) => {
+  updateCourse: async (id: number, courseData: CourseData) => {
     const response = await api.put(`/admin/courses/${id}`, courseData);
     return response.data;
   },
@@ -939,7 +948,7 @@ export const adminApi = {
     const response = await api.get(`/accounting/vendor-invoices/${invoiceId}`);
     return response.data;
   },
-  processVendorPayment: async (invoiceId: number, paymentData: any) => {
+  processVendorPayment: async (invoiceId: number, paymentData: PaymentData) => {
     const response = await api.post(`/accounting/vendor-invoices/${invoiceId}/payments`, paymentData);
     return response.data;
   },
@@ -953,11 +962,11 @@ export const adminApi = {
     const response = await api.get('/admin/email-templates');
     return response.data;
   },
-  createEmailTemplate: async (templateData: any) => {
+  createEmailTemplate: async (templateData: EmailTemplateData) => {
     const response = await api.post('/admin/email-templates', templateData);
     return response.data;
   },
-  updateEmailTemplate: async (id: number, templateData: any) => {
+  updateEmailTemplate: async (id: number, templateData: EmailTemplateData) => {
     const response = await api.put(`/admin/email-templates/${id}`, templateData);
     return response.data;
   },
@@ -969,7 +978,7 @@ export const adminApi = {
 
 // Email Template endpoints
 export const emailTemplateApi = {
-  getAll: (params?: any) => {
+  getAll: (params?: Record<string, string>) => {
     devLog('[emailTemplateApi.getAll] Called with params:', params);
     const queryString = params
       ? `?${new URLSearchParams(params).toString()}`
@@ -979,13 +988,13 @@ export const emailTemplateApi = {
     return api.get(url);
   },
   getById: (id: number) => api.get(`/email-templates/${id}`),
-  create: (data: any) => api.post('/email-templates', data),
-  update: (id: number, data: any) =>
+  create: (data: EmailTemplateData) => api.post('/email-templates', data),
+  update: (id: number, data: EmailTemplateData) =>
     api.put(`/email-templates/${id}`, data),
   delete: (id: number) => api.delete(`/email-templates/${id}`),
-  preview: (id: number, variables: any) =>
+  preview: (id: number, variables: Record<string, unknown>) =>
     api.post(`/email-templates/${id}/preview`, { variables }),
-  sendTest: (id: number, recipientEmail: string, variables: any) =>
+  sendTest: (id: number, recipientEmail: string, variables: Record<string, unknown>) =>
     api.post(`/email-templates/${id}/test`, {
       recipientEmail,
       variables,
@@ -1002,8 +1011,8 @@ export const fetchCourseAdminDashboardData = async (month: string) => {
   devLog('[Debug] api.ts - Fetching course admin dashboard data for month:', month);
   try {
     const [statsResponse, summaryResponse] = await Promise.all([
-      api.get<ApiResponse<any>>(`/admin/instructor-stats?month=${month}`),
-      api.get<ApiResponse<any>>(`/admin/dashboard-summary?month=${month}`)
+      api.get<ApiResponse<Record<string, unknown>>>(`/admin/instructor-stats?month=${month}`),
+      api.get<ApiResponse<Record<string, unknown>>>(`/admin/dashboard-summary?month=${month}`)
     ]);
 
     const data = {
@@ -1027,7 +1036,7 @@ export const fetchCourseAdminDashboardData = async (month: string) => {
 export const getInstructorWorkloadReport = async (startDate: string, endDate: string) => {
   devLog('[Debug] api.ts - Fetching instructor workload report for:', { startDate, endDate });
   try {
-    const response = await api.get<ApiResponse<any>>('/admin/instructor-workload-report', {
+    const response = await api.get<ApiResponse<Record<string, unknown>>>('/admin/instructor-workload-report', {
       params: { startDate, endDate }
     });
     const data = extractLegacyData(response);
@@ -1048,7 +1057,7 @@ export const getInstructorWorkloadReport = async (startDate: string, endDate: st
 export const fetchAccountingDashboardData = async () => {
   devLog('[Debug] api.ts - Fetching accounting dashboard data');
   try {
-    const response = await api.get<ApiResponse<any>>('/accounting/dashboard');
+    const response = await api.get<ApiResponse<Record<string, unknown>>>('/accounting/dashboard');
     const data = extractLegacyData(response);
 
     devLog('[Debug] api.ts - Accounting dashboard data received:', data);
@@ -1076,7 +1085,7 @@ export const vendorApi = {
     const response = await api.get('/vendor/profile');
     return response.data;
   },
-  updateProfile: async (profileData: any) => {
+  updateProfile: async (profileData: Record<string, unknown>) => {
     const response = await api.put('/vendor/profile', profileData);
     return response.data;
   },
@@ -1119,7 +1128,7 @@ export const vendorApi = {
   },
 
   // OCR functions
-  scanInvoice: async (file: File): Promise<any> => {
+  scanInvoice: async (file: File) => {
     const formData = new FormData();
     formData.append('invoice_pdf', file);
 
@@ -1216,7 +1225,7 @@ export const getNotificationPreferences = async () => {
   }
 };
 
-export const updateNotificationPreferences = async (type: string, preferences: any) => {
+export const updateNotificationPreferences = async (type: string, preferences: NotificationPreferences) => {
   try {
     const response = await api.put(`/notifications/preferences/${type}`, preferences);
     return extractData(response);
