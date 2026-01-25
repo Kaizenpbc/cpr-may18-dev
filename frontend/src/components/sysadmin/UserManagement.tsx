@@ -70,6 +70,7 @@ const UserManagement = ({ onShowSnackbar }) => {
     'student',
     'accountant',
     'sysadmin',
+    'hr',
   ];
 
   const userStatuses = ['active', 'inactive', 'suspended'];
