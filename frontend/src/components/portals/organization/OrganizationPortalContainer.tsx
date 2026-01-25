@@ -158,9 +158,9 @@ const OrganizationPortalContainer: React.FC = () => {
         params: { _t: Date.now() }
       });
       const data = response.data.data;
-      // Map invoices to add id property for compatibility
+      // Return invoices array (backend now returns 'id' directly)
       if (data && Array.isArray(data.invoices)) {
-        return data.invoices.map(inv => ({ ...inv, id: inv.invoice_id }));
+        return data.invoices;
       }
       return [];
     },
@@ -174,9 +174,9 @@ const OrganizationPortalContainer: React.FC = () => {
         params: { _t: Date.now() }
       });
       const data = response.data.data;
-      // Map invoices to add id property for compatibility
+      // Return invoices array (backend now returns 'id' directly)
       if (data && Array.isArray(data.invoices)) {
-        return data.invoices.map(inv => ({ ...inv, id: inv.invoice_id }));
+        return data.invoices;
       }
       return [];
     },
