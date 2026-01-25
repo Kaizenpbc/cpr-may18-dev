@@ -6643,19 +6643,21 @@ router.get(
       }
 
       const result = await pool.query(`
-          SELECT 
-            p.id as payment_id,
+          SELECT
+            p.id as "paymentId",
             p.amount,
-            p.payment_date,
-            p.payment_method,
-            p.reference_number,
+            p.payment_date as "paymentDate",
+            p.payment_method as "paymentMethod",
+            p.reference_number as "referenceNumber",
             p.notes,
-            p.submitted_by_org_at,
-            i.id as invoice_id,
-            i.invoice_number,
-            i.course_request_id,
-            o.name as organization_name,
-            o.contact_email
+            p.status,
+            p.submitted_by_org_at as "submittedByOrgAt",
+            p.verified_by_accounting_at as "verifiedByAccountingAt",
+            i.id as "invoiceId",
+            i.invoice_number as "invoiceNumber",
+            i.course_request_id as "courseRequestId",
+            o.name as "organizationName",
+            o.contact_email as "contactEmail"
           FROM payments p
           JOIN invoices i ON p.invoice_id = i.id
           JOIN organizations o ON i.organization_id = o.id
