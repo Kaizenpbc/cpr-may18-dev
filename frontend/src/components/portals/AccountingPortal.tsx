@@ -31,6 +31,7 @@ import AccountingDashboard from './accounting/AccountingDashboard';
 import PaymentRequestsDashboard from '../accounting/PaymentRequestsDashboard';
 import VendorInvoiceManagement from './accounting/VendorInvoiceManagement';
 import PaidVendorInvoices from './accounting/PaidVendorInvoices';
+import FinancialSummaryView from '../accounting/FinancialSummaryView';
 
 import { NavLink, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
@@ -473,11 +474,17 @@ const menuGroups = [
         path: 'dashboard', 
         component: <AccountingDashboard /> 
       },
-      { 
-        label: 'Aging Report', 
-        icon: <AgingIcon />, 
-        path: 'aging', 
-        component: <AgingReportView /> 
+      {
+        label: 'Aging Report',
+        icon: <AgingIcon />,
+        path: 'aging',
+        component: <AgingReportView />
+      },
+      {
+        label: 'Financial Summary',
+        icon: <FinancialIcon />,
+        path: 'financial-summary',
+        component: <FinancialSummaryView />
       },
     ]
   },

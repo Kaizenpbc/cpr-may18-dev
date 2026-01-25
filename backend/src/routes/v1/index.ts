@@ -4485,6 +4485,156 @@ router.get(
   })
 );
 
+// Financial Summary endpoint (Money In / Money Out)
+router.get(
+  '/accounting/financial-summary',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'accountant']),
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { start_date, end_date } = req.query;
+
+      // Default to current year if no dates provided
+      const now = new Date();
+      const defaultStartDate = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+      const defaultEndDate = now.toISOString().split('T')[0];
+
+      const startDate = (start_date as string) || defaultStartDate;
+      const endDate = (end_date as string) || defaultEndDate;
+
+      // Money In: Payments received from organizations
+      const moneyInQuery = `
+        SELECT
+          COALESCE(SUM(p.amount), 0) as total,
+          COUNT(p.id) as count
+        FROM payments p
+        JOIN invoices i ON p.invoice_id = i.id
+        WHERE p.payment_date >= $1::date
+          AND p.payment_date <= $2::date
+          AND p.status != 'reversed'
+      `;
+      const moneyInResult = await pool.query(moneyInQuery, [startDate, endDate]);
+      const organizationPayments = parseFloat(moneyInResult.rows[0]?.total) || 0;
+      const organizationPaymentCount = parseInt(moneyInResult.rows[0]?.count) || 0;
+
+      // Money Out: Vendor payments
+      const vendorPaymentsQuery = `
+        SELECT
+          COALESCE(SUM(amount), 0) as total,
+          COUNT(id) as count
+        FROM vendor_invoices
+        WHERE status = 'paid'
+          AND paid_at >= $1::date
+          AND paid_at <= $2::date
+      `;
+      const vendorResult = await pool.query(vendorPaymentsQuery, [startDate, endDate]);
+      const vendorPayments = parseFloat(vendorResult.rows[0]?.total) || 0;
+      const vendorPaymentCount = parseInt(vendorResult.rows[0]?.count) || 0;
+
+      // Money Out: Instructor payments (from payment_requests or timesheets)
+      const instructorPaymentsQuery = `
+        SELECT
+          COALESCE(SUM(amount), 0) as total,
+          COUNT(id) as count
+        FROM payment_requests
+        WHERE status = 'paid'
+          AND paid_at >= $1::date
+          AND paid_at <= $2::date
+      `;
+      let instructorPayments = 0;
+      let instructorPaymentCount = 0;
+      try {
+        const instructorResult = await pool.query(instructorPaymentsQuery, [startDate, endDate]);
+        instructorPayments = parseFloat(instructorResult.rows[0]?.total) || 0;
+        instructorPaymentCount = parseInt(instructorResult.rows[0]?.count) || 0;
+      } catch (e) {
+        // Table might not exist, continue with 0
+      }
+
+      // Monthly breakdown for chart
+      const monthlyQuery = `
+        WITH months AS (
+          SELECT generate_series(
+            date_trunc('month', $1::date),
+            date_trunc('month', $2::date),
+            '1 month'::interval
+          )::date as month
+        ),
+        monthly_in AS (
+          SELECT
+            date_trunc('month', p.payment_date)::date as month,
+            COALESCE(SUM(p.amount), 0) as total
+          FROM payments p
+          JOIN invoices i ON p.invoice_id = i.id
+          WHERE p.payment_date >= $1::date
+            AND p.payment_date <= $2::date
+            AND p.status != 'reversed'
+          GROUP BY date_trunc('month', p.payment_date)
+        ),
+        monthly_vendor AS (
+          SELECT
+            date_trunc('month', paid_at)::date as month,
+            COALESCE(SUM(amount), 0) as total
+          FROM vendor_invoices
+          WHERE status = 'paid'
+            AND paid_at >= $1::date
+            AND paid_at <= $2::date
+          GROUP BY date_trunc('month', paid_at)
+        )
+        SELECT
+          TO_CHAR(m.month, 'YYYY-MM') as month,
+          TO_CHAR(m.month, 'Mon YYYY') as month_label,
+          COALESCE(mi.total, 0) as money_in,
+          COALESCE(mv.total, 0) as money_out
+        FROM months m
+        LEFT JOIN monthly_in mi ON m.month = mi.month
+        LEFT JOIN monthly_vendor mv ON m.month = mv.month
+        ORDER BY m.month
+      `;
+      const monthlyResult = await pool.query(monthlyQuery, [startDate, endDate]);
+
+      const totalMoneyIn = organizationPayments;
+      const totalMoneyOut = vendorPayments + instructorPayments;
+      const netCashFlow = totalMoneyIn - totalMoneyOut;
+
+      res.json(ApiResponseBuilder.success({
+        period: {
+          start_date: startDate,
+          end_date: endDate,
+        },
+        money_in: {
+          organization_payments: {
+            amount: Math.round(organizationPayments * 100) / 100,
+            count: organizationPaymentCount,
+          },
+          total: Math.round(totalMoneyIn * 100) / 100,
+        },
+        money_out: {
+          vendor_payments: {
+            amount: Math.round(vendorPayments * 100) / 100,
+            count: vendorPaymentCount,
+          },
+          instructor_payments: {
+            amount: Math.round(instructorPayments * 100) / 100,
+            count: instructorPaymentCount,
+          },
+          total: Math.round(totalMoneyOut * 100) / 100,
+        },
+        net_cash_flow: Math.round(netCashFlow * 100) / 100,
+        monthly_breakdown: monthlyResult.rows.map(row => ({
+          month: row.month,
+          month_label: row.month_label,
+          money_in: Math.round((parseFloat(row.money_in) || 0) * 100) / 100,
+          money_out: Math.round((parseFloat(row.money_out) || 0) * 100) / 100,
+        })),
+      }));
+    } catch (error) {
+      console.error('Error generating financial summary:', error);
+      throw error;
+    }
+  })
+);
+
 // Manual trigger for overdue invoices update (for testing/admin use)
 router.post(
   '/accounting/trigger-overdue-update',
