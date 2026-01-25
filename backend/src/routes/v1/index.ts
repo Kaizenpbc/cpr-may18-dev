@@ -2910,7 +2910,7 @@ router.post(
         // Generate invoice number
         const invoiceNumber = `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
-        // Create invoice with proper breakdown
+        // Create invoice with proper breakdown (auto-posted to org)
         const invoiceResult = await client.query(
           `
         INSERT INTO invoices (
@@ -2925,12 +2925,13 @@ router.post(
           status,
           due_date,
           posted_to_org,
+          posted_to_org_at,
           course_type_name,
           location,
           date_completed,
           rate_per_student
         )
-        VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7, 'pending', CURRENT_DATE + INTERVAL '30 days', FALSE, $8, $9, $10, $11)
+        VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7, 'pending', CURRENT_DATE + INTERVAL '30 days', TRUE, CURRENT_TIMESTAMP, $8, $9, $10, $11)
         RETURNING *
       `,
           [
