@@ -4253,18 +4253,6 @@ router.get(
       const asOfDate = as_of_date ? new Date(as_of_date as string) : new Date();
       const asOfDateStr = asOfDate.toISOString().split('T')[0];
 
-      devLog('[Debug] Aging report - asOfDateStr:', asOfDateStr);
-
-      // Simplified query to test basic functionality
-      const simpleQuery = `
-        SELECT COUNT(*) as total_invoices
-        FROM invoices
-        WHERE status NOT IN ('paid', 'void', 'cancelled')
-          AND posted_to_org = TRUE
-      `;
-      const simpleResult = await pool.query(simpleQuery);
-      devLog('[Debug] Simple query result:', simpleResult.rows);
-
       let orgFilter = '';
       const params: (string | number | Date)[] = [asOfDateStr];
 
