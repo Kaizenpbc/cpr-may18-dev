@@ -365,6 +365,7 @@ export async function initializeDatabase() {
         paid_date DATE,
         approved_by INTEGER REFERENCES users(id),
         approved_at TIMESTAMP,
+        approval_status VARCHAR(20) DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -419,7 +420,24 @@ export async function initializeDatabase() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'deleted_at') THEN
           ALTER TABLE invoices ADD COLUMN deleted_at TIMESTAMP;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'approval_status') THEN
+          ALTER TABLE invoices ADD COLUMN approval_status VARCHAR(20) DEFAULT 'pending';
+        END IF;
       END $$;
+    `);
+
+    // Migrate existing invoices: set approval_status based on posted_to_org
+    await pool.query(`
+      UPDATE invoices
+      SET approval_status = 'approved'
+      WHERE posted_to_org = TRUE
+        AND (approval_status IS NULL OR approval_status = '');
+    `);
+    await pool.query(`
+      UPDATE invoices
+      SET approval_status = 'pending'
+      WHERE posted_to_org = FALSE
+        AND (approval_status IS NULL OR approval_status = '');
     `);
 
     // Create payments table

@@ -755,6 +755,25 @@ export const getInvoices = async () => {
   return response.data.data || [];
 };
 
+export const getPendingApprovals = async () => {
+  const response = await api.get('/accounting/invoices/pending-approval');
+  return response.data.data || [];
+};
+
+export const approveInvoice = async (invoiceId: number) => {
+  const response = await api.put(`/accounting/invoices/${invoiceId}/approval`, {
+    approval_status: 'approved',
+  });
+  return response.data;
+};
+
+export const rejectInvoice = async (invoiceId: number) => {
+  const response = await api.put(`/accounting/invoices/${invoiceId}/approval`, {
+    approval_status: 'rejected',
+  });
+  return response.data;
+};
+
 export const getInvoiceDetails = async (invoiceId: number) => {
   const response = await api.get(`/accounting/invoices/${invoiceId}`);
   return extractData(response);

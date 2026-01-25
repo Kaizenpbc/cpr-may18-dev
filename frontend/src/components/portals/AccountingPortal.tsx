@@ -23,6 +23,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   CheckCircle as PaidIcon,
+  HourglassEmpty as HourglassEmptyIcon,
 } from '@mui/icons-material';
 import ErrorBoundary from '../common/ErrorBoundary';
 import ThemeToggle from '../common/ThemeToggle';
@@ -42,7 +43,7 @@ import PaymentVerificationView from '../views/PaymentVerificationView';
 import PaymentReversalView from '../views/PaymentReversalView';
 import InvoiceDetailDialog from '../dialogs/InvoiceDetailDialog';
 import RecordPaymentDialog from '../dialogs/RecordPaymentDialog';
-import { getBillingQueue, createInvoice, getInvoices } from '../../services/api';
+import { getBillingQueue, createInvoice, getInvoices, getPendingApprovals, approveInvoice, rejectInvoice } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { NotificationProvider } from '../../contexts/NotificationContext';
@@ -59,6 +60,7 @@ interface Invoice {
   id: number;
   balancedue?: string | number;
   paymentstatus?: string;
+  approval_status?: string;
   [key: string]: unknown;
 }
 
@@ -160,11 +162,13 @@ const AccountsReceivableView: React.FC = () => {
       setError('');
       try {
         const data = await getInvoices();
-        // Filter to show only invoices with outstanding balances for AR
+        // Filter to show only approved invoices with outstanding balances for AR
         const arInvoices = (data || []).filter((invoice: Invoice) => {
           const balanceDue = parseFloat(String(invoice.balancedue || 0));
           const paymentStatus = invoice.paymentstatus?.toLowerCase();
-          return balanceDue > 0 && paymentStatus !== 'paid';
+          const approvalStatus = invoice.approval_status?.toLowerCase();
+          // Only show approved invoices with outstanding balance
+          return approvalStatus === 'approved' && balanceDue > 0 && paymentStatus !== 'paid';
         });
         setInvoices(arInvoices);
       } catch (err: unknown) {
@@ -206,11 +210,13 @@ const AccountsReceivableView: React.FC = () => {
       setError('');
       try {
         const data = await getInvoices();
-        // Filter to show only invoices with outstanding balances for AR
+        // Filter to show only approved invoices with outstanding balances for AR
         const arInvoices = (data || []).filter((invoice: Invoice) => {
           const balanceDue = parseFloat(String(invoice.balancedue || 0));
           const paymentStatus = invoice.paymentstatus?.toLowerCase();
-          return balanceDue > 0 && paymentStatus !== 'paid';
+          const approvalStatus = invoice.approval_status?.toLowerCase();
+          // Only show approved invoices with outstanding balance
+          return approvalStatus === 'approved' && balanceDue > 0 && paymentStatus !== 'paid';
         });
         setInvoices(arInvoices);
       } catch (err: unknown) {
@@ -296,6 +302,165 @@ const AccountsReceivableView: React.FC = () => {
   );
 };
 
+// Pending Approvals View Component
+const PendingApprovalsView: React.FC = () => {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { showSuccess, showError } = useSnackbar();
+
+  const fetchPendingApprovals = useCallback(async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const data = await getPendingApprovals();
+      setInvoices(data || []);
+    } catch (err: unknown) {
+      const errObj = err as { message?: string };
+      setError(errObj.message || 'Failed to load pending approvals.');
+      setInvoices([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPendingApprovals();
+  }, [fetchPendingApprovals]);
+
+  const handleApprove = async (invoiceId: number) => {
+    try {
+      const result = await approveInvoice(invoiceId);
+      showSuccess(result.message || 'Invoice approved successfully');
+      fetchPendingApprovals();
+    } catch (err: unknown) {
+      const errObj = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
+      showError(errObj.response?.data?.error?.message || errObj.message || 'Failed to approve invoice');
+    }
+  };
+
+  const handleReject = async (invoiceId: number) => {
+    try {
+      const result = await rejectInvoice(invoiceId);
+      showSuccess(result.message || 'Invoice rejected');
+      fetchPendingApprovals();
+    } catch (err: unknown) {
+      const errObj = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
+      showError(errObj.response?.data?.error?.message || errObj.message || 'Failed to reject invoice');
+    }
+  };
+
+  const formatCurrency = (amount: number | string | undefined) => {
+    const num = parseFloat(String(amount || 0));
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(num);
+  };
+
+  const formatDate = (date: string | undefined) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('en-CA');
+  };
+
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box>
+        <Typography color="error">{error}</Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      <Typography variant="h5" gutterBottom>
+        Pending Invoice Approvals
+      </Typography>
+      <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
+        Review and approve invoices before they are posted to organizations
+      </Typography>
+
+      {invoices.length === 0 ? (
+        <Paper sx={{ p: 3, textAlign: 'center' }}>
+          <Typography color="textSecondary">
+            No invoices pending approval
+          </Typography>
+        </Paper>
+      ) : (
+        <Paper sx={{ p: 2 }}>
+          <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
+            <Box component="thead">
+              <Box component="tr" sx={{ borderBottom: '2px solid #e0e0e0' }}>
+                <Box component="th" sx={{ p: 1.5, textAlign: 'left' }}>Invoice #</Box>
+                <Box component="th" sx={{ p: 1.5, textAlign: 'left' }}>Organization</Box>
+                <Box component="th" sx={{ p: 1.5, textAlign: 'left' }}>Course</Box>
+                <Box component="th" sx={{ p: 1.5, textAlign: 'left' }}>Date</Box>
+                <Box component="th" sx={{ p: 1.5, textAlign: 'right' }}>Amount</Box>
+                <Box component="th" sx={{ p: 1.5, textAlign: 'center' }}>Actions</Box>
+              </Box>
+            </Box>
+            <Box component="tbody">
+              {invoices.map((invoice) => (
+                <Box
+                  component="tr"
+                  key={invoice.id}
+                  sx={{
+                    borderBottom: '1px solid #e0e0e0',
+                    '&:hover': { backgroundColor: 'rgba(0,0,0,0.04)' }
+                  }}
+                >
+                  <Box component="td" sx={{ p: 1.5 }}>
+                    {(invoice as Record<string, unknown>).invoice_number as string || '-'}
+                  </Box>
+                  <Box component="td" sx={{ p: 1.5 }}>
+                    {(invoice as Record<string, unknown>).organization_name as string || '-'}
+                  </Box>
+                  <Box component="td" sx={{ p: 1.5 }}>
+                    {(invoice as Record<string, unknown>).course_type_name as string || '-'}
+                  </Box>
+                  <Box component="td" sx={{ p: 1.5 }}>
+                    {formatDate((invoice as Record<string, unknown>).invoice_date as string)}
+                  </Box>
+                  <Box component="td" sx={{ p: 1.5, textAlign: 'right' }}>
+                    {formatCurrency(
+                      (parseFloat(String((invoice as Record<string, unknown>).base_cost || 0)) +
+                       parseFloat(String((invoice as Record<string, unknown>).tax_amount || 0)))
+                    )}
+                  </Box>
+                  <Box component="td" sx={{ p: 1.5, textAlign: 'center' }}>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      size="small"
+                      onClick={() => handleApprove(invoice.id)}
+                      sx={{ mr: 1 }}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      size="small"
+                      onClick={() => handleReject(invoice.id)}
+                    >
+                      Reject
+                    </Button>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        </Paper>
+      )}
+    </Box>
+  );
+};
+
 // Grouped menu structure
 const menuGroups = [
   {
@@ -320,17 +485,23 @@ const menuGroups = [
     label: 'Billing & Receivables',
     icon: <OrganizationIcon />,
     items: [
-      { 
-        label: 'Ready for Billing', 
-        icon: <BillingIcon />, 
-        path: 'billing', 
-        component: <ReadyForBillingView /> 
+      {
+        label: 'Ready for Billing',
+        icon: <BillingIcon />,
+        path: 'billing',
+        component: <ReadyForBillingView />
       },
-      { 
-        label: 'Organization Receivables', 
-        icon: <ReceivablesIcon />, 
-        path: 'receivables', 
-        component: <AccountsReceivableView /> 
+      {
+        label: 'Pending Approvals',
+        icon: <HourglassEmptyIcon />,
+        path: 'pending-approvals',
+        component: <PendingApprovalsView />
+      },
+      {
+        label: 'Organization Receivables',
+        icon: <ReceivablesIcon />,
+        path: 'receivables',
+        component: <AccountsReceivableView />
       },
       { 
         label: 'Invoice History', 

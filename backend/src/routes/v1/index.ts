@@ -2910,7 +2910,7 @@ router.post(
         // Generate invoice number
         const invoiceNumber = `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
-        // Create invoice with proper breakdown (auto-posted to org)
+        // Create invoice with pending approval (NOT auto-posted to org)
         const invoiceResult = await client.query(
           `
         INSERT INTO invoices (
@@ -2929,9 +2929,10 @@ router.post(
           course_type_name,
           location,
           date_completed,
-          rate_per_student
+          rate_per_student,
+          approval_status
         )
-        VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7, 'pending', CURRENT_DATE + INTERVAL '30 days', TRUE, CURRENT_TIMESTAMP, $8, $9, $10, $11)
+        VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7, 'pending', CURRENT_DATE + INTERVAL '30 days', FALSE, NULL, $8, $9, $10, $11, 'pending')
         RETURNING *
       `,
           [
@@ -2963,7 +2964,7 @@ router.post(
 
         res.json({
           success: true,
-          message: 'Invoice created successfully! The course has been removed from the billing queue and moved to the Organizational Receivables Queue.',
+          message: 'Invoice created successfully! The invoice is now pending approval.',
           data: invoiceResult.rows[0],
         });
       } catch (error) {
@@ -2974,6 +2975,163 @@ router.post(
       }
     } catch (error) {
       console.error('Error creating invoice:', error);
+      throw error;
+    }
+  })
+);
+
+// Get invoices pending approval
+router.get(
+  '/accounting/invoices/pending-approval',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      devLog('[DEBUG] Fetching invoices pending approval');
+
+      const result = await pool.query(`
+        SELECT
+          i.id,
+          i.invoice_number,
+          i.organization_id,
+          i.course_request_id,
+          i.invoice_date,
+          i.amount,
+          i.base_cost,
+          i.tax_amount,
+          i.students_billed as studentsattendance,
+          i.rate_per_student,
+          i.status,
+          i.due_date,
+          i.posted_to_org,
+          i.posted_to_org_at,
+          i.approval_status,
+          i.course_type_name,
+          i.location,
+          i.date_completed,
+          i.created_at,
+          o.name as organization_name,
+          COALESCE(payments.total_paid, 0) as amount_paid,
+          GREATEST(0, (i.base_cost + i.tax_amount) - COALESCE(payments.total_paid, 0)) as balancedue
+        FROM invoices i
+        LEFT JOIN organizations o ON i.organization_id = o.id
+        LEFT JOIN (
+          SELECT invoice_id, SUM(amount) as total_paid
+          FROM payments
+          WHERE status = 'completed'
+          GROUP BY invoice_id
+        ) payments ON i.id = payments.invoice_id
+        WHERE i.approval_status = 'pending'
+        ORDER BY i.created_at ASC
+      `);
+
+      devLog(`[DEBUG] Found ${result.rows.length} invoices pending approval`);
+
+      res.json({
+        success: true,
+        data: result.rows,
+      });
+    } catch (error) {
+      console.error('Error fetching pending approval invoices:', error);
+      throw error;
+    }
+  })
+);
+
+// Approve or reject an invoice
+router.put(
+  '/accounting/invoices/:id/approval',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { approval_status, notes } = req.body;
+
+      devLog(`[DEBUG] Updating approval status for invoice ${id} to ${approval_status}`);
+
+      if (!['approved', 'rejected'].includes(approval_status)) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Invalid approval status. Must be "approved" or "rejected"'
+        );
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query('BEGIN');
+
+        // Get invoice to verify it exists and is pending
+        const invoiceResult = await client.query(
+          'SELECT * FROM invoices WHERE id = $1',
+          [id]
+        );
+
+        if (invoiceResult.rows.length === 0) {
+          throw new AppError(
+            404,
+            errorCodes.RESOURCE_NOT_FOUND,
+            'Invoice not found'
+          );
+        }
+
+        const invoice = invoiceResult.rows[0];
+
+        if (invoice.approval_status !== 'pending') {
+          throw new AppError(
+            400,
+            errorCodes.VALIDATION_ERROR,
+            `Invoice is already ${invoice.approval_status}`
+          );
+        }
+
+        // Update the invoice
+        let updateQuery;
+        let updateParams;
+
+        if (approval_status === 'approved') {
+          // When approved, also post to org
+          updateQuery = `
+            UPDATE invoices
+            SET approval_status = 'approved',
+                posted_to_org = TRUE,
+                posted_to_org_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+            RETURNING *
+          `;
+          updateParams = [id];
+        } else {
+          // When rejected, just update the status
+          updateQuery = `
+            UPDATE invoices
+            SET approval_status = 'rejected'
+            WHERE id = $1
+            RETURNING *
+          `;
+          updateParams = [id];
+        }
+
+        const updateResult = await client.query(updateQuery, updateParams);
+
+        await client.query('COMMIT');
+
+        const statusMessage = approval_status === 'approved'
+          ? 'Invoice approved and posted to organization.'
+          : 'Invoice rejected.';
+
+        res.json({
+          success: true,
+          message: statusMessage,
+          data: updateResult.rows[0],
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Error updating invoice approval:', error);
       throw error;
     }
   })
@@ -3298,7 +3456,7 @@ router.get(
         i.due_date as duedate,
         i.amount,
         i.status,
-        NULL as approval_status,
+        i.approval_status,
         i.students_billed as studentsattendance,
         i.paid_date,
         i.posted_to_org,
@@ -3388,7 +3546,7 @@ router.get(
         ((i.students_billed * COALESCE(cp.price_per_student, i.rate_per_student, 0)) * 0.13) as tax_amount,
         i.due_date as duedate,
         i.status as paymentstatus,
-        NULL as approval_status,
+        i.approval_status,
         i.posted_to_org,
         i.notes,
         i.created_at as invoicedate,
