@@ -221,11 +221,20 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
 
     // Refresh the courses data to show updated student count
     queryClient.invalidateQueries({ queryKey: ['organization-courses', user?.organizationId] });
-    
+
     console.log('[TRACE] OrganizationPortal - Closing dialog and resetting state');
     setCsvDialogOpen(false);
     setSelectedCourseId(null);
     console.log('[TRACE] OrganizationPortal - Upload process completed');
+  };
+
+  // Handle payment success - refresh all invoice-related data
+  const handlePaymentSuccess = () => {
+    // Refresh all invoice-related queries
+    queryClient.invalidateQueries({ queryKey: ['organization-invoices', user?.organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['organization-billing-summary', user?.organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['organization-paid-invoices', user?.organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['organization-paid-invoices-summary', user?.organizationId] });
   };
 
   // Render current view
@@ -355,7 +364,7 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
             <Route path="billing" element={
               loading ? <CircularProgress /> :
               error ? <Alert severity="error">{error}</Alert> :
-              <OrganizationBilling invoices={invoices as never} billingSummary={billingSummary as never} />
+              <OrganizationBilling invoices={invoices as never} billingSummary={billingSummary as never} onPaymentSuccess={handlePaymentSuccess} />
             } />
             <Route path="paid-invoices" element={
               loading ? <CircularProgress /> :

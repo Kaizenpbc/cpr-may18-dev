@@ -113,11 +113,13 @@ interface BillingSummary {
 interface OrganizationBillingProps {
   invoices: Invoice[];
   billingSummary: BillingSummary | undefined;
+  onPaymentSuccess?: () => void;
 }
 
 const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   invoices,
   billingSummary,
+  onPaymentSuccess,
 }) => {
   // State for invoice detail dialog
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -312,14 +314,18 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
   const handleMarkAsPaid = async (invoiceId: number) => {
     setMarkingAsPaid(invoiceId);
     setMarkAsPaidError(null);
-    
+
     try {
       const response = await api.post(`/organization/invoices/${invoiceId}/mark-as-paid`);
-      
+
       if (response.data.success) {
         setMarkAsPaidSuccess(true);
-        // Refresh the page or update the invoice list
-        window.location.reload();
+        // Refresh invoice list using React Query instead of page reload
+        if (onPaymentSuccess) {
+          onPaymentSuccess();
+        }
+        // Close any open dialogs
+        handleDialogClose();
       }
     } catch (error: unknown) {
       console.error('Error marking invoice as paid:', error);
@@ -330,36 +336,34 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
     }
   };
 
-  // Handle payment submission
+  // Handle payment submission with proper race condition prevention
   const handlePaymentSubmit = async () => {
-    console.log('=== handlePaymentSubmit START ===');
-    console.log('handlePaymentSubmit called');
-    console.log('selectedInvoice:', selectedInvoice);
-    console.log('submittingPayment:', submittingPayment);
-    console.log('isSubmittingRef.current:', isSubmittingRef.current);
-    console.log('paymentForm:', paymentForm);
-    
-    if (!selectedInvoice || submittingPayment || isSubmittingRef.current) {
-      console.log('Early return - conditions not met');
-      console.log('- !selectedInvoice:', !selectedInvoice);
-      console.log('- submittingPayment:', submittingPayment);
-      console.log('- isSubmittingRef.current:', isSubmittingRef.current);
+    // CRITICAL: Set ref FIRST to prevent race condition from rapid clicks
+    if (isSubmittingRef.current) {
+      console.log('Payment already in progress, ignoring duplicate click');
+      return;
+    }
+    isSubmittingRef.current = true;
+
+    // Now check other conditions
+    if (!selectedInvoice || submittingPayment) {
+      isSubmittingRef.current = false;
       return;
     }
 
     // Validate required fields
     if (!paymentForm.payment_method || paymentForm.payment_method.trim() === '') {
-      setPaymentError('❌ Payment Method is required. Please select a payment method from the dropdown.');
+      setPaymentError('Payment Method is required. Please select a payment method.');
+      isSubmittingRef.current = false;
       return;
     }
 
     if (!paymentForm.amount || parseFloat(paymentForm.amount) <= 0) {
-      setPaymentError('❌ Valid payment amount is required. Please enter an amount greater than $0.00.');
+      setPaymentError('Valid payment amount is required. Please enter an amount greater than $0.00.');
+      isSubmittingRef.current = false;
       return;
     }
 
-    console.log('Starting payment submission...');
-    isSubmittingRef.current = true;
     setSubmittingPayment(true);
     setPaymentError(null);
 
@@ -371,41 +375,50 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         payment_date: paymentForm.payment_date,
         notes: paymentForm.notes,
       };
-      
-      console.log('Submitting payment data:', paymentData);
-      
+
       const response = await api.post(`/organization/invoices/${selectedInvoice.id}/payment-submission`, paymentData);
-      
-      console.log('Payment submission response:', response);
 
       if (response.data.success) {
-        console.log('Payment submission successful');
-        
-        setPaymentSuccessMessage('Payment Submitted');
+        const responseData = response.data.data;
+        const message = responseData?.is_full_payment
+          ? 'Full payment submitted successfully! Awaiting verification.'
+          : `Partial payment of $${parseFloat(paymentForm.amount).toFixed(2)} submitted. Remaining balance: $${responseData?.remaining_balance?.toFixed(2) || '0.00'}`;
+
+        setPaymentSuccessMessage(message);
         setPaymentSuccess(true);
         handlePaymentDialogClose();
-        
+
+        // Refresh invoice list to update status and balance
+        if (onPaymentSuccess) {
+          onPaymentSuccess();
+        }
+
         // Refresh payment history for the current invoice
         await loadPaymentHistory(selectedInvoice.id);
-        
-        // Close invoice dialog after a delay
+
+        // Close invoice dialog after user can read message
         setTimeout(() => {
           handleDialogClose();
-        }, 3000); // Increased delay to allow user to read the message
+        }, 3000);
       }
     } catch (error: unknown) {
       console.error('Payment submission error:', error);
 
-      // Simple error message
-      const errorMessage = 'Payment Failed';
+      // Extract meaningful error message from response
+      const err = error as { response?: { data?: { message?: string }; status?: number } };
+      let errorMessage = 'Payment submission failed. Please try again.';
+
+      if (err.response?.status === 409) {
+        errorMessage = err.response?.data?.message || 'Duplicate payment detected. Please wait or refresh the page.';
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
 
       setPaymentError(errorMessage);
     } finally {
-      console.log('Payment submission completed, resetting states');
       setSubmittingPayment(false);
       isSubmittingRef.current = false;
     }
-    console.log('=== handlePaymentSubmit END ===');
   };
 
   // Handle payment dialog open
@@ -1413,17 +1426,8 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log('Submit Payment button clicked - event:', e);
-              console.log('Button disabled state:', e.currentTarget.disabled);
-              console.log('submittingPayment state:', submittingPayment);
-              console.log('paymentForm:', paymentForm);
-              console.log('selectedInvoice:', selectedInvoice);
-              
-              // Force the function call
-              setTimeout(() => {
-                console.log('Calling handlePaymentSubmit after timeout');
-                handlePaymentSubmit();
-              }, 0);
+              // Call directly without setTimeout to prevent multiple submissions
+              handlePaymentSubmit();
             }}
             disabled={
               submittingPayment || 
@@ -1442,24 +1446,26 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
       {/* Success/Error Messages */}
       <Snackbar
         open={paymentSuccess}
-        autoHideDuration={8000}
+        autoHideDuration={5000}
         onClose={() => {
           setPaymentSuccess(false);
           setPaymentSuccessMessage('');
         }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert 
-          severity="success" 
+        <Alert
+          severity="success"
           onClose={() => {
             setPaymentSuccess(false);
             setPaymentSuccessMessage('');
           }}
-          sx={{ 
+          sx={{
             maxWidth: 500,
-            whiteSpace: 'pre-line'
+            whiteSpace: 'pre-line',
+            fontSize: '1rem',
           }}
         >
-          {paymentSuccessMessage || 'Payment submitted successfully! It will be verified by accounting.'}
+          {paymentSuccessMessage || 'Payment submitted successfully! Awaiting verification.'}
         </Alert>
       </Snackbar>
 
@@ -1467,8 +1473,9 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         open={!!paymentError}
         autoHideDuration={6000}
         onClose={() => setPaymentError(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert severity="error" onClose={() => setPaymentError(null)}>
+        <Alert severity="error" onClose={() => setPaymentError(null)} sx={{ maxWidth: 500 }}>
           {paymentError}
         </Alert>
       </Snackbar>

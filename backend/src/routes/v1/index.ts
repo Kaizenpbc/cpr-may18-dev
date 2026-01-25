@@ -6705,6 +6705,79 @@ router.get(
   })
 );
 
+// Calculate balance for real-time payment validation
+router.get(
+  '/invoices/:id/calculate-balance',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      const proposedAmount = parseFloat(req.query.amount as string) || 0;
+
+      // Get invoice with payment totals
+      const invoiceResult = await pool.query(
+        `
+        SELECT
+          i.id,
+          i.amount,
+          i.status,
+          i.organization_id,
+          COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) as verified_payments,
+          COALESCE(SUM(CASE WHEN p.status = 'pending_verification' THEN p.amount ELSE 0 END), 0) as pending_payments
+        FROM invoices i
+        LEFT JOIN payments p ON i.id = p.invoice_id
+        WHERE i.id = $1
+        GROUP BY i.id, i.amount, i.status, i.organization_id
+        `,
+        [id]
+      );
+
+      if (invoiceResult.rows.length === 0) {
+        throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found');
+      }
+
+      const invoice = invoiceResult.rows[0];
+
+      // Verify organization access
+      if (user.role === 'organization' && invoice.organization_id !== user.organizationId) {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied');
+      }
+
+      const totalInvoiceAmount = parseFloat(invoice.amount) || 0;
+      const verifiedPayments = parseFloat(invoice.verified_payments) || 0;
+      const pendingPayments = parseFloat(invoice.pending_payments) || 0;
+
+      // Outstanding balance includes pending payments
+      const currentOutstandingBalance = totalInvoiceAmount - verifiedPayments - pendingPayments;
+      const remainingAfterPayment = currentOutstandingBalance - proposedAmount;
+
+      const isOverpayment = proposedAmount > currentOutstandingBalance + 0.01;
+      const isFullPayment = Math.abs(remainingAfterPayment) < 0.01;
+      const isValidPayment = proposedAmount > 0 && !isOverpayment;
+
+      res.json({
+        success: true,
+        data: {
+          invoice_total: totalInvoiceAmount,
+          verified_payments: verifiedPayments,
+          pending_payments: pendingPayments,
+          current_outstanding_balance: Math.max(0, currentOutstandingBalance),
+          proposed_payment: proposedAmount,
+          remaining_balance_after_payment: Math.max(0, remainingAfterPayment),
+          is_valid_payment: isValidPayment,
+          is_overpayment: isOverpayment,
+          is_full_payment: isFullPayment,
+          can_submit_payment: isValidPayment && invoice.status !== 'paid',
+        },
+      });
+    } catch (error) {
+      console.error('[Calculate Balance] Error:', error);
+      throw error;
+    }
+  })
+);
+
 // Organization Bills Payable - Submit payment information
 router.post(
   '/organization/invoices/:id/payment-submission',
@@ -6786,16 +6859,16 @@ router.post(
       const verifiedPayments = parseFloat(invoice.verified_payments) || 0;
       const pendingPayments = parseFloat(invoice.pending_payments) || 0;
       const proposedPayment = parseFloat(amount) || 0;
-      
-      // Calculate current outstanding balance (excluding pending payments)
-      const currentOutstandingBalance = totalInvoiceAmount - verifiedPayments;
-      
+
+      // Calculate current outstanding balance (INCLUDING pending payments to prevent overpayment)
+      const currentOutstandingBalance = totalInvoiceAmount - verifiedPayments - pendingPayments;
+
       // Validate payment amount against outstanding balance
-      if (proposedPayment > currentOutstandingBalance) {
+      if (proposedPayment > currentOutstandingBalance + 0.01) { // Small tolerance for rounding
         throw new AppError(
           400,
           errorCodes.VALIDATION_ERROR,
-          `Payment amount ($${proposedPayment.toFixed(2)}) exceeds outstanding balance ($${currentOutstandingBalance.toFixed(2)}). Cannot submit overpayment.`
+          `Payment amount ($${proposedPayment.toFixed(2)}) exceeds outstanding balance ($${currentOutstandingBalance.toFixed(2)}). You already have pending payments of $${pendingPayments.toFixed(2)} awaiting verification.`
         );
       }
 
@@ -6808,6 +6881,29 @@ router.post(
         );
       }
 
+      // IDEMPOTENCY CHECK: Prevent duplicate submissions within 60 seconds
+      const duplicateCheck = await pool.query(
+        `
+        SELECT id, amount, created_at
+        FROM payments
+        WHERE invoice_id = $1
+          AND amount = $2
+          AND status = 'pending_verification'
+          AND created_at > NOW() - INTERVAL '60 seconds'
+        LIMIT 1
+        `,
+        [id, amount]
+      );
+
+      if (duplicateCheck.rows.length > 0) {
+        devLog('[PAYMENT SUBMISSION] Duplicate payment detected:', duplicateCheck.rows[0]);
+        throw new AppError(
+          409,
+          errorCodes.VALIDATION_ERROR,
+          'A payment with this amount was already submitted within the last minute. Please wait for it to be processed or refresh the page.'
+        );
+      }
+
       const client = await pool.connect();
 
       try {
@@ -6817,11 +6913,11 @@ router.post(
         const paymentResult = await client.query(
           `
         INSERT INTO payments (
-          invoice_id, 
-          amount, 
-          payment_date, 
-          payment_method, 
-          reference_number, 
+          invoice_id,
+          amount,
+          payment_date,
+          payment_method,
+          reference_number,
           notes,
           status,
           submitted_by_org_at
@@ -6841,28 +6937,18 @@ router.post(
 
         // Calculate if this payment completes the invoice
         const totalPaymentsAfterSubmission = verifiedPayments + pendingPayments + proposedPayment;
-        const isFullPayment = totalPaymentsAfterSubmission >= totalInvoiceAmount;
-        
+        const isFullPayment = totalPaymentsAfterSubmission >= totalInvoiceAmount - 0.01; // Small tolerance
+
         // Update invoice status based on payment completion
-        if (isFullPayment) {
-          await client.query(
-            `
-            UPDATE invoices 
-            SET status = 'payment_submitted', updated_at = NOW()
-            WHERE id = $1
-            `,
-            [id]
-          );
-        } else {
-          await client.query(
-            `
-            UPDATE invoices 
-            SET status = 'payment_submitted', updated_at = NOW()
-            WHERE id = $1
-            `,
-            [id]
-          );
-        }
+        const newStatus = isFullPayment ? 'payment_submitted' : 'partial_payment';
+        await client.query(
+          `
+          UPDATE invoices
+          SET status = $2, updated_at = NOW()
+          WHERE id = $1
+          `,
+          [id, newStatus]
+        );
 
         await client.query('COMMIT');
 
