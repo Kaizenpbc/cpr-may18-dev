@@ -4276,7 +4276,7 @@ router.get(
             i.due_date,
             CASE
               WHEN i.due_date IS NULL THEN 0
-              ELSE GREATEST(0, EXTRACT(DAY FROM ($1::date - i.due_date::date)))::int
+              ELSE GREATEST(0, ($1::date - i.due_date::date))
             END as days_outstanding,
             i.status
           FROM invoices i
