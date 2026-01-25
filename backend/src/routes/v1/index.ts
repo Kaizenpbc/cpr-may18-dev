@@ -4242,6 +4242,249 @@ router.get(
   })
 );
 
+// Aging Report endpoint (comprehensive version for AgingReportView)
+router.get(
+  '/accounting/aging-report',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'accountant']),
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { organization_id, as_of_date } = req.query;
+      const asOfDate = as_of_date ? new Date(as_of_date as string) : new Date();
+      const asOfDateStr = asOfDate.toISOString().split('T')[0];
+
+      let orgFilter = '';
+      const params: (string | number | Date)[] = [asOfDateStr];
+
+      if (organization_id) {
+        orgFilter = 'AND i.organization_id = $2';
+        params.push(parseInt(organization_id as string));
+      }
+
+      // Get all unpaid invoices with aging info
+      const invoiceQuery = `
+        WITH invoice_data AS (
+          SELECT
+            i.id,
+            i.invoice_number,
+            i.organization_id,
+            o.name as organization_name,
+            i.amount,
+            COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.invoice_id = i.id), 0) as paid_amount,
+            i.amount - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.invoice_id = i.id), 0) as balance_due,
+            i.invoice_date,
+            i.due_date,
+            CASE
+              WHEN i.due_date IS NULL THEN 0
+              ELSE GREATEST(0, EXTRACT(DAY FROM ($1::date - i.due_date::date)))::int
+            END as days_outstanding,
+            i.status
+          FROM invoices i
+          LEFT JOIN organizations o ON i.organization_id = o.id
+          WHERE i.status NOT IN ('paid', 'void', 'cancelled')
+            AND i.posted_to_org = TRUE
+            AND (i.amount - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.invoice_id = i.id), 0)) > 0.01
+            ${orgFilter}
+        )
+        SELECT
+          id,
+          invoice_number,
+          organization_id,
+          organization_name,
+          amount,
+          paid_amount,
+          balance_due,
+          invoice_date,
+          due_date,
+          days_outstanding,
+          status,
+          CASE
+            WHEN due_date IS NULL OR due_date >= $1::date THEN 'Current'
+            WHEN days_outstanding BETWEEN 1 AND 30 THEN '1-30 Days'
+            WHEN days_outstanding BETWEEN 31 AND 60 THEN '31-60 Days'
+            WHEN days_outstanding BETWEEN 61 AND 90 THEN '61-90 Days'
+            ELSE '90+ Days'
+          END as aging_bucket
+        FROM invoice_data
+        ORDER BY days_outstanding DESC, organization_name, invoice_date
+      `;
+
+      const invoiceResult = await pool.query(invoiceQuery, params);
+      const invoices = invoiceResult.rows;
+
+      // Calculate totals
+      let totalOutstanding = 0;
+      let totalOverdue = 0;
+      const buckets: Record<string, { count: number; total: number; daysSum: number }> = {
+        'Current': { count: 0, total: 0, daysSum: 0 },
+        '1-30 Days': { count: 0, total: 0, daysSum: 0 },
+        '31-60 Days': { count: 0, total: 0, daysSum: 0 },
+        '61-90 Days': { count: 0, total: 0, daysSum: 0 },
+        '90+ Days': { count: 0, total: 0, daysSum: 0 },
+      };
+
+      const orgBreakdown: Record<number, {
+        organization_id: number;
+        organization_name: string;
+        total_balance: number;
+        current_balance: number;
+        days_1_30: number;
+        days_31_60: number;
+        days_61_90: number;
+        days_90_plus: number;
+      }> = {};
+
+      invoices.forEach((inv: {
+        organization_id: number;
+        organization_name: string;
+        balance_due: string | number;
+        days_outstanding: number;
+        aging_bucket: string;
+      }) => {
+        const balance = parseFloat(inv.balance_due as string) || 0;
+        const days = inv.days_outstanding || 0;
+        const bucket = inv.aging_bucket;
+
+        totalOutstanding += balance;
+        if (bucket !== 'Current') {
+          totalOverdue += balance;
+        }
+
+        // Update bucket stats
+        if (buckets[bucket]) {
+          buckets[bucket].count++;
+          buckets[bucket].total += balance;
+          buckets[bucket].daysSum += days;
+        }
+
+        // Update org breakdown
+        if (!orgBreakdown[inv.organization_id]) {
+          orgBreakdown[inv.organization_id] = {
+            organization_id: inv.organization_id,
+            organization_name: inv.organization_name,
+            total_balance: 0,
+            current_balance: 0,
+            days_1_30: 0,
+            days_31_60: 0,
+            days_61_90: 0,
+            days_90_plus: 0,
+          };
+        }
+
+        orgBreakdown[inv.organization_id].total_balance += balance;
+        if (bucket === 'Current') {
+          orgBreakdown[inv.organization_id].current_balance += balance;
+        } else if (bucket === '1-30 Days') {
+          orgBreakdown[inv.organization_id].days_1_30 += balance;
+        } else if (bucket === '31-60 Days') {
+          orgBreakdown[inv.organization_id].days_31_60 += balance;
+        } else if (bucket === '61-90 Days') {
+          orgBreakdown[inv.organization_id].days_61_90 += balance;
+        } else if (bucket === '90+ Days') {
+          orgBreakdown[inv.organization_id].days_90_plus += balance;
+        }
+      });
+
+      // Calculate collection efficiency (payments received / invoices issued in last 90 days)
+      const efficiencyQuery = `
+        SELECT
+          COALESCE(SUM(i.amount), 0) as total_invoiced,
+          COALESCE((
+            SELECT SUM(p.amount)
+            FROM payments p
+            JOIN invoices i2 ON p.invoice_id = i2.id
+            WHERE i2.invoice_date >= ($1::date - INTERVAL '90 days')
+          ), 0) as total_collected
+        FROM invoices i
+        WHERE i.invoice_date >= ($1::date - INTERVAL '90 days')
+          AND i.posted_to_org = TRUE
+      `;
+      const efficiencyResult = await pool.query(efficiencyQuery, [asOfDateStr]);
+      const totalInvoiced = parseFloat(efficiencyResult.rows[0]?.total_invoiced) || 0;
+      const totalCollected = parseFloat(efficiencyResult.rows[0]?.total_collected) || 0;
+      const collectionEfficiency = totalInvoiced > 0
+        ? Math.round((totalCollected / totalInvoiced) * 100)
+        : 100;
+
+      // Build aging summary
+      const agingSummary = Object.entries(buckets).map(([bucket, data]) => ({
+        aging_bucket: bucket,
+        invoice_count: data.count,
+        total_balance: Math.round(data.total * 100) / 100,
+        percentage_of_total: totalOutstanding > 0
+          ? Math.round((data.total / totalOutstanding) * 1000) / 10
+          : 0,
+        avg_days_outstanding: data.count > 0
+          ? Math.round(data.daysSum / data.count)
+          : 0,
+      }));
+
+      // Build organization breakdown with risk score
+      const organizationBreakdown = Object.values(orgBreakdown).map(org => ({
+        ...org,
+        total_balance: Math.round(org.total_balance * 100) / 100,
+        current_balance: Math.round(org.current_balance * 100) / 100,
+        days_1_30: Math.round(org.days_1_30 * 100) / 100,
+        days_31_60: Math.round(org.days_31_60 * 100) / 100,
+        days_61_90: Math.round(org.days_61_90 * 100) / 100,
+        days_90_plus: Math.round(org.days_90_plus * 100) / 100,
+        // Risk score: weighted by aging (higher weight for older buckets)
+        risk_score: org.total_balance > 0 ? Math.min(100, Math.round(
+          ((org.days_1_30 * 1) + (org.days_31_60 * 2) + (org.days_61_90 * 3) + (org.days_90_plus * 4))
+          / org.total_balance * 25
+        )) : 0,
+      })).sort((a, b) => b.total_balance - a.total_balance);
+
+      // Format invoice details
+      const invoiceDetails = invoices.map((inv: {
+        id: number;
+        invoice_number: string;
+        organization_name: string;
+        amount: string | number;
+        balance_due: string | number;
+        due_date: string;
+        days_outstanding: number;
+        aging_bucket: string;
+      }) => ({
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        organization_name: inv.organization_name,
+        amount: Math.round((parseFloat(inv.amount as string) || 0) * 100) / 100,
+        balance_due: Math.round((parseFloat(inv.balance_due as string) || 0) * 100) / 100,
+        due_date: inv.due_date,
+        days_outstanding: inv.days_outstanding,
+        aging_bucket: inv.aging_bucket,
+      }));
+
+      const totalInvoices = invoices.length;
+      const overdueInvoices = invoices.filter((i: { aging_bucket: string }) => i.aging_bucket !== 'Current').length;
+
+      res.json(ApiResponseBuilder.success({
+        report_metadata: {
+          generated_at: new Date().toISOString(),
+          as_of_date: asOfDateStr,
+        },
+        executive_summary: {
+          total_outstanding: Math.round(totalOutstanding * 100) / 100,
+          total_overdue: Math.round(totalOverdue * 100) / 100,
+          collection_efficiency: collectionEfficiency,
+          total_invoices: totalInvoices,
+          overdue_invoices: overdueInvoices,
+          overdue_percentage: totalInvoices > 0
+            ? Math.round((overdueInvoices / totalInvoices) * 100)
+            : 0,
+        },
+        aging_summary: agingSummary,
+        organization_breakdown: organizationBreakdown,
+        invoice_details: invoiceDetails,
+      }));
+    } catch (error) {
+      console.error('Error generating aging report:', error);
+      throw error;
+    }
+  })
+);
+
 // Manual trigger for overdue invoices update (for testing/admin use)
 router.post(
   '/accounting/trigger-overdue-update',
