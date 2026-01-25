@@ -2820,7 +2820,7 @@ router.get(
 
       res.json({
         success: true,
-        data: result.rows,
+        data: keysToCamel(result.rows),
       });
     } catch (error) {
       console.error('Error fetching billing queue:', error);
