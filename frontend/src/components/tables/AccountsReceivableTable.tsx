@@ -272,29 +272,24 @@ const AccountsReceivableTable = ({
     setStudents([]);
   };
 
-  // Calculate invoice amounts
-  const calculateInvoiceAmounts = (invoice) => {
+  // Get invoice amounts from backend (no recalculation)
+  const getInvoiceAmounts = (invoice) => {
     try {
-      const studentsBilled = parseInt(invoice.studentsattendance) || 0;
-      const ratePerStudent = parseFloat(invoice.rate_per_student) || 0;
-      
-      if (studentsBilled === 0 || ratePerStudent === 0) {
+      const baseCost = parseFloat(invoice.base_cost) || 0;
+      const taxAmount = parseFloat(invoice.tax_amount) || 0;
+      const totalAmount = baseCost + taxAmount;
+      const balanceDue = parseFloat(invoice.balancedue) || 0;
+
+      if (baseCost === 0 && taxAmount === 0) {
         return {
-          error: 'Invalid rate or student count',
+          error: 'Missing invoice amounts',
           baseCost: '0.00',
           taxAmount: '0.00',
           totalAmount: '0.00',
           balanceDue: '0.00'
         };
       }
-      
-      const baseCost = studentsBilled * ratePerStudent;
-      const taxAmount = baseCost * 0.13; // 13% HST
-      const totalAmount = baseCost + taxAmount;
-      
-      // Use the balancedue from backend instead of calculating in frontend
-      const balanceDue = parseFloat(invoice.balancedue || 0);
-      
+
       return {
         baseCost: baseCost.toFixed(2),
         taxAmount: taxAmount.toFixed(2),
@@ -302,9 +297,9 @@ const AccountsReceivableTable = ({
         balanceDue: balanceDue.toFixed(2)
       };
     } catch (error) {
-      console.error('Error calculating invoice amounts:', error);
+      console.error('Error getting invoice amounts:', error);
       return {
-        error: 'Calculation error',
+        error: 'Error reading amounts',
         baseCost: '0.00',
         taxAmount: '0.00',
         totalAmount: '0.00',
@@ -358,7 +353,7 @@ const AccountsReceivableTable = ({
           </TableHead>
           <TableBody>
             {invoices.map((invoice, index) => {
-              const amounts = calculateInvoiceAmounts(invoice);
+              const amounts = getInvoiceAmounts(invoice);
               
               return (
                 <React.Fragment key={invoice.invoiceid}>
