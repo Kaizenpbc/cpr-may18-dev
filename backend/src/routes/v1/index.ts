@@ -6150,6 +6150,100 @@ router.get(
   })
 );
 
+// Organization Bills Payable - Download invoice PDF
+router.get(
+  '/organization/invoices/:id/pdf',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+
+      if (user.role !== 'organization') {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied. Organization role required.'
+        );
+      }
+
+      devLog(`[PDF] Organization ${user.organizationId} requesting PDF for invoice ${id}`);
+
+      // Get invoice details - verify it belongs to this organization
+      const result = await pool.query(
+        `
+        SELECT
+          i.id as invoice_id,
+          i.invoice_number,
+          i.organization_id,
+          i.course_request_id,
+          i.created_at as invoice_date,
+          i.due_date,
+          i.amount,
+          i.status,
+          i.students_billed,
+          i.paid_date,
+          i.base_cost,
+          i.tax_amount,
+          i.rate_per_student,
+          o.name as organization_name,
+          o.contact_email,
+          cr.location,
+          ct.name as course_type_name,
+          cr.completed_at as date_completed,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'first_name', cs.first_name,
+                'last_name', cs.last_name,
+                'email', cs.email,
+                'attended', cs.attended
+              ) ORDER BY cs.last_name, cs.first_name
+            ) FILTER (WHERE cs.id IS NOT NULL),
+            '[]'::json
+          ) as attendance_list
+        FROM invoices i
+        JOIN organizations o ON i.organization_id = o.id
+        LEFT JOIN course_requests cr ON i.course_request_id = cr.id
+        LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+        LEFT JOIN course_students cs ON cr.id = cs.course_request_id
+        WHERE i.id = $1 AND i.organization_id = $2
+        GROUP BY i.id, i.invoice_number, i.organization_id, i.course_request_id, i.created_at, i.due_date, i.amount, i.status, i.students_billed, i.paid_date, i.base_cost, i.tax_amount, i.rate_per_student, o.name, o.contact_email, cr.location, ct.name, cr.completed_at
+        `,
+        [id, user.organizationId]
+      );
+
+      if (result.rows.length === 0) {
+        devLog(`[PDF] Invoice ${id} not found for organization ${user.organizationId}`);
+        throw new AppError(
+          404,
+          errorCodes.RESOURCE_NOT_FOUND,
+          'Invoice not found'
+        );
+      }
+
+      const invoice = result.rows[0];
+      devLog(`[PDF] Generating PDF for invoice ${invoice.invoice_number}`);
+
+      // Generate PDF using PDFService
+      const pdfBuffer = await PDFService.generateInvoicePDF(invoice);
+
+      // Set response headers
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="Invoice-${invoice.invoice_number}.pdf"`
+      );
+
+      // Send the PDF
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error('[Organization Invoice PDF] Error:', error);
+      throw error;
+    }
+  })
+);
+
 // Organization Bills Payable - Get invoice payment history
 router.get(
   '/organization/invoices/:id/payments',
