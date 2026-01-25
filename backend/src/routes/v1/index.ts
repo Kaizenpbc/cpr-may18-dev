@@ -3299,7 +3299,7 @@ router.get(
         i.amount,
         i.status,
         NULL as approval_status,
-        i.students_billed,
+        i.students_billed as studentsattendance,
         i.paid_date,
         i.posted_to_org,
         i.posted_to_org_at,
@@ -3313,7 +3313,7 @@ router.get(
         GREATEST(0, (i.base_cost + i.tax_amount) - COALESCE(payments.total_paid, 0)) as balancedue,
         i.base_cost,
         i.tax_amount,
-        cp.price_per_student as rate_per_student,
+        i.rate_per_student,
         CASE 
           WHEN COALESCE(payments.total_paid, 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
           WHEN CURRENT_DATE > i.due_date THEN 'overdue'
