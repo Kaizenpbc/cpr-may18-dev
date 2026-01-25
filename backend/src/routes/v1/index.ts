@@ -5956,8 +5956,8 @@ router.get(
       
       const result = await pool.query(
         `
-      SELECT 
-        i.id as invoice_id,
+      SELECT
+        i.id,
         i.invoice_number,
         i.created_at as invoice_date,
         i.due_date,
@@ -5974,7 +5974,7 @@ router.get(
         cp.price_per_student as rate_per_student,
         i.base_cost,
         i.tax_amount,
-        CASE 
+        CASE
           WHEN COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
           WHEN CURRENT_DATE > i.due_date THEN 'overdue'
           ELSE 'pending'
@@ -5995,7 +5995,7 @@ router.get(
       devLog(`[DEBUG] Organization invoices result rows:`, result.rows.length);
       if (result.rows.length > 0) {
         devLog(`[DEBUG] First invoice data:`, {
-          invoice_id: result.rows[0].invoice_id,
+          id: result.rows[0].id,
           invoice_number: result.rows[0].invoice_number,
           course_request_id: result.rows[0].course_request_id,
           course_type_name: result.rows[0].course_type_name,
@@ -6062,8 +6062,8 @@ router.get(
 
       const result = await pool.query(
         `
-      SELECT 
-        i.id as invoice_id,
+      SELECT
+        i.id,
         i.invoice_number,
         i.created_at as invoice_date,
         i.due_date,
@@ -6084,7 +6084,7 @@ router.get(
         cp.price_per_student as rate_per_student,
         i.base_cost,
         i.tax_amount,
-        CASE 
+        CASE
           WHEN COALESCE(SUM(CASE WHEN p.status = 'verified' THEN p.amount ELSE 0 END), 0) >= (i.base_cost + i.tax_amount) THEN 'paid'
           WHEN CURRENT_DATE > i.due_date THEN 'overdue'
           ELSE 'pending'
