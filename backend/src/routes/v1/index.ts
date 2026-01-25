@@ -3843,12 +3843,6 @@ router.get(
         `attachment; filename="Invoice-${invoice.invoice_number}.pdf"`
       );
       res.setHeader('Content-Length', pdfBuffer.length.toString());
-      res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader(
-        'Access-Control-Expose-Headers',
-        'Content-Disposition, Content-Length, Content-Type'
-      );
       res.send(pdfBuffer);
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -7087,12 +7081,6 @@ router.get(
         `attachment; filename="Payment-Receipt-${payment.payment_id}.pdf"`
       );
       res.setHeader('Content-Length', pdfBuffer.length.toString());
-      res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader(
-        'Access-Control-Expose-Headers',
-        'Content-Disposition, Content-Length, Content-Type'
-      );
       res.send(pdfBuffer);
     } catch (error) {
       console.error('Error generating payment receipt:', error);
