@@ -3388,7 +3388,7 @@ router.get(
         ((i.students_billed * COALESCE(cp.price_per_student, i.rate_per_student, 0)) * 0.13) as tax_amount,
         i.due_date as duedate,
         i.status as paymentstatus,
-        i.approval_status,
+        NULL as approval_status,
         i.posted_to_org,
         i.notes,
         i.created_at as invoicedate,
