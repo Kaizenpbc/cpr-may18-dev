@@ -880,6 +880,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 <TableCell align="right">Balance Due</TableCell>
                 <TableCell>Due Date</TableCell>
                 <TableCell align="center">Status</TableCell>
+                <TableCell align="center">Pending</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -965,6 +966,18 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                       size="small"
                     />
                   </TableCell>
+                  <TableCell align="center">
+                    {(invoice.payment_status === 'payment_submitted' || invoice.status === 'payment_submitted') && (
+                      <Tooltip title="Payment awaiting verification by accounting">
+                        <Chip
+                          label="Awaiting"
+                          color="warning"
+                          size="small"
+                          icon={<ScheduleIcon />}
+                        />
+                      </Tooltip>
+                    )}
+                  </TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       <Tooltip title="View Details">
@@ -1007,7 +1020,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
                 })}
               {safeInvoices.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={13} align="center">
+                  <TableCell colSpan={14} align="center">
                     No invoices found
                   </TableCell>
                 </TableRow>
@@ -1140,32 +1153,119 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
               <Typography variant='subtitle1' gutterBottom>
                 Payment Summary:
               </Typography>
-              <Grid container spacing={1}>
-                <Grid xs={12} sm={6}>
-                  <Typography variant='body2'>
-                    <strong>Total Amount:</strong>{' '}
-                    {selectedInvoice.amount ? 
-                      `$${Number(selectedInvoice.amount).toFixed(2)}` : 
-                      <Typography variant="body2" color="error.main" fontSize="small">
-                        N/A
-                      </Typography>
-                    }
-                  </Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography variant='body2' color="success.main">
-                    <strong>Amount Paid:</strong>{' '}
-                    ${Number(selectedInvoice.amount_paid || 0).toFixed(2)}
-                  </Typography>
-                </Grid>
-                <Grid xs={12}>
-                  <Divider sx={{ my: 1 }} />
-                  <Typography variant='body2' color={Number(selectedInvoice.balance_due || 0) > 0 ? 'error.main' : 'success.main'} sx={{ fontWeight: 'bold' }}>
-                    <strong>Balance Due:</strong>{' '}
-                    ${Number(selectedInvoice.balance_due || 0).toFixed(2)}
-                  </Typography>
-                </Grid>
-              </Grid>
+              {(() => {
+                // Calculate verified and pending payments from payment history
+                const verifiedPayments = paymentHistory.filter(p =>
+                  p.status?.toLowerCase() === 'verified' ||
+                  p.status?.toLowerCase() === 'approved'
+                );
+                const pendingPayments = paymentHistory.filter(p =>
+                  p.status?.toLowerCase() === 'pending_verification' ||
+                  p.status?.toLowerCase() === 'pending' ||
+                  p.status?.toLowerCase() === 'submitted'
+                );
+
+                const verifiedTotal = verifiedPayments.reduce((sum, p) =>
+                  sum + Number(p.amount_paid || p.amountPaid || p.amount || 0), 0
+                );
+                const pendingTotal = pendingPayments.reduce((sum, p) =>
+                  sum + Number(p.amount_paid || p.amountPaid || p.amount || 0), 0
+                );
+
+                const invoiceTotal = Number(selectedInvoice.amount || 0);
+                const balanceAfterVerified = invoiceTotal - verifiedTotal;
+                const balanceAfterPending = balanceAfterVerified - pendingTotal;
+
+                return (
+                  <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1 }}>
+                    <Grid container spacing={1}>
+                      {/* Invoice Total */}
+                      <Grid xs={12}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant='body2'><strong>Invoice Total:</strong></Typography>
+                          <Typography variant='body2'>
+                            ${invoiceTotal.toFixed(2)}
+                          </Typography>
+                        </Box>
+                      </Grid>
+
+                      {/* Verified Payments */}
+                      <Grid xs={12}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <Typography variant='body2' color="success.main">
+                            <strong>Verified Payments:</strong>
+                          </Typography>
+                          <Typography variant='body2' color="success.main">
+                            -${verifiedTotal.toFixed(2)}
+                          </Typography>
+                        </Box>
+                        {verifiedPayments.length > 0 && (
+                          <Box sx={{ pl: 2, mt: 0.5 }}>
+                            {verifiedPayments.map((payment, idx) => (
+                              <Typography key={idx} variant="caption" color="text.secondary" display="block">
+                                {formatDisplayDate(payment.payment_date || payment.paymentDate)} - ${Number(payment.amount_paid || payment.amountPaid || payment.amount || 0).toFixed(2)} ({formatPaymentMethod(payment.payment_method || payment.paymentMethod || '')})
+                              </Typography>
+                            ))}
+                          </Box>
+                        )}
+                      </Grid>
+
+                      {/* Balance Due (after verified) */}
+                      <Grid xs={12}>
+                        <Divider sx={{ my: 1 }} />
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography variant='body2' color={balanceAfterVerified > 0 ? 'error.main' : 'success.main'} sx={{ fontWeight: 'bold' }}>
+                            <strong>Balance Due:</strong>
+                          </Typography>
+                          <Typography variant='body2' color={balanceAfterVerified > 0 ? 'error.main' : 'success.main'} sx={{ fontWeight: 'bold' }}>
+                            ${balanceAfterVerified.toFixed(2)}
+                          </Typography>
+                        </Box>
+                      </Grid>
+
+                      {/* Pending Payments (if any) */}
+                      {pendingPayments.length > 0 && (
+                        <>
+                          <Grid xs={12}>
+                            <Divider sx={{ my: 1 }} />
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <Typography variant='body2' color="warning.main">
+                                <strong>Pending Verification:</strong>
+                              </Typography>
+                              <Typography variant='body2' color="warning.main">
+                                -${pendingTotal.toFixed(2)}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ pl: 2, mt: 0.5 }}>
+                              {pendingPayments.map((payment, idx) => (
+                                <Typography key={idx} variant="caption" color="text.secondary" display="block">
+                                  {formatDisplayDate(payment.payment_date || payment.paymentDate)} - ${Number(payment.amount_paid || payment.amountPaid || payment.amount || 0).toFixed(2)} ({formatPaymentMethod(payment.payment_method || payment.paymentMethod || '')}) - <Chip label="Awaiting Verification" size="small" color="warning" sx={{ height: 16, fontSize: '0.65rem' }} />
+                                </Typography>
+                              ))}
+                            </Box>
+                          </Grid>
+
+                          {/* Balance After Pending */}
+                          <Grid xs={12}>
+                            <Divider sx={{ my: 1 }} />
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <Typography variant='body2' color="info.main">
+                                <strong>Balance After Verification:</strong>
+                              </Typography>
+                              <Typography variant='body2' color="info.main">
+                                ${balanceAfterPending.toFixed(2)}
+                              </Typography>
+                            </Box>
+                            <Typography variant="caption" color="text.secondary">
+                              (Once pending payments are verified by accounting)
+                            </Typography>
+                          </Grid>
+                        </>
+                      )}
+                    </Grid>
+                  </Box>
+                );
+              })()}
               
               {/* Warning for older unpaid invoices */}
               {selectedInvoice && hasOlderUnpaidInvoices(selectedInvoice) && (
