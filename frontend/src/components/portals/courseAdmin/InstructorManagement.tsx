@@ -1175,6 +1175,13 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
           <TableBody>
             {instructors
               .filter(instructor => {
+                // Filter out instructors with no availability set
+                if (
+                  !instructor.availabilityDate ||
+                  instructor.availabilityDate === 'No availability set'
+                ) {
+                  return false;
+                }
                 // Filter based on showCompleted toggle
                 if (
                   !showCompleted &&
