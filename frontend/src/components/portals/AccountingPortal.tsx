@@ -308,6 +308,8 @@ const PendingApprovalsView: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showInvoiceDetailDialog, setShowInvoiceDetailDialog] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
   const { showSuccess, showError } = useSnackbar();
 
   const fetchPendingApprovals = useCallback(async () => {
@@ -349,6 +351,26 @@ const PendingApprovalsView: React.FC = () => {
       const errObj = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
       showError(errObj.response?.data?.error?.message || errObj.message || 'Failed to reject invoice');
     }
+  };
+
+  const handleViewDetails = (invoiceId: number) => {
+    setSelectedInvoiceId(invoiceId);
+    setShowInvoiceDetailDialog(true);
+  };
+
+  const handleInvoiceDetailDialogClose = () => {
+    setShowInvoiceDetailDialog(false);
+    setSelectedInvoiceId(null);
+  };
+
+  const handleInvoiceActionSuccess = (message: string) => {
+    showSuccess(message);
+    fetchPendingApprovals();
+    handleInvoiceDetailDialogClose();
+  };
+
+  const handleInvoiceActionError = (message: string) => {
+    showError(message);
   };
 
   const formatCurrency = (amount: number | string | undefined) => {
@@ -435,6 +457,15 @@ const PendingApprovalsView: React.FC = () => {
                   </Box>
                   <Box component="td" sx={{ p: 1.5, textAlign: 'center' }}>
                     <Button
+                      variant="outlined"
+                      color="primary"
+                      size="small"
+                      onClick={() => handleViewDetails(invoice.id)}
+                      sx={{ mr: 1 }}
+                    >
+                      View
+                    </Button>
+                    <Button
                       variant="contained"
                       color="success"
                       size="small"
@@ -458,6 +489,16 @@ const PendingApprovalsView: React.FC = () => {
           </Box>
         </Paper>
       )}
+
+      {/* Invoice Detail Dialog for viewing before approval */}
+      <InvoiceDetailDialog
+        open={showInvoiceDetailDialog}
+        onClose={handleInvoiceDetailDialogClose}
+        invoiceId={selectedInvoiceId}
+        onActionSuccess={handleInvoiceActionSuccess}
+        onActionError={handleInvoiceActionError}
+        showPostToOrgButton={false}
+      />
     </Box>
   );
 };
