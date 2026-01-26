@@ -337,29 +337,26 @@ const PendingApprovalsView: React.FC = () => {
       const result = await approveInvoice(invoiceId);
       showSuccess(result.message || 'Invoice approved successfully');
       fetchPendingApprovals();
+      handleInvoiceDetailDialogClose();
     } catch (err: unknown) {
       const errObj = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
       showError(errObj.response?.data?.error?.message || errObj.message || 'Failed to approve invoice');
     }
   };
 
-  const handleReject = async (invoiceId: number) => {
-    const reason = window.prompt('Please enter a reason for rejecting this invoice:');
-    if (!reason || reason.trim() === '') {
-      showError('Rejection reason is required');
-      return;
-    }
+  const handleReject = async (invoiceId: number, reason: string) => {
     try {
-      const result = await rejectInvoice(invoiceId, reason.trim());
+      const result = await rejectInvoice(invoiceId, reason);
       showSuccess(result.message || 'Invoice rejected and sent back to accountant for review');
       fetchPendingApprovals();
+      handleInvoiceDetailDialogClose();
     } catch (err: unknown) {
       const errObj = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
       showError(errObj.response?.data?.error?.message || errObj.message || 'Failed to reject invoice');
     }
   };
 
-  const handleViewDetails = (invoiceId: number) => {
+  const handleReview = (invoiceId: number) => {
     setSelectedInvoiceId(invoiceId);
     setShowInvoiceDetailDialog(true);
   };
@@ -430,7 +427,7 @@ const PendingApprovalsView: React.FC = () => {
                 <Box component="th" sx={{ p: 1.5, textAlign: 'left' }}>Course</Box>
                 <Box component="th" sx={{ p: 1.5, textAlign: 'left' }}>Date</Box>
                 <Box component="th" sx={{ p: 1.5, textAlign: 'right' }}>Amount</Box>
-                <Box component="th" sx={{ p: 1.5, textAlign: 'center' }}>Actions</Box>
+                <Box component="th" sx={{ p: 1.5, textAlign: 'center' }}>Action</Box>
               </Box>
             </Box>
             <Box component="tbody">
@@ -463,30 +460,12 @@ const PendingApprovalsView: React.FC = () => {
                   </Box>
                   <Box component="td" sx={{ p: 1.5, textAlign: 'center' }}>
                     <Button
-                      variant="outlined"
+                      variant="contained"
                       color="primary"
                       size="small"
-                      onClick={() => handleViewDetails(invoice.id)}
-                      sx={{ mr: 1 }}
+                      onClick={() => handleReview(invoice.id)}
                     >
-                      View
-                    </Button>
-                    <Button
-                      variant="contained"
-                      color="success"
-                      size="small"
-                      onClick={() => handleApprove(invoice.id)}
-                      sx={{ mr: 1 }}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      size="small"
-                      onClick={() => handleReject(invoice.id)}
-                    >
-                      Reject
+                      Review
                     </Button>
                   </Box>
                 </Box>
@@ -496,7 +475,7 @@ const PendingApprovalsView: React.FC = () => {
         </Paper>
       )}
 
-      {/* Invoice Detail Dialog for viewing before approval */}
+      {/* Invoice Detail Dialog for reviewing before approval/rejection */}
       <InvoiceDetailDialog
         open={showInvoiceDetailDialog}
         onClose={handleInvoiceDetailDialogClose}
@@ -504,6 +483,9 @@ const PendingApprovalsView: React.FC = () => {
         onActionSuccess={handleInvoiceActionSuccess}
         onActionError={handleInvoiceActionError}
         showPostToOrgButton={false}
+        showApprovalActions={true}
+        onApprove={handleApprove}
+        onReject={handleReject}
       />
     </Box>
   );

@@ -106,6 +106,9 @@ const InvoiceDetailDialog = ({
   onActionSuccess,
   onActionError,
   showPostToOrgButton = true, // New prop to control Post to Org button visibility
+  showApprovalActions = false, // New prop to show Approve/Reject buttons for pending approvals
+  onApprove,
+  onReject,
 }: {
   open: boolean;
   onClose: () => void;
@@ -113,6 +116,9 @@ const InvoiceDetailDialog = ({
   onActionSuccess?: (message: string) => void;
   onActionError?: (message: string) => void;
   showPostToOrgButton?: boolean;
+  showApprovalActions?: boolean;
+  onApprove?: (invoiceId: number) => Promise<void>;
+  onReject?: (invoiceId: number, reason: string) => Promise<void>;
 }) => {
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -140,7 +146,13 @@ const InvoiceDetailDialog = ({
   // Payment history state
   const [paymentHistory, setPaymentHistory] = useState<Payment[]>([]);
   const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
-  
+
+  // Approval action state
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+
   // Ref to prevent multiple clicks
   const isPostingRef = useRef(false);
 
@@ -208,6 +220,40 @@ const InvoiceDetailDialog = ({
       setPaymentHistory([]);
     } finally {
       setLoadingPaymentHistory(false);
+    }
+  };
+
+  // Reset rejection form state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setShowRejectForm(false);
+      setRejectionReason('');
+    }
+  }, [open]);
+
+  // Handle approve action
+  const handleApproveClick = async () => {
+    if (!invoiceId || !onApprove) return;
+    setIsApproving(true);
+    try {
+      await onApprove(invoiceId);
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  // Handle reject action
+  const handleRejectClick = async () => {
+    if (!invoiceId || !onReject) return;
+    if (!rejectionReason.trim()) {
+      if (onActionError) onActionError('Please enter a reason for rejection');
+      return;
+    }
+    setIsRejecting(true);
+    try {
+      await onReject(invoiceId, rejectionReason.trim());
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -739,10 +785,86 @@ const InvoiceDetailDialog = ({
           </Box>
         )}
       </DialogContent>
-            <DialogActions>
-        
-        {/* Approve & Post Invoice Button - Only show when approval is available */}
-        {['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes((invoice?.approval_status || '').toLowerCase()) && (
+            <DialogActions sx={{ flexDirection: 'column', alignItems: 'stretch', gap: 2, p: 2 }}>
+
+        {/* Approval Actions Section - Only show when showApprovalActions is true */}
+        {showApprovalActions && (
+          <Box sx={{ width: '100%', borderBottom: 1, borderColor: 'divider', pb: 2 }}>
+            {!showRejectForm ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
+                <Button
+                  variant='contained'
+                  color='success'
+                  onClick={handleApproveClick}
+                  disabled={isApproving || isRejecting}
+                  startIcon={
+                    isApproving
+                      ? <CircularProgress size={20} color='inherit' />
+                      : <CheckCircleIcon />
+                  }
+                  sx={{ minWidth: 150 }}
+                >
+                  {isApproving ? 'Approving...' : 'Approve Invoice'}
+                </Button>
+                <Button
+                  variant='outlined'
+                  color='error'
+                  onClick={() => setShowRejectForm(true)}
+                  disabled={isApproving || isRejecting}
+                  sx={{ minWidth: 150 }}
+                >
+                  Reject Invoice
+                </Button>
+              </Box>
+            ) : (
+              <Box sx={{ width: '100%' }}>
+                <Typography variant="subtitle2" color="error" gutterBottom>
+                  Rejection Reason (required):
+                </Typography>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={3}
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Please provide a detailed reason for rejecting this invoice..."
+                  disabled={isRejecting}
+                  sx={{ mb: 2 }}
+                />
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                  <Button
+                    variant='outlined'
+                    color='inherit'
+                    onClick={() => {
+                      setShowRejectForm(false);
+                      setRejectionReason('');
+                    }}
+                    disabled={isRejecting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant='contained'
+                    color='error'
+                    onClick={handleRejectClick}
+                    disabled={isRejecting || !rejectionReason.trim()}
+                    startIcon={
+                      isRejecting ? <CircularProgress size={20} color='inherit' /> : null
+                    }
+                  >
+                    {isRejecting ? 'Rejecting...' : 'Confirm Rejection'}
+                  </Button>
+                </Box>
+              </Box>
+            )}
+          </Box>
+        )}
+
+        {/* Regular action buttons */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, width: '100%' }}>
+
+        {/* Approve & Post Invoice Button - Only show when approval is available and NOT in approval mode */}
+        {!showApprovalActions && ['pending approval', 'pending_approval', 'pending', 'draft', 'new'].includes((invoice?.approval_status || '').toLowerCase()) && (
           <Button
             variant='contained'
             color='success'
@@ -759,9 +881,9 @@ const InvoiceDetailDialog = ({
               : 'Approve Invoice & Send Email'}
           </Button>
         )}
-        
 
-        
+
+
         {/* Email Button - Only show if already posted */}
         {invoice?.contactemail && Boolean(invoice?.posted_to_org) && (
           <Button
@@ -784,7 +906,7 @@ const InvoiceDetailDialog = ({
                 : 'Send Email'}
           </Button>
         )}
-        
+
         {previewUrl && (
           <Button
             color='info'
@@ -797,14 +919,15 @@ const InvoiceDetailDialog = ({
             View Email Preview
           </Button>
         )}
-        
+
         <Button onClick={handleDownload} color='info' variant='outlined'>
           Download PDF
         </Button>
-        
+
         <Button onClick={onClose} color='inherit'>
           Close
         </Button>
+        </Box>
       </DialogActions>
     </Dialog>
   );
