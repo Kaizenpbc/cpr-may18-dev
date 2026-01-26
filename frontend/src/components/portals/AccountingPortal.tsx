@@ -24,6 +24,7 @@ import {
   ExpandLess as ExpandLessIcon,
   CheckCircle as PaidIcon,
   HourglassEmpty as HourglassEmptyIcon,
+  Cancel as RejectedIcon,
 } from '@mui/icons-material';
 import ErrorBoundary from '../common/ErrorBoundary';
 import ThemeToggle from '../common/ThemeToggle';
@@ -44,7 +45,7 @@ import PaymentVerificationView from '../views/PaymentVerificationView';
 import PaymentReversalView from '../views/PaymentReversalView';
 import InvoiceDetailDialog from '../dialogs/InvoiceDetailDialog';
 import RecordPaymentDialog from '../dialogs/RecordPaymentDialog';
-import { getBillingQueue, createInvoice, getInvoices, getPendingApprovals, approveInvoice, rejectInvoice } from '../../services/api';
+import { getBillingQueue, createInvoice, getInvoices, getPendingApprovals, approveInvoice, rejectInvoice, getRejectedInvoices, resubmitInvoice } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { NotificationProvider } from '../../contexts/NotificationContext';
@@ -343,9 +344,14 @@ const PendingApprovalsView: React.FC = () => {
   };
 
   const handleReject = async (invoiceId: number) => {
+    const reason = window.prompt('Please enter a reason for rejecting this invoice:');
+    if (!reason || reason.trim() === '') {
+      showError('Rejection reason is required');
+      return;
+    }
     try {
-      const result = await rejectInvoice(invoiceId);
-      showSuccess(result.message || 'Invoice rejected');
+      const result = await rejectInvoice(invoiceId, reason.trim());
+      showSuccess(result.message || 'Invoice rejected and sent back to accountant for review');
       fetchPendingApprovals();
     } catch (err: unknown) {
       const errObj = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
@@ -503,6 +509,201 @@ const PendingApprovalsView: React.FC = () => {
   );
 };
 
+// Rejected Invoices View Component - for accountant to fix and resubmit
+const RejectedInvoicesView: React.FC = () => {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showInvoiceDetailDialog, setShowInvoiceDetailDialog] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
+  const { showSuccess, showError } = useSnackbar();
+
+  const fetchRejectedInvoices = useCallback(async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const data = await getRejectedInvoices();
+      setInvoices(data || []);
+    } catch (err: unknown) {
+      const errObj = err as { message?: string };
+      setError(errObj.message || 'Failed to load rejected invoices.');
+      setInvoices([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRejectedInvoices();
+  }, [fetchRejectedInvoices]);
+
+  const handleViewDetails = (invoiceId: number) => {
+    setSelectedInvoiceId(invoiceId);
+    setShowInvoiceDetailDialog(true);
+  };
+
+  const handleResubmit = async (invoiceId: number) => {
+    try {
+      const result = await resubmitInvoice(invoiceId);
+      showSuccess(result.message || 'Invoice resubmitted for approval');
+      fetchRejectedInvoices();
+    } catch (err: unknown) {
+      const errObj = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
+      showError(errObj.response?.data?.error?.message || errObj.message || 'Failed to resubmit invoice');
+    }
+  };
+
+  const handleInvoiceDetailDialogClose = () => {
+    setShowInvoiceDetailDialog(false);
+    setSelectedInvoiceId(null);
+  };
+
+  const handleInvoiceActionSuccess = (message: string) => {
+    showSuccess(message);
+    fetchRejectedInvoices();
+    handleInvoiceDetailDialogClose();
+  };
+
+  const handleInvoiceActionError = (message: string) => {
+    showError(message);
+  };
+
+  const formatCurrency = (amount: number | string | undefined) => {
+    const num = parseFloat(String(amount || 0));
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(num);
+  };
+
+  const formatDate = (date: string | undefined) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('en-CA');
+  };
+
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box>
+        <Typography color="error">{error}</Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      <Typography variant="h5" gutterBottom>
+        Rejected Invoices
+      </Typography>
+      <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
+        Review rejection reasons, make corrections, and resubmit invoices for approval
+      </Typography>
+
+      {invoices.length === 0 ? (
+        <Paper sx={{ p: 3, textAlign: 'center' }}>
+          <Typography color="textSecondary">
+            No rejected invoices
+          </Typography>
+        </Paper>
+      ) : (
+        <Paper sx={{ p: 2 }}>
+          <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
+            <Box component="thead">
+              <Box component="tr" sx={{ borderBottom: '2px solid #e0e0e0' }}>
+                <Box component="th" sx={{ p: 1.5, textAlign: 'left' }}>Invoice #</Box>
+                <Box component="th" sx={{ p: 1.5, textAlign: 'left' }}>Organization</Box>
+                <Box component="th" sx={{ p: 1.5, textAlign: 'left' }}>Course</Box>
+                <Box component="th" sx={{ p: 1.5, textAlign: 'right' }}>Amount</Box>
+                <Box component="th" sx={{ p: 1.5, textAlign: 'left' }}>Rejected</Box>
+                <Box component="th" sx={{ p: 1.5, textAlign: 'left' }}>Rejection Reason</Box>
+                <Box component="th" sx={{ p: 1.5, textAlign: 'center' }}>Actions</Box>
+              </Box>
+            </Box>
+            <Box component="tbody">
+              {invoices.map((invoice) => (
+                <Box
+                  component="tr"
+                  key={invoice.id}
+                  sx={{
+                    borderBottom: '1px solid #e0e0e0',
+                    '&:hover': { backgroundColor: 'rgba(0,0,0,0.04)' }
+                  }}
+                >
+                  <Box component="td" sx={{ p: 1.5 }}>
+                    {(invoice as Record<string, unknown>).invoiceNumber as string || '-'}
+                  </Box>
+                  <Box component="td" sx={{ p: 1.5 }}>
+                    {(invoice as Record<string, unknown>).organizationName as string || '-'}
+                  </Box>
+                  <Box component="td" sx={{ p: 1.5 }}>
+                    {(invoice as Record<string, unknown>).courseTypeName as string || '-'}
+                  </Box>
+                  <Box component="td" sx={{ p: 1.5, textAlign: 'right' }}>
+                    {formatCurrency(
+                      (parseFloat(String((invoice as Record<string, unknown>).baseCost || 0)) +
+                       parseFloat(String((invoice as Record<string, unknown>).taxAmount || 0)))
+                    )}
+                  </Box>
+                  <Box component="td" sx={{ p: 1.5 }}>
+                    {formatDate((invoice as Record<string, unknown>).rejectedAt as string)}
+                  </Box>
+                  <Box component="td" sx={{ p: 1.5, maxWidth: 200 }}>
+                    <Typography
+                      variant="body2"
+                      color="error"
+                      sx={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                      title={(invoice as Record<string, unknown>).rejectionReason as string}
+                    >
+                      {(invoice as Record<string, unknown>).rejectionReason as string || '-'}
+                    </Typography>
+                  </Box>
+                  <Box component="td" sx={{ p: 1.5, textAlign: 'center' }}>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      size="small"
+                      onClick={() => handleViewDetails(invoice.id)}
+                      sx={{ mr: 1 }}
+                    >
+                      View/Edit
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      size="small"
+                      onClick={() => handleResubmit(invoice.id)}
+                    >
+                      Resubmit
+                    </Button>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        </Paper>
+      )}
+
+      {/* Invoice Detail Dialog for viewing/editing */}
+      <InvoiceDetailDialog
+        open={showInvoiceDetailDialog}
+        onClose={handleInvoiceDetailDialogClose}
+        invoiceId={selectedInvoiceId}
+        onActionSuccess={handleInvoiceActionSuccess}
+        onActionError={handleInvoiceActionError}
+        showPostToOrgButton={false}
+      />
+    </Box>
+  );
+};
+
 // Grouped menu structure
 const menuGroups = [
   {
@@ -544,6 +745,12 @@ const menuGroups = [
         icon: <HourglassEmptyIcon />,
         path: 'pending-approvals',
         component: <PendingApprovalsView />
+      },
+      {
+        label: 'Rejected Invoices',
+        icon: <RejectedIcon />,
+        path: 'rejected-invoices',
+        component: <RejectedInvoicesView />
       },
       {
         label: 'Organization Receivables',

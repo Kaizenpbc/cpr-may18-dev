@@ -3101,14 +3101,24 @@ router.put(
           `;
           updateParams = [id];
         } else {
-          // When rejected, just update the status
+          // When rejected, require a reason and store rejection details
+          if (!notes || notes.trim() === '') {
+            throw new AppError(
+              400,
+              errorCodes.VALIDATION_ERROR,
+              'Rejection reason is required'
+            );
+          }
           updateQuery = `
             UPDATE invoices
-            SET approval_status = 'rejected'
+            SET approval_status = 'rejected',
+                rejection_reason = $2,
+                rejected_at = CURRENT_TIMESTAMP,
+                rejected_by = $3
             WHERE id = $1
             RETURNING *
           `;
-          updateParams = [id];
+          updateParams = [id, notes, req.user?.id];
         }
 
         const updateResult = await client.query(updateQuery, updateParams);
@@ -3132,6 +3142,91 @@ router.put(
       }
     } catch (error) {
       console.error('Error updating invoice approval:', error);
+      throw error;
+    }
+  })
+);
+
+// Get rejected invoices for accountant to fix
+router.get(
+  '/accounting/invoices/rejected',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const result = await pool.query(
+        `SELECT
+          i.*,
+          o.name as organization_name,
+          ct.name as course_type_name,
+          u.username as rejected_by_name
+        FROM invoices i
+        LEFT JOIN organizations o ON i.organization_id = o.id
+        LEFT JOIN course_requests cr ON i.course_request_id = cr.id
+        LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+        LEFT JOIN users u ON i.rejected_by = u.id
+        WHERE i.approval_status = 'rejected'
+        ORDER BY i.rejected_at DESC`
+      );
+
+      res.json({
+        success: true,
+        data: keysToCamel(result.rows),
+      });
+    } catch (error) {
+      console.error('Error fetching rejected invoices:', error);
+      throw error;
+    }
+  })
+);
+
+// Resubmit a rejected invoice for approval
+router.put(
+  '/accounting/invoices/:id/resubmit',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      // Verify invoice exists and is rejected
+      const invoiceResult = await pool.query(
+        'SELECT * FROM invoices WHERE id = $1',
+        [id]
+      );
+
+      if (invoiceResult.rows.length === 0) {
+        throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found');
+      }
+
+      const invoice = invoiceResult.rows[0];
+
+      if (invoice.approval_status !== 'rejected') {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          `Cannot resubmit invoice with status '${invoice.approval_status}'. Only rejected invoices can be resubmitted.`
+        );
+      }
+
+      // Update invoice to pending approval
+      const result = await pool.query(
+        `UPDATE invoices
+        SET approval_status = 'pending',
+            rejection_reason = NULL,
+            rejected_at = NULL,
+            rejected_by = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING *`,
+        [id]
+      );
+
+      res.json({
+        success: true,
+        message: 'Invoice resubmitted for approval',
+        data: keysToCamel(result.rows[0]),
+      });
+    } catch (error) {
+      console.error('Error resubmitting invoice:', error);
       throw error;
     }
   })

@@ -767,10 +767,21 @@ export const approveInvoice = async (invoiceId: number) => {
   return response.data;
 };
 
-export const rejectInvoice = async (invoiceId: number) => {
+export const rejectInvoice = async (invoiceId: number, reason: string) => {
   const response = await api.put(`/accounting/invoices/${invoiceId}/approval`, {
     approval_status: 'rejected',
+    notes: reason,
   });
+  return response.data;
+};
+
+export const getRejectedInvoices = async () => {
+  const response = await api.get('/accounting/invoices/rejected');
+  return response.data.data || [];
+};
+
+export const resubmitInvoice = async (invoiceId: number) => {
+  const response = await api.put(`/accounting/invoices/${invoiceId}/resubmit`);
   return response.data;
 };
 
