@@ -796,7 +796,7 @@ router.get(
          LEFT JOIN class_types ct ON cr.course_type_id = ct.id
          LEFT JOIN organizations o ON cr.organization_id = o.id
          LEFT JOIN users u ON cr.instructor_id = u.id
-         WHERE cr.status = 'completed' 
+         WHERE cr.status IN ('completed', 'invoiced')
          ORDER BY cr.completed_at DESC`
       );
 
@@ -6274,9 +6274,10 @@ router.put(
       
       const result = await pool.query(
         `
-        UPDATE course_requests 
+        UPDATE course_requests
         SET ready_for_billing = true,
             ready_for_billing_at = CURRENT_TIMESTAMP,
+            status = 'invoiced',
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $1
         RETURNING *

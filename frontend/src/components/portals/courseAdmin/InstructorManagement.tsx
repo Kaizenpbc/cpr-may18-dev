@@ -1662,7 +1662,11 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Chip label={course.status} color='info' size='small' />
+                    <Chip
+                      label={course.status === 'invoiced' ? 'Invoiced' : 'Completed'}
+                      color={course.status === 'invoiced' ? 'success' : 'info'}
+                      size='small'
+                    />
                   </TableCell>
                   <TableCell>
                     <Stack direction='row' spacing={1}>
