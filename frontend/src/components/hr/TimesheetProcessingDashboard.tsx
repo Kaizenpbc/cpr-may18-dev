@@ -39,7 +39,9 @@ import {
   TrendingUp as TrendingUpIcon,
   Schedule as ScheduleIcon,
   People as PeopleIcon,
-  Assignment as AssignmentIcon
+  Assignment as AssignmentIcon,
+  NotificationsActive as ReminderIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
 import { timesheetService, Timesheet, TimesheetStats, TimesheetFilters } from '../../services/timesheetService';
 import TimesheetNotes from '../shared/TimesheetNotes';
@@ -88,6 +90,20 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
     instructorId: '',
     month: ''
   });
+
+  // Reminder state
+  const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
+  const [pendingReminders, setPendingReminders] = useState<{
+    weekStartDate: string;
+    instructorsWithoutTimesheet: Array<{
+      id: number;
+      username: string;
+      email: string;
+      completed_courses: number;
+    }>;
+  } | null>(null);
+  const [reminderLoading, setReminderLoading] = useState(false);
+  const [sendingReminders, setSendingReminders] = useState(false);
 
   // Load statistics
   const loadStats = async () => {
@@ -184,6 +200,44 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
     await Promise.all([loadStats(), loadTimesheets()]);
   };
 
+  // Load pending reminders
+  const loadPendingReminders = async () => {
+    try {
+      setReminderLoading(true);
+      const data = await timesheetService.getPendingReminders();
+      setPendingReminders(data);
+    } catch (err) {
+      console.error('Error loading pending reminders:', err);
+      setError('Failed to load instructors pending timesheet submission');
+    } finally {
+      setReminderLoading(false);
+    }
+  };
+
+  // Open reminder dialog
+  const openReminderDialog = async () => {
+    setReminderDialogOpen(true);
+    await loadPendingReminders();
+  };
+
+  // Send reminders to all pending instructors
+  const handleSendReminders = async () => {
+    if (!pendingReminders?.instructorsWithoutTimesheet.length) return;
+
+    try {
+      setSendingReminders(true);
+      const instructorIds = pendingReminders.instructorsWithoutTimesheet.map(i => i.id);
+      const result = await timesheetService.sendReminders(instructorIds);
+      setSuccess(`Reminders sent to ${result.sentCount} instructor(s)`);
+      setReminderDialogOpen(false);
+    } catch (err) {
+      console.error('Error sending reminders:', err);
+      setError('Failed to send reminders');
+    } finally {
+      setSendingReminders(false);
+    }
+  };
+
   // Load data on component mount
   useEffect(() => {
     loadStats();
@@ -225,14 +279,24 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
         <Typography variant="h4" component="h1">
           Timesheet Processing
         </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
-          onClick={handleRefresh}
-          disabled={loading || statsLoading}
-        >
-          Refresh
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="contained"
+            color="warning"
+            startIcon={<ReminderIcon />}
+            onClick={openReminderDialog}
+          >
+            Send Reminders
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={handleRefresh}
+            disabled={loading || statsLoading}
+          >
+            Refresh
+          </Button>
+        </Box>
       </Box>
 
       {/* Error and Success Messages */}
@@ -661,6 +725,81 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
             disabled={approvalLoading}
           >
             {approvalLoading ? <CircularProgress size={20} /> : approvalAction === 'approve' ? 'Approve' : 'Reject'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reminder Dialog */}
+      <Dialog
+        open={reminderDialogOpen}
+        onClose={() => setReminderDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ReminderIcon color="warning" />
+            <Typography variant="h6">Send Timesheet Reminders</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {reminderLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : pendingReminders ? (
+            <Box>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Week of {pendingReminders.weekStartDate}: {pendingReminders.instructorsWithoutTimesheet.length} instructor(s) have not submitted timesheets.
+              </Alert>
+
+              {pendingReminders.instructorsWithoutTimesheet.length > 0 ? (
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Instructor</TableCell>
+                        <TableCell>Email</TableCell>
+                        <TableCell align="center">Completed Courses</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {pendingReminders.instructorsWithoutTimesheet.map((instructor) => (
+                        <TableRow key={instructor.id}>
+                          <TableCell>{instructor.username}</TableCell>
+                          <TableCell>{instructor.email}</TableCell>
+                          <TableCell align="center">
+                            <Chip
+                              label={instructor.completed_courses}
+                              color={instructor.completed_courses > 0 ? 'primary' : 'default'}
+                              size="small"
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Alert severity="success">
+                  All instructors have submitted their timesheets for last week!
+                </Alert>
+              )}
+            </Box>
+          ) : (
+            <Alert severity="error">Failed to load pending reminders.</Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReminderDialogOpen(false)}>Close</Button>
+          <Button
+            variant="contained"
+            color="warning"
+            startIcon={sendingReminders ? <CircularProgress size={20} /> : <ReminderIcon />}
+            onClick={handleSendReminders}
+            disabled={sendingReminders || !pendingReminders?.instructorsWithoutTimesheet.length}
+          >
+            {sendingReminders ? 'Sending...' : `Send Reminders (${pendingReminders?.instructorsWithoutTimesheet.length || 0})`}
           </Button>
         </DialogActions>
       </Dialog>

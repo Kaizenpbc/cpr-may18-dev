@@ -9,9 +9,11 @@ import {
 import {
   Assignment as AssignmentIcon,
   History as HistoryIcon,
+  Payment as PaymentIcon,
 } from '@mui/icons-material';
 import TimesheetSubmission from './TimesheetSubmission';
 import TimesheetHistory from './TimesheetHistory';
+import PaymentHistory from './PaymentHistory';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -70,11 +72,17 @@ const TimesheetPage: React.FC = () => {
               id="timesheet-tab-0"
               aria-controls="timesheet-tabpanel-0"
             />
-            <Tab 
-              icon={<HistoryIcon />} 
-              label="Timesheet History" 
+            <Tab
+              icon={<HistoryIcon />}
+              label="Timesheet History"
               id="timesheet-tab-1"
               aria-controls="timesheet-tabpanel-1"
+            />
+            <Tab
+              icon={<PaymentIcon />}
+              label="Payment History"
+              id="timesheet-tab-2"
+              aria-controls="timesheet-tabpanel-2"
             />
           </Tabs>
         </Box>
@@ -88,6 +96,12 @@ const TimesheetPage: React.FC = () => {
         <TabPanel value={tabValue} index={1}>
           <Box sx={{ p: 2 }}>
             <TimesheetHistory />
+          </Box>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={2}>
+          <Box sx={{ p: 2 }}>
+            <PaymentHistory />
           </Box>
         </TabPanel>
       </Paper>

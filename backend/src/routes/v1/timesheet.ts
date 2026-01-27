@@ -183,29 +183,64 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only instructors can submit timesheets.');
   }
 
-  const { week_start_date, total_hours, courses_taught, notes } = req.body;
-  
-  if (!week_start_date) {
+  const {
+    week_start_date,
+    weekStartDate,
+    total_hours,
+    totalHours,
+    courses_taught,
+    coursesTaught,
+    notes,
+    travel_time,
+    travelTime,
+    prep_time,
+    prepTime,
+    teaching_hours,
+    teachingHours,
+    is_late,
+    isLate
+  } = req.body;
+
+  // Support both snake_case and camelCase
+  const weekStart = week_start_date || weekStartDate;
+  const totalHrs = total_hours ?? totalHours ?? 0;
+  const courseCount = courses_taught ?? coursesTaught ?? 0;
+  const travelHrs = travel_time ?? travelTime ?? 0;
+  const prepHrs = prep_time ?? prepTime ?? 0;
+  const teachHrs = teaching_hours ?? teachingHours ?? 0;
+  const lateFlag = is_late ?? isLate ?? false;
+
+  if (!weekStart) {
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Week start date is required.');
   }
 
-  // Validate that week_start_date is a Monday (frontend now auto-populates this correctly)
-  const [year, month, day] = week_start_date.split('-').map(Number);
+  // Validate that week_start_date is a Monday
+  const [year, month, day] = weekStart.split('-').map(Number);
   const startDate = new Date(year, month - 1, day); // month is 0-indexed
   const dayOfWeek = startDate.getDay();
   if (dayOfWeek !== 1) { // 1 = Monday
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Week start date must be a Monday.');
   }
 
+  // Validate that the week has ended (can't submit for future or current week)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(startDate);
+  weekEnd.setDate(startDate.getDate() + 6);
+
+  if (today <= weekEnd) {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Cannot submit timesheet until the week has ended.');
+  }
+
   const client = await pool.connect();
-  
+
   try {
     // Check if timesheet already exists for this week
     const existingResult = await client.query(`
-      SELECT id FROM timesheets 
+      SELECT id FROM timesheets
       WHERE instructor_id = $1 AND week_start_date = $2
-    `, [req.user!.id, week_start_date]);
-    
+    `, [req.user!.id, weekStart]);
+
     if (existingResult.rows.length > 0) {
       throw new AppError(400, errorCodes.RESOURCE_ALREADY_EXISTS, 'Timesheet already exists for this week.');
     }
@@ -215,7 +250,7 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
     endDate.setDate(startDate.getDate() + 6); // Add 6 days to get to Sunday
 
     const coursesResult = await client.query(`
-      SELECT 
+      SELECT
         cr.id,
         cr.confirmed_date::text as date,
         cr.confirmed_start_time::text as start_time,
@@ -233,22 +268,35 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
       AND cr.confirmed_date <= $3::date
       AND cr.status IN ('confirmed', 'completed')
       ORDER BY cr.confirmed_date, cr.confirmed_start_time
-    `, [req.user!.id, week_start_date, endDate.toISOString().split('T')[0]]);
+    `, [req.user!.id, weekStart, endDate.toISOString().split('T')[0]]);
 
     const courseDetails = coursesResult.rows;
-    
-    // Insert new timesheet with course details
+
+    // Insert new timesheet with course details and new fields
     const insertResult = await client.query(`
       INSERT INTO timesheets (
-        instructor_id, week_start_date, total_hours, 
-        courses_taught, notes, status, course_details, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, NOW(), NOW())
+        instructor_id, week_start_date, total_hours,
+        courses_taught, notes, status, course_details,
+        travel_time, prep_time, teaching_hours, is_late,
+        created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10, NOW(), NOW())
       RETURNING *
-    `, [req.user!.id, week_start_date, total_hours || 0, courses_taught || 0, notes || '', JSON.stringify(courseDetails)]);
-    
+    `, [
+      req.user!.id,
+      weekStart,
+      totalHrs,
+      courseCount,
+      notes || '',
+      JSON.stringify(courseDetails),
+      travelHrs,
+      prepHrs,
+      teachHrs,
+      lateFlag
+    ]);
+
     res.json({
       success: true,
-      message: 'Timesheet submitted successfully.',
+      message: lateFlag ? 'Late timesheet submitted successfully. HR will review.' : 'Timesheet submitted successfully.',
       data: {
         ...insertResult.rows[0],
         course_details: courseDetails
@@ -617,6 +665,116 @@ router.delete('/:timesheetId/notes/:noteId', authenticateToken, asyncHandler(asy
     res.json({
       success: true,
       message: 'Note deleted successfully.'
+    });
+  } finally {
+    client.release();
+  }
+}));
+
+// Get instructors who haven't submitted timesheets for the previous week (HR only)
+router.get('/reminders/pending', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  if (req.user!.role !== 'hr') {
+    throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. HR role required.');
+  }
+
+  const client = await pool.connect();
+
+  try {
+    // Calculate previous week's Monday
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const thisMonday = new Date(today);
+    thisMonday.setDate(today.getDate() - daysToSubtract);
+    const previousMonday = new Date(thisMonday);
+    previousMonday.setDate(thisMonday.getDate() - 7);
+    const previousMondayStr = previousMonday.toISOString().split('T')[0];
+
+    // Get all instructors who don't have a timesheet for the previous week
+    const result = await client.query(`
+      SELECT
+        u.id,
+        u.username,
+        u.email,
+        (SELECT COUNT(*) FROM course_requests cr
+         WHERE cr.instructor_id = u.id
+         AND cr.confirmed_date >= $1::date
+         AND cr.confirmed_date <= ($1::date + INTERVAL '6 days')
+         AND cr.status = 'completed') as completed_courses
+      FROM users u
+      WHERE u.role = 'instructor'
+      AND u.id NOT IN (
+        SELECT instructor_id FROM timesheets
+        WHERE week_start_date = $1::date
+      )
+      ORDER BY u.username
+    `, [previousMondayStr]);
+
+    res.json({
+      success: true,
+      data: {
+        weekStartDate: previousMondayStr,
+        instructorsWithoutTimesheet: result.rows
+      }
+    });
+  } finally {
+    client.release();
+  }
+}));
+
+// Send reminder notifications to instructors (HR only)
+router.post('/reminders/send', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  if (req.user!.role !== 'hr') {
+    throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. HR role required.');
+  }
+
+  const { instructorIds } = req.body;
+
+  if (!instructorIds || !Array.isArray(instructorIds) || instructorIds.length === 0) {
+    throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor IDs are required.');
+  }
+
+  const client = await pool.connect();
+
+  try {
+    // Calculate previous week's Monday
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const thisMonday = new Date(today);
+    thisMonday.setDate(today.getDate() - daysToSubtract);
+    const previousMonday = new Date(thisMonday);
+    previousMonday.setDate(thisMonday.getDate() - 7);
+    const previousMondayStr = previousMonday.toISOString().split('T')[0];
+
+    // Create notifications for each instructor
+    let sentCount = 0;
+    for (const instructorId of instructorIds) {
+      // Check if notification table exists, if not skip
+      try {
+        await client.query(`
+          INSERT INTO notifications (user_id, type, title, message, created_at)
+          VALUES ($1, 'timesheet_reminder', 'Timesheet Reminder',
+                  $2, NOW())
+          ON CONFLICT DO NOTHING
+        `, [
+          instructorId,
+          `Please submit your timesheet for the week of ${previousMondayStr}. Timesheets are due by end of week.`
+        ]);
+        sentCount++;
+      } catch (notifError) {
+        // If notifications table doesn't exist, just log
+        console.log('Notification table may not exist, skipping notification creation');
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Reminders sent to ${sentCount} instructor(s).`,
+      data: {
+        sentCount,
+        weekStartDate: previousMondayStr
+      }
     });
   } finally {
     client.release();

@@ -13,6 +13,10 @@ export interface Timesheet {
   hrComment?: string;
   createdAt: string;
   updatedAt: string;
+  travelTime?: number;
+  prepTime?: number;
+  teachingHours?: number;
+  isLate?: boolean;
   courseDetails?: {
     courseId: number;
     courseType: string;
@@ -57,6 +61,9 @@ export interface TimesheetSubmission {
   totalHours?: number;
   coursesTaught?: number;
   notes?: string;
+  travelTime?: number;
+  prepTime?: number;
+  isLate?: boolean;
 }
 
 export interface WeekCourses {
@@ -187,6 +194,54 @@ class TimesheetService {
   // Delete timesheet note
   async deleteTimesheetNote(timesheetId: number, noteId: number): Promise<void> {
     await api.delete(`/timesheet/${timesheetId}/notes/${noteId}`);
+  }
+
+  // Get instructors pending timesheet submission (HR only)
+  async getPendingReminders(): Promise<{
+    weekStartDate: string;
+    instructorsWithoutTimesheet: Array<{
+      id: number;
+      username: string;
+      email: string;
+      completed_courses: number;
+    }>;
+  }> {
+    const response = await api.get('/timesheet/reminders/pending');
+    return response.data.data;
+  }
+
+  // Send reminder notifications to instructors (HR only)
+  async sendReminders(instructorIds: number[]): Promise<{ sentCount: number; weekStartDate: string }> {
+    const response = await api.post('/timesheet/reminders/send', { instructorIds });
+    return response.data.data;
+  }
+
+  // Get my payment requests (Instructor only)
+  async getMyPayments(page = 1, limit = 10): Promise<{
+    payments: Array<{
+      id: number;
+      amount: number;
+      status: 'pending' | 'approved' | 'paid' | 'rejected';
+      payment_method?: string;
+      processed_at?: string;
+      notes?: string;
+      created_at: string;
+      week_start_date: string;
+      total_hours: number;
+      courses_taught: number;
+      teaching_hours?: number;
+      travel_time?: number;
+      prep_time?: number;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  }> {
+    const response = await api.get(`/payment-requests/my-payments?page=${page}&limit=${limit}`);
+    return response.data.data;
   }
 }
 

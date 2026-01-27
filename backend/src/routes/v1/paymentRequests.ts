@@ -149,7 +149,66 @@ router.post('/bulk-process', authenticateToken, requireAccountantRole, asyncHand
   });
 }));
 
-// Get Payment Request History for Instructor
+// Get My Payment Requests (Instructor only - sees their own)
+router.get('/my-payments', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  if (req.user!.role !== 'instructor') {
+    throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Instructor role required.');
+  }
+
+  const { page = 1, limit = 10 } = req.query;
+  const client = await pool.connect();
+
+  try {
+    const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+
+    // Get payment requests for the logged-in instructor
+    const paymentsResult = await client.query(`
+      SELECT
+        pr.id,
+        pr.amount,
+        pr.status,
+        pr.payment_method,
+        pr.processed_at,
+        pr.notes,
+        pr.created_at,
+        t.week_start_date,
+        t.total_hours,
+        t.courses_taught,
+        t.teaching_hours,
+        t.travel_time,
+        t.prep_time
+      FROM payment_requests pr
+      JOIN timesheets t ON pr.timesheet_id = t.id
+      WHERE pr.instructor_id = $1
+      ORDER BY pr.created_at DESC
+      LIMIT $2 OFFSET $3
+    `, [req.user!.id, limit, offset]);
+
+    // Get total count
+    const countResult = await client.query(`
+      SELECT COUNT(*) as total
+      FROM payment_requests pr
+      WHERE pr.instructor_id = $1
+    `, [req.user!.id]);
+
+    res.json({
+      success: true,
+      data: {
+        payments: paymentsResult.rows,
+        pagination: {
+          page: parseInt(page as string),
+          limit: parseInt(limit as string),
+          total: parseInt(countResult.rows[0].total),
+          pages: Math.ceil(parseInt(countResult.rows[0].total) / parseInt(limit as string))
+        }
+      }
+    });
+  } finally {
+    client.release();
+  }
+}));
+
+// Get Payment Request History for Instructor (Accountant view)
 router.get('/instructor/:instructorId/history', authenticateToken, requireAccountantRole, asyncHandler(async (req: Request, res: Response) => {
   const { instructorId } = req.params;
   const { page = 1, limit = 10 } = req.query;
