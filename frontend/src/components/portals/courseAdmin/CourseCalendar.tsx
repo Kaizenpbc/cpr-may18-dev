@@ -13,6 +13,8 @@ import {
   Grid,
   Divider,
   CircularProgress,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import {
   ChevronLeft as ChevronLeftIcon,
@@ -48,6 +50,7 @@ const CourseCalendar: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   // Fetch pending courses
   const { data: pendingCourses = [], isLoading: loadingPending } = useQuery({
@@ -67,12 +70,26 @@ const CourseCalendar: React.FC = () => {
     },
   });
 
-  const isLoading = loadingPending || loadingConfirmed;
+  // Fetch completed courses (only when showCompleted is true)
+  const { data: completedCourses = [], isLoading: loadingCompleted } = useQuery({
+    queryKey: ['completedCourses'],
+    queryFn: async () => {
+      const response = await api.get('/courses/completed');
+      return response.data.data || [];
+    },
+    enabled: showCompleted,
+  });
+
+  const isLoading = loadingPending || loadingConfirmed || (showCompleted && loadingCompleted);
 
   // Combine all courses
   const allCourses = useMemo(() => {
-    return [...pendingCourses, ...confirmedCourses];
-  }, [pendingCourses, confirmedCourses]);
+    const courses = [...pendingCourses, ...confirmedCourses];
+    if (showCompleted) {
+      courses.push(...completedCourses);
+    }
+    return courses;
+  }, [pendingCourses, confirmedCourses, completedCourses, showCompleted]);
 
   // Get calendar days for current month
   const calendarDays = useMemo(() => {
@@ -157,8 +174,11 @@ const CourseCalendar: React.FC = () => {
         return '#2196f3'; // Blue
       case 'past_due':
         return '#ff9800'; // Orange
+      case 'completed':
+      case 'invoiced':
+        return '#9e9e9e'; // Gray
       default:
-        return '#9e9e9e'; // Grey
+        return '#757575'; // Dark Grey
     }
   };
 
@@ -170,6 +190,10 @@ const CourseCalendar: React.FC = () => {
         return 'Pending';
       case 'past_due':
         return 'Past Due';
+      case 'completed':
+        return 'Completed';
+      case 'invoiced':
+        return 'Invoiced';
       default:
         return status;
     }
@@ -206,7 +230,7 @@ const CourseCalendar: React.FC = () => {
       </Box>
 
       {/* Legend */}
-      <Box display="flex" gap={3} mb={2} justifyContent="center">
+      <Box display="flex" gap={3} mb={2} justifyContent="center" alignItems="center">
         <Box display="flex" alignItems="center" gap={0.5}>
           <CircleIcon sx={{ fontSize: 12, color: '#2196f3' }} />
           <Typography variant="caption">Scheduled</Typography>
@@ -215,6 +239,24 @@ const CourseCalendar: React.FC = () => {
           <CircleIcon sx={{ fontSize: 12, color: '#4caf50' }} />
           <Typography variant="caption">Confirmed</Typography>
         </Box>
+        {showCompleted && (
+          <Box display="flex" alignItems="center" gap={0.5}>
+            <CircleIcon sx={{ fontSize: 12, color: '#9e9e9e' }} />
+            <Typography variant="caption">Completed</Typography>
+          </Box>
+        )}
+        <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={showCompleted}
+              onChange={(e) => setShowCompleted(e.target.checked)}
+              size="small"
+            />
+          }
+          label={<Typography variant="caption">Show Completed</Typography>}
+          sx={{ m: 0 }}
+        />
       </Box>
 
       {/* Day Headers */}
