@@ -30,26 +30,34 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // WebSocket setup
   useEffect(() => {
+    let connectionAttempts = 0;
+    const maxLoggedAttempts = 1; // Only log the first failure
+
     const socketInstance = io(WS_URL, {
       reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 2000,
+      reconnectionAttempts: 3, // Reduced - SSE fallback will handle updates
+      reconnectionDelay: 3000,
       reconnectionDelayMax: 10000,
       path: '/socket.io',
       // Use polling first (more reliable on Render free tier), then upgrade to websocket
       transports: ['polling', 'websocket'],
       withCredentials: true,
       autoConnect: true,
-      timeout: 20000
+      timeout: 10000
     });
 
     socketInstance.on('connect', () => {
       console.log('WebSocket connected');
+      connectionAttempts = 0;
       setIsConnected(true);
     });
 
     socketInstance.on('connect_error', (error) => {
-      console.error('WebSocket connection error:', error);
+      connectionAttempts++;
+      // Only log the first error to avoid console spam
+      if (connectionAttempts <= maxLoggedAttempts) {
+        console.warn('WebSocket connection failed, using SSE fallback for real-time updates');
+      }
       setIsConnected(false);
     });
 
@@ -138,12 +146,10 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // SSE setup as fallback
   useEffect(() => {
     if (!isConnected) {
-      console.log('Setting up SSE fallback...');
       const eventSource = new EventSource(`${WS_URL}/api/v1/events`);
 
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        console.log('SSE message received:', data);
         setLastUpdate(new Date());
         
         // Handle different event types
@@ -204,13 +210,12 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       };
 
-      eventSource.onerror = (error) => {
-        console.error('SSE error:', error);
+      eventSource.onerror = () => {
+        // SSE connection failed - real-time updates may not work
         eventSource.close();
       };
 
       return () => {
-        console.log('Cleaning up SSE connection...');
         eventSource.close();
       };
     }
