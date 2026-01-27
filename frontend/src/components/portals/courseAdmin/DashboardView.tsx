@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Typography, Grid, Paper } from '@mui/material';
+import { Box, Typography } from '@mui/material';
+import CourseCalendar from './CourseCalendar';
 
 const DashboardView: React.FC = () => {
   return (
@@ -7,19 +8,7 @@ const DashboardView: React.FC = () => {
       <Typography variant='h4' gutterBottom>
         Course Admin Dashboard
       </Typography>
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant='h6'>
-              Welcome to Course Administration
-            </Typography>
-            <Typography variant='body1'>
-              Use the tabs above to manage instructors, schedule courses, and
-              customize email templates.
-            </Typography>
-          </Paper>
-        </Grid>
-      </Grid>
+      <CourseCalendar />
     </Box>
   );
 };
