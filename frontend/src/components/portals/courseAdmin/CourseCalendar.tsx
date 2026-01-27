@@ -176,7 +176,7 @@ const CourseCalendar: React.FC = () => {
         return '#ff9800'; // Orange
       case 'completed':
       case 'invoiced':
-        return '#9e9e9e'; // Gray
+        return '#ffc107'; // Yellow
       default:
         return '#757575'; // Dark Grey
     }
@@ -241,7 +241,7 @@ const CourseCalendar: React.FC = () => {
         </Box>
         {showCompleted && (
           <Box display="flex" alignItems="center" gap={0.5}>
-            <CircleIcon sx={{ fontSize: 12, color: '#9e9e9e' }} />
+            <CircleIcon sx={{ fontSize: 12, color: '#ffc107' }} />
             <Typography variant="caption">Completed</Typography>
           </Box>
         )}
