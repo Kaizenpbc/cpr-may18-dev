@@ -278,8 +278,7 @@ const CourseCalendar: React.FC = () => {
                       onClick={() => handleCourseClick(course)}
                       sx={{
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.5,
+                        flexDirection: 'column',
                         cursor: 'pointer',
                         p: 0.5,
                         borderRadius: 0.5,
@@ -299,10 +298,26 @@ const CourseCalendar: React.FC = () => {
                           textOverflow: 'ellipsis',
                           fontSize: '0.65rem',
                           lineHeight: 1.2,
+                          fontWeight: 'bold',
                         }}
                       >
-                        {course.courseTypeName?.substring(0, 3) || 'N/A'} - {course.organizationName?.substring(0, 8) || 'N/A'}
+                        {course.organizationName?.substring(0, 12) || 'N/A'}
                       </Typography>
+                      {course.status?.toLowerCase() === 'confirmed' && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: '0.6rem',
+                            lineHeight: 1.1,
+                            color: 'text.secondary',
+                          }}
+                        >
+                          {course.instructorName?.split(' ')[0] || 'No Instr'} • {course.registeredStudents || 0} students
+                        </Typography>
+                      )}
                     </Box>
                   ))}
                   {day.courses.length > 3 && (
