@@ -450,16 +450,16 @@ router.get('/week/:weekStartDate/courses', authenticateToken, asyncHandler(async
   try {
     // Get courses for the week (Monday to Sunday)
     const coursesResult = await client.query(`
-      SELECT 
+      SELECT
         cr.id,
         cr.confirmed_date::text as date,
-        cr.confirmed_start_time::text as start_time,
-        cr.confirmed_end_time::text as end_time,
+        cr.confirmed_start_time::text as "startTime",
+        cr.confirmed_end_time::text as "endTime",
         cr.status,
         cr.location,
-        ct.name as course_type,
-        o.name as organization_name,
-        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as student_count
+        ct.name as "courseType",
+        o.name as "organizationName",
+        (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id) as "studentCount"
       FROM course_requests cr
       JOIN class_types ct ON cr.course_type_id = ct.id
       LEFT JOIN organizations o ON cr.organization_id = o.id
@@ -469,14 +469,14 @@ router.get('/week/:weekStartDate/courses', authenticateToken, asyncHandler(async
       AND cr.status IN ('confirmed', 'completed')
       ORDER BY cr.confirmed_date, cr.confirmed_start_time
     `, [req.user!.id, weekStartDate, endDate.toISOString().split('T')[0]]);
-    
+
     res.json({
       success: true,
       data: {
-        week_start_date: weekStartDate,
-        week_end_date: endDate.toISOString().split('T')[0],
+        weekStartDate: weekStartDate,
+        weekEndDate: endDate.toISOString().split('T')[0],
         courses: coursesResult.rows,
-        total_courses: coursesResult.rows.length
+        totalCourses: coursesResult.rows.length
       }
     });
   } finally {
