@@ -52,7 +52,7 @@
     "docker:logs:dev": "docker-compose -f docker-compose.dev.yml logs -f",
     "docker:clean": "docker-compose down -v && docker system prune -f",
     "docker:status": "docker-compose ps",
-    "prepare": "husky"
+    "prepare": "npx --no husky || true"
   },
   "workspaces": [
     "frontend",
