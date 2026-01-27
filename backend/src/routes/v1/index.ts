@@ -2881,7 +2881,7 @@ router.post(
         JOIN class_types ct ON cr.course_type_id = ct.id
         JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
         LEFT JOIN users u ON cr.instructor_id = u.id
-        WHERE cr.id = $1 AND cr.status = 'completed'
+        WHERE cr.id = $1 AND cr.ready_for_billing = true
       `,
           [courseId]
         );
@@ -2890,7 +2890,7 @@ router.post(
           throw new AppError(
             404,
             errorCodes.RESOURCE_NOT_FOUND,
-            'Course not found, not completed, or pricing not configured. Please ensure pricing is set up for this organization and course type.'
+            'Course not found, not ready for billing, or pricing not configured. Please ensure pricing is set up for this organization and course type.'
           );
         }
 
