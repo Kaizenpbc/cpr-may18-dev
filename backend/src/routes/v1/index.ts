@@ -4688,6 +4688,77 @@ router.get(
       `;
       const monthlyResult = await pool.query(monthlyQuery, [startDate, endDate]);
 
+      // Fetch individual Money In transactions (organization payments)
+      const moneyInTransactionsQuery = `
+        SELECT
+          p.id,
+          p.payment_date,
+          p.amount,
+          p.payment_method,
+          p.reference_number,
+          p.status,
+          i.invoice_number,
+          o.name as organization_name
+        FROM payments p
+        JOIN invoices i ON p.invoice_id = i.id
+        JOIN organizations o ON i.organization_id = o.id
+        WHERE p.payment_date >= $1::date
+          AND p.payment_date <= $2::date
+          AND p.status != 'reversed'
+        ORDER BY p.payment_date DESC
+      `;
+      const moneyInTransactionsResult = await pool.query(moneyInTransactionsQuery, [startDate, endDate]);
+
+      // Fetch individual Money Out transactions - Vendor payments
+      const vendorTransactionsQuery = `
+        SELECT
+          vi.id,
+          vi.paid_at as payment_date,
+          vi.amount,
+          vi.invoice_number,
+          vi.description,
+          v.company_name as payee_name,
+          'vendor' as category
+        FROM vendor_invoices vi
+        JOIN vendors v ON vi.vendor_id = v.id
+        WHERE vi.status = 'paid'
+          AND vi.paid_at >= $1::date
+          AND vi.paid_at <= $2::date
+        ORDER BY vi.paid_at DESC
+      `;
+      const vendorTransactionsResult = await pool.query(vendorTransactionsQuery, [startDate, endDate]);
+
+      // Fetch individual Money Out transactions - Instructor payments
+      let instructorTransactions: any[] = [];
+      try {
+        const instructorTransactionsQuery = `
+          SELECT
+            pr.id,
+            pr.paid_at as payment_date,
+            pr.amount,
+            pr.reference_number,
+            pr.notes as description,
+            u.first_name || ' ' || u.last_name as payee_name,
+            'instructor' as category
+          FROM payment_requests pr
+          JOIN users u ON pr.instructor_id = u.id
+          WHERE pr.status = 'paid'
+            AND pr.paid_at >= $1::date
+            AND pr.paid_at <= $2::date
+          ORDER BY pr.paid_at DESC
+        `;
+        const instructorTransactionsResult = await pool.query(instructorTransactionsQuery, [startDate, endDate]);
+        instructorTransactions = instructorTransactionsResult.rows;
+      } catch (e) {
+        // Table might not exist, continue with empty array
+      }
+
+      // Combine money out transactions
+      const moneyOutTransactions = [
+        ...vendorTransactionsResult.rows,
+        ...instructorTransactions
+      ].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime());
+
       const totalMoneyIn = organizationPayments;
       const totalMoneyOut = vendorPayments + instructorPayments;
       const netCashFlow = totalMoneyIn - totalMoneyOut;
@@ -4703,6 +4774,16 @@ router.get(
             count: organizationPaymentCount,
           },
           total: Math.round(totalMoneyIn * 100) / 100,
+          transactions: moneyInTransactionsResult.rows.map(row => ({
+            id: row.id,
+            date: row.payment_date,
+            organization_name: row.organization_name,
+            invoice_number: row.invoice_number,
+            payment_method: row.payment_method,
+            reference_number: row.reference_number,
+            amount: Math.round((parseFloat(row.amount) || 0) * 100) / 100,
+            status: row.status,
+          })),
         },
         money_out: {
           vendor_payments: {
@@ -4714,6 +4795,16 @@ router.get(
             count: instructorPaymentCount,
           },
           total: Math.round(totalMoneyOut * 100) / 100,
+          transactions: moneyOutTransactions.map(row => ({
+            id: row.id,
+            date: row.payment_date,
+            category: row.category,
+            payee_name: row.payee_name,
+            invoice_number: row.invoice_number,
+            description: row.description,
+            reference_number: row.reference_number,
+            amount: Math.round((parseFloat(row.amount) || 0) * 100) / 100,
+          })),
         },
         net_cash_flow: Math.round(netCashFlow * 100) / 100,
         monthly_breakdown: monthlyResult.rows.map(row => ({

@@ -11,6 +11,13 @@ import {
   CircularProgress,
   Alert,
   Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
 } from '@mui/material';
 import {
   TrendingUp as IncomeIcon,
@@ -34,6 +41,28 @@ import {
 } from 'recharts';
 import api from '../../services/api';
 
+interface MoneyInTransaction {
+  id: number;
+  date: string;
+  organization_name: string;
+  invoice_number: string;
+  payment_method: string;
+  reference_number: string;
+  amount: number;
+  status: string;
+}
+
+interface MoneyOutTransaction {
+  id: number;
+  date: string;
+  category: 'vendor' | 'instructor';
+  payee_name: string;
+  invoice_number?: string;
+  description?: string;
+  reference_number?: string;
+  amount: number;
+}
+
 interface FinancialSummary {
   period: {
     start_date: string;
@@ -42,11 +71,13 @@ interface FinancialSummary {
   money_in: {
     organization_payments: { amount: number; count: number };
     total: number;
+    transactions: MoneyInTransaction[];
   };
   money_out: {
     vendor_payments: { amount: number; count: number };
     instructor_payments: { amount: number; count: number };
     total: number;
+    transactions: MoneyOutTransaction[];
   };
   net_cash_flow: number;
   monthly_breakdown: Array<{
@@ -91,24 +122,46 @@ const FinancialSummaryView: React.FC = () => {
       ['Financial Summary Report'],
       [`Period: ${summary.period.start_date} to ${summary.period.end_date}`],
       [''],
-      ['MONEY IN'],
-      ['Organization Payments', formatCurrency(summary.money_in.organization_payments.amount), `${summary.money_in.organization_payments.count} transactions`],
-      ['Total Income', formatCurrency(summary.money_in.total)],
+      ['SUMMARY'],
+      ['Money In', formatCurrency(summary.money_in.total)],
+      ['Money Out', formatCurrency(summary.money_out.total)],
+      ['Net Cash Flow', formatCurrency(summary.net_cash_flow)],
       [''],
-      ['MONEY OUT'],
+      ['MONEY IN BREAKDOWN'],
+      ['Organization Payments', formatCurrency(summary.money_in.organization_payments.amount), `${summary.money_in.organization_payments.count} transactions`],
+      [''],
+      ['MONEY OUT BREAKDOWN'],
       ['Vendor Payments', formatCurrency(summary.money_out.vendor_payments.amount), `${summary.money_out.vendor_payments.count} transactions`],
       ['Instructor Payments', formatCurrency(summary.money_out.instructor_payments.amount), `${summary.money_out.instructor_payments.count} transactions`],
-      ['Total Expenses', formatCurrency(summary.money_out.total)],
       [''],
-      ['NET CASH FLOW', formatCurrency(summary.net_cash_flow)],
-      [''],
-      ['Monthly Breakdown'],
+      ['MONTHLY BREAKDOWN'],
       ['Month', 'Money In', 'Money Out', 'Net'],
       ...summary.monthly_breakdown.map(m => [
         m.month_label,
         formatCurrency(m.money_in),
         formatCurrency(m.money_out),
         formatCurrency(m.money_in - m.money_out),
+      ]),
+      [''],
+      ['MONEY IN TRANSACTIONS'],
+      ['Date', 'Organization', 'Invoice #', 'Payment Method', 'Reference #', 'Amount'],
+      ...(summary.money_in.transactions || []).map(txn => [
+        new Date(txn.date).toLocaleDateString('en-CA'),
+        txn.organization_name,
+        txn.invoice_number,
+        txn.payment_method || '',
+        txn.reference_number || '',
+        formatCurrency(txn.amount),
+      ]),
+      [''],
+      ['MONEY OUT TRANSACTIONS'],
+      ['Date', 'Category', 'Payee', 'Reference/Description', 'Amount'],
+      ...(summary.money_out.transactions || []).map(txn => [
+        new Date(txn.date).toLocaleDateString('en-CA'),
+        txn.category === 'vendor' ? 'Vendor' : 'Instructor',
+        txn.payee_name,
+        txn.invoice_number || txn.reference_number || txn.description || '',
+        formatCurrency(txn.amount),
       ]),
     ].map(row => row.join(',')).join('\n');
 
@@ -342,6 +395,128 @@ const FinancialSummaryView: React.FC = () => {
                 />
               </LineChart>
             </ResponsiveContainer>
+          </Paper>
+
+          {/* Money In Transactions Table */}
+          <Paper sx={{ p: 3, mt: 4 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <IncomeIcon sx={{ color: '#4caf50' }} />
+                <Typography variant="h6">
+                  Money In Transactions
+                </Typography>
+              </Box>
+              <Typography variant="h6" sx={{ color: '#4caf50' }}>
+                Total: {formatCurrency(summary.money_in.total)}
+              </Typography>
+            </Box>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: 'rgba(76, 175, 80, 0.1)' }}>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Organization</TableCell>
+                    <TableCell>Invoice #</TableCell>
+                    <TableCell>Payment Method</TableCell>
+                    <TableCell>Reference #</TableCell>
+                    <TableCell align="right">Amount</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {summary.money_in.transactions?.length > 0 ? (
+                    summary.money_in.transactions.map((txn) => (
+                      <TableRow key={txn.id} hover>
+                        <TableCell>
+                          {new Date(txn.date).toLocaleDateString('en-CA')}
+                        </TableCell>
+                        <TableCell>{txn.organization_name}</TableCell>
+                        <TableCell>{txn.invoice_number}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={txn.payment_method?.replace('_', ' ').toUpperCase() || 'N/A'}
+                            size="small"
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        <TableCell>{txn.reference_number || '-'}</TableCell>
+                        <TableCell align="right" sx={{ color: '#4caf50', fontWeight: 'medium' }}>
+                          {formatCurrency(txn.amount)}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                        <Typography color="textSecondary">
+                          No money in transactions for this period
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+
+          {/* Money Out Transactions Table */}
+          <Paper sx={{ p: 3, mt: 4 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <ExpenseIcon sx={{ color: '#f44336' }} />
+                <Typography variant="h6">
+                  Money Out Transactions
+                </Typography>
+              </Box>
+              <Typography variant="h6" sx={{ color: '#f44336' }}>
+                Total: {formatCurrency(summary.money_out.total)}
+              </Typography>
+            </Box>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: 'rgba(244, 67, 54, 0.1)' }}>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Category</TableCell>
+                    <TableCell>Payee</TableCell>
+                    <TableCell>Reference / Description</TableCell>
+                    <TableCell align="right">Amount</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {summary.money_out.transactions?.length > 0 ? (
+                    summary.money_out.transactions.map((txn) => (
+                      <TableRow key={`${txn.category}-${txn.id}`} hover>
+                        <TableCell>
+                          {new Date(txn.date).toLocaleDateString('en-CA')}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={txn.category === 'vendor' ? 'Vendor' : 'Instructor'}
+                            size="small"
+                            color={txn.category === 'vendor' ? 'primary' : 'secondary'}
+                          />
+                        </TableCell>
+                        <TableCell>{txn.payee_name}</TableCell>
+                        <TableCell>
+                          {txn.invoice_number || txn.reference_number || txn.description || '-'}
+                        </TableCell>
+                        <TableCell align="right" sx={{ color: '#f44336', fontWeight: 'medium' }}>
+                          {formatCurrency(txn.amount)}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                        <Typography color="textSecondary">
+                          No money out transactions for this period
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Paper>
         </>
       )}
