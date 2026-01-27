@@ -398,7 +398,7 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <EventIcon sx={{ mr: 1, color: 'primary.main' }} />
               <Typography variant="h6" component="h3">
-                Courses for Week of {formatDate(formData.weekStartDate)}
+                Completed Courses for Week of {formatDate(formData.weekStartDate)}
               </Typography>
             </Box>
 
@@ -408,11 +408,7 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
               </Box>
             ) : weekCourses ? (
               <Box>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  Week: {formatDate(weekCourses.weekStartDate)} to {formatDate(weekCourses.weekEndDate)}
-                </Typography>
-                
-                {weekCourses.courses.length > 0 ? (
+                {weekCourses.courses.filter(c => c.status === 'completed').length > 0 ? (
                   <TableContainer>
                     <Table size="small">
                       <TableHead>
@@ -421,25 +417,17 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
                           <TableCell sx={{ fontWeight: 600 }}>Organization</TableCell>
                           <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>
                           <TableCell sx={{ fontWeight: 600 }}>Course Type</TableCell>
-                          <TableCell sx={{ fontWeight: 600 }}>Students</TableCell>
-                          <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {weekCourses.courses.map((course) => (
+                        {weekCourses.courses
+                          .filter(course => course.status === 'completed')
+                          .map((course) => (
                           <TableRow key={course.id} hover>
                             <TableCell>{formatDate(course.date)}</TableCell>
                             <TableCell>{course.organizationName}</TableCell>
                             <TableCell>{course.location || 'TBD'}</TableCell>
                             <TableCell>{course.courseType}</TableCell>
-                            <TableCell>{course.studentCount}</TableCell>
-                            <TableCell>
-                              <Chip
-                                label={course.status}
-                                color={course.status === 'completed' ? 'success' : 'primary'}
-                                size="small"
-                              />
-                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -447,7 +435,7 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
                   </TableContainer>
                 ) : (
                   <Alert severity="info">
-                    No courses scheduled for this week.
+                    No completed courses for this week.
                   </Alert>
                 )}
               </Box>
