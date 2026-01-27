@@ -114,8 +114,9 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
     try {
       const courses = await timesheetService.getWeekCourses(weekStartDate);
       setWeekCourses(courses);
-      // Auto-populate courses taught
-      setFormData(prev => ({ ...prev, coursesTaught: courses.totalCourses }));
+      // Auto-populate courses taught (only count completed courses)
+      const completedCount = courses.courses.filter(c => c.status === 'completed').length;
+      setFormData(prev => ({ ...prev, coursesTaught: completedCount }));
     } catch (err: unknown) {
       console.error('Error fetching week courses:', err);
       setWeekCourses(null);
