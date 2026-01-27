@@ -18,7 +18,13 @@ import {
   TableHead,
   TableRow,
   Chip,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
+import {
+  ViewList as DetailedIcon,
+  Summarize as SummaryIcon,
+} from '@mui/icons-material';
 import {
   TrendingUp as IncomeIcon,
   TrendingDown as ExpenseIcon,
@@ -88,10 +94,19 @@ interface FinancialSummary {
   }>;
 }
 
+interface GroupedInvoice {
+  invoice_number: string;
+  organization_name: string;
+  total_payments: number;
+  payment_count: number;
+  last_payment_date: string;
+}
+
 const FinancialSummaryView: React.FC = () => {
   const currentYear = new Date().getFullYear();
   const [startDate, setStartDate] = useState(`${currentYear}-01-01`);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [viewMode, setViewMode] = useState<'summary' | 'detailed'>('summary');
 
   const {
     data: summary,
@@ -113,6 +128,43 @@ const FinancialSummaryView: React.FC = () => {
       style: 'currency',
       currency: 'CAD',
     }).format(amount);
+  };
+
+  // Group transactions by invoice for summary view
+  const groupedInvoices: GroupedInvoice[] = React.useMemo(() => {
+    if (!summary?.money_in.transactions) return [];
+
+    const grouped = summary.money_in.transactions.reduce((acc, txn) => {
+      const key = txn.invoice_number;
+      if (!acc[key]) {
+        acc[key] = {
+          invoice_number: txn.invoice_number,
+          organization_name: txn.organization_name,
+          total_payments: 0,
+          payment_count: 0,
+          last_payment_date: txn.date,
+        };
+      }
+      acc[key].total_payments += txn.amount;
+      acc[key].payment_count += 1;
+      if (new Date(txn.date) > new Date(acc[key].last_payment_date)) {
+        acc[key].last_payment_date = txn.date;
+      }
+      return acc;
+    }, {} as Record<string, GroupedInvoice>);
+
+    return Object.values(grouped).sort((a, b) =>
+      new Date(b.last_payment_date).getTime() - new Date(a.last_payment_date).getTime()
+    );
+  }, [summary?.money_in.transactions]);
+
+  const handleViewModeChange = (
+    _event: React.MouseEvent<HTMLElement>,
+    newMode: 'summary' | 'detailed' | null
+  ) => {
+    if (newMode !== null) {
+      setViewMode(newMode);
+    }
   };
 
   const handleExportCSV = () => {
@@ -406,54 +458,119 @@ const FinancialSummaryView: React.FC = () => {
                   Money In Transactions
                 </Typography>
               </Box>
-              <Typography variant="h6" sx={{ color: '#4caf50' }}>
-                Total: {formatCurrency(summary.money_in.total)}
-              </Typography>
+              <Box display="flex" alignItems="center" gap={2}>
+                <ToggleButtonGroup
+                  value={viewMode}
+                  exclusive
+                  onChange={handleViewModeChange}
+                  size="small"
+                >
+                  <ToggleButton value="summary">
+                    <SummaryIcon sx={{ mr: 0.5, fontSize: 18 }} />
+                    Summary
+                  </ToggleButton>
+                  <ToggleButton value="detailed">
+                    <DetailedIcon sx={{ mr: 0.5, fontSize: 18 }} />
+                    Detailed
+                  </ToggleButton>
+                </ToggleButtonGroup>
+                <Typography variant="h6" sx={{ color: '#4caf50' }}>
+                  Total: {formatCurrency(summary.money_in.total)}
+                </Typography>
+              </Box>
             </Box>
             <TableContainer>
               <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: 'rgba(76, 175, 80, 0.1)' }}>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Organization</TableCell>
-                    <TableCell>Invoice #</TableCell>
-                    <TableCell>Payment Method</TableCell>
-                    <TableCell>Reference #</TableCell>
-                    <TableCell align="right">Amount</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {summary.money_in.transactions?.length > 0 ? (
-                    summary.money_in.transactions.map((txn) => (
-                      <TableRow key={txn.id} hover>
-                        <TableCell>
-                          {new Date(txn.date).toLocaleDateString('en-CA')}
-                        </TableCell>
-                        <TableCell>{txn.organization_name}</TableCell>
-                        <TableCell>{txn.invoice_number}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={txn.payment_method?.replace('_', ' ').toUpperCase() || 'N/A'}
-                            size="small"
-                            variant="outlined"
-                          />
-                        </TableCell>
-                        <TableCell>{txn.reference_number || '-'}</TableCell>
-                        <TableCell align="right" sx={{ color: '#4caf50', fontWeight: 'medium' }}>
-                          {formatCurrency(txn.amount)}
-                        </TableCell>
+                {viewMode === 'summary' ? (
+                  <>
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: 'rgba(76, 175, 80, 0.1)' }}>
+                        <TableCell>Invoice #</TableCell>
+                        <TableCell>Organization</TableCell>
+                        <TableCell align="center">Payments</TableCell>
+                        <TableCell>Last Payment</TableCell>
+                        <TableCell align="right">Total Received</TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                        <Typography color="textSecondary">
-                          No money in transactions for this period
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
+                    </TableHead>
+                    <TableBody>
+                      {groupedInvoices.length > 0 ? (
+                        groupedInvoices.map((inv) => (
+                          <TableRow key={inv.invoice_number} hover>
+                            <TableCell>{inv.invoice_number}</TableCell>
+                            <TableCell>{inv.organization_name}</TableCell>
+                            <TableCell align="center">
+                              <Chip
+                                label={`${inv.payment_count} payment${inv.payment_count > 1 ? 's' : ''}`}
+                                size="small"
+                                variant="outlined"
+                                color={inv.payment_count > 1 ? 'primary' : 'default'}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {new Date(inv.last_payment_date).toLocaleDateString('en-CA')}
+                            </TableCell>
+                            <TableCell align="right" sx={{ color: '#4caf50', fontWeight: 'medium' }}>
+                              {formatCurrency(inv.total_payments)}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                            <Typography color="textSecondary">
+                              No money in transactions for this period
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </>
+                ) : (
+                  <>
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: 'rgba(76, 175, 80, 0.1)' }}>
+                        <TableCell>Date</TableCell>
+                        <TableCell>Organization</TableCell>
+                        <TableCell>Invoice #</TableCell>
+                        <TableCell>Payment Method</TableCell>
+                        <TableCell>Reference #</TableCell>
+                        <TableCell align="right">Amount</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {summary.money_in.transactions?.length > 0 ? (
+                        summary.money_in.transactions.map((txn) => (
+                          <TableRow key={txn.id} hover>
+                            <TableCell>
+                              {new Date(txn.date).toLocaleDateString('en-CA')}
+                            </TableCell>
+                            <TableCell>{txn.organization_name}</TableCell>
+                            <TableCell>{txn.invoice_number}</TableCell>
+                            <TableCell>
+                              <Chip
+                                label={txn.payment_method?.replace('_', ' ').toUpperCase() || 'N/A'}
+                                size="small"
+                                variant="outlined"
+                              />
+                            </TableCell>
+                            <TableCell>{txn.reference_number || '-'}</TableCell>
+                            <TableCell align="right" sx={{ color: '#4caf50', fontWeight: 'medium' }}>
+                              {formatCurrency(txn.amount)}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                            <Typography color="textSecondary">
+                              No money in transactions for this period
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </>
+                )}
               </Table>
             </TableContainer>
           </Paper>
