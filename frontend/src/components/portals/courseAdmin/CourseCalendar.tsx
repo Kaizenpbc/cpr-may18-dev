@@ -154,8 +154,9 @@ const CourseCalendar: React.FC = () => {
       case 'confirmed':
         return '#4caf50'; // Green
       case 'pending':
+        return '#2196f3'; // Blue
       case 'past_due':
-        return '#ff9800'; // Orange/Yellow
+        return '#ff9800'; // Orange
       default:
         return '#9e9e9e'; // Grey
     }
@@ -207,8 +208,8 @@ const CourseCalendar: React.FC = () => {
       {/* Legend */}
       <Box display="flex" gap={3} mb={2} justifyContent="center">
         <Box display="flex" alignItems="center" gap={0.5}>
-          <CircleIcon sx={{ fontSize: 12, color: '#ff9800' }} />
-          <Typography variant="caption">Pending</Typography>
+          <CircleIcon sx={{ fontSize: 12, color: '#2196f3' }} />
+          <Typography variant="caption">Scheduled</Typography>
         </Box>
         <Box display="flex" alignItems="center" gap={0.5}>
           <CircleIcon sx={{ fontSize: 12, color: '#4caf50' }} />
