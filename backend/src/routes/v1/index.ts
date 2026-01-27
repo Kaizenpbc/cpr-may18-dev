@@ -2812,7 +2812,7 @@ router.get(
       JOIN class_types ct ON cr.course_type_id = ct.id
       JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
       LEFT JOIN users u ON cr.instructor_id = u.id
-      WHERE cr.status = 'completed'
+      WHERE cr.ready_for_billing = true
       AND cr.ready_for_billing_at IS NOT NULL
       AND (cr.invoiced IS NULL OR cr.invoiced = FALSE)
       ORDER BY cr.ready_for_billing_at DESC
