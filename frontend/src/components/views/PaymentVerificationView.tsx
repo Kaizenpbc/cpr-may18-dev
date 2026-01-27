@@ -785,14 +785,22 @@ const PaymentVerificationView = () => {
               </Button>
               <Button
                 onClick={() => {
-                  setVerificationAction('approve');
-                  setDialogMode('action');
+                  // Directly approve without going to action mode (notes are optional for approval)
+                  if (selectedPayment) {
+                    const paymentId = selectedPayment.paymentId || selectedPayment.id;
+                    verifyPaymentMutation.mutate({
+                      paymentId: paymentId.toString(),
+                      action: 'approve',
+                      notes: '',
+                    });
+                  }
                 }}
                 variant='contained'
                 color='success'
                 disabled={verifyPaymentMutation.isPending}
+                startIcon={verifyPaymentMutation.isPending ? <CircularProgress size={20} color="inherit" /> : null}
               >
-                Approve Payment
+                {verifyPaymentMutation.isPending ? 'Approving...' : 'Approve Payment'}
               </Button>
             </>
           )}
