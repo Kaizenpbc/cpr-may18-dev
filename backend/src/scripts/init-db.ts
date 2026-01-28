@@ -1280,21 +1280,30 @@ export async function initializeDatabase() {
       const orgResult = await pool.query(`SELECT id FROM organizations WHERE name = 'Test Organization'`);
       const testOrgId = orgResult.rows[0]?.id || 1;
 
-      // Create default users (without organization)
-      await pool.query(`
-        INSERT INTO users (username, email, password_hash, role) VALUES
-        ('admin', 'admin@cpr.com', $1, 'admin'),
-        ('sysadmin', 'sysadmin@cpr.com', $1, 'sysadmin'),
-        ('instructor', 'instructor@cpr.com', $1, 'instructor'),
-        ('accountant', 'accountant@cpr.com', $1, 'accountant')
-        ON CONFLICT (username) DO NOTHING
-      `, [passwordHash]);
+      // Create default users (without organization) - use INSERT...SELECT to handle both username and email uniqueness
+      const defaultUsers = [
+        { username: 'admin', email: 'admin@cpr.com', role: 'admin' },
+        { username: 'sysadmin', email: 'sysadmin@cpr.com', role: 'sysadmin' },
+        { username: 'instructor', email: 'instructor@cpr.com', role: 'instructor' },
+        { username: 'accountant', email: 'accountant@cpr.com', role: 'accountant' }
+      ];
+      for (const user of defaultUsers) {
+        await pool.query(`
+          INSERT INTO users (username, email, password_hash, role)
+          SELECT $1, $2, $3, $4
+          WHERE NOT EXISTS (
+            SELECT 1 FROM users WHERE username = $1 OR email = $2
+          )
+        `, [user.username, user.email, passwordHash, user.role]);
+      }
 
       // Create organization user linked to Test Organization
       await pool.query(`
         INSERT INTO users (username, email, password_hash, role, organization_id)
-        VALUES ('orguser', 'orguser@cpr.com', $1, 'organization', $2)
-        ON CONFLICT (username) DO NOTHING
+        SELECT 'orguser', 'orguser@cpr.com', $1, 'organization', $2
+        WHERE NOT EXISTS (
+          SELECT 1 FROM users WHERE username = 'orguser' OR email = 'orguser@cpr.com'
+        )
       `, [passwordHash, testOrgId]);
 
       // Create class types
@@ -1312,7 +1321,7 @@ export async function initializeDatabase() {
     }
 
     // Always ensure orguser exists (even if database already has data)
-    const orgUserCheck = await pool.query("SELECT id FROM users WHERE username = 'orguser'");
+    const orgUserCheck = await pool.query("SELECT id FROM users WHERE username = 'orguser' OR email = 'orguser@cpr.com'");
     if (orgUserCheck.rows.length === 0) {
       console.log('👤 Creating orguser account...');
       const passwordHash = await bcrypt.hash('test123', 12);
@@ -1327,10 +1336,13 @@ export async function initializeDatabase() {
       const orgResult = await pool.query(`SELECT id FROM organizations WHERE name = 'Test Organization'`);
       const testOrgId = orgResult.rows[0]?.id || 1;
 
+      // Use INSERT...SELECT with NOT EXISTS to handle both username and email uniqueness
       await pool.query(`
         INSERT INTO users (username, email, password_hash, role, organization_id)
-        VALUES ('orguser', 'orguser@cpr.com', $1, 'organization', $2)
-        ON CONFLICT (username) DO NOTHING
+        SELECT 'orguser', 'orguser@cpr.com', $1, 'organization', $2
+        WHERE NOT EXISTS (
+          SELECT 1 FROM users WHERE username = 'orguser' OR email = 'orguser@cpr.com'
+        )
       `, [passwordHash, testOrgId]);
 
       console.log('✅ orguser account created');
