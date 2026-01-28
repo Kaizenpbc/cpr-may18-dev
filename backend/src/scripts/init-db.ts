@@ -1348,6 +1348,19 @@ export async function initializeDatabase() {
       console.log('✅ orguser account created');
     }
 
+    // Fix passwords for sean and peter (temporary fix - can be removed after passwords are working)
+    const usersToFix = ['sean', 'peter'];
+    const fixPasswordHash = await bcrypt.hash('test1234', 10);
+    for (const username of usersToFix) {
+      const result = await pool.query(
+        'UPDATE users SET password_hash = $1 WHERE username = $2 RETURNING id, username',
+        [fixPasswordHash, username]
+      );
+      if (result.rows.length > 0) {
+        console.log(`✅ Password reset for user: ${username}`);
+      }
+    }
+
     // Insert default system configurations
     await pool.query(`
       INSERT INTO system_configurations (config_key, config_value, description, category) VALUES
