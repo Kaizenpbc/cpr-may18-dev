@@ -29,6 +29,37 @@ import { initializeSecurityMonitoringDatabase } from './config/securityMonitorin
 
 const execAsync = promisify(exec);
 
+// Utility: Convert snake_case to camelCase
+function snakeToCamel(str: string): string {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+// Utility: Recursively convert all object keys from snake_case to camelCase
+function convertKeysToCamelCase(obj: unknown): unknown {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => convertKeysToCamelCase(item));
+  }
+
+  if (obj instanceof Date) {
+    return obj;
+  }
+
+  if (typeof obj === 'object') {
+    const converted: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+      const camelKey = snakeToCamel(key);
+      converted[camelKey] = convertKeysToCamelCase(value);
+    }
+    return converted;
+  }
+
+  return obj;
+}
+
 // Logging setup
 const logDir = path.join(process.cwd(), 'logs');
 if (!fs.existsSync(logDir)) {
@@ -93,7 +124,7 @@ const requestLogger = (req: Request, res: Response, next: NextFunction) => {
     writeToLog(`📦 Request body: ${JSON.stringify(sanitizedBody)}`, 'DEBUG');
   }
 
-  // Override res.json to log responses
+  // Override res.json to log responses AND convert snake_case to camelCase
   const originalJson = res.json;
   res.json = function (data: unknown) {
     const duration = Date.now() - start;
@@ -109,7 +140,10 @@ const requestLogger = (req: Request, res: Response, next: NextFunction) => {
       writeToLog(`🔐 Auth response: ${JSON.stringify({ success: respData.success || false, message: respData.message || 'No message' })}`, 'INFO');
     }
 
-    return originalJson.call(this, data);
+    // Convert all snake_case keys to camelCase before sending response
+    const transformedData = convertKeysToCamelCase(data);
+
+    return originalJson.call(this, transformedData);
   };
 
   next();

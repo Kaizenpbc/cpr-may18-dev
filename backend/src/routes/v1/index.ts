@@ -4905,11 +4905,11 @@ router.get(
           id,
           name,
           description,
-          duration_minutes,
-          course_code,
-          COALESCE(is_active, true) as is_active,
-          created_at,
-          updated_at
+          duration_minutes as "durationMinutes",
+          course_code as "courseCode",
+          COALESCE(is_active, true) as "isActive",
+          created_at as "createdAt",
+          updated_at as "updatedAt"
         FROM class_types
         ORDER BY name
       `);
@@ -5148,16 +5148,16 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const result = await pool.query(`
-      SELECT 
+      SELECT
         u.id,
         u.username,
         u.email,
         u.role,
         u.phone,
-        u.organization_id,
-        o.name as organization_name,
-        u.created_at,
-        u.updated_at
+        u.organization_id as "organizationId",
+        o.name as "organizationName",
+        u.created_at as "createdAt",
+        u.updated_at as "updatedAt"
       FROM users u
       LEFT JOIN organizations o ON u.organization_id = o.id
       ORDER BY u.created_at DESC
@@ -5445,16 +5445,16 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const result = await pool.query(`
-      SELECT 
+      SELECT
         id,
-        name as vendor_name,
-        contact_email as email,
-        contact_phone as phone,
+        name as "vendorName",
+        contact_email as "email",
+        contact_phone as "phone",
         address,
-        vendor_type,
-        is_active,
-        created_at,
-        updated_at
+        vendor_type as "vendorType",
+        is_active as "isActive",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
       FROM vendors
       ORDER BY name
     `);
@@ -5462,38 +5462,38 @@ router.get(
       // Transform the data to match frontend expectations
       const transformedVendors = result.rows.map(vendor => {
         // Parse address into separate fields if it contains commas
-        let address_street = '';
-        let address_city = '';
-        let address_province = '';
-        let address_postal_code = '';
-        
+        let addressStreet = '';
+        let addressCity = '';
+        let addressProvince = '';
+        let addressPostalCode = '';
+
         if (vendor.address) {
           const addressParts = vendor.address.split(',').map((part: string) => part.trim());
-          address_street = addressParts[0] || '';
-          address_city = addressParts[1] || '';
-          address_province = addressParts[2] || '';
-          address_postal_code = addressParts[3] || '';
+          addressStreet = addressParts[0] || '';
+          addressCity = addressParts[1] || '';
+          addressProvince = addressParts[2] || '';
+          addressPostalCode = addressParts[3] || '';
         }
 
         return {
           ...vendor,
-          address_street,
-          address_city,
-          address_province,
-          address_postal_code,
+          addressStreet,
+          addressCity,
+          addressProvince,
+          addressPostalCode,
           // Add default values for fields that don't exist in database
-          contact_first_name: '',
-          contact_last_name: '',
+          contactFirstName: '',
+          contactLastName: '',
           mobile: '',
           services: [],
-          contract_start_date: null,
-          contract_end_date: null,
-          performance_rating: 0,
-          insurance_expiry: null,
-          certification_status: '',
-          billing_contact_email: '',
+          contractStartDate: null,
+          contractEndDate: null,
+          performanceRating: 0,
+          insuranceExpiry: null,
+          certificationStatus: '',
+          billingContactEmail: '',
           comments: '',
-          status: vendor.is_active ? 'active' : 'inactive'
+          status: vendor.isActive ? 'active' : 'inactive'
         };
       });
 
@@ -5746,17 +5746,17 @@ router.get(
 
       // Get recent activity
       const recentUsers = await pool.query(`
-      SELECT username, role, created_at 
-      FROM users 
-      ORDER BY created_at DESC 
+      SELECT username, role, created_at as "createdAt"
+      FROM users
+      ORDER BY created_at DESC
       LIMIT 5
     `);
 
       const recentCourses = await pool.query(`
-      SELECT name, course_code, created_at 
-      FROM class_types 
-      WHERE is_active = true 
-      ORDER BY created_at DESC 
+      SELECT name, course_code as "courseCode", created_at as "createdAt"
+      FROM class_types
+      WHERE is_active = true
+      ORDER BY created_at DESC
       LIMIT 5
     `);
 
@@ -5791,15 +5791,15 @@ router.get(
     devLog('[Debug] Getting all organizations for sysadmin');
 
     const query = `
-    SELECT 
+    SELECT
       o.id,
-      o.name as organization_name,
+      o.name as "organizationName",
       o.address,
-      o.created_at,
-      o.contact_email,
-      o.contact_phone,
-      COUNT(DISTINCT u.id) as user_count,
-      COUNT(DISTINCT cr.id) as course_count
+      o.created_at as "createdAt",
+      o.contact_email as "contactEmail",
+      o.contact_phone as "contactPhone",
+      COUNT(DISTINCT u.id)::int as "userCount",
+      COUNT(DISTINCT cr.id)::int as "courseCount"
     FROM organizations o
     LEFT JOIN users u ON u.organization_id = o.id
     LEFT JOIN course_requests cr ON cr.organization_id = o.id
