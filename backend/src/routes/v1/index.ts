@@ -4945,6 +4945,20 @@ router.post(
         );
       }
 
+      // Check for duplicate course name
+      const existingCourse = await pool.query(
+        'SELECT id FROM class_types WHERE LOWER(name) = LOWER($1)',
+        [name]
+      );
+
+      if (existingCourse.rows.length > 0) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'A course with this name already exists'
+        );
+      }
+
       const result = await pool.query(
         `
         INSERT INTO class_types (
@@ -4986,6 +5000,22 @@ router.put(
         course_code,
         is_active,
       } = req.body;
+
+      // Check for duplicate course name (excluding current course)
+      if (name) {
+        const existingCourse = await pool.query(
+          'SELECT id FROM class_types WHERE LOWER(name) = LOWER($1) AND id != $2',
+          [name, id]
+        );
+
+        if (existingCourse.rows.length > 0) {
+          throw new AppError(
+            400,
+            errorCodes.VALIDATION_ERROR,
+            'A course with this name already exists'
+          );
+        }
+      }
 
       const result = await pool.query(
         `
