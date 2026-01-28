@@ -423,7 +423,7 @@ const UserManagement = ({ onShowSnackbar }) => {
       >
         <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
         <DialogContent>
-          <Box component='form' onSubmit={handleSubmit} sx={{ mt: 2 }}>
+          <Box component='form' onSubmit={handleSubmit} autoComplete='off' sx={{ mt: 2 }}>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -433,6 +433,7 @@ const UserManagement = ({ onShowSnackbar }) => {
                   name='username'
                   value={formData.username}
                   onChange={handleChange}
+                  autoComplete='off'
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -444,6 +445,7 @@ const UserManagement = ({ onShowSnackbar }) => {
                   name='email'
                   value={formData.email}
                   onChange={handleChange}
+                  autoComplete='off'
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -459,6 +461,7 @@ const UserManagement = ({ onShowSnackbar }) => {
                   value={formData.password}
                   onChange={handleChange}
                   required={!editingUser}
+                  autoComplete='new-password'
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
