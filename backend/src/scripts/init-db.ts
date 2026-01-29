@@ -1348,6 +1348,13 @@ export async function initializeDatabase() {
       console.log('✅ orguser account created');
     }
 
+    // List all users in database (temporary debug)
+    const allUsers = await pool.query('SELECT id, username, email, role FROM users ORDER BY id');
+    console.log('📋 All users in database:');
+    allUsers.rows.forEach((u: { id: number; username: string; email: string; role: string }) => {
+      console.log(`   - ID: ${u.id}, Username: ${u.username}, Email: ${u.email}, Role: ${u.role}`);
+    });
+
     // Fix passwords for sean and peter (temporary fix - can be removed after passwords are working)
     const usersToFix = ['sean', 'peter'];
     const fixPasswordHash = await bcrypt.hash('test1234', 10);
