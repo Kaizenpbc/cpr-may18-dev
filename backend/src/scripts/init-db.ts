@@ -1351,13 +1351,16 @@ export async function initializeDatabase() {
     // Fix passwords for sean and peter (temporary fix - can be removed after passwords are working)
     const usersToFix = ['sean', 'peter'];
     const fixPasswordHash = await bcrypt.hash('test1234', 10);
+    console.log('🔧 Attempting to reset passwords for:', usersToFix.join(', '));
     for (const username of usersToFix) {
       const result = await pool.query(
-        'UPDATE users SET password_hash = $1 WHERE username = $2 RETURNING id, username',
+        'UPDATE users SET password_hash = $1 WHERE LOWER(username) = LOWER($2) RETURNING id, username',
         [fixPasswordHash, username]
       );
       if (result.rows.length > 0) {
-        console.log(`✅ Password reset for user: ${username}`);
+        console.log(`✅ Password reset for user: ${result.rows[0].username}`);
+      } else {
+        console.log(`⚠️ User not found: ${username}`);
       }
     }
 
