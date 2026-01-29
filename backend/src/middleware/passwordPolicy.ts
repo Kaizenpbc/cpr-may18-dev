@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { body, ValidationChain } from 'express-validator';
 
+// RELAXED PASSWORD POLICY - Jan 29 2026
+console.log('🔓🔓🔓 RELAXED PASSWORD POLICY LOADED - MIN 4 CHARS, NO REQUIREMENTS 🔓🔓🔓');
+
 // Password policy configuration
 export interface PasswordPolicy {
   minLength: number;
