@@ -5227,11 +5227,11 @@ router.post(
     body('role')
       .isIn(['admin', 'instructor', 'organization', 'accountant', 'hr', 'courseadmin', 'vendor', 'sysadmin'])
       .withMessage('Role must be one of: admin, instructor, organization, accountant, hr, courseadmin, vendor, sysadmin'),
-    body('first_name')
+    body('firstName')
       .optional()
       .isLength({ max: 100 })
       .withMessage('First name must be less than 100 characters'),
-    body('last_name')
+    body('lastName')
       .optional()
       .isLength({ max: 100 })
       .withMessage('Last name must be less than 100 characters'),
@@ -5239,28 +5239,11 @@ router.post(
       .optional()
       .isMobilePhone('any')
       .withMessage('Mobile must be a valid phone number'),
-    body('organization_id')
+    body('organizationId')
       .optional()
       .isInt({ min: 1 })
       .withMessage('Organization ID must be a positive integer')
   ],
-  // TEMPORARILY DISABLED - Password validation bypassed for testing
-  // (req: Request, res: Response, next: NextFunction) => {
-  //   const { role } = req.body;
-  //   const passwordValidation = roleBasedPasswordValidation(role || 'user');
-  //   return passwordValidation.run(req).then(() => {
-  //     const errors = validationResult(req);
-  //     if (!errors.isEmpty()) {
-  //       return res.status(400).json({
-  //         success: false,
-  //         message: 'Password validation failed',
-  //         errors: errors.array().map(e => e.msg)
-  //       });
-  //     }
-  //     next();
-  //   });
-  // },
-  // validatePasswordPolicy(),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       // Check validation results
@@ -5273,19 +5256,28 @@ router.post(
         );
       }
 
+      // Accept both camelCase (from frontend) and snake_case field names
       const {
         username,
         email,
         password,
-        first_name,
-        last_name,
-        full_name,
+        firstName, first_name,
+        lastName, last_name,
+        fullName, full_name,
         role,
         mobile,
-        organization_id,
-        date_onboarded,
-        user_comments,
+        organizationId, organization_id,
+        dateOnboarded, date_onboarded,
+        userComments, user_comments,
       } = req.body;
+
+      // Use camelCase values first, fall back to snake_case
+      const firstNameVal = firstName ?? first_name;
+      const lastNameVal = lastName ?? last_name;
+      const fullNameVal = fullName ?? full_name;
+      const organizationIdVal = organizationId ?? organization_id;
+      const dateOnboardedVal = dateOnboarded ?? date_onboarded;
+      const userCommentsVal = userComments ?? user_comments;
 
       // Check if username already exists
       const existingUsername = await pool.query(
@@ -5322,27 +5314,46 @@ router.post(
         first_name, last_name, full_name, mobile, date_onboarded, user_comments
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      RETURNING id, username, email, role, organization_id, first_name, last_name, full_name
+      RETURNING id, username, email, role,
+        organization_id as "organizationId",
+        first_name as "firstName",
+        last_name as "lastName",
+        full_name as "fullName",
+        mobile,
+        date_onboarded as "dateOnboarded",
+        user_comments as "userComments"
     `,
         [
           username,
           email,
           passwordHash,
           role,
-          organization_id || null,
-          first_name || null,
-          last_name || null,
-          full_name || null,
+          organizationIdVal || null,
+          firstNameVal || null,
+          lastNameVal || null,
+          fullNameVal || null,
           mobile || null,
-          date_onboarded || null,
-          user_comments || null,
+          dateOnboardedVal || null,
+          userCommentsVal || null,
         ]
       );
+
+      // Fetch the organization name if organization_id exists
+      const userData = result.rows[0];
+      if (userData.organizationId) {
+        const orgResult = await pool.query(
+          'SELECT name FROM organizations WHERE id = $1',
+          [userData.organizationId]
+        );
+        if (orgResult.rows.length > 0) {
+          userData.organizationName = orgResult.rows[0].name;
+        }
+      }
 
       res.json({
         success: true,
         message: 'User created successfully',
-        data: result.rows[0],
+        data: userData,
       });
     } catch (error) {
       console.error('Error creating user:', error);
