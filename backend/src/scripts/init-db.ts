@@ -1349,11 +1349,22 @@ export async function initializeDatabase() {
     }
 
     // List all users in database (temporary debug)
-    const allUsers = await pool.query('SELECT id, username, email, role FROM users ORDER BY id');
+    const allUsers = await pool.query('SELECT id, username, email, role, organization_id FROM users ORDER BY id');
     console.log('📋 All users in database:');
-    allUsers.rows.forEach((u: { id: number; username: string; email: string; role: string }) => {
-      console.log(`   - ID: ${u.id}, Username: ${u.username}, Email: ${u.email}, Role: ${u.role}`);
+    allUsers.rows.forEach((u: { id: number; username: string; email: string; role: string; organization_id: number | null }) => {
+      console.log(`   - ID: ${u.id}, Username: ${u.username}, Email: ${u.email}, Role: ${u.role}, OrgID: ${u.organization_id || 'none'}`);
     });
+
+    // List all organizations
+    const allOrgs = await pool.query('SELECT id, name, contact_email FROM organizations ORDER BY id');
+    console.log('🏢 All organizations in database:');
+    if (allOrgs.rows.length === 0) {
+      console.log('   ⚠️ NO ORGANIZATIONS DEFINED!');
+    } else {
+      allOrgs.rows.forEach((o: { id: number; name: string; contact_email: string }) => {
+        console.log(`   - ID: ${o.id}, Name: ${o.name}, Email: ${o.contact_email}`);
+      });
+    }
 
     // Fix passwords for sean and peter (temporary fix - can be removed after passwords are working)
     const usersToFix = ['sean', 'peter'];
