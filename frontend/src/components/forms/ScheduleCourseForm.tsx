@@ -191,9 +191,27 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
     );
   }
 
-  // Get organization name - fallback to username if organizationName not available
-  const organizationDisplayName =
-    user.organizationName || `Organization (${user.username})`;
+  // Check if organization is properly configured
+  if (!user.organizationName) {
+    return (
+      <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 } }}>
+        <Alert severity='error' sx={{ mb: 2 }}>
+          <Typography variant='subtitle1' fontWeight='bold'>
+            Organization Not Configured
+          </Typography>
+          <Typography variant='body2' sx={{ mt: 1 }}>
+            Your account is not linked to an organization. Please contact your System Administrator to:
+          </Typography>
+          <Box component='ul' sx={{ mt: 1, mb: 0, pl: 2 }}>
+            <li>Create an organization in the system</li>
+            <li>Link your user account to the organization</li>
+          </Box>
+        </Alert>
+      </Paper>
+    );
+  }
+
+  const organizationDisplayName = user.organizationName;
 
   return (
     <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 } }}>
