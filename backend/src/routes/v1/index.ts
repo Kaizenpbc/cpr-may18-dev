@@ -5385,21 +5385,31 @@ router.put(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
+      // Accept both camelCase (from frontend) and snake_case field names
       const {
         username,
         email,
         password,
-        first_name,
-        last_name,
-        full_name,
+        firstName, first_name,
+        lastName, last_name,
+        fullName, full_name,
         role,
         mobile,
-        organization_id,
-        date_onboarded,
-        date_offboarded,
-        user_comments,
+        organizationId, organization_id,
+        dateOnboarded, date_onboarded,
+        dateOffboarded, date_offboarded,
+        userComments, user_comments,
         status,
       } = req.body;
+
+      // Use camelCase values first, fall back to snake_case
+      const firstNameVal = firstName ?? first_name;
+      const lastNameVal = lastName ?? last_name;
+      const fullNameVal = fullName ?? full_name;
+      const organizationIdVal = organizationId ?? organization_id;
+      const dateOnboardedVal = dateOnboarded ?? date_onboarded;
+      const dateOffboardedVal = dateOffboarded ?? date_offboarded;
+      const userCommentsVal = userComments ?? user_comments;
 
       let passwordHash = undefined;
       if (password) {
@@ -5422,24 +5432,28 @@ router.put(
         date_onboarded = COALESCE($11, date_onboarded),
         date_offboarded = COALESCE($12, date_offboarded),
         user_comments = COALESCE($13, user_comments),
-        status = COALESCE($14, status)
+        status = COALESCE($14, status),
+        updated_at = NOW()
       WHERE id = $6
-      RETURNING id, username, email, role, organization_id, first_name, last_name, full_name
+      RETURNING id, username, email, role, organization_id as "organizationId",
+        first_name as "firstName", last_name as "lastName", full_name as "fullName",
+        mobile, date_onboarded as "dateOnboarded", date_offboarded as "dateOffboarded",
+        user_comments as "userComments", status
     `,
         [
           username,
           email,
           passwordHash,
           role,
-          organization_id,
+          organizationIdVal,
           id,
-          first_name,
-          last_name,
-          full_name,
+          firstNameVal,
+          lastNameVal,
+          fullNameVal,
           mobile,
-          date_onboarded,
-          date_offboarded,
-          user_comments,
+          dateOnboardedVal,
+          dateOffboardedVal,
+          userCommentsVal,
           status,
         ]
       );
@@ -5452,10 +5466,22 @@ router.put(
         );
       }
 
+      // Fetch the organization name separately if organization_id exists
+      const userData = result.rows[0];
+      if (userData.organizationId) {
+        const orgResult = await pool.query(
+          'SELECT name FROM organizations WHERE id = $1',
+          [userData.organizationId]
+        );
+        if (orgResult.rows.length > 0) {
+          userData.organizationName = orgResult.rows[0].name;
+        }
+      }
+
       res.json({
         success: true,
         message: 'User updated successfully',
-        data: result.rows[0],
+        data: userData,
       });
     } catch (error) {
       console.error('Error updating user:', error);
