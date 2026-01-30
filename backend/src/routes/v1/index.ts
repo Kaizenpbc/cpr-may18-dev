@@ -5854,16 +5854,28 @@ router.get(
     SELECT
       o.id,
       o.name as "organizationName",
-      o.address,
-      o.created_at as "createdAt",
+      o.contact_name as "contactName",
       o.contact_email as "contactEmail",
       o.contact_phone as "contactPhone",
+      o.contact_position as "contactPosition",
+      o.address,
+      o.address_street as "addressStreet",
+      o.address_city as "addressCity",
+      o.address_province as "addressProvince",
+      o.address_postal_code as "addressPostalCode",
+      o.country,
+      o.ceo_name as "ceoName",
+      o.ceo_email as "ceoEmail",
+      o.ceo_phone as "ceoPhone",
+      o.organization_comments as "organizationComments",
+      o.created_at as "createdAt",
+      o.updated_at as "updatedAt",
       COUNT(DISTINCT u.id)::int as "userCount",
       COUNT(DISTINCT cr.id)::int as "courseCount"
     FROM organizations o
     LEFT JOIN users u ON u.organization_id = o.id
     LEFT JOIN course_requests cr ON cr.organization_id = o.id
-    GROUP BY o.id, o.name, o.address, o.contact_email, o.contact_phone
+    GROUP BY o.id
     ORDER BY o.name
   `;
 
@@ -5883,27 +5895,60 @@ router.post(
 
     const {
       name,
-      address,
+      organizationName,
+      contactName,
+      contact_name,
+      contactEmail,
       contact_email,
+      contactPhone,
       contact_phone,
+      contactPosition,
+      contact_position,
+      address,
+      addressStreet,
+      address_street,
+      addressCity,
+      address_city,
+      addressProvince,
+      address_province,
+      addressPostalCode,
+      address_postal_code,
+      country,
+      ceoName,
+      ceo_name,
+      ceoEmail,
+      ceo_email,
+      ceoPhone,
+      ceo_phone,
+      organizationComments,
+      organization_comments,
     } = req.body;
 
     const query = `
     INSERT INTO organizations (
-      name,
-      address,
-      contact_email,
-      contact_phone,
-      created_at
-    ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+      name, contact_name, contact_email, contact_phone, contact_position,
+      address, address_street, address_city, address_province, address_postal_code,
+      country, ceo_name, ceo_email, ceo_phone, organization_comments
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
     RETURNING *
   `;
 
     const values = [
-      name,
-      address || '',
-      contact_email,
-      contact_phone,
+      name || organizationName,
+      contactName || contact_name || null,
+      contactEmail || contact_email || null,
+      contactPhone || contact_phone || null,
+      contactPosition || contact_position || null,
+      address || null,
+      addressStreet || address_street || null,
+      addressCity || address_city || null,
+      addressProvince || address_province || null,
+      addressPostalCode || address_postal_code || null,
+      country || 'Canada',
+      ceoName || ceo_name || null,
+      ceoEmail || ceo_email || null,
+      ceoPhone || ceo_phone || null,
+      organizationComments || organization_comments || null,
     ];
 
     const result = await pool.query(query, values);
@@ -5924,27 +5969,74 @@ router.put(
 
     const {
       name,
-      address,
+      organizationName,
+      contactName,
+      contact_name,
+      contactEmail,
       contact_email,
+      contactPhone,
       contact_phone,
+      contactPosition,
+      contact_position,
+      address,
+      addressStreet,
+      address_street,
+      addressCity,
+      address_city,
+      addressProvince,
+      address_province,
+      addressPostalCode,
+      address_postal_code,
+      country,
+      ceoName,
+      ceo_name,
+      ceoEmail,
+      ceo_email,
+      ceoPhone,
+      ceo_phone,
+      organizationComments,
+      organization_comments,
     } = req.body;
 
     const query = `
     UPDATE organizations
-    SET 
-      name = $1,
-      address = $2,
-      contact_email = $3,
-      contact_phone = $4
-    WHERE id = $5
+    SET
+      name = COALESCE($1, name),
+      contact_name = COALESCE($2, contact_name),
+      contact_email = COALESCE($3, contact_email),
+      contact_phone = COALESCE($4, contact_phone),
+      contact_position = COALESCE($5, contact_position),
+      address = COALESCE($6, address),
+      address_street = COALESCE($7, address_street),
+      address_city = COALESCE($8, address_city),
+      address_province = COALESCE($9, address_province),
+      address_postal_code = COALESCE($10, address_postal_code),
+      country = COALESCE($11, country),
+      ceo_name = COALESCE($12, ceo_name),
+      ceo_email = COALESCE($13, ceo_email),
+      ceo_phone = COALESCE($14, ceo_phone),
+      organization_comments = COALESCE($15, organization_comments),
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = $16
     RETURNING *
   `;
 
     const values = [
-      name,
-      address || '',
-      contact_email,
-      contact_phone,
+      name || organizationName,
+      contactName || contact_name,
+      contactEmail || contact_email,
+      contactPhone || contact_phone,
+      contactPosition || contact_position,
+      address,
+      addressStreet || address_street,
+      addressCity || address_city,
+      addressProvince || address_province,
+      addressPostalCode || address_postal_code,
+      country,
+      ceoName || ceo_name,
+      ceoEmail || ceo_email,
+      ceoPhone || ceo_phone,
+      organizationComments || organization_comments,
       id,
     ];
 
