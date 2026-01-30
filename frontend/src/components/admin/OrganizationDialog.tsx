@@ -36,7 +36,7 @@ function OrganizationDialog({ open, onClose, onSave, organization }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | boolean>>({}); // State for field-specific errors
-  const isEditMode = Boolean(organization?.organizationId);
+  const isEditMode = Boolean(organization?.id || organization?.organizationId);
 
   useEffect(() => {
     // Populate form if editing, otherwise reset
@@ -102,7 +102,7 @@ function OrganizationDialog({ open, onClose, onSave, organization }) {
     setLoading(true);
     try {
       if (isEditMode) {
-        await api.updateOrganization(organization.organizationId, orgData);
+        await api.updateOrganization(organization.id || organization.organizationId, orgData);
       } else {
         await api.addOrganization(orgData);
       }

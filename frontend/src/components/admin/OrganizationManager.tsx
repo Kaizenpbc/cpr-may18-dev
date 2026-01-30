@@ -149,19 +149,19 @@ function OrganizationManager() {
               ) : (
                 organizations.map((org, index) => (
                   <TableRow
-                    key={org.organizationid}
+                    key={org.id}
                     hover
                     sx={{
                       backgroundColor: index % 2 !== 0 ? '#f9f9f9' : 'inherit',
                     }}
                   >
-                    <TableCell>{org.organizationid}</TableCell>
-                    <TableCell>{org.organizationname}</TableCell>
-                    <TableCell>{org.contactname || '-'}</TableCell>
-                    <TableCell>{org.contactemail || '-'}</TableCell>
-                    <TableCell>{formatPhone(org.contactphone)}</TableCell>
+                    <TableCell>{org.id}</TableCell>
+                    <TableCell>{org.organizationName}</TableCell>
+                    <TableCell>{org.contactName || '-'}</TableCell>
+                    <TableCell>{org.contactEmail || '-'}</TableCell>
+                    <TableCell>{formatPhone(org.contactPhone)}</TableCell>
                     <TableCell>
-                      {`${org.addressstreet || ''}${org.addressstreet && (org.addresscity || org.addressprovince) ? ', ' : ''}${org.addresscity || ''}${org.addresscity && org.addressprovince ? ', ' : ''}${org.addressprovince || ''}` ||
+                      {`${org.addressStreet || ''}${org.addressStreet && (org.addressCity || org.addressProvince) ? ', ' : ''}${org.addressCity || ''}${org.addressCity && org.addressProvince ? ', ' : ''}${org.addressProvince || ''}` ||
                         '-'}
                     </TableCell>
                     <TableCell>
@@ -174,7 +174,7 @@ function OrganizationManager() {
                       </IconButton>
                       <IconButton
                         size='small'
-                        onClick={() => handleDelete(org.organizationid)}
+                        onClick={() => handleDelete(org.id)}
                         title='Delete'
                       >
                         <DeleteIcon fontSize='small' />

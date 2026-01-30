@@ -732,6 +732,53 @@ router.put('/availability', authenticateToken, requireRole(['instructor', 'admin
   }
 }));
 
+// Get instructor profile with calculated fields
+router.get('/profile', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
+  if (!req.user) {
+    throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
+  }
+  const userId = req.user.id;
+
+  // Get user profile with calculated totalClasses and totalStudents
+  const result = await pool.query(
+    `SELECT
+       u.id,
+       u.username,
+       u.email,
+       u.phone,
+       u.first_name,
+       u.last_name,
+       u.role,
+       u.created_at,
+       u.updated_at,
+       COALESCE(stats.total_classes, 0) as total_classes,
+       COALESCE(stats.total_students, 0) as total_students
+     FROM users u
+     LEFT JOIN (
+       SELECT
+         cr.instructor_id,
+         COUNT(DISTINCT cr.id) as total_classes,
+         COALESCE(SUM(cs_counts.student_count), 0) as total_students
+       FROM course_requests cr
+       LEFT JOIN (
+         SELECT course_request_id, COUNT(*) as student_count
+         FROM course_students
+         GROUP BY course_request_id
+       ) cs_counts ON cs_counts.course_request_id = cr.id
+       WHERE cr.status IN ('confirmed', 'completed')
+       GROUP BY cr.instructor_id
+     ) stats ON stats.instructor_id = u.id
+     WHERE u.id = $1`,
+    [userId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'User not found');
+  }
+
+  res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
+}));
+
 // Update instructor profile
 router.put('/profile', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
   if (!req.user) {
