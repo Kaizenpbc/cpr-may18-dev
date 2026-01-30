@@ -129,12 +129,22 @@ const OrganizationManagement = () => {
       if (editingOrg) {
         await sysAdminApi.updateOrganization(editingOrg.id, formData);
         setSuccess('Organization updated successfully');
+        handleCloseDialog();
+        loadOrganizations();
       } else {
-        await sysAdminApi.createOrganization(formData);
-        setSuccess('Organization created successfully');
+        // Create new organization
+        const response = await sysAdminApi.createOrganization(formData);
+        const newOrg = response.data;
+        handleCloseDialog();
+        await loadOrganizations();
+
+        // Automatically open locations dialog for new org
+        setLocationsDialogOrg({
+          id: newOrg.id,
+          organizationName: formData.name,
+        });
+        setSuccess('Organization created - now add at least one location');
       }
-      handleCloseDialog();
-      loadOrganizations();
     } catch (err) {
       setError(
         err.response?.data?.error?.message || 'Failed to save organization'

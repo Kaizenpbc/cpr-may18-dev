@@ -354,7 +354,17 @@ const LocationsDialog: React.FC<LocationsDialogProps> = ({
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Close</Button>
+          {locations.length === 0 && (
+            <Alert severity="warning" sx={{ mr: 2, flex: 1 }}>
+              Please add at least one location before closing
+            </Alert>
+          )}
+          <Button
+            onClick={onClose}
+            disabled={locations.length === 0}
+          >
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
 
