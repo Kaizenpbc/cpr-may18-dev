@@ -5184,16 +5184,8 @@ router.get(
         u.email,
         u.role,
         u.phone,
-        u.mobile,
-        u.first_name as "firstName",
-        u.last_name as "lastName",
-        u.full_name as "fullName",
         u.organization_id as "organizationId",
         o.name as "organizationName",
-        u.date_onboarded as "dateOnboarded",
-        u.date_offboarded as "dateOffboarded",
-        u.user_comments as "userComments",
-        u.status,
         u.created_at as "createdAt",
         u.updated_at as "updatedAt"
       FROM users u
@@ -5318,11 +5310,10 @@ router.post(
       const result = await pool.query(
         `
       INSERT INTO users (
-        username, email, password_hash, role, organization_id,
-        first_name, last_name, full_name, mobile, date_onboarded, user_comments
+        username, email, password_hash, role, organization_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      RETURNING id, username, email, role, organization_id, first_name, last_name, full_name, mobile, date_onboarded, user_comments
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, username, email, role, organization_id
     `,
         [
           username,
@@ -5330,12 +5321,6 @@ router.post(
           passwordHash,
           role,
           organization_id || null,
-          first_name || null,
-          last_name || null,
-          full_name || null,
-          mobile || null,
-          date_onboarded || null,
-          user_comments || null,
         ]
       );
 
@@ -5414,17 +5399,9 @@ router.put(
         email = COALESCE($2, email),
         password_hash = COALESCE($3, password_hash),
         role = COALESCE($4, role),
-        organization_id = COALESCE($5, organization_id),
-        first_name = COALESCE($7, first_name),
-        last_name = COALESCE($8, last_name),
-        full_name = COALESCE($9, full_name),
-        mobile = COALESCE($10, mobile),
-        date_onboarded = COALESCE($11, date_onboarded),
-        date_offboarded = COALESCE($12, date_offboarded),
-        user_comments = COALESCE($13, user_comments),
-        status = COALESCE($14, status)
+        organization_id = COALESCE($5, organization_id)
       WHERE id = $6
-      RETURNING id, username, email, role, organization_id, first_name, last_name, full_name, mobile, date_onboarded, date_offboarded, user_comments, status
+      RETURNING id, username, email, role, organization_id
     `,
         [
           username,
@@ -5433,14 +5410,6 @@ router.put(
           role,
           organization_id,
           id,
-          first_name,
-          last_name,
-          full_name,
-          mobile,
-          date_onboarded,
-          date_offboarded,
-          user_comments,
-          status,
         ]
       );
 
