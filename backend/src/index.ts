@@ -793,6 +793,10 @@ const startServer = async () => {
           console.log('[Background] Initializing SSL/TLS...');
           await initializeSSL().catch(e => console.log('ℹ️ SSL/TLS init skipped:', e.message));
 
+          console.log('[Background] Running organization locations migration...');
+          const { migrateOrganizationLocations } = await import('./scripts/migrate-locations.js');
+          await migrateOrganizationLocations().catch(e => console.log('ℹ️ Locations migration skipped:', e.message));
+
           console.log('✅ All background initializations completed');
         } catch (bgError) {
           console.error('⚠️ Some background initializations failed:', bgError);
