@@ -28,8 +28,10 @@ import {
   Business as BusinessIcon,
   People as PeopleIcon,
   School as SchoolIcon,
+  LocationOn as LocationIcon,
 } from '@mui/icons-material';
 import { sysAdminApi } from '../../services/api';
+import LocationsDialog from './LocationsDialog';
 
 const OrganizationManagement = () => {
   const [organizations, setOrganizations] = useState([]);
@@ -39,6 +41,7 @@ const OrganizationManagement = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingOrg, setEditingOrg] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [locationsDialogOrg, setLocationsDialogOrg] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -290,19 +293,31 @@ const OrganizationManagement = () => {
                   </Box>
                 </TableCell>
                 <TableCell align='center'>
-                  <IconButton
-                    onClick={() => handleOpenDialog(org)}
-                    color='primary'
-                  >
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton
-                    onClick={() => setDeleteConfirm(org)}
-                    color='error'
-                    disabled={org.userCount > 0 || org.courseCount > 0}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
+                  <Tooltip title='Manage Locations'>
+                    <IconButton
+                      onClick={() => setLocationsDialogOrg(org)}
+                      color='secondary'
+                    >
+                      <LocationIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title='Edit Organization'>
+                    <IconButton
+                      onClick={() => handleOpenDialog(org)}
+                      color='primary'
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title='Delete Organization'>
+                    <IconButton
+                      onClick={() => setDeleteConfirm(org)}
+                      color='error'
+                      disabled={org.userCount > 0 || org.courseCount > 0}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
@@ -464,6 +479,13 @@ const OrganizationManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Locations Management Dialog */}
+      <LocationsDialog
+        open={Boolean(locationsDialogOrg)}
+        onClose={() => setLocationsDialogOrg(null)}
+        organization={locationsDialogOrg}
+      />
     </Box>
   );
 };

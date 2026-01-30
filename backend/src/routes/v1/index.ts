@@ -5190,6 +5190,8 @@ router.get(
         u.full_name as "fullName",
         u.organization_id as "organizationId",
         o.name as "organizationName",
+        u.location_id as "locationId",
+        ol.location_name as "locationName",
         u.date_onboarded as "dateOnboarded",
         u.date_offboarded as "dateOffboarded",
         u.user_comments as "userComments",
@@ -5198,6 +5200,7 @@ router.get(
         u.updated_at as "updatedAt"
       FROM users u
       LEFT JOIN organizations o ON u.organization_id = o.id
+      LEFT JOIN organization_locations ol ON u.location_id = ol.id
       ORDER BY u.created_at DESC
     `);
 
@@ -5267,6 +5270,7 @@ router.post(
         role,
         mobile,
         organizationId, organization_id,
+        locationId, location_id,
         dateOnboarded, date_onboarded,
         userComments, user_comments,
       } = req.body;
@@ -5276,6 +5280,7 @@ router.post(
       const lastNameVal = lastName ?? last_name;
       const fullNameVal = fullName ?? full_name;
       const organizationIdVal = organizationId ?? organization_id;
+      const locationIdVal = locationId ?? location_id;
       const dateOnboardedVal = dateOnboarded ?? date_onboarded;
       const userCommentsVal = userComments ?? user_comments;
 
@@ -5310,12 +5315,13 @@ router.post(
       const result = await pool.query(
         `
       INSERT INTO users (
-        username, email, password_hash, role, organization_id,
+        username, email, password_hash, role, organization_id, location_id,
         first_name, last_name, full_name, mobile, date_onboarded, user_comments
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING id, username, email, role,
         organization_id as "organizationId",
+        location_id as "locationId",
         first_name as "firstName",
         last_name as "lastName",
         full_name as "fullName",
@@ -5329,6 +5335,7 @@ router.post(
           passwordHash,
           role,
           organizationIdVal || null,
+          locationIdVal || null,
           firstNameVal || null,
           lastNameVal || null,
           fullNameVal || null,
@@ -5338,7 +5345,7 @@ router.post(
         ]
       );
 
-      // Fetch the organization name if organization_id exists
+      // Fetch the organization and location names
       const userData = result.rows[0];
       if (userData.organizationId) {
         const orgResult = await pool.query(
@@ -5347,6 +5354,15 @@ router.post(
         );
         if (orgResult.rows.length > 0) {
           userData.organizationName = orgResult.rows[0].name;
+        }
+      }
+      if (userData.locationId) {
+        const locResult = await pool.query(
+          'SELECT location_name FROM organization_locations WHERE id = $1',
+          [userData.locationId]
+        );
+        if (locResult.rows.length > 0) {
+          userData.locationName = locResult.rows[0].location_name;
         }
       }
 
@@ -5407,6 +5423,7 @@ router.put(
         role,
         mobile,
         organizationId, organization_id,
+        locationId, location_id,
         dateOnboarded, date_onboarded,
         dateOffboarded, date_offboarded,
         userComments, user_comments,
@@ -5418,6 +5435,7 @@ router.put(
       const lastNameVal = lastName ?? last_name;
       const fullNameVal = fullName ?? full_name;
       const organizationIdVal = organizationId ?? organization_id;
+      const locationIdVal = locationId ?? location_id;
       const dateOnboardedVal = dateOnboarded ?? date_onboarded;
       const dateOffboardedVal = dateOffboarded ?? date_offboarded;
       const userCommentsVal = userComments ?? user_comments;
@@ -5436,6 +5454,7 @@ router.put(
         password_hash = COALESCE($3, password_hash),
         role = COALESCE($4, role),
         organization_id = COALESCE($5, organization_id),
+        location_id = COALESCE($15, location_id),
         first_name = COALESCE($7, first_name),
         last_name = COALESCE($8, last_name),
         full_name = COALESCE($9, full_name),
@@ -5446,7 +5465,9 @@ router.put(
         status = COALESCE($14, status),
         updated_at = NOW()
       WHERE id = $6
-      RETURNING id, username, email, role, organization_id as "organizationId",
+      RETURNING id, username, email, role,
+        organization_id as "organizationId",
+        location_id as "locationId",
         first_name as "firstName", last_name as "lastName", full_name as "fullName",
         mobile, date_onboarded as "dateOnboarded", date_offboarded as "dateOffboarded",
         user_comments as "userComments", status
@@ -5466,6 +5487,7 @@ router.put(
           dateOffboardedVal,
           userCommentsVal,
           status,
+          locationIdVal,
         ]
       );
 
@@ -5477,7 +5499,7 @@ router.put(
         );
       }
 
-      // Fetch the organization name separately if organization_id exists
+      // Fetch the organization and location names
       const userData = result.rows[0];
       if (userData.organizationId) {
         const orgResult = await pool.query(
@@ -5486,6 +5508,15 @@ router.put(
         );
         if (orgResult.rows.length > 0) {
           userData.organizationName = orgResult.rows[0].name;
+        }
+      }
+      if (userData.locationId) {
+        const locResult = await pool.query(
+          'SELECT location_name FROM organization_locations WHERE id = $1',
+          [userData.locationId]
+        );
+        if (locResult.rows.length > 0) {
+          userData.locationName = locResult.rows[0].location_name;
         }
       }
 
@@ -6177,6 +6208,335 @@ router.get(
     res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
   })
 );
+
+// ==================== Organization Locations Management ====================
+
+// Get all locations for an organization
+router.get(
+  '/sysadmin/organizations/:orgId/locations',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'accountant']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { orgId } = req.params;
+    devLog('[Debug] Getting locations for organization ID:', orgId);
+
+    const query = `
+      SELECT
+        ol.id,
+        ol.organization_id as "organizationId",
+        ol.location_name as "locationName",
+        ol.address,
+        ol.city,
+        ol.province,
+        ol.postal_code as "postalCode",
+        ol.contact_first_name as "contactFirstName",
+        ol.contact_last_name as "contactLastName",
+        ol.contact_email as "contactEmail",
+        ol.contact_phone as "contactPhone",
+        ol.is_primary as "isPrimary",
+        ol.is_active as "isActive",
+        ol.created_at as "createdAt",
+        ol.updated_at as "updatedAt",
+        (SELECT COUNT(*) FROM users u WHERE u.location_id = ol.id)::int as "userCount",
+        (SELECT COUNT(*) FROM course_requests cr WHERE cr.location_id = ol.id)::int as "courseCount",
+        (SELECT COUNT(*) FROM invoices i WHERE i.location_id = ol.id)::int as "invoiceCount"
+      FROM organization_locations ol
+      WHERE ol.organization_id = $1
+      ORDER BY ol.is_primary DESC, ol.location_name
+    `;
+
+    const result = await pool.query(query, [orgId]);
+
+    res.json({
+      success: true,
+      data: result.rows,
+    });
+  })
+);
+
+// Get single location
+router.get(
+  '/sysadmin/organizations/:orgId/locations/:id',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'accountant']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { orgId, id } = req.params;
+
+    const query = `
+      SELECT
+        ol.id,
+        ol.organization_id as "organizationId",
+        ol.location_name as "locationName",
+        ol.address,
+        ol.city,
+        ol.province,
+        ol.postal_code as "postalCode",
+        ol.contact_first_name as "contactFirstName",
+        ol.contact_last_name as "contactLastName",
+        ol.contact_email as "contactEmail",
+        ol.contact_phone as "contactPhone",
+        ol.is_primary as "isPrimary",
+        ol.is_active as "isActive",
+        ol.created_at as "createdAt",
+        ol.updated_at as "updatedAt"
+      FROM organization_locations ol
+      WHERE ol.id = $1 AND ol.organization_id = $2
+    `;
+
+    const result = await pool.query(query, [id, orgId]);
+
+    if (result.rows.length === 0) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Location not found');
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0],
+    });
+  })
+);
+
+// Create a new location for an organization
+router.post(
+  '/sysadmin/organizations/:orgId/locations',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { orgId } = req.params;
+    const {
+      locationName,
+      address,
+      city,
+      province,
+      postalCode,
+      contactFirstName,
+      contactLastName,
+      contactEmail,
+      contactPhone,
+      isPrimary,
+    } = req.body;
+
+    devLog('[Debug] Creating location for org:', orgId, req.body);
+
+    // Verify organization exists
+    const orgCheck = await pool.query('SELECT id FROM organizations WHERE id = $1', [orgId]);
+    if (orgCheck.rows.length === 0) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Organization not found');
+    }
+
+    // If this is set as primary, unset other primary locations
+    if (isPrimary) {
+      await pool.query(
+        'UPDATE organization_locations SET is_primary = FALSE WHERE organization_id = $1',
+        [orgId]
+      );
+    }
+
+    // Check if this is the first location (auto-set as primary)
+    const existingLocations = await pool.query(
+      'SELECT COUNT(*) as count FROM organization_locations WHERE organization_id = $1',
+      [orgId]
+    );
+    const isFirstLocation = parseInt(existingLocations.rows[0].count) === 0;
+
+    const query = `
+      INSERT INTO organization_locations (
+        organization_id,
+        location_name,
+        address,
+        city,
+        province,
+        postal_code,
+        contact_first_name,
+        contact_last_name,
+        contact_email,
+        contact_phone,
+        is_primary,
+        is_active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE)
+      RETURNING
+        id,
+        organization_id as "organizationId",
+        location_name as "locationName",
+        address,
+        city,
+        province,
+        postal_code as "postalCode",
+        contact_first_name as "contactFirstName",
+        contact_last_name as "contactLastName",
+        contact_email as "contactEmail",
+        contact_phone as "contactPhone",
+        is_primary as "isPrimary",
+        is_active as "isActive",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+    `;
+
+    const result = await pool.query(query, [
+      orgId,
+      locationName,
+      address || null,
+      city || null,
+      province || null,
+      postalCode || null,
+      contactFirstName || null,
+      contactLastName || null,
+      contactEmail || null,
+      contactPhone || null,
+      isPrimary || isFirstLocation,
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Location created successfully',
+      data: result.rows[0],
+    });
+  })
+);
+
+// Update a location
+router.put(
+  '/sysadmin/organizations/:orgId/locations/:id',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { orgId, id } = req.params;
+    const {
+      locationName,
+      address,
+      city,
+      province,
+      postalCode,
+      contactFirstName,
+      contactLastName,
+      contactEmail,
+      contactPhone,
+      isPrimary,
+      isActive,
+    } = req.body;
+
+    devLog('[Debug] Updating location:', id, 'for org:', orgId, req.body);
+
+    // If setting as primary, unset other primary locations
+    if (isPrimary) {
+      await pool.query(
+        'UPDATE organization_locations SET is_primary = FALSE WHERE organization_id = $1 AND id != $2',
+        [orgId, id]
+      );
+    }
+
+    const query = `
+      UPDATE organization_locations
+      SET
+        location_name = COALESCE($1, location_name),
+        address = COALESCE($2, address),
+        city = COALESCE($3, city),
+        province = COALESCE($4, province),
+        postal_code = COALESCE($5, postal_code),
+        contact_first_name = COALESCE($6, contact_first_name),
+        contact_last_name = COALESCE($7, contact_last_name),
+        contact_email = COALESCE($8, contact_email),
+        contact_phone = COALESCE($9, contact_phone),
+        is_primary = COALESCE($10, is_primary),
+        is_active = COALESCE($11, is_active),
+        updated_at = NOW()
+      WHERE id = $12 AND organization_id = $13
+      RETURNING
+        id,
+        organization_id as "organizationId",
+        location_name as "locationName",
+        address,
+        city,
+        province,
+        postal_code as "postalCode",
+        contact_first_name as "contactFirstName",
+        contact_last_name as "contactLastName",
+        contact_email as "contactEmail",
+        contact_phone as "contactPhone",
+        is_primary as "isPrimary",
+        is_active as "isActive",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+    `;
+
+    const result = await pool.query(query, [
+      locationName,
+      address,
+      city,
+      province,
+      postalCode,
+      contactFirstName,
+      contactLastName,
+      contactEmail,
+      contactPhone,
+      isPrimary,
+      isActive,
+      id,
+      orgId,
+    ]);
+
+    if (result.rows.length === 0) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Location not found');
+    }
+
+    res.json({
+      success: true,
+      message: 'Location updated successfully',
+      data: result.rows[0],
+    });
+  })
+);
+
+// Delete (deactivate) a location
+router.delete(
+  '/sysadmin/organizations/:orgId/locations/:id',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { orgId, id } = req.params;
+
+    devLog('[Debug] Deactivating location:', id, 'for org:', orgId);
+
+    // Check if location has any courses or invoices
+    const checkQuery = `
+      SELECT
+        (SELECT COUNT(*) FROM course_requests WHERE location_id = $1)::int as course_count,
+        (SELECT COUNT(*) FROM invoices WHERE location_id = $1)::int as invoice_count
+    `;
+    const checkResult = await pool.query(checkQuery, [id]);
+    const { course_count, invoice_count } = checkResult.rows[0];
+
+    if (course_count > 0 || invoice_count > 0) {
+      // Soft delete - set is_active = false
+      await pool.query(
+        'UPDATE organization_locations SET is_active = FALSE, updated_at = NOW() WHERE id = $1 AND organization_id = $2',
+        [id, orgId]
+      );
+
+      return res.json({
+        success: true,
+        message: `Location deactivated (has ${course_count} courses and ${invoice_count} invoices)`,
+      });
+    }
+
+    // Hard delete if no dependencies
+    const result = await pool.query(
+      'DELETE FROM organization_locations WHERE id = $1 AND organization_id = $2 RETURNING id',
+      [id, orgId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Location not found');
+    }
+
+    res.json({
+      success: true,
+      message: 'Location deleted successfully',
+    });
+  })
+);
+
+// ==================== End Organization Locations Management ====================
 
 // Get courses for an organization (admin view)
 router.get(

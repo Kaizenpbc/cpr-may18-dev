@@ -42,6 +42,7 @@ import logger from '../../utils/logger';
 const UserManagement = ({ onShowSnackbar }) => {
   const [users, setUsers] = useState([]);
   const [organizations, setOrganizations] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -58,6 +59,7 @@ const UserManagement = ({ onShowSnackbar }) => {
     role: '',
     mobile: '',
     organizationId: '',
+    locationId: '',
     dateOnboarded: '',
     userComments: '',
     status: 'active',
@@ -104,8 +106,23 @@ const UserManagement = ({ onShowSnackbar }) => {
     }
   };
 
+  const loadLocations = async (orgId) => {
+    if (!orgId) {
+      setLocations([]);
+      return;
+    }
+    try {
+      const response = await sysAdminApi.getOrganizationLocations(orgId);
+      setLocations(response.data || []);
+    } catch (err) {
+      logger.error('Error loading locations:', err);
+      setLocations([]);
+    }
+  };
+
   const handleAddNew = () => {
     setEditingUser(null);
+    setLocations([]);
     setFormData({
       username: '',
       email: '',
@@ -116,6 +133,7 @@ const UserManagement = ({ onShowSnackbar }) => {
       role: '',
       mobile: '',
       organizationId: '',
+      locationId: '',
       dateOnboarded: '',
       userComments: '',
       status: 'active',
@@ -123,7 +141,7 @@ const UserManagement = ({ onShowSnackbar }) => {
     setShowDialog(true);
   };
 
-  const handleEdit = user => {
+  const handleEdit = async user => {
     setEditingUser(user);
     setFormData({
       username: user.username || '',
@@ -135,12 +153,19 @@ const UserManagement = ({ onShowSnackbar }) => {
       role: user.role || '',
       mobile: user.mobile || '',
       organizationId: user.organizationId || '',
+      locationId: user.locationId || '',
       dateOnboarded: user.dateOnboarded
         ? user.dateOnboarded.split('T')[0]
         : '',
       userComments: user.userComments || '',
       status: user.status || 'active',
     });
+    // Load locations if user has an organization
+    if (user.organizationId) {
+      await loadLocations(user.organizationId);
+    } else {
+      setLocations([]);
+    }
     setShowDialog(true);
   };
 
@@ -178,6 +203,7 @@ const UserManagement = ({ onShowSnackbar }) => {
       const submitData = {
         ...formData,
         organizationId: formData.organizationId || null,
+        locationId: formData.locationId || null,
         dateOnboarded: formData.dateOnboarded || null,
       };
 
@@ -213,12 +239,22 @@ const UserManagement = ({ onShowSnackbar }) => {
     }
   };
 
-  const handleChange = e => {
+  const handleChange = async e => {
     const { name, value, checked, type } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+
+    // Load locations when organization changes
+    if (name === 'organizationId') {
+      setFormData(prev => ({ ...prev, locationId: '' })); // Reset location when org changes
+      if (value) {
+        await loadLocations(value);
+      } else {
+        setLocations([]);
+      }
+    }
   };
 
   const formatDate = dateString => {
@@ -312,6 +348,7 @@ const UserManagement = ({ onShowSnackbar }) => {
               <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Role</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Organization</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Location</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Mobile</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Date Onboarded</TableCell>
@@ -321,7 +358,7 @@ const UserManagement = ({ onShowSnackbar }) => {
           <TableBody>
             {users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} align='center'>
+                <TableCell colSpan={10} align='center'>
                   <Typography
                     variant='body1'
                     color='text.secondary'
@@ -365,6 +402,11 @@ const UserManagement = ({ onShowSnackbar }) => {
                   <TableCell>
                     <Typography variant='body2'>
                       {user.organizationName || '-'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant='body2'>
+                      {user.locationName || '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -526,6 +568,26 @@ const UserManagement = ({ onShowSnackbar }) => {
                   </Select>
                 </FormControl>
               </Grid>
+              {formData.organizationId && formData.role === 'organization' && (
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Location</InputLabel>
+                    <Select
+                      name='locationId'
+                      value={formData.locationId}
+                      label='Location'
+                      onChange={handleChange}
+                    >
+                      <MenuItem value=''>Select Location</MenuItem>
+                      {locations.map(loc => (
+                        <MenuItem key={loc.id} value={loc.id}>
+                          {loc.locationName} {loc.isPrimary ? '(Primary)' : ''}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              )}
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth

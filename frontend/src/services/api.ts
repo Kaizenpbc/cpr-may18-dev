@@ -933,6 +933,28 @@ export const sysAdminApi = {
     const response = await api.delete(`/sysadmin/organizations/${id}`);
     return response.data;
   },
+
+  // Organization Locations
+  getOrganizationLocations: async (orgId: number) => {
+    const response = await api.get(`/sysadmin/organizations/${orgId}/locations`);
+    return response.data;
+  },
+  getOrganizationLocation: async (orgId: number, locationId: number) => {
+    const response = await api.get(`/sysadmin/organizations/${orgId}/locations/${locationId}`);
+    return response.data;
+  },
+  createOrganizationLocation: async (orgId: number, locationData: any) => {
+    const response = await api.post(`/sysadmin/organizations/${orgId}/locations`, locationData);
+    return response.data;
+  },
+  updateOrganizationLocation: async (orgId: number, locationId: number, locationData: any) => {
+    const response = await api.put(`/sysadmin/organizations/${orgId}/locations/${locationId}`, locationData);
+    return response.data;
+  },
+  deleteOrganizationLocation: async (orgId: number, locationId: number) => {
+    const response = await api.delete(`/sysadmin/organizations/${orgId}/locations/${locationId}`);
+    return response.data;
+  },
 };
 
 // Organization Analytics API
