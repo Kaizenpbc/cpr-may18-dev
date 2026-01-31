@@ -379,8 +379,11 @@ router.post(
         courseTypeId,
         registeredStudents,
         notes,
+        locationId,
       } = req.body;
       const organizationId = req.user?.organizationId;
+      // Use locationId from request body, or fall back to user's locationId
+      const effectiveLocationId = locationId || req.user?.locationId || null;
 
       if (!organizationId) {
         throw new AppError(
@@ -423,9 +426,9 @@ router.post(
       }
 
       const result = await pool.query(
-        `INSERT INTO course_requests 
-       (organization_id, course_type_id, date_requested, scheduled_date, location, registered_students, notes, status) 
-       VALUES ($1, $2, (NOW() AT TIME ZONE 'America/Toronto')::date, $3, $4, $5, $6, 'pending') 
+        `INSERT INTO course_requests
+       (organization_id, course_type_id, date_requested, scheduled_date, location, registered_students, notes, status, location_id)
+       VALUES ($1, $2, (NOW() AT TIME ZONE 'America/Toronto')::date, $3, $4, $5, $6, 'pending', $7)
        RETURNING *, date_requested as request_submitted_date`,
         [
           organizationId,
@@ -434,6 +437,7 @@ router.post(
           location,
           registeredStudents,
           notes,
+          effectiveLocationId,
         ]
       );
 

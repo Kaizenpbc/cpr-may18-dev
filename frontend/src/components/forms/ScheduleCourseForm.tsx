@@ -146,7 +146,8 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
         location: formData.location,
         courseTypeId: formData.courseTypeId,
         registeredStudents: parseInt(formData.registeredStudents, 10),
-        notes: formData.notes || ''
+        notes: formData.notes || '',
+        locationId: user.locationId || null,
       });
 
       if (response.data.success) {
@@ -227,8 +228,8 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
         )}
 
         <Grid container spacing={2.5}>
-          {/* Organization (Read Only) - Keep full width */}
-          <Grid item xs={12}>
+          {/* Organization (Read Only) */}
+          <Grid item xs={12} sm={6}>
             <TextField
               label='Organization'
               value={organizationDisplayName}
@@ -236,7 +237,20 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
               disabled
               variant='filled'
               InputProps={{ readOnly: true }}
-              helperText='This organization is automatically assigned based on your account'
+              helperText='Automatically assigned based on your account'
+            />
+          </Grid>
+          {/* Location (Read Only) */}
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label='Your Location'
+              value={user.locationName || 'Not assigned'}
+              fullWidth
+              disabled
+              variant='filled'
+              InputProps={{ readOnly: true }}
+              helperText={user.locationName ? 'Your assigned location' : 'Contact admin to assign a location'}
+              error={!user.locationName}
             />
           </Grid>
           {/* Date Submitted (Auto-generated) */}

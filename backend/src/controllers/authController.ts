@@ -46,11 +46,12 @@ router.post('/login', async (req: Request, res: Response) => {
       });
     }
 
-    // Join with organizations table to get organization name
+    // Join with organizations and organization_locations tables
     const result = await pool.query(
-              `SELECT u.*, o.name as organization_name
+              `SELECT u.*, o.name as organization_name, ol.location_name
          FROM users u
          LEFT JOIN organizations o ON u.organization_id = o.id
+         LEFT JOIN organization_locations ol ON u.location_id = ol.id
          WHERE u.username = $1`,
       [username]
     );
@@ -90,7 +91,8 @@ router.post('/login', async (req: Request, res: Response) => {
         userId: user.id,
         username: user.username,
         role: user.role,
-        organizationId: user.organization_id
+        organizationId: user.organization_id,
+        locationId: user.location_id
       },
       ACCESS_TOKEN_SECRET,
       { expiresIn: '15m' }
@@ -102,7 +104,8 @@ router.post('/login', async (req: Request, res: Response) => {
         userId: user.id,
         username: user.username,
         role: user.role,
-        organizationId: user.organization_id
+        organizationId: user.organization_id,
+        locationId: user.location_id
       },
       REFRESH_TOKEN_SECRET,
       { expiresIn: '7d' }
@@ -116,7 +119,9 @@ router.post('/login', async (req: Request, res: Response) => {
         username: user.username,
         role: user.role,
         organizationId: user.organization_id,
-        organizationName: user.organization_name
+        organizationName: user.organization_name,
+        locationId: user.location_id,
+        locationName: user.location_name
       }
     });
   } catch (error) {
