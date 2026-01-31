@@ -25,8 +25,6 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
-  Star as StarIcon,
-  StarBorder as StarBorderIcon,
 } from '@mui/icons-material';
 import { sysAdminApi } from '../../services/api';
 
@@ -79,7 +77,6 @@ const LocationsDialog: React.FC<LocationsDialogProps> = ({
     contactLastName: '',
     contactEmail: '',
     contactPhone: '',
-    isPrimary: false,
   });
 
   useEffect(() => {
@@ -116,7 +113,6 @@ const LocationsDialog: React.FC<LocationsDialogProps> = ({
         contactLastName: location.contactLastName || '',
         contactEmail: location.contactEmail || '',
         contactPhone: location.contactPhone || '',
-        isPrimary: location.isPrimary || false,
       });
     } else {
       setEditingLocation(null);
@@ -130,7 +126,6 @@ const LocationsDialog: React.FC<LocationsDialogProps> = ({
         contactLastName: '',
         contactEmail: '',
         contactPhone: '',
-        isPrimary: locations.length === 0, // Auto-set primary for first location
       });
     }
     setEditDialog(true);
@@ -181,21 +176,6 @@ const LocationsDialog: React.FC<LocationsDialogProps> = ({
       loadLocations();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to delete location');
-      console.error(err);
-    }
-  };
-
-  const handleSetPrimary = async (location: Location) => {
-    if (!organization || location.isPrimary) return;
-    try {
-      setError('');
-      await sysAdminApi.updateOrganizationLocation(organization.id, location.id, {
-        isPrimary: true,
-      });
-      setSuccess('Primary location updated');
-      loadLocations();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to set primary location');
       console.error(err);
     }
   };
@@ -265,9 +245,6 @@ const LocationsDialog: React.FC<LocationsDialogProps> = ({
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           {loc.locationName}
-                          {loc.isPrimary && (
-                            <Chip label="Primary" size="small" color="primary" />
-                          )}
                           {!loc.isActive && (
                             <Chip label="Inactive" size="small" color="default" />
                           )}
@@ -317,15 +294,6 @@ const LocationsDialog: React.FC<LocationsDialogProps> = ({
                         </Box>
                       </TableCell>
                       <TableCell align="center">
-                        <Tooltip title={loc.isPrimary ? 'Primary Location' : 'Set as Primary'}>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleSetPrimary(loc)}
-                            disabled={loc.isPrimary}
-                          >
-                            {loc.isPrimary ? <StarIcon color="primary" /> : <StarBorderIcon />}
-                          </IconButton>
-                        </Tooltip>
                         <Tooltip title="Edit">
                           <IconButton
                             size="small"
@@ -340,7 +308,6 @@ const LocationsDialog: React.FC<LocationsDialogProps> = ({
                             size="small"
                             onClick={() => handleDelete(loc.id)}
                             color="error"
-                            disabled={loc.isPrimary}
                           >
                             <DeleteIcon />
                           </IconButton>

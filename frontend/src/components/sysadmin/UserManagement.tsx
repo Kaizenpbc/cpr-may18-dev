@@ -581,7 +581,7 @@ const UserManagement = ({ onShowSnackbar }) => {
                       <MenuItem value=''>Select Location</MenuItem>
                       {locations.map(loc => (
                         <MenuItem key={loc.id} value={loc.id}>
-                          {loc.locationName} {loc.isPrimary ? '(Primary)' : ''}
+                          {loc.locationName}
                         </MenuItem>
                       ))}
                     </Select>
