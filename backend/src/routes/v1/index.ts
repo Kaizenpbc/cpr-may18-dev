@@ -5288,8 +5288,8 @@ router.post(
       const dateOnboardedVal = dateOnboarded ?? date_onboarded;
       const userCommentsVal = userComments ?? user_comments;
 
-      // Enforce organization and location for Organization role users
-      if (role === 'Organization') {
+      // Enforce organization and location for Organization role users (case-insensitive)
+      if (role && role.toLowerCase() === 'organization') {
         if (!organizationIdVal) {
           throw new AppError(
             400,
@@ -5477,8 +5477,8 @@ router.put(
       const finalOrgId = organizationIdVal !== undefined ? organizationIdVal : existingUser.rows[0].organization_id;
       const finalLocId = locationIdVal !== undefined ? locationIdVal : existingUser.rows[0].location_id;
 
-      // Enforce organization and location for Organization role users
-      if (finalRole === 'Organization') {
+      // Enforce organization and location for Organization role users (case-insensitive)
+      if (finalRole && finalRole.toLowerCase() === 'organization') {
         if (!finalOrgId) {
           throw new AppError(
             400,

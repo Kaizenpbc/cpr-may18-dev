@@ -85,8 +85,8 @@ router.post('/login', async (req: Request, res: Response) => {
       });
     }
 
-    // Enforce organization and location for Organization role users
-    if (user.role === 'Organization') {
+    // Enforce organization and location for Organization role users (case-insensitive)
+    if (user.role && user.role.toLowerCase() === 'organization') {
       if (!user.organization_id) {
         console.log('[AuthController] Organization user missing organization_id:', username);
         return res.status(403).json({
