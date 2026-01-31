@@ -1363,6 +1363,13 @@ export const updateOrganization = sysAdminApi.updateOrganization;
 export const addOrganization = sysAdminApi.createOrganization;
 export const deleteOrganization = sysAdminApi.deleteOrganization;
 
+// Organization Locations (wraps sysAdminApi methods)
+export const getOrganizationLocations = sysAdminApi.getOrganizationLocations;
+export const getOrganizationLocation = sysAdminApi.getOrganizationLocation;
+export const createOrganizationLocation = sysAdminApi.createOrganizationLocation;
+export const updateOrganizationLocation = sysAdminApi.updateOrganizationLocation;
+export const deleteOrganizationLocation = sysAdminApi.deleteOrganizationLocation;
+
 // User Management (wraps sysAdminApi methods)
 export const getUsers = sysAdminApi.getUsers;
 export const deleteUser = async (userId: number) => {
