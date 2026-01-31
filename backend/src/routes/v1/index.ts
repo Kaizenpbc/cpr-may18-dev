@@ -5288,6 +5288,24 @@ router.post(
       const dateOnboardedVal = dateOnboarded ?? date_onboarded;
       const userCommentsVal = userComments ?? user_comments;
 
+      // Enforce organization and location for Organization role users
+      if (role === 'Organization') {
+        if (!organizationIdVal) {
+          throw new AppError(
+            400,
+            errorCodes.VALIDATION_ERROR,
+            'Organization is required for users with Organization role.'
+          );
+        }
+        if (!locationIdVal) {
+          throw new AppError(
+            400,
+            errorCodes.VALIDATION_ERROR,
+            'Location is required for users with Organization role.'
+          );
+        }
+      }
+
       // Check if username already exists
       const existingUsername = await pool.query(
         'SELECT id FROM users WHERE username = $1',
@@ -5443,6 +5461,39 @@ router.put(
       const dateOnboardedVal = dateOnboarded ?? date_onboarded;
       const dateOffboardedVal = dateOffboarded ?? date_offboarded;
       const userCommentsVal = userComments ?? user_comments;
+
+      // Fetch existing user to check current role if role not being changed
+      const existingUser = await pool.query(
+        'SELECT role, organization_id, location_id FROM users WHERE id = $1',
+        [id]
+      );
+      if (existingUser.rows.length === 0) {
+        throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'User not found');
+      }
+
+      // Determine final role (new role or existing)
+      const finalRole = role || existingUser.rows[0].role;
+      // Determine final org/location (new values or existing)
+      const finalOrgId = organizationIdVal !== undefined ? organizationIdVal : existingUser.rows[0].organization_id;
+      const finalLocId = locationIdVal !== undefined ? locationIdVal : existingUser.rows[0].location_id;
+
+      // Enforce organization and location for Organization role users
+      if (finalRole === 'Organization') {
+        if (!finalOrgId) {
+          throw new AppError(
+            400,
+            errorCodes.VALIDATION_ERROR,
+            'Organization is required for users with Organization role.'
+          );
+        }
+        if (!finalLocId) {
+          throw new AppError(
+            400,
+            errorCodes.VALIDATION_ERROR,
+            'Location is required for users with Organization role.'
+          );
+        }
+      }
 
       let passwordHash = undefined;
       if (password) {

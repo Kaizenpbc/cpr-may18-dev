@@ -31,6 +31,7 @@ const initialUserState = {
   email: '',
   phone: '', // Added phone
   organizationId: '', // Store as string initially for Select compatibility
+  locationId: '', // Location within the organization
 };
 
 // Define allowed roles (fetch from backend ideally, but hardcode for now)
@@ -45,7 +46,9 @@ const roles = [
 function UserDialog({ open, onClose, onSave, user, existingUsers = [] }) {
   const [userData, setUserData] = useState(initialUserState);
   const [organizations, setOrganizations] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [loadingOrgs, setLoadingOrgs] = useState(false);
+  const [loadingLocations, setLoadingLocations] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | boolean>>({});
@@ -66,11 +69,32 @@ function UserDialog({ open, onClose, onSave, user, existingUsers = [] }) {
     setLoadingOrgs(false);
   }, []);
 
+  // Fetch locations for the selected organization
+  const fetchLocations = useCallback(async (orgId: number) => {
+    if (!orgId) {
+      setLocations([]);
+      return;
+    }
+    setLoadingLocations(true);
+    try {
+      logger.info('Fetching locations for organization:', orgId);
+      const data = await api.getOrganizationLocations(orgId);
+      // Filter to only active locations
+      const activeLocations = (data || []).filter((loc: any) => loc.isActive !== false);
+      setLocations(activeLocations);
+    } catch (fetchErr) {
+      logger.error('Error fetching locations for dialog:', fetchErr);
+      setLocations([]);
+    }
+    setLoadingLocations(false);
+  }, []);
+
   useEffect(() => {
     if (open) {
       // Only fetch when dialog is opened
       fetchOrganizations();
       if (isEditMode && user) {
+        const orgId = user.organizationId ? String(user.organizationId) : '';
         setUserData({
           username: user.username || '',
           password: '', // Don't prefill password for edit
@@ -79,25 +103,47 @@ function UserDialog({ open, onClose, onSave, user, existingUsers = [] }) {
           lastName: user.lastName || '',
           email: user.email || '',
           phone: user.phone || '', // Add phone
-          organizationId: user.organizationId
-            ? String(user.organizationId)
-            : '', // Convert ID to string for Select
+          organizationId: orgId, // Convert ID to string for Select
+          locationId: user.locationId ? String(user.locationId) : '',
         });
+        // Fetch locations if user has an organization
+        if (user.organizationId) {
+          fetchLocations(user.organizationId);
+        }
       } else {
         setUserData(initialUserState);
+        setLocations([]);
       }
       setError('');
       setFieldErrors({});
     }
-  }, [user, isEditMode, open, fetchOrganizations]);
+  }, [user, isEditMode, open, fetchOrganizations, fetchLocations]);
 
   // Handler for standard MUI TextFields
   const handleTextChange = event => {
     const { name, value } = event.target;
-    setUserData(prevData => ({
-      ...prevData,
-      [name]: value,
-    }));
+    setUserData(prevData => {
+      const newData = {
+        ...prevData,
+        [name]: value,
+      };
+      // When organization changes, clear location and fetch new locations
+      if (name === 'organizationId') {
+        newData.locationId = ''; // Clear location when org changes
+        if (value) {
+          fetchLocations(parseInt(value, 10));
+        } else {
+          setLocations([]);
+        }
+      }
+      // When role changes away from Organization, clear org and location
+      if (name === 'role' && value !== 'Organization') {
+        newData.organizationId = '';
+        newData.locationId = '';
+        setLocations([]);
+      }
+      return newData;
+    });
     if (fieldErrors[name]) {
       setFieldErrors(prev => ({ ...prev, [name]: false }));
     }
@@ -139,6 +185,8 @@ function UserDialog({ open, onClose, onSave, user, existingUsers = [] }) {
       newFieldErrors.lastName = 'Last Name required';
     if (userData.role === 'Organization' && !userData.organizationId)
       newFieldErrors.organizationId = 'Organization required for this role';
+    if (userData.role === 'Organization' && !userData.locationId)
+      newFieldErrors.locationId = 'Location required for this role';
 
     // Phone validation (if entered)
     if (userData.phone && !isValidPhoneNumber(userData.phone)) {
@@ -186,11 +234,14 @@ function UserDialog({ open, onClose, onSave, user, existingUsers = [] }) {
 
     setLoading(true);
     try {
-      // Prepare data for API (convert orgId back to number if set)
+      // Prepare data for API (convert orgId and locationId back to number if set)
       const dataToSend = {
         ...userData,
         organizationId: userData.organizationId
           ? parseInt(userData.organizationId, 10)
+          : null,
+        locationId: userData.locationId
+          ? parseInt(userData.locationId, 10)
           : null,
       };
       // Don't send empty password string for updates unless explicitly changing
@@ -354,43 +405,87 @@ function UserDialog({ open, onClose, onSave, user, existingUsers = [] }) {
 
           {/* Conditional Organization Dropdown */}
           {userData.role === 'Organization' && (
-            <Grid item xs={12}>
-              <FormControl
-                fullWidth
-                required
-                error={Boolean(fieldErrors.organizationId)}
-                disabled={loadingOrgs}
-              >
-                <InputLabel id='org-select-label'>Organization *</InputLabel>
-                <Select
-                  name='organizationId'
-                  labelId='org-select-label'
-                  label='Organization *'
-                  value={userData.organizationId}
-                  onChange={handleTextChange}
+            <>
+              <Grid item xs={12} sm={6}>
+                <FormControl
+                  fullWidth
+                  required
+                  error={Boolean(fieldErrors.organizationId)}
+                  disabled={loadingOrgs}
                 >
-                  <MenuItem value=''>
-                    <em>Select Organization...</em>
-                  </MenuItem>
-                  {organizations.map(org => (
-                    <MenuItem
-                      key={org.organizationId}
-                      value={String(org.organizationId)}
-                    >
-                      {org.organizationName}
+                  <InputLabel id='org-select-label'>Organization *</InputLabel>
+                  <Select
+                    name='organizationId'
+                    labelId='org-select-label'
+                    label='Organization *'
+                    value={userData.organizationId}
+                    onChange={handleTextChange}
+                  >
+                    <MenuItem value=''>
+                      <em>Select Organization...</em>
                     </MenuItem>
-                  ))}
-                </Select>
-                {fieldErrors.organizationId && (
-                  <FormHelperText>
-                    {fieldErrors.organizationId}
-                  </FormHelperText>
-                )}
-                {loadingOrgs && (
-                  <FormHelperText>Loading organizations...</FormHelperText>
-                )}
-              </FormControl>
-            </Grid>
+                    {organizations.map(org => (
+                      <MenuItem
+                        key={org.organizationId || org.id}
+                        value={String(org.organizationId || org.id)}
+                      >
+                        {org.organizationName}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {fieldErrors.organizationId && (
+                    <FormHelperText>
+                      {fieldErrors.organizationId}
+                    </FormHelperText>
+                  )}
+                  {loadingOrgs && (
+                    <FormHelperText>Loading organizations...</FormHelperText>
+                  )}
+                </FormControl>
+              </Grid>
+
+              {/* Location Dropdown - appears when organization is selected */}
+              <Grid item xs={12} sm={6}>
+                <FormControl
+                  fullWidth
+                  required
+                  error={Boolean(fieldErrors.locationId)}
+                  disabled={!userData.organizationId || loadingLocations}
+                >
+                  <InputLabel id='location-select-label'>Location *</InputLabel>
+                  <Select
+                    name='locationId'
+                    labelId='location-select-label'
+                    label='Location *'
+                    value={userData.locationId}
+                    onChange={handleTextChange}
+                  >
+                    <MenuItem value=''>
+                      <em>{userData.organizationId ? 'Select Location...' : 'Select Organization First'}</em>
+                    </MenuItem>
+                    {locations.map(loc => (
+                      <MenuItem
+                        key={loc.id}
+                        value={String(loc.id)}
+                      >
+                        {loc.locationName}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {fieldErrors.locationId && (
+                    <FormHelperText>
+                      {fieldErrors.locationId}
+                    </FormHelperText>
+                  )}
+                  {loadingLocations && (
+                    <FormHelperText>Loading locations...</FormHelperText>
+                  )}
+                  {userData.organizationId && locations.length === 0 && !loadingLocations && (
+                    <FormHelperText>No locations available for this organization</FormHelperText>
+                  )}
+                </FormControl>
+              </Grid>
+            </>
           )}
         </Grid>
       </DialogContent>

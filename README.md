@@ -18,7 +18,16 @@ The CPR Training Management System is a full-stack application designed to strea
 
 ### Recent Implementations
 
-#### 1. Organization-Specific Pricing System *(July 2, 2025)*
+#### 1. Organization Locations (Multi-Site Support) *(January 2026)*
+- **Multi-Location Support**: Organizations can have multiple physical locations (branches, offices, sites)
+- **Location Management UI**: Dedicated LocationsDialog in SystemAdmin Portal with full CRUD operations
+- **Role-Based Access**: View access for admin/sysadmin/accountant, modify access for admin/sysadmin only
+- **Usage Tracking**: Track users and courses assigned to each location
+- **Soft Delete Protection**: Cannot delete locations with active users or courses
+- **API Endpoints**: RESTful endpoints for all location operations
+- **Documentation**: Comprehensive user guide at `docs/ORGANIZATION_LOCATIONS_USER_GUIDE.md`
+
+#### 2. Organization-Specific Pricing System *(July 2, 2025)*
 - **Flexible Pricing Model**: Set different prices per organization per course type
 - **System Admin Interface**: Full CRUD operations for pricing management with filtering and sorting
 - **Backend API**: RESTful endpoints with role-based access control (sysadmin only)
@@ -26,25 +35,25 @@ The CPR Training Management System is a full-stack application designed to strea
 - **Fallback Logic**: Automatic fallback to default pricing when organization-specific pricing not set
 - **Complete Documentation**: Comprehensive user guide and API reference
 
-#### 2. Bills Payable Portal (Organization)
+#### 3. Bills Payable Portal (Organization)
 - View and manage invoices with status tracking (Pending, Overdue, Payment Submitted, Paid)
 - Submit payment information with reference numbers and notes
 - PDF invoice preview and download
 - Payment history tracking
 - Dashboard with summary cards showing invoice statistics
 
-#### 3. Automated Invoice Management
+#### 4. Automated Invoice Management
 - **Scheduled Jobs**: Daily automatic update of overdue invoices (runs at 1:00 AM)
 - **Manual Trigger**: Admin/Accountant can manually trigger overdue updates via API
 - **Status Tracking**: Automatic status transitions based on payment and due dates
 
-#### 4. Payment Verification Workflow
+#### 5. Payment Verification Workflow
 - Organizations submit payment information
 - Accounting team reviews and verifies payments
 - Automatic invoice status updates upon verification
 - Audit trail for all payment activities
 
-#### 5. Advanced UI/UX & Accessibility Features *(September 9, 2025)*
+#### 6. Advanced UI/UX & Accessibility Features *(September 9, 2025)*
 - **🌙 Dark Mode Support**: System-wide dark/light theme toggle with automatic system preference detection
 - **♿ Accessibility-First Design**: WCAG 2.1 AA compliant with comprehensive ARIA labels and keyboard navigation
 - **📱 Mobile Optimization**: Touch-friendly interfaces with responsive design and minimum 44px touch targets

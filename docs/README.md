@@ -7,8 +7,16 @@ This folder contains comprehensive documentation for the invoice management syst
 ### 🚀 Implementation Documentation
 - **[INVOICE_SYSTEM_IMPROVEMENTS.md](./INVOICE_SYSTEM_IMPROVEMENTS.md)** - Technical implementation details, code examples, and maintenance guidelines
 
-### 👥 User Documentation  
-- **[INVOICE_SYSTEM_USER_GUIDE.md](./INVOICE_SYSTEM_USER_GUIDE.md)** - User-friendly guide for end users with feature explanations and tips
+### 👥 User Documentation
+- **[USER_GUIDE.md](./USER_GUIDE.md)** - **Complete system user guide** covering all portals and features:
+  - All 7 portals (Instructor, Organization, Course Admin, HR, Accounting, Vendor, System Admin)
+  - Invoice keyboard shortcuts, auto-refresh, status indicators, Quick Stats Dashboard
+  - Organization locations management (adding, editing, deleting, troubleshooting)
+  - Common features (login, navigation, notifications)
+
+*Legacy supplemental guides (now consolidated into USER_GUIDE.md):*
+- ~~INVOICE_SYSTEM_USER_GUIDE.md~~ - Content merged into Accounting Portal section
+- ~~ORGANIZATION_LOCATIONS_USER_GUIDE.md~~ - Content merged into System Admin Portal section
 
 ### 📋 Change Tracking
 - **[CHANGELOG.md](./CHANGELOG.md)** - Complete changelog following Keep a Changelog format
@@ -21,14 +29,16 @@ This folder contains comprehensive documentation for the invoice management syst
 3. Follow maintenance guidelines for updates
 
 ### For End Users
-1. Read **[INVOICE_SYSTEM_USER_GUIDE.md](./INVOICE_SYSTEM_USER_GUIDE.md)** for feature overview
-2. Learn keyboard shortcuts for faster workflow
-3. Understand status indicators and dashboard features
+1. Read **[USER_GUIDE.md](./USER_GUIDE.md)** - the single comprehensive guide covering all portals and features
+2. Find your portal section for role-specific workflows
+3. Learn keyboard shortcuts (Ctrl+Enter, Ctrl+D, Esc) for faster invoice processing
+4. Understand status indicators and dashboard features
 
 ### For System Administrators
 1. Review implementation documentation for deployment
 2. Check browser compatibility requirements
 3. Monitor performance and user feedback
+4. Read **[ORGANIZATION_LOCATIONS_USER_GUIDE.md](./ORGANIZATION_LOCATIONS_USER_GUIDE.md)** for managing organization locations
 
 ## 🔧 Features Overview
 
@@ -37,6 +47,7 @@ This folder contains comprehensive documentation for the invoice management syst
 - **Enhanced Status Indicators**: Icons and colors for instant recognition
 - **Auto-refresh**: 30-second automatic data updates
 - **Quick Stats Dashboard**: Real-time metrics and insights
+- **Organization Locations**: Multi-location support for organizations (branches, sites, offices)
 
 ### 📈 Benefits
 - **Faster Workflow**: Keyboard shortcuts reduce clicks
@@ -106,6 +117,6 @@ No installation required - features are automatically available in the web appli
 
 ---
 
-**Last Updated**: July 19, 2025  
-**Version**: 1.0.0  
+**Last Updated**: January 31, 2026
+**Version**: 1.1.0
 **Maintainer**: Development Team 

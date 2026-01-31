@@ -47,6 +47,17 @@
   - `/organization/courses` - Course requests
   - `/organization/pricing` - Pricing access
 
+### **Organization Location Endpoints** (`/sysadmin/organizations/:orgId/locations/*`)
+- **GET Allowed Roles**: `admin`, `sysadmin`, `accountant`
+- **POST/PUT/DELETE Allowed Roles**: `admin`, `sysadmin`
+- **Examples**:
+  - `GET /sysadmin/organizations/:orgId/locations` - List all locations for an organization
+  - `GET /sysadmin/organizations/:orgId/locations/:id` - Get single location details
+  - `POST /sysadmin/organizations/:orgId/locations` - Create new location
+  - `PUT /sysadmin/organizations/:orgId/locations/:id` - Update location
+  - `DELETE /sysadmin/organizations/:orgId/locations/:id` - Deactivate location
+- **Note**: Organization users (`organization` role) do NOT have access to manage locations
+
 ### **HR Endpoints** (`/hr/*`)
 - **Allowed Roles**: `hr`, `sysadmin`
 - **Examples**:
@@ -79,11 +90,21 @@
 
 Before deploying any changes:
 - [ ] Test with `admin` role
-- [ ] Test with `courseadmin` role  
+- [ ] Test with `sysadmin` role
+- [ ] Test with `courseadmin` role
 - [ ] Test with `accountant` role
 - [ ] Test with `instructor` role
 - [ ] Test with `vendor` role
 - [ ] Test with `organization` role
 - [ ] Verify unauthorized access is properly blocked
 - [ ] Check frontend API methods exist
-- [ ] Verify error messages are user-friendly 
+- [ ] Verify error messages are user-friendly
+
+### **Organization Locations Testing**
+- [ ] `sysadmin` can view, add, edit, delete locations
+- [ ] `admin` can view, add, edit, delete locations
+- [ ] `accountant` can view locations (read-only)
+- [ ] `organization` users have NO access to location endpoints
+- [ ] Locations with users/courses cannot be deleted
+- [ ] SystemAdmin Portal: Location pin icon opens LocationsDialog
+- [ ] SuperAdmin Portal: Edit org shows Locations section (edit mode only) 

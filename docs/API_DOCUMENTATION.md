@@ -431,6 +431,76 @@ Update organization.
 #### DELETE /sysadmin/organizations/:id
 Delete organization.
 
+### Organization Locations
+
+#### GET /sysadmin/organizations/:orgId/locations
+Get all locations for an organization.
+
+**Roles**: `admin`, `sysadmin`, `accountant`
+
+**Response:**
+```json
+[
+  {
+    "id": "number",
+    "organizationId": "number",
+    "locationName": "string",
+    "address": "string",
+    "city": "string",
+    "province": "string",
+    "postalCode": "string",
+    "contactFirstName": "string",
+    "contactLastName": "string",
+    "contactEmail": "string",
+    "contactPhone": "string",
+    "isActive": "boolean",
+    "usersCount": "number",
+    "coursesCount": "number",
+    "createdAt": "ISO_DATE",
+    "updatedAt": "ISO_DATE"
+  }
+]
+```
+
+#### GET /sysadmin/organizations/:orgId/locations/:id
+Get single location details.
+
+**Roles**: `admin`, `sysadmin`, `accountant`
+
+#### POST /sysadmin/organizations/:orgId/locations
+Create new location for an organization.
+
+**Roles**: `admin`, `sysadmin`
+
+**Request Body:**
+```json
+{
+  "locationName": "string (required)",
+  "address": "string",
+  "city": "string",
+  "province": "string",
+  "postalCode": "string",
+  "contactFirstName": "string",
+  "contactLastName": "string",
+  "contactEmail": "string",
+  "contactPhone": "string"
+}
+```
+
+#### PUT /sysadmin/organizations/:orgId/locations/:id
+Update a location.
+
+**Roles**: `admin`, `sysadmin`
+
+**Request Body:** Same as POST
+
+#### DELETE /sysadmin/organizations/:orgId/locations/:id
+Deactivate a location (soft delete).
+
+**Roles**: `admin`, `sysadmin`
+
+**Note**: Locations with active users or courses cannot be deleted.
+
 ### Vendor Management
 
 #### GET /sysadmin/vendors

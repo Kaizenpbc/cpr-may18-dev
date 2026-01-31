@@ -155,6 +155,7 @@ function UserManager() {
                 <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>Phone</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>Organization</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Location</TableCell>
                 <TableCell align='center' sx={{ fontWeight: 'bold' }}>
                   Actions
                 </TableCell>
@@ -163,7 +164,7 @@ function UserManager() {
             <TableBody>
               {users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align='center'>
+                  <TableCell colSpan={10} align='center'>
                     No users found.
                   </TableCell>
                 </TableRow>
@@ -177,7 +178,8 @@ function UserManager() {
                     <TableCell>{user.lastName}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.phone}</TableCell>
-                    <TableCell>{user.organizationName}</TableCell>
+                    <TableCell>{user.organizationName || '-'}</TableCell>
+                    <TableCell>{user.locationName || '-'}</TableCell>
                     <TableCell>
                       <IconButton
                         size='small'

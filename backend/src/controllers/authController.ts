@@ -74,7 +74,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
     if (!isValidPassword) {
       devLog('[AuthController] Invalid password attempt');
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: `Incorrect password for user '${username}'. Please try again or use "Forgot Password".`,
         code: 'INVALID_PASSWORD',
         suggestions: [
@@ -83,6 +83,32 @@ router.post('/login', async (req: Request, res: Response) => {
           'Contact your administrator for assistance'
         ]
       });
+    }
+
+    // Enforce organization and location for Organization role users
+    if (user.role === 'Organization') {
+      if (!user.organization_id) {
+        console.log('[AuthController] Organization user missing organization_id:', username);
+        return res.status(403).json({
+          error: 'Your account is not properly configured. You must be assigned to an organization before you can log in.',
+          code: 'MISSING_ORGANIZATION',
+          suggestions: [
+            'Contact your system administrator to assign you to an organization',
+            'Your account setup may be incomplete'
+          ]
+        });
+      }
+      if (!user.location_id) {
+        console.log('[AuthController] Organization user missing location_id:', username);
+        return res.status(403).json({
+          error: 'Your account is not properly configured. You must be assigned to a location before you can log in.',
+          code: 'MISSING_LOCATION',
+          suggestions: [
+            'Contact your system administrator to assign you to a location',
+            'Your organization may not have any locations configured yet'
+          ]
+        });
+      }
     }
 
     const accessToken = jwt.sign(

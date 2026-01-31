@@ -327,6 +327,21 @@ Accounting manages invoices, payments, and financial reporting.
 
 ## Invoice Management
 
+### Quick Stats Dashboard
+The stats dashboard appears above the invoice table and shows:
+
+| Card | Shows | Purpose |
+|------|-------|---------|
+| **Pending Approvals** | Number | How many invoices need approval |
+| **Approved Today** | Number | How many invoices approved today |
+| **Posted Today** | Number | How many invoices posted to organizations today |
+| **Total Outstanding** | Amount | Total money owed across all invoices |
+
+Features:
+- **Real-time Updates**: Numbers update automatically with data changes
+- **Last Updated**: Shows when statistics were last calculated
+- **Hover Tooltips**: Hover over cards for more information
+
 ### Creating Invoices
 Invoices are auto-generated when courses are sent to billing:
 1. Go to **Ready for Billing**
@@ -343,6 +358,37 @@ Invoices are auto-generated when courses are sent to billing:
 After approval:
 1. Click **Post Invoice**
 2. Invoice is sent to the organization
+
+### Keyboard Shortcuts
+When viewing an invoice detail dialog, use these shortcuts:
+
+| Shortcut | Action | When Available |
+|----------|--------|----------------|
+| **Ctrl+Enter** | Approve Invoice | Only when invoice is pending approval |
+| **Ctrl+D** | Download PDF | Always available |
+| **Esc** | Close Dialog | Always available |
+
+**Tip**: Look for the "Shortcuts" indicator in the dialog title. Shortcuts only work when the dialog is focused.
+
+### Invoice Status Indicators
+Invoices display with visual indicators for quick recognition:
+
+| Status | Icon | Color | Meaning |
+|--------|------|-------|---------|
+| **Paid** | ✅ | Green | Invoice has been fully paid |
+| **Pending** | ⏳ | Orange | Invoice is waiting for payment |
+| **Overdue** | ⚠️ | Red | Invoice is past due date |
+| **Approved** | ✅ | Green | Invoice has been approved |
+| **Pending Approval** | ⏳ | Orange | Invoice needs approval |
+| **Rejected** | ❌ | Red | Invoice was rejected |
+| **Draft** | ℹ️ | Blue | Invoice is in draft status |
+
+### Auto-Refresh
+- Invoice lists automatically refresh every 30 seconds
+- No need to manually click refresh
+- Works in the background while you continue working
+
+**Note**: Auto-refresh only works when viewing invoice lists, not individual invoice details.
 
 ## Payment Verification
 
@@ -380,6 +426,14 @@ View invoices by age:
 3. Select payments to process
 4. Choose payment method
 5. Click **Process Payment**
+
+## Troubleshooting (Accounting)
+
+| Issue | Solution |
+|-------|----------|
+| Shortcuts not working | Make sure the invoice dialog is focused |
+| Stats not updating | Check if you're on the invoice history page |
+| Icons missing | Try refreshing the page |
 
 ---
 
@@ -538,11 +592,14 @@ System Admins manage users, organizations, system settings, and have access to a
 1. Go to **User Management**
 2. Click **Add User**
 3. Enter:
-   - Username
-   - Email
+   - Username and Password
+   - First Name, Last Name
+   - Email and Phone
    - Role
-   - Password
-4. Click **Create**
+4. If Role is **Organization**:
+   - Select the **Organization** from dropdown
+   - Select the **Location** from dropdown (optional, but recommended)
+5. Click **Add User**
 
 ### User Roles
 | Role | Access |
@@ -555,16 +612,46 @@ System Admins manage users, organizations, system settings, and have access to a
 | **Vendor** | Vendor Portal |
 | **SysAdmin** | All Portals + Admin |
 
+### Assigning Users to Organizations and Locations
+When creating or editing a user with **Organization** role:
+
+1. **Organization** (required): Select which organization the user belongs to
+2. **Location** (required): Select the user's specific location/branch within the organization
+
+**Both Organization and Location are mandatory for Organization role users.**
+
+The Location dropdown:
+- Only appears after selecting an Organization
+- Shows only active locations for that organization
+- Tracks which branch/office the user works at
+- Auto-populates location when user requests courses
+
+**Important**:
+- If an organization has no locations configured, you must add locations first before creating users for that organization.
+- Organization users **cannot log in** until they are assigned to both an organization AND a location. They will see an error message directing them to contact their administrator.
+
 ### Editing Users
-1. Find the user
-2. Click **Edit**
-3. Update details
-4. Save changes
+1. Find the user in the table
+2. Click the **Edit** icon
+3. Update details including:
+   - Personal information
+   - Organization assignment
+   - Location assignment (to move user to different branch)
+4. Click **Save Changes**
+
+### Moving a User to a Different Location
+1. Go to **User Management**
+2. Click **Edit** on the user
+3. Change the **Location** dropdown to the new location
+4. Click **Save Changes**
+
+**Note**: If moving to a different organization, first change the Organization, then select the new Location.
 
 ### Deactivating Users
 1. Find the user
-2. Click **Deactivate**
-3. User can no longer log in
+2. Click **Delete** icon
+3. Confirm deletion
+4. User can no longer log in
 
 ## Organization Management
 
@@ -576,6 +663,136 @@ System Admins manage users, organizations, system settings, and have access to a
    - Contact info
    - Billing info
 4. Create
+
+### Managing Organization Locations
+Organizations can have multiple locations (branches, offices, sites). Each location can have its own contact information, and users/courses can be assigned to specific locations.
+
+#### Location Access Permissions
+| Role | View Locations | Add/Edit/Delete |
+|------|---------------|-----------------|
+| **SysAdmin** | Yes | Yes |
+| **Admin** | Yes | Yes |
+| **Accountant** | Yes | No |
+| **Organization** | No | No |
+
+**Note**: Organization portal users cannot manage locations. This is an administrative function only.
+
+#### How to Access Locations
+
+**SystemAdmin Portal (Recommended):**
+1. Go to **Organizations**
+2. Find the organization in the table
+3. Click the **Location pin icon** (purple) in the Actions column
+
+```
+Actions column:  [Location Pin] [Edit Pencil] [Delete Trash]
+                      ^
+                Click this for locations
+```
+
+**SuperAdmin Portal:**
+1. Go to **Manage Organizations**
+2. Click **Edit** on an existing organization
+3. Scroll down to the **Locations** section
+
+**Note**: Locations section only appears when editing an existing organization, not when creating a new one.
+
+#### Adding a New Location
+**From SystemAdmin Portal:**
+1. Click the Location pin icon for the organization
+2. Click **Add Location** button
+3. Fill in the location details:
+   - **Location Name** (required) - e.g., "Downtown Office", "West Branch"
+   - **Address** - Street address
+   - **City** - City name
+   - **Province** - Province/State
+   - **Postal Code** - ZIP/Postal code
+   - **Contact Person** - First and last name
+   - **Contact Email** - Email address
+   - **Contact Phone** - Phone number
+4. Click **Save**
+
+**From SuperAdmin Portal:**
+1. Edit the organization
+2. Scroll to Locations section
+3. Click **Add Location**
+4. Enter the location name
+5. Click **Add**
+
+#### Editing a Location
+1. Open the Locations dialog for the organization
+2. Click the **Edit** icon next to the location
+3. Update the details
+4. Click **Save**
+
+#### Deleting a Location
+1. Open the Locations dialog
+2. Click the **Delete** icon next to the location
+3. Confirm deletion
+
+**Warning**: You cannot delete a location that has:
+- Active users assigned to it
+- Courses assigned to it
+
+The dialog shows usage counts (Users, Courses) to help you identify which locations are in use.
+
+#### Activating/Deactivating Locations
+Locations can be deactivated instead of deleted:
+- Deactivated locations remain in the database
+- They won't appear in dropdown lists for new assignments
+- Existing assignments are preserved
+
+#### Location Fields Reference
+| Field | Required | Description |
+|-------|----------|-------------|
+| Location Name | Yes | Unique identifier within the organization |
+| Address | No | Street address |
+| City | No | City name |
+| Province | No | Province or state |
+| Postal Code | No | ZIP or postal code |
+| Contact First Name | No | Primary contact's first name |
+| Contact Last Name | No | Primary contact's last name |
+| Contact Email | No | Contact email address |
+| Contact Phone | No | Contact phone number |
+| Is Active | Auto | Whether location accepts new assignments |
+
+#### Location Use Cases
+- **Multi-Branch Organizations**: Track which branch requested each course and which branch's employees attended
+- **Regional Management**: Track training by region for compliance reporting
+- **Billing by Location**: Associate invoices with specific locations for departmental chargebacks
+- **User Assignment**: Users can be assigned to a default location, which auto-populates when they request courses
+
+#### Locations Quick Reference
+| Task | Portal | Action |
+|------|--------|--------|
+| View all locations | SystemAdmin | Click Location pin icon |
+| Add location (full details) | SystemAdmin | Location pin > Add Location |
+| Add location (quick) | SuperAdmin | Edit org > Add Location |
+| Edit location | SystemAdmin | Location pin > Edit icon |
+| Delete location | SystemAdmin | Location pin > Delete icon |
+| See usage stats | SystemAdmin | Location pin (shows users/courses count) |
+
+#### Troubleshooting Locations
+
+**"I can't see the Locations option"**
+1. Check your role: Only `admin`, `sysadmin`, and `accountant` can view locations
+2. Check which portal:
+   - SystemAdmin Portal: Look for the Location pin icon in Actions
+   - SuperAdmin Portal: You must **Edit** an existing org (not create new)
+3. Organization must exist: Locations can only be added to existing organizations
+
+**"I can't add/edit/delete locations"**
+1. Check your role: Only `admin` and `sysadmin` can modify locations
+2. Accountants have read-only access
+
+**"I can't delete a location"**
+- The location may have users or courses assigned
+- Check the usage counts in the dialog
+- Reassign users/courses first, then delete
+
+**"Locations aren't showing in dropdowns"**
+- The location may be deactivated
+- Check the "Active" status in the Locations dialog
 
 ### Managing Organization Users
 1. Select an organization
@@ -607,6 +824,17 @@ System Admins manage users, organizations, system settings, and have access to a
 2. Enter your username and password
 3. Click **Login**
 4. You'll be directed to your portal based on your role
+
+### Login Error Messages
+
+| Error | Meaning | Solution |
+|-------|---------|----------|
+| "User not found" | Username doesn't exist | Check spelling or contact administrator |
+| "Incorrect password" | Wrong password entered | Try again or use "Forgot Password" |
+| "You must be assigned to an organization" | Organization user without org assignment | Contact administrator to assign organization |
+| "You must be assigned to a location" | Organization user without location assignment | Contact administrator to assign location |
+
+**Note for Organization Users**: Your account requires both an organization AND location assignment before you can log in. If you see either of the last two errors, your administrator needs to complete your account setup.
 
 ## Password Reset
 1. Click **Forgot Password**
@@ -647,5 +875,5 @@ When reporting an issue, include:
 
 ---
 
-**Last Updated**: January 27, 2026
-**Version**: 2.1.0
+**Last Updated**: January 31, 2026
+**Version**: 3.2.0 (Consolidated Edition + User Location Assignment + Login Enforcement)

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Features - Organization Locations
+- **ADDED**: Multi-location support for organizations (branches, offices, sites)
+- **ADDED**: Location management UI in SystemAdmin Portal (LocationsDialog)
+- **ADDED**: Location management UI in SuperAdmin Portal (embedded in OrganizationDialog)
+- **ADDED**: API endpoints for CRUD operations on organization locations
+- **ADDED**: Role-based access control for location management
+  - View: `admin`, `sysadmin`, `accountant`
+  - Modify: `admin`, `sysadmin` only
+- **ADDED**: Usage tracking (users count, courses count per location)
+- **ADDED**: Soft delete with constraint checking (cannot delete locations with active users/courses)
+
+### 📚 Documentation - Organization Locations
+- **ADDED**: `docs/ORGANIZATION_LOCATIONS_USER_GUIDE.md` - Comprehensive user guide
+- **UPDATED**: `docs/API_DOCUMENTATION.md` - Added location API endpoints
+- **UPDATED**: `ROLE_MAPPING.md` - Added location endpoint permissions
+- **UPDATED**: `STANDARD_OPERATING_PROCEDURES.md` - Added location management procedures
+- **UPDATED**: `docs/README.md` - Added reference to location guide
+
 ### Security - Phase 1 Implementation (In Progress)
 
 ## [1.3.0] - 2025-07-02
@@ -306,6 +324,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Changelog Maintained By**: Development Team  
-**Last Updated**: June 3, 2025  
-**Next Review**: June 10, 2025 
+**Changelog Maintained By**: Development Team
+**Last Updated**: January 31, 2026
+**Next Review**: February 7, 2026 

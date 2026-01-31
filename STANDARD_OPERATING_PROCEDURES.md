@@ -1,8 +1,8 @@
 # Standard Operating Procedures (SOP)
 ## CPR Training Management System
 
-**Version:** 1.0  
-**Last Updated:** September 10, 2025  
+**Version:** 1.1
+**Last Updated:** January 31, 2026  
 **Document Owner:** System Administrator
 
 ---
@@ -456,6 +456,31 @@ npm run role:create --name=<role-name> --permissions=<permissions>
 # Update role permissions
 npm run role:update --name=<role-name> --permissions=<permissions>
 ```
+
+### 6.3 Organization Location Management
+
+Organizations can have multiple locations (branches, offices, sites). Locations are managed through the admin portals.
+
+#### Managing Locations (SystemAdmin Portal)
+1. Navigate to **Organizations** in SystemAdmin Portal
+2. Click the **Location pin icon** in the Actions column for the target organization
+3. Use the dialog to add, edit, or delete locations
+
+#### Managing Locations (SuperAdmin Portal)
+1. Navigate to **Manage Organizations** in SuperAdmin Portal
+2. Click **Edit** on an existing organization
+3. Scroll to the **Locations** section
+4. Use "Add Location" to create new locations
+
+#### Location Access Permissions
+| Role | View | Add/Edit/Delete |
+|------|------|-----------------|
+| sysadmin | Yes | Yes |
+| admin | Yes | Yes |
+| accountant | Yes | No |
+| organization | No | No |
+
+**Note**: Locations with assigned users or courses cannot be deleted. See `docs/ORGANIZATION_LOCATIONS_USER_GUIDE.md` for detailed instructions.
 
 ### 6.2 Security Monitoring
 
