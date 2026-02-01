@@ -32,6 +32,7 @@ import {
 } from '@mui/icons-material';
 import { sysAdminApi } from '../../services/api';
 import LocationsDialog from './LocationsDialog';
+import OrganizationWizard from './OrganizationWizard';
 
 const OrganizationManagement = () => {
   const [organizations, setOrganizations] = useState([]);
@@ -39,6 +40,7 @@ const OrganizationManagement = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
+  const [openWizard, setOpenWizard] = useState(false);
   const [editingOrg, setEditingOrg] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [locationsDialogOrg, setLocationsDialogOrg] = useState(null);
@@ -77,6 +79,7 @@ const OrganizationManagement = () => {
 
   const handleOpenDialog = (org = null) => {
     if (org) {
+      // Editing existing org - use regular dialog
       setEditingOrg(org);
       setFormData({
         name: org.organizationName || '',
@@ -91,23 +94,11 @@ const OrganizationManagement = () => {
         contactPhone: org.contactPhone || '',
         organizationComments: org.organizationComments || '',
       });
+      setOpenDialog(true);
     } else {
-      setEditingOrg(null);
-      setFormData({
-        name: '',
-        address: '',
-        city: '',
-        province: '',
-        postalCode: '',
-        country: 'Canada',
-        contactPerson: '',
-        contactPosition: 'Manager',
-        contactEmail: '',
-        contactPhone: '',
-        organizationComments: '',
-      });
+      // Creating new org - use wizard
+      setOpenWizard(true);
     }
-    setOpenDialog(true);
   };
 
   const handleCloseDialog = () => {
@@ -126,31 +117,22 @@ const OrganizationManagement = () => {
   const handleSubmit = async () => {
     try {
       setError('');
-      if (editingOrg) {
-        await sysAdminApi.updateOrganization(editingOrg.id, formData);
-        setSuccess('Organization updated successfully');
-        handleCloseDialog();
-        loadOrganizations();
-      } else {
-        // Create new organization
-        const response = await sysAdminApi.createOrganization(formData);
-        const newOrg = response.data;
-        handleCloseDialog();
-        await loadOrganizations();
-
-        // Automatically open locations dialog for new org
-        setLocationsDialogOrg({
-          id: newOrg.id,
-          organizationName: formData.name,
-        });
-        setSuccess('Organization created - now add at least one location');
-      }
+      await sysAdminApi.updateOrganization(editingOrg.id, formData);
+      setSuccess('Organization updated successfully');
+      handleCloseDialog();
+      loadOrganizations();
     } catch (err) {
       setError(
         err.response?.data?.error?.message || 'Failed to save organization'
       );
       console.error(err);
     }
+  };
+
+  const handleWizardComplete = () => {
+    setOpenWizard(false);
+    setSuccess('Organization and location created successfully');
+    loadOrganizations();
   };
 
   const handleDelete = async orgId => {
@@ -335,16 +317,14 @@ const OrganizationManagement = () => {
         </Table>
       </TableContainer>
 
-      {/* Add/Edit Dialog */}
+      {/* Edit Dialog */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
         maxWidth='md'
         fullWidth
       >
-        <DialogTitle>
-          {editingOrg ? 'Edit Organization' : 'Add New Organization'}
-        </DialogTitle>
+        <DialogTitle>Edit Organization</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12}>
@@ -463,7 +443,7 @@ const OrganizationManagement = () => {
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>
           <Button onClick={handleSubmit} variant='contained' color='primary'>
-            {editingOrg ? 'Update' : 'Create'}
+            Update
           </Button>
         </DialogActions>
       </Dialog>
@@ -495,6 +475,13 @@ const OrganizationManagement = () => {
         open={Boolean(locationsDialogOrg)}
         onClose={() => setLocationsDialogOrg(null)}
         organization={locationsDialogOrg}
+      />
+
+      {/* Organization Creation Wizard */}
+      <OrganizationWizard
+        open={openWizard}
+        onClose={() => setOpenWizard(false)}
+        onComplete={handleWizardComplete}
       />
     </Box>
   );
