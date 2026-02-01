@@ -34,7 +34,6 @@ export async function migrateOrganizationLocations(): Promise<void> {
         contact_last_name VARCHAR(100),
         contact_email VARCHAR(255),
         contact_phone VARCHAR(32),
-        is_primary BOOLEAN DEFAULT FALSE,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -129,8 +128,8 @@ export async function migrateOrganizationLocations(): Promise<void> {
           INSERT INTO organization_locations (
             organization_id, location_name, address, city, province, postal_code,
             contact_first_name, contact_last_name, contact_email, contact_phone,
-            is_primary, is_active
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, TRUE)
+            is_active
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE)
           RETURNING id
         `, [
           org.id,

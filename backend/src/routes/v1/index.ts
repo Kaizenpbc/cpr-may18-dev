@@ -6288,7 +6288,6 @@ router.get(
         ol.contact_last_name as "contactLastName",
         ol.contact_email as "contactEmail",
         ol.contact_phone as "contactPhone",
-        ol.is_primary as "isPrimary",
         ol.is_active as "isActive",
         ol.created_at as "createdAt",
         ol.updated_at as "updatedAt",
@@ -6330,7 +6329,6 @@ router.get(
         ol.contact_last_name as "contactLastName",
         ol.contact_email as "contactEmail",
         ol.contact_phone as "contactPhone",
-        ol.is_primary as "isPrimary",
         ol.is_active as "isActive",
         ol.created_at as "createdAt",
         ol.updated_at as "updatedAt"
@@ -6368,7 +6366,6 @@ router.post(
       contactLastName,
       contactEmail,
       contactPhone,
-      isPrimary,
     } = req.body;
 
     devLog('[Debug] Creating location for org:', orgId, req.body);
@@ -6379,7 +6376,6 @@ router.post(
       throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Organization not found');
     }
 
-    // All locations are equal - no primary location concept
     const query = `
       INSERT INTO organization_locations (
         organization_id,
@@ -6392,9 +6388,8 @@ router.post(
         contact_last_name,
         contact_email,
         contact_phone,
-        is_primary,
         is_active
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE)
       RETURNING
         id,
         organization_id as "organizationId",
@@ -6407,7 +6402,6 @@ router.post(
         contact_last_name as "contactLastName",
         contact_email as "contactEmail",
         contact_phone as "contactPhone",
-        is_primary as "isPrimary",
         is_active as "isActive",
         created_at as "createdAt",
         updated_at as "updatedAt"
@@ -6424,7 +6418,6 @@ router.post(
       contactLastName || null,
       contactEmail || null,
       contactPhone || null,
-      false, // No primary location concept - all locations are equal
     ]);
 
     res.json({
@@ -6452,13 +6445,11 @@ router.put(
       contactLastName,
       contactEmail,
       contactPhone,
-      isPrimary,
       isActive,
     } = req.body;
 
     devLog('[Debug] Updating location:', id, 'for org:', orgId, req.body);
 
-    // All locations are equal - no primary location concept
     const query = `
       UPDATE organization_locations
       SET
@@ -6471,10 +6462,9 @@ router.put(
         contact_last_name = COALESCE($7, contact_last_name),
         contact_email = COALESCE($8, contact_email),
         contact_phone = COALESCE($9, contact_phone),
-        is_primary = COALESCE($10, is_primary),
-        is_active = COALESCE($11, is_active),
+        is_active = COALESCE($10, is_active),
         updated_at = NOW()
-      WHERE id = $12 AND organization_id = $13
+      WHERE id = $11 AND organization_id = $12
       RETURNING
         id,
         organization_id as "organizationId",
@@ -6487,7 +6477,6 @@ router.put(
         contact_last_name as "contactLastName",
         contact_email as "contactEmail",
         contact_phone as "contactPhone",
-        is_primary as "isPrimary",
         is_active as "isActive",
         created_at as "createdAt",
         updated_at as "updatedAt"
@@ -6503,7 +6492,6 @@ router.put(
       contactLastName,
       contactEmail,
       contactPhone,
-      isPrimary,
       isActive,
       id,
       orgId,

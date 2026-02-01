@@ -38,7 +38,7 @@ module.exports = {
         lastName = nameParts.slice(1).join(' ') || null;
       }
 
-      // Create default primary location for this org
+      // Create default location for this org
       const locationResult = await db.query(`
         INSERT INTO organization_locations (
           organization_id,
@@ -51,9 +51,8 @@ module.exports = {
           contact_last_name,
           contact_email,
           contact_phone,
-          is_primary,
           is_active
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, TRUE)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE)
         RETURNING id
       `, [
         org.id,

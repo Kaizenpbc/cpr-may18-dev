@@ -40,7 +40,6 @@ interface Location {
   contactLastName?: string;
   contactEmail?: string;
   contactPhone?: string;
-  isPrimary: boolean;
   isActive: boolean;
   userCount?: number;
   courseCount?: number;

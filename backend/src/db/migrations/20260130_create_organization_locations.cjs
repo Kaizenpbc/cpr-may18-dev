@@ -24,7 +24,6 @@ module.exports = {
         contact_last_name VARCHAR(100),
         contact_email VARCHAR(255),
         contact_phone VARCHAR(32),
-        is_primary BOOLEAN DEFAULT FALSE,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
