@@ -6297,7 +6297,7 @@ router.get(
         (SELECT COUNT(*) FROM invoices i WHERE i.location_id = ol.id)::int as "invoiceCount"
       FROM organization_locations ol
       WHERE ol.organization_id = $1
-      ORDER BY ol.is_primary DESC, ol.location_name
+      ORDER BY ol.location_name
     `;
 
     const result = await pool.query(query, [orgId]);
@@ -6379,21 +6379,7 @@ router.post(
       throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Organization not found');
     }
 
-    // If this is set as primary, unset other primary locations
-    if (isPrimary) {
-      await pool.query(
-        'UPDATE organization_locations SET is_primary = FALSE WHERE organization_id = $1',
-        [orgId]
-      );
-    }
-
-    // Check if this is the first location (auto-set as primary)
-    const existingLocations = await pool.query(
-      'SELECT COUNT(*) as count FROM organization_locations WHERE organization_id = $1',
-      [orgId]
-    );
-    const isFirstLocation = parseInt(existingLocations.rows[0].count) === 0;
-
+    // All locations are equal - no primary location concept
     const query = `
       INSERT INTO organization_locations (
         organization_id,
@@ -6438,7 +6424,7 @@ router.post(
       contactLastName || null,
       contactEmail || null,
       contactPhone || null,
-      isPrimary || isFirstLocation,
+      false, // No primary location concept - all locations are equal
     ]);
 
     res.json({
@@ -6472,14 +6458,7 @@ router.put(
 
     devLog('[Debug] Updating location:', id, 'for org:', orgId, req.body);
 
-    // If setting as primary, unset other primary locations
-    if (isPrimary) {
-      await pool.query(
-        'UPDATE organization_locations SET is_primary = FALSE WHERE organization_id = $1 AND id != $2',
-        [orgId, id]
-      );
-    }
-
+    // All locations are equal - no primary location concept
     const query = `
       UPDATE organization_locations
       SET

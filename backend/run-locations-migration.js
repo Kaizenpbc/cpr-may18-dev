@@ -68,81 +68,11 @@ async function runMigration() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_invoices_location_id ON invoices(location_id);`);
     console.log('✅ Created indexes for location_id columns');
 
-    // Now migrate existing orgs to have default locations
-    console.log('🔄 Migrating existing organizations to locations...');
-
-    const orgsResult = await client.query(`
-      SELECT
-        id,
-        name,
-        contact_name,
-        contact_email,
-        contact_phone,
-        address,
-        address_street,
-        address_city,
-        address_province,
-        address_postal_code
-      FROM organizations
-    `);
-
-    for (const org of orgsResult.rows) {
-      // Check if org already has a location
-      const existingLoc = await client.query(
-        'SELECT id FROM organization_locations WHERE organization_id = $1',
-        [org.id]
-      );
-
-      if (existingLoc.rows.length === 0) {
-        // Parse contact_name into first and last name
-        let firstName = null;
-        let lastName = null;
-        if (org.contact_name) {
-          const nameParts = org.contact_name.trim().split(' ');
-          firstName = nameParts[0] || null;
-          lastName = nameParts.slice(1).join(' ') || null;
-        }
-
-        // Create default location
-        const locResult = await client.query(`
-          INSERT INTO organization_locations (
-            organization_id, location_name, address, city, province, postal_code,
-            contact_first_name, contact_last_name, contact_email, contact_phone,
-            is_primary, is_active
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, TRUE)
-          RETURNING id
-        `, [
-          org.id,
-          'Main Location',
-          org.address_street || org.address || null,
-          org.address_city || null,
-          org.address_province || null,
-          org.address_postal_code || null,
-          firstName,
-          lastName,
-          org.contact_email || null,
-          org.contact_phone || null,
-        ]);
-
-        const locationId = locResult.rows[0].id;
-
-        // Update related records
-        await client.query(
-          'UPDATE course_requests SET location_id = $1 WHERE organization_id = $2 AND location_id IS NULL',
-          [locationId, org.id]
-        );
-        await client.query(
-          'UPDATE invoices SET location_id = $1 WHERE organization_id = $2 AND location_id IS NULL',
-          [locationId, org.id]
-        );
-        await client.query(
-          "UPDATE users SET location_id = $1 WHERE organization_id = $2 AND location_id IS NULL AND role = 'organization'",
-          [locationId, org.id]
-        );
-
-        console.log(`  ✅ Created location for org: ${org.name}`);
-      }
-    }
+    // NOTE: No auto-creation of default locations
+    // All locations must be explicitly created by administrators
+    // Users cannot log in until assigned to a location
+    console.log('ℹ️  No default locations created - admins must create locations explicitly');
+    console.log('ℹ️  Organization users must be assigned to a location before they can log in');
 
     console.log('🎉 Migration completed successfully!');
 
