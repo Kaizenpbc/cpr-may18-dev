@@ -46,11 +46,13 @@ router.post(
     }
 
     try {
-      // Combined query: fetch user and organization name in a single JOIN query for better performance
+      // Combined query: fetch user, organization, and location in a single JOIN query
       const result = await pool.query(
-        `SELECT u.id, u.username, u.password_hash, u.role, u.organization_id, o.name as organization_name
+        `SELECT u.id, u.username, u.password_hash, u.role, u.organization_id, u.location_id,
+                o.name as organization_name, ol.location_name
          FROM users u
          LEFT JOIN organizations o ON u.organization_id = o.id
+         LEFT JOIN organization_locations ol ON u.location_id = ol.id
          WHERE u.username = $1`,
         [username]
       );
@@ -72,6 +74,7 @@ router.post(
 
       const user = result.rows[0];
       const organizationName = user.organization_name || '';
+      const locationName = user.location_name || '';
 
       const isValidPassword = await bcrypt.compare(
         password,
@@ -80,6 +83,30 @@ router.post(
 
       if (!isValidPassword) {
         return res.status(401).json(invalidCredentialsResponse);
+      }
+
+      // Enforce organization and location for Organization role users
+      if (user.role && user.role.toLowerCase() === 'organization') {
+        if (!user.organization_id) {
+          return res.status(403).json({
+            error: 'Your account is not properly configured. You must be assigned to an organization before you can log in.',
+            code: 'MISSING_ORGANIZATION',
+            suggestions: [
+              'Contact your system administrator to assign you to an organization',
+              'Your account setup may be incomplete'
+            ]
+          });
+        }
+        if (!user.location_id) {
+          return res.status(403).json({
+            error: 'Your account is not properly configured. You must be assigned to a location before you can log in.',
+            code: 'MISSING_LOCATION',
+            suggestions: [
+              'Contact your system administrator to assign you to a location',
+              'Your organization may not have any locations configured yet'
+            ]
+          });
+        }
       }
 
       // Extract request metadata for session management
@@ -95,6 +122,8 @@ router.post(
         role: user.role,
         organizationId: user.organization_id,
         organizationName,
+        locationId: user.location_id,
+        locationName,
       });
 
       // Set refresh token as httpOnly cookie
@@ -117,6 +146,8 @@ router.post(
               role: user.role,
               organizationId: user.organization_id,
               organizationName,
+              locationId: user.location_id,
+              locationName,
             },
             accessToken: tokens.accessToken,
           },
