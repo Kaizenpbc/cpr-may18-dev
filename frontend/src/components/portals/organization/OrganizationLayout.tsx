@@ -33,6 +33,8 @@ interface User {
   role: string;
   organizationId?: number;
   organizationName?: string;
+  locationId?: number;
+  locationName?: string;
   [key: string]: unknown;
 }
 
@@ -93,6 +95,11 @@ const OrganizationLayout: React.FC<OrganizationLayoutProps> = ({
         {user?.organizationName && (
           <Typography variant="body2" color="text.secondary">
             {user.organizationName}
+          </Typography>
+        )}
+        {user?.locationName && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+            {user.locationName}
           </Typography>
         )}
       </Box>
