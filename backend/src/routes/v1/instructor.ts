@@ -1049,7 +1049,16 @@ router.post('/classes/notes', authenticateToken, requireRole(['instructor', 'adm
 });
 
 // Serve the instructor manual (restricted to instructors)
-router.get('/manual', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), (req, res) => {
+// Special handling for token in query parameter (needed for opening in new browser tab)
+router.get('/manual', (req, res, next) => {
+  // Check if token is in query parameter (for new tab access)
+  const queryToken = req.query.token as string;
+  if (queryToken && !req.headers.authorization) {
+    // Add token to authorization header so authenticateToken middleware can process it
+    req.headers.authorization = `Bearer ${queryToken}`;
+  }
+  next();
+}, authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), (req, res) => {
   const manualPath = path.join(process.cwd(), 'src', 'static', 'instructor_manual', 'index.html');
 
   if (fs.existsSync(manualPath)) {
