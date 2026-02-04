@@ -1054,8 +1054,10 @@ router.get('/manual', (req, res, next) => {
   // Check if token is in query parameter (for new tab access)
   const queryToken = req.query.token as string;
   if (queryToken && !req.headers.authorization) {
+    // Handle token that may already include "Bearer " prefix from frontend tokenService
+    const cleanToken = queryToken.startsWith('Bearer ') ? queryToken.substring(7) : queryToken;
     // Add token to authorization header so authenticateToken middleware can process it
-    req.headers.authorization = `Bearer ${queryToken}`;
+    req.headers.authorization = `Bearer ${cleanToken}`;
   }
   next();
 }, authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), (req, res) => {
