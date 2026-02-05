@@ -7,21 +7,32 @@ import bcrypt from 'bcryptjs';
 dotenv.config();
 
 // Database configuration
-const getDbPassword = (): string => {
+// Supports both DATABASE_URL (for Render/Heroku) and individual DB_* variables (for local)
+const getPoolConfig = (): PoolConfig => {
+  // If DATABASE_URL is set, use it (Render, Heroku, etc.)
+  if (process.env.DATABASE_URL) {
+    return {
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    };
+  }
+
+  // Otherwise, require individual DB_* variables
   const password = process.env.DB_PASSWORD;
   if (!password) {
-    throw new Error('DB_PASSWORD environment variable is required');
+    throw new Error('DB_PASSWORD environment variable is required (or set DATABASE_URL)');
   }
-  return password;
+
+  return {
+    user: process.env.DB_USER || 'postgres',
+    password,
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: parseInt(process.env.DB_PORT || '5432'),
+    database: process.env.DB_NAME || 'cpr_jun21',
+  };
 };
 
-const poolConfig: PoolConfig = {
-  user: process.env.DB_USER || 'postgres',
-  password: getDbPassword(),
-  host: process.env.DB_HOST || '127.0.0.1',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'cpr_jun21',
-};
+const poolConfig: PoolConfig = getPoolConfig();
 
 // Create the connection pool
 const pool = new Pool(poolConfig);
