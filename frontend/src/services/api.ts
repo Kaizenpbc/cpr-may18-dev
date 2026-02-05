@@ -943,11 +943,11 @@ export const sysAdminApi = {
     const response = await api.get(`/sysadmin/organizations/${orgId}/locations/${locationId}`);
     return response.data;
   },
-  createOrganizationLocation: async (orgId: number, locationData: any) => {
+  createOrganizationLocation: async (orgId: number, locationData: Record<string, unknown>) => {
     const response = await api.post(`/sysadmin/organizations/${orgId}/locations`, locationData);
     return response.data;
   },
-  updateOrganizationLocation: async (orgId: number, locationId: number, locationData: any) => {
+  updateOrganizationLocation: async (orgId: number, locationId: number, locationData: Record<string, unknown>) => {
     const response = await api.put(`/sysadmin/organizations/${orgId}/locations/${locationId}`, locationData);
     return response.data;
   },

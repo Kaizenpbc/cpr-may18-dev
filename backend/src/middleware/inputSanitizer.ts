@@ -18,7 +18,9 @@ function basicXssSanitize(input: string): string {
  * Sanitizes a string value by:
  * 1. Trimming whitespace
  * 2. Basic XSS protection
- * 3. Escaping SQL injection patterns
+ *
+ * Note: SQL injection is handled by parameterized queries in the database layer.
+ * Do NOT strip SQL keywords here - it breaks legitimate data like "Select Insurance".
  */
 export function sanitizeString(input: string): string {
   if (typeof input !== 'string') {
@@ -31,13 +33,6 @@ export function sanitizeString(input: string): string {
 
     // Basic XSS protection
     sanitized = basicXssSanitize(sanitized);
-
-    // Additional SQL injection pattern removal
-    sanitized = sanitized.replace(/['";\\]/g, ''); // Remove common SQL injection chars
-    sanitized = sanitized.replace(
-      /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|UNION|OR|AND)\b)/gi,
-      ''
-    );
 
     return sanitized;
   } catch (error) {

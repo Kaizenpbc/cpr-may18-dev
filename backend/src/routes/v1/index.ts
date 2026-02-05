@@ -149,49 +149,7 @@ router.get(
 router.use('/dashboard', authenticateToken);
 router.use('/courses', authenticateToken);
 
-// Example route with error handling
-router.get(
-  '/users',
-  asyncHandler(async (_req: Request, res: Response) => {
-    // TODO: Implement actual user fetching
-    res.json({
-      success: true,
-      data: {
-        users: [{ id: 1, username: 'testuser' }],
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        version: '1.0.0',
-      },
-    });
-  })
-);
-
-// Example route with error throwing
-router.get(
-  '/users/:id',
-  asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
-
-    // Example of throwing a custom error
-    if (!id) {
-      throw new AppError(
-        400,
-        errorCodes.VALIDATION_ERROR,
-        'User ID is required'
-      );
-    }
-
-    // Example of using the standardized response
-    const user = { id: 1, name: 'John Doe' };
-
-    return res.json(
-      ApiResponseBuilder.success(keysToCamel(user), {
-        version: '1.0.0',
-      })
-    );
-  })
-);
+// Users routes are handled by sysadmin router for actual user management
 
 // Certifications routes
 router.get(

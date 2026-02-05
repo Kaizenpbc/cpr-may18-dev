@@ -81,7 +81,19 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       try {
         isBlacklisted = await TokenBlacklist.isBlacklisted(token);
       } catch (blacklistError) {
-        // Continue with token verification even if blacklist check fails
+        // In production, fail closed - reject token if blacklist check fails
+        if (process.env.NODE_ENV === 'production') {
+          console.error('[AUTH] Blacklist check failed, rejecting token for safety:', blacklistError);
+          return res.status(503).json({
+            success: false,
+            error: {
+              code: errorCodes.INTERNAL_SERVER_ERROR,
+              message: 'Authentication service temporarily unavailable'
+            }
+          });
+        }
+        // In development, log and continue
+        console.warn('[AUTH] Blacklist check failed, continuing in dev mode:', blacklistError);
       }
 
       if (isBlacklisted) {

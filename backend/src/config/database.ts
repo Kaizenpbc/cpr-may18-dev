@@ -10,11 +10,7 @@ dotenv.config();
 const getDbPassword = (): string => {
   const password = process.env.DB_PASSWORD;
   if (!password) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('DB_PASSWORD environment variable is required in production');
-    }
-    console.warn('WARNING: DB_PASSWORD not set, using development fallback');
-    return 'gtacpr';
+    throw new Error('DB_PASSWORD environment variable is required');
   }
   return password;
 };
