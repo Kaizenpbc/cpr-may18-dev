@@ -18,7 +18,23 @@
       "Bash(git stash pop:*)",
       "Bash(git stash drop:*)",
       "Bash(sort:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git -C \"C:/Users/gerog/Documents/cpr-jun21-dev\" status)",
+      "Bash(git -C \"C:/Users/gerog/Documents/cpr-jun21-dev\" log --oneline -3)",
+      "Bash(git -C \"C:/Users/gerog/Documents/cpr-jun21-dev\" add frontend/src/components/portals/organization/OrganizationPortalContainer.tsx)",
+      "Bash(git -C \"C:/Users/gerog/Documents/cpr-jun21-dev\" commit -m \"$\\(cat <<''EOF''\nFix organization invoices - remove obsolete invoice_id mapping\n\nBackend now returns ''id'' directly, so the mapping that tried to\nconvert invoice_id to id was causing undefined values.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C \"C:/Users/gerog/Documents/cpr-jun21-dev\" push)",
+      "Bash(node:*)",
+      "Bash(PGPASSWORD=gtacpr psql:*)",
+      "Bash(ls:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(netstat:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(PGPASSWORD=cNTJ7zXihPWU2iqDUEuzVM8IBtbSQp9V pg_dump:*)",
+      "Bash(PGPASSWORD=cNTJ7zXihPWU2iqDUEuzVM8IBtbSQp9V psql:*)",
+      "Bash(timeout 10 npm start)",
+      "Bash(curl:*)"
     ]
   }
 }
