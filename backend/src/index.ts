@@ -287,7 +287,7 @@ const io = new Server(httpServer, {
       'http://localhost:5174',
       'http://192.168.2.105:5173',
       'http://192.168.2.105:5174',
-      'https://gta-cpr-course-admin.netlify.app'
+      'https://cpr.kpbc.ca'
     ],
     methods: ['GET', 'POST'],
     credentials: true
@@ -312,7 +312,7 @@ app.use(cors({
     'http://localhost:5174',
     'http://192.168.2.105:5173',
     'http://192.168.2.105:5174',
-    'https://gta-cpr-course-admin.netlify.app'
+    'https://cpr.kpbc.ca'
   ],
   credentials: true
 }));
@@ -724,6 +724,19 @@ io.on('connection', (socket) => {
   });
 });
 console.log('✅ Socket.IO handlers configured');
+
+// Serve React frontend static files (production)
+const frontendPath = path.join(process.cwd(), '..', 'public');
+if (fs.existsSync(frontendPath)) {
+  app.use(express.static(frontendPath));
+  app.get('*', (req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
+      return next();
+    }
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  });
+  console.log(`✅ Serving frontend from ${frontendPath}`);
+}
 
 // Start server
 console.log('14. Starting server...');
