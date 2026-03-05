@@ -1,9 +1,36 @@
 # Changelog
 
-All notable changes to the invoice management system will be documented in this file.
+All notable changes to the CPR Training System will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased] — Week 1 Security Fixes — 2026-03-05
+
+### Security
+- **Sanitized tracked credential files**: replaced real secret values in
+  `configs/production.env`, `monitoring.env`, and `backend/ - Copy.env` with
+  `YOUR_*_HERE` placeholders; all three files are now untracked via `.gitignore`.
+- **Hardened JWT startup validation**: `initializeEnvironmentConfig()` now calls
+  `process.exit(1)` in production when `JWT_SECRET` or `REFRESH_TOKEN_SECRET` are
+  missing, too short, or still set to default placeholder values.
+- **Added REFRESH_TOKEN_SECRET production check** alongside the existing
+  `JWT_SECRET` check in `validateConfiguration()`.
+- **Rotated JWT secrets**: all four JWT secrets (`JWT_SECRET`, `REFRESH_TOKEN_SECRET`,
+  `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_RESET_SECRET`) replaced with fresh
+  64-char hex values in `backend/.env` and on the production server `.htaccess`.
+
+### Added
+- `.env.example` — root-level template documenting all required env vars.
+- `backend/.env.example` — backend-specific template with comments and generation hints.
+- `docs/DEPLOYMENT_GUIDE.md` — new "Environment Variables Setup" section with rotation
+  instructions, required production vars, and Gmail App Password guidance.
+
+### Changed
+- `.gitignore` updated to prevent future tracking of `configs/*.env`,
+  `monitoring.env`, and `backend/ - Copy.env`.
+
+---
 
 ## [1.0.0] - 2025-07-19
 

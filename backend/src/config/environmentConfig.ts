@@ -378,14 +378,20 @@ export function validateConfiguration(): { valid: boolean; errors: string[]; war
   
   if (nodeEnv === 'production') {
     // Production-specific validations
-    if (process.env.JWT_SECRET === 'your-jwt-secret' || (process.env.JWT_SECRET?.length ?? 0) < 32) {
-      errors.push('JWT_SECRET must be a strong secret in production (minimum 32 characters)');
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret || jwtSecret === 'your-jwt-secret' || jwtSecret.includes('change-in-production') || jwtSecret.length < 32) {
+      errors.push('JWT_SECRET must be a strong secret in production (minimum 32 characters, no defaults)');
+    }
+
+    const refreshSecret = process.env.REFRESH_TOKEN_SECRET;
+    if (!refreshSecret || refreshSecret.includes('change-in-production') || refreshSecret.length < 32) {
+      errors.push('REFRESH_TOKEN_SECRET must be a strong secret in production (minimum 32 characters, no defaults)');
     }
 
     if (process.env.DB_PASSWORD === 'password' || (process.env.DB_PASSWORD?.length ?? 0) < 12) {
       errors.push('DB_PASSWORD must be a strong password in production (minimum 12 characters)');
     }
-    
+
     if (process.env.SMTP_PASS && process.env.SMTP_PASS.length < 8) {
       warnings.push('SMTP_PASS should be a strong password in production');
     }
@@ -491,9 +497,14 @@ export async function initializeEnvironmentConfig(): Promise<boolean> {
     const validation = validateConfiguration();
     
     if (!validation.valid) {
-      console.warn('⚠️ Environment configuration validation issues (continuing anyway):');
+      const nodeEnv = process.env.NODE_ENV;
+      if (nodeEnv === 'production') {
+        console.error('❌ Critical environment configuration errors — refusing to start in production:');
+        validation.errors.forEach(error => console.error(`   - ${error}`));
+        process.exit(1);
+      }
+      console.warn('⚠️ Environment configuration validation issues (continuing in non-production):');
       validation.errors.forEach(error => console.warn(`   - ${error}`));
-      // Don't fail - continue with defaults
     }
     
     // Log warnings

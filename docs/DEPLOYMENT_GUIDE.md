@@ -4,6 +4,72 @@
 
 This guide covers deploying the CPR Training Management System to production environments.
 
+---
+
+## Environment Variables Setup
+
+### Overview
+
+All sensitive configuration lives in environment variables — **never in committed files**.
+
+| File | Purpose | Committed? |
+|------|---------|-----------|
+| `.env.example` | Template with placeholder values | Yes |
+| `backend/.env.example` | Backend template | Yes |
+| `backend/.env` | Actual secrets (local dev) | **No** (gitignored) |
+| `.htaccess` (server) | Production secrets via `SetEnv` | **No** (on server only) |
+
+### Generating Secrets
+
+Generate strong 64-char hex secrets with:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Run this once per secret: `JWT_SECRET`, `REFRESH_TOKEN_SECRET`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_RESET_SECRET`.
+
+### Required Variables for Production
+
+The following must be set in `/home/kaizenmo/cpr.kpbc.ca/.htaccess` as `SetEnv` directives:
+
+```apache
+SetEnv NODE_ENV production
+SetEnv DATABASE_URL postgresql://USER:PASS@HOST/DB?sslmode=require
+SetEnv JWT_SECRET <64-char-hex>
+SetEnv REFRESH_TOKEN_SECRET <64-char-hex>
+SetEnv JWT_ACCESS_SECRET <64-char-hex>
+SetEnv JWT_REFRESH_SECRET <64-char-hex>
+SetEnv JWT_RESET_SECRET <64-char-hex>
+SetEnv SMTP_HOST smtp.gmail.com
+SetEnv SMTP_PORT 587
+SetEnv SMTP_USER your@gmail.com
+SetEnv SMTP_PASS <gmail-app-password>
+SetEnv SMTP_FROM noreply@cpr-training.com
+SetEnv EMAIL_ENABLED true
+SetEnv REDIS_ENABLED false
+SetEnv CORS_ORIGIN https://cpr.kpbc.ca
+```
+
+### Rotating Secrets
+
+1. Generate new values (see above).
+2. Update `backend/.env` locally.
+3. Update `.htaccess` on server (`nano /home/kaizenmo/cpr.kpbc.ca/.htaccess`).
+4. Restart Passenger: `touch /home/kaizenmo/cpr.kpbc.ca/tmp/restart.txt`
+5. Verify: `https://cpr.kpbc.ca/api/v1/health`
+
+### Gmail App Password
+
+Use an App Password, not your main Gmail password:
+1. Go to [myaccount.google.com/security](https://myaccount.google.com/security)
+2. Under "2-Step Verification" → "App passwords"
+3. Create a new App Password for "Mail"
+4. Put the 16-char result in `SMTP_PASS`
+
+> **Rotate the App Password** any time it may have been exposed.
+
+---
+
 ## Prerequisites
 
 ### System Requirements

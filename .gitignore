@@ -69,6 +69,11 @@ backend/.env.*
 frontend/.env
 frontend/.env.*
 
+# Allow example/template env files
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
@@ -298,3 +303,8 @@ docs/build/
 
 # Google Cloud Vision
 gtacpr-ocr-266c4803c5bc.json
+
+# Env files that were tracked but sanitized — prevent future credential drift
+configs/*.env
+monitoring.env
+"backend/ - Copy.env"

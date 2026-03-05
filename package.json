@@ -77,6 +77,9 @@
     "ts-jest": "^29.2.5"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.3.8",
     "@mui/system": "^5.15.15",
     "@mui/utils": "^7.3.7",
     "@opentelemetry/semantic-conventions": "1.38.0",
