@@ -46,6 +46,10 @@
 - [ ] **Audit logging**: Enhance activity logging for security compliance
 - [ ] **Password policies**: Implement strong password requirements
 - [ ] **Session management**: Add session timeout and concurrent session limits
+- [ ] **Revisit npm audit vulnerabilities**: Pre-commit audit shows 6 low + 5 moderate vulns
+  (all dev tooling — `esbuild`/`vite`/`@google-cloud/storage`). All require breaking-change upgrades
+  (`npm audit fix --force`). Revisit when upgrading Vite or Google Cloud Storage.
+  Run `npm audit` for current status.
 
 ## 📊 **Features & Enhancements**
 
