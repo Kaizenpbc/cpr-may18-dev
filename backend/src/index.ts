@@ -247,7 +247,7 @@ async function killProcessOnPort(port: number): Promise<void> {
 
 console.log('1. Starting application...');
 
-// Load environment variables from root directory (optional - Render provides env vars directly)
+// Load environment variables from root directory (TMD/.htaccess SetEnv takes precedence in production)
 console.log('2. Loading environment variables...');
 const result = dotenv.config({ path: path.join(process.cwd(), '..', '.env') });
 if (result.error) {
@@ -266,7 +266,7 @@ console.log('3. Environment info:', {
 console.log('4. Creating Express app...');
 const app = express();
 
-// Trust proxy - required for rate limiting behind Render's reverse proxy
+// Trust proxy - required for rate limiting behind Apache/Passenger reverse proxy
 // This ensures X-Forwarded-For headers are used correctly for client IP detection
 if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
@@ -293,7 +293,7 @@ const io = new Server(httpServer, {
     credentials: true
   },
   path: '/socket.io',
-  // Use polling first for better compatibility with Render free tier
+  // Use polling first, then upgrade to websocket (compatible with Apache/Passenger)
   transports: ['polling', 'websocket'],
   allowEIO3: true,
   pingTimeout: 60000,
@@ -329,7 +329,7 @@ try {
           scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for development
           styleSrc: ["'self'", "'unsafe-inline'", "https:"], // Allow inline styles and external fonts
           imgSrc: ["'self'", "data:", "https:"],
-          connectSrc: ["'self'", 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174', 'ws://localhost:3001', 'ws://192.168.2.105:3001', 'https://gta-cpr-course-admin.netlify.app'],
+          connectSrc: ["'self'", 'https://cpr.kpbc.ca', 'wss://cpr.kpbc.ca', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174', 'ws://localhost:3001', 'ws://192.168.2.105:3001'],
           fontSrc: ["'self'", "https:", "data:"],
           objectSrc: ["'none'"],
           mediaSrc: ["'self'"],
@@ -349,7 +349,7 @@ try {
       xssFilter: true,
       referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
       hidePoweredBy: true,
-      crossOriginEmbedderPolicy: false, // Disabled for development
+      crossOriginEmbedderPolicy: { policy: 'require-corp' },
       crossOriginOpenerPolicy: { policy: 'same-origin' },
       crossOriginResourcePolicy: { policy: 'cross-origin' },
       dnsPrefetchControl: { allow: false },

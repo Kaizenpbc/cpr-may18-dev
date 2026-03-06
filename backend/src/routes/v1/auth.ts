@@ -41,6 +41,7 @@ if (isProduction && !process.env.JWT_RESET_SECRET) {
   throw new Error('FATAL: JWT_RESET_SECRET environment variable is required in production');
 }
 const RESET_TOKEN_SECRET = process.env.JWT_RESET_SECRET || 'dev_reset_secret_not_for_production!';
+const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10);
 
 // Login endpoint with enhanced session management and better error messages
 router.post(
@@ -283,7 +284,7 @@ router.post('/reset-password', asyncHandler(async (req: Request, res: Response) 
   }
 
   // Hash new password
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
 
   // Update password and clear reset token
   await pool.query(
@@ -342,7 +343,7 @@ router.post('/change-password', authenticateToken, asyncHandler(async (req: Requ
   }
 
   // Hash new password
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
 
   // Update password
   await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedPassword, userId]);

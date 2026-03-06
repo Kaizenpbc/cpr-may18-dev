@@ -5,6 +5,24 @@ All notable changes to the CPR Training System will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Week 4 CSP, bcrypt, COEP & Comment Cleanup — 2026-03-06
+
+### Security
+- **CSP `connectSrc` updated**: Removed dead `https://gta-cpr-course-admin.netlify.app` origin;
+  added `https://cpr.kpbc.ca` and `wss://cpr.kpbc.ca` (same-origin WebSocket support).
+- **bcrypt rounds consistency**: Replaced hardcoded `10` rounds with env-driven `BCRYPT_ROUNDS`
+  constant (`parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10)`) in both
+  `backend/src/routes/v1/auth.ts` and `backend/src/routes/v1/index.ts`.
+  Default is now 12 rounds (up from 10) matching `BCRYPT_SALT_ROUNDS=12` in `.env`.
+- **COEP enabled**: `crossOriginEmbedderPolicy` changed from `false` to `{ policy: 'require-corp' }`
+  in helmet config — verified `Cross-Origin-Embedder-Policy: require-corp` present in response headers.
+
+### Code Quality
+- **Stale comments removed**: Three references to old Render/Netlify deployment (`Render → TMD/Apache`,
+  `Render free tier → Apache/Passenger`) updated in `backend/src/index.ts`.
+
+---
+
 ## [Unreleased] — Week 3 Cookie Security, Password Policy & Cleanup — 2026-03-06
 
 ### Security

@@ -37,6 +37,7 @@ import fs from 'fs';
 import { devLog } from '../../utils/devLog.js';
 
 const router = Router();
+const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10);
 
 // Mount health routes
 router.use('/health', healthRouter);
@@ -5290,7 +5291,7 @@ router.post(
         );
       }
 
-      const passwordHash = bcrypt.hashSync(password, 10);
+      const passwordHash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
 
       const result = await pool.query(
         `
