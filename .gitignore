@@ -308,3 +308,9 @@ gtacpr-ocr-266c4803c5bc.json
 configs/*.env
 monitoring.env
 "backend/ - Copy.env"
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Frontend lock file (not needed in repo — backend uses root package-lock.json)
+frontend/package-lock.json

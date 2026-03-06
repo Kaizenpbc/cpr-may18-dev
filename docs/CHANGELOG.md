@@ -5,6 +5,31 @@ All notable changes to the CPR Training System will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Week 3 Cookie Security, Password Policy & Cleanup — 2026-03-06
+
+### Security
+- **Refresh token cookie `SameSite` fixed**: Changed from `SameSite=None` to `SameSite=Strict`
+  on all three `res.cookie('refreshToken', ...)` calls (login, session refresh, JWT fallback
+  refresh). The old value was required for the former Netlify→Render cross-origin setup;
+  frontend and backend are now same-origin on `cpr.kpbc.ca`.
+- **Password strength validation added**: New `validatePasswordStrength()` helper enforces
+  minimum 8 characters + at least one digit or special character. Applied at
+  `POST /auth/change-password` and `POST /auth/reset-password`. Returns `400 WEAK_PASSWORD`
+  on failure.
+
+### Repo Cleanup
+- Added `neon-schema.sql` and `patch-init-db.py` to version control (useful deployment artifacts).
+- Committed `frontend/package.json` MUI icons bump (5.15.6 → 5.18.0).
+- Committed deletion of `instructor_manual_basic.html`.
+- Added `.claude/settings.local.json` and `frontend/package-lock.json` to `.gitignore`.
+
+### Notes
+- Rate limiter (`express-rate-limit`) uses in-memory store — counts reset on Passenger restart.
+  Acceptable for single-process deployment. See `docs/DEPLOYMENT_GUIDE.md`.
+- `email_sent_at` column on `invoices` table still pending — requires ALTER TABLE in Neon console.
+
+---
+
 ## [Unreleased] — Week 2 Security & Code Hygiene — 2026-03-05
 
 ### Fixed

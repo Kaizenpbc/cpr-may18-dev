@@ -24,6 +24,17 @@ import { authenticateToken } from '../../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+// Password strength validator — minimum 8 chars + at least one digit or special character
+function validatePasswordStrength(password: string): { valid: boolean; message: string } {
+  if (password.length < 8) {
+    return { valid: false, message: 'Password must be at least 8 characters long.' };
+  }
+  if (!/[\d!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) {
+    return { valid: false, message: 'Password must contain at least one number or special character.' };
+  }
+  return { valid: true, message: '' };
+}
+
 // Separate secret for password reset tokens (different from access tokens for security)
 const isProduction = process.env.NODE_ENV === 'production';
 if (isProduction && !process.env.JWT_RESET_SECRET) {
@@ -126,12 +137,11 @@ router.post(
         locationName,
       });
 
-      // Set refresh token as httpOnly cookie
-      // Use sameSite: 'none' for cross-origin requests (Netlify frontend -> Render backend)
+      // Set refresh token as httpOnly cookie (same-origin: frontend and backend on cpr.kpbc.ca)
       res.cookie('refreshToken', tokens.refreshToken, {
         httpOnly: true,
-        secure: true, // Required for sameSite: 'none'
-        sameSite: 'none', // Required for cross-origin cookies
+        secure: true,
+        sameSite: 'strict',
         path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
@@ -244,6 +254,11 @@ router.post('/reset-password', asyncHandler(async (req: Request, res: Response) 
     });
   }
 
+  const pwCheck = validatePasswordStrength(newPassword);
+  if (!pwCheck.valid) {
+    return res.status(400).json({ error: pwCheck.message, code: 'WEAK_PASSWORD' });
+  }
+
   // Verify token with separate secret
   const decoded = jwt.verify(token, RESET_TOKEN_SECRET) as { userId: number; type: string };
 
@@ -319,6 +334,11 @@ router.post('/change-password', authenticateToken, asyncHandler(async (req: Requ
       error: 'Current password is incorrect',
       code: 'INVALID_CURRENT_PASSWORD'
     });
+  }
+
+  const pwCheck = validatePasswordStrength(newPassword);
+  if (!pwCheck.valid) {
+    return res.status(400).json({ error: pwCheck.message, code: 'WEAK_PASSWORD' });
   }
 
   // Hash new password
@@ -437,7 +457,7 @@ router.post(
           res.cookie('refreshToken', sessionResult.refreshToken, {
             httpOnly: true,
             secure: true,
-            sameSite: 'none',
+            sameSite: 'strict',
             path: '/',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
           });
@@ -493,7 +513,7 @@ router.post(
       res.cookie('refreshToken', tokens.refreshToken, {
         httpOnly: true,
         secure: true,
-        sameSite: 'none',
+        sameSite: 'strict',
         path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });

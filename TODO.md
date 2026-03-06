@@ -39,6 +39,7 @@
 - [ ] **Database backups**: Implement automated backup strategy
 
 ### **Security Enhancements**
+- [ ] **Enable email (SMTP_PASS)**: Gmail App Password is not yet set in `.htaccess`. Generate one at myaccount.google.com/security → App passwords, then add `SetEnv SMTP_PASS <16-char-value>` and `SetEnv EMAIL_ENABLED true` to `/home/kaizenmo/cpr.kpbc.ca/.htaccess` and restart Passenger.
 - [ ] **Rate limiting**: Re-enable and configure rate limiting middleware
 - [ ] **Input validation**: Add comprehensive input sanitization
 - [ ] **Security headers**: Implement security headers (CORS, CSP, etc.)
