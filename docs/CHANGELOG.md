@@ -5,6 +5,29 @@ All notable changes to the CPR Training System will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Week 2 Security & Code Hygiene — 2026-03-05
+
+### Fixed
+- **TypeScript errors**: Added `locationId?: number | null` and `locationName?: string | null`
+  to `TokenPayload` in `backend/src/types/index.ts` and `backend/src/utils/jwtUtils.ts`.
+  Backend now compiles with zero errors — `--noEmitOnError false` workaround removed.
+
+### Security
+- **apiSecurity.ts cleanup**:
+  - Removed dead Netlify origin (`gta-cpr-course-admin.netlify.app`) from `allowedOrigins`
+  - Removed private IP ranges from `blockedIpRanges` (useless on a public server; caused friction with proxies)
+  - Replaced broad `blockedUserAgents` list (`curl`, `wget`, `bot`, etc.) with targeted
+    scanner-only list (`masscan`, `nikto`, `sqlmap`, `nmap`, `zgrab`, `dirbuster`, `nuclei`)
+
+### Dev Workflow
+- **Husky pre-commit hook**: Removed deprecated v9 shim lines (`#!/usr/bin/env sh` +
+  `. "$(dirname -- "$0")/_/husky.sh"`) that would fail in husky v10.
+
+### Infrastructure
+- **backend/.env**: Updated `DATABASE_URL` from stale Render instance to Neon (matches production).
+
+---
+
 ## [Unreleased] — Week 1 Security Fixes — 2026-03-05
 
 ### Security

@@ -56,22 +56,18 @@ const DEFAULT_API_SECURITY_CONFIG: ApiSecurityConfig = {
     'http://localhost:5174',
     'http://192.168.2.105:5173',
     'http://192.168.2.105:5174',
-    'https://gta-cpr-course-admin.netlify.app',
-    'https://yourdomain.com'
+    'https://cpr.kpbc.ca'
   ],
   blockedUserAgents: [
-    'curl',
-    'wget',
-    'python-requests',
-    'bot',
-    'crawler',
-    'spider'
+    'masscan',
+    'nikto',
+    'sqlmap',
+    'nmap',
+    'zgrab',
+    'dirbuster',
+    'nuclei'
   ],
-  blockedIpRanges: [
-    '10.0.0.0/8',
-    '172.16.0.0/12',
-    '192.168.0.0/16'
-  ]
+  blockedIpRanges: []
 };
 
 // Request tracking for rate limiting and fingerprinting

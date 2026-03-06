@@ -11,6 +11,8 @@ export interface TokenPayload {
   role: string;
   organizationId?: number;
   organizationName?: string;
+  locationId?: number | null;
+  locationName?: string | null;
   sessionId?: string;
 }
 
