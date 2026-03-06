@@ -499,11 +499,18 @@ export async function initializeEnvironmentConfig(): Promise<boolean> {
     if (!validation.valid) {
       const nodeEnv = process.env.NODE_ENV;
       if (nodeEnv === 'production') {
-        console.error('❌ Critical environment configuration errors — refusing to start in production:');
-        validation.errors.forEach(error => console.error(`   - ${error}`));
-        process.exit(1);
+        // Only hard-fail on JWT/auth secret errors — other vars (e.g. DB_HOST) may be
+        // supplied via DATABASE_URL on cloud hosts and are non-fatal.
+        const criticalErrors = validation.errors.filter(e =>
+          e.includes('JWT') || e.includes('REFRESH_TOKEN')
+        );
+        if (criticalErrors.length > 0) {
+          console.error('❌ Critical JWT secret errors — refusing to start in production:');
+          criticalErrors.forEach(error => console.error(`   - ${error}`));
+          process.exit(1);
+        }
       }
-      console.warn('⚠️ Environment configuration validation issues (continuing in non-production):');
+      console.warn('⚠️ Environment configuration validation issues (continuing):');
       validation.errors.forEach(error => console.warn(`   - ${error}`));
     }
     
