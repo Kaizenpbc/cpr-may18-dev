@@ -107,36 +107,14 @@ const requestLogger = (req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   const { method, url, ip, headers } = req;
 
-  // Log incoming request
-  writeToLog(`📥 INCOMING REQUEST: ${method} ${url} from ${ip}`, 'INFO');
-  writeToLog(`📋 Headers: ${JSON.stringify({
-    'user-agent': headers['user-agent'],
-    'content-type': headers['content-type'],
-    'authorization': headers.authorization ? '[REDACTED]' : 'none'
-  })}`, 'DEBUG');
-
-  // Log request body for non-GET requests (excluding sensitive data)
-  if (method !== 'GET' && req.body) {
-    const sanitizedBody = { ...req.body };
-    if (sanitizedBody.password) sanitizedBody.password = '[REDACTED]';
-    if (sanitizedBody.token) sanitizedBody.token = '[REDACTED]';
-    writeToLog(`📦 Request body: ${JSON.stringify(sanitizedBody)}`, 'DEBUG');
-  }
-
-  // Override res.json to log responses AND convert snake_case to camelCase
+  // Override res.json to convert snake_case to camelCase AND log errors
   const originalJson = res.json;
   res.json = function (data: unknown) {
     const duration = Date.now() - start;
     const statusCode = res.statusCode;
 
-    // Log response
-    writeToLog(`📤 RESPONSE: ${method} ${url} - ${statusCode} (${duration}ms)`, 'INFO');
-
     if (statusCode >= 400) {
-      writeToLog(`❌ Error response: ${JSON.stringify(data)}`, 'ERROR');
-    } else if (url.includes('/auth/login') || url.includes('/auth/register')) {
-      const respData = data as { success?: boolean; message?: string };
-      writeToLog(`🔐 Auth response: ${JSON.stringify({ success: respData.success || false, message: respData.message || 'No message' })}`, 'INFO');
+      writeToLog(`${method} ${url} - ${statusCode} (${duration}ms): ${JSON.stringify(data)}`, 'ERROR');
     }
 
     // Convert all snake_case keys to camelCase before sending response
@@ -150,22 +128,6 @@ const requestLogger = (req: Request, res: Response, next: NextFunction) => {
 
 // Authentication logging middleware
 const authLogger = (req: Request, res: Response, next: NextFunction) => {
-  const { url, method } = req;
-
-  // Log authentication attempts
-  if (url.includes('/auth/login')) {
-    writeToLog(`🔐 LOGIN ATTEMPT: ${method} ${url}`, 'INFO');
-  } else if (url.includes('/auth/register')) {
-    writeToLog(`📝 REGISTRATION ATTEMPT: ${method} ${url}`, 'INFO');
-  } else if (url.includes('/auth/logout')) {
-    writeToLog(`🚪 LOGOUT ATTEMPT: ${method} ${url}`, 'INFO');
-  }
-
-  // Log protected route access
-  if (req.user) {
-    writeToLog(`👤 PROTECTED ROUTE ACCESS: ${method} ${url} by user ${req.user.userId} (${req.user.role})`, 'INFO');
-  }
-
   next();
 };
 
@@ -244,25 +206,13 @@ async function killProcessOnPort(port: number): Promise<void> {
   }
 }
 
-console.log('1. Starting application...');
-
 // Load environment variables from root directory (TMD/.htaccess SetEnv takes precedence in production)
-console.log('2. Loading environment variables...');
 const result = dotenv.config({ path: path.join(process.cwd(), '..', '.env') });
 if (result.error) {
-  console.warn('⚠️ No .env file found - using environment variables from hosting platform');
-} else {
-  console.log('✅ Environment variables loaded from .env file');
+  console.warn('No .env file found - using environment variables from hosting platform');
 }
 
-// Log environment info
-console.log('3. Environment info:', {
-  NODE_ENV: process.env.NODE_ENV || 'development',
-  PORT: process.env.PORT || '3001',
-});
-
 // Create Express app
-console.log('4. Creating Express app...');
 const app = express();
 
 // Trust proxy - required for rate limiting behind Apache/Passenger reverse proxy
@@ -270,15 +220,10 @@ const app = express();
 if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
-console.log('✅ Express app created');
 
-// Create HTTP server
-console.log('5. Creating HTTP server...');
 const httpServer = createServer(app);
-console.log('✅ HTTP server created');
 
 // Create Socket.IO server
-console.log('6. Creating Socket.IO server...');
 const io = new Server(httpServer, {
   cors: {
     origin: [
@@ -301,10 +246,8 @@ const io = new Server(httpServer, {
   allowUpgrades: true,
   upgradeTimeout: 30000
 });
-console.log('✅ Socket.IO server created');
 
 // Basic CORS
-console.log('7. Setting up CORS...');
 app.use(cors({
   origin: [
     'http://localhost:5173',
@@ -315,10 +258,8 @@ app.use(cors({
   ],
   credentials: true
 }));
-console.log('✅ CORS configured');
 
 // Security Headers Middleware
-console.log('8. Setting up security headers...');
 try {
   app.use(
     helmet({
@@ -357,7 +298,6 @@ try {
       permittedCrossDomainPolicies: false,
     })
   );
-  console.log('✅ Security headers configured');
 } catch (error) {
   console.error('❌ Failed to set up security headers:', error);
   process.exit(1);
@@ -370,42 +310,26 @@ app.use(express.json());
 app.use(cookieParser());
 
 // Rate limiting middleware
-console.log('8a. Setting up rate limiting...');
 app.use('/api/v1/auth/login', authLimiter);
 app.use('/api/v1/auth/register', registerLimiter);
 app.use('/api/v1', apiLimiter);
-console.log('✅ Rate limiting configured');
 
 // Input sanitization middleware
-console.log('8b. Setting up input sanitization...');
 app.use('/api/v1', sanitizeInput);
-console.log('✅ Input sanitization configured');
 
 // API security middleware
-console.log('8c. Setting up API security...');
 app.use('/api/v1', apiSecurity());
-console.log('✅ API security configured');
 
 // Request validation middleware
-console.log('8d. Setting up request validation...');
 app.use('/api/v1', requestValidator());
-console.log('✅ Request validation configured');
 
-// Add logging middleware
-writeToLog('🔧 Setting up logging middleware...', 'INFO');
+// Logging middleware
 app.use(requestLogger);
 app.use(authLogger);
 app.use(auditLogger);
-writeToLog('✅ Logging middleware configured', 'INFO');
-
-// Add session management middleware
-writeToLog('🔧 Setting up session management...', 'INFO');
-writeToLog('✅ Session management configured', 'INFO');
 
 // Basic health check route
-console.log('9. Setting up health check route...');
 app.get('/api/v1/health', (req: Request, res: Response) => {
-  writeToLog('🏥 Health check requested', 'INFO');
   res.json({ status: 'ok' });
 });
 
@@ -527,76 +451,47 @@ app.get('/api/v1/health/security-monitoring', async (req: Request, res: Response
   }
 });
 
-console.log('✅ Health check route configured');
-
 // Auth routes
-console.log('10. Setting up auth routes...');
 import authRoutes from './routes/v1/auth.js';
 app.use('/api/v1/auth', authRoutes);
-console.log('✅ Auth routes configured');
 
 // Instructor routes
-console.log('11. Setting up instructor routes...');
 import instructorRoutes from './routes/v1/instructor.js';
 app.use('/api/v1/instructor', instructorRoutes);
-console.log('✅ Instructor routes configured');
 
 // Colleges routes
-console.log('11a. Setting up colleges routes...');
 import collegesRoutes from './routes/v1/colleges.js';
 app.use('/api/v1/colleges', collegesRoutes);
-console.log('✅ Colleges routes configured');
 
 // V1 API routes (includes /instructors endpoint)
-console.log('11a. Setting up v1 API routes...');
 import v1Routes from './routes/v1/index.js';
 app.use('/api/v1', v1Routes);
-console.log('✅ V1 API routes configured');
 
 // Email templates routes
-console.log('11b. Setting up email templates routes...');
 app.use('/api/v1/email-templates', emailTemplatesRouter);
-console.log('✅ Email templates routes configured');
 
 // Organization pricing routes
-console.log('11c. Setting up organization pricing routes...');
 import organizationPricingRoutes from './routes/v1/organizationPricing.js';
 app.use('/api/v1/organization-pricing', organizationPricingRoutes);
-console.log('✅ Organization pricing routes configured');
 
 // Profile changes routes
-console.log('11d. Setting up profile changes routes...');
 import profileChangesRoutes from './routes/v1/profile-changes.js';
 app.use('/api/v1/profile-changes', profileChangesRoutes);
-console.log('✅ Profile changes routes configured');
 
 // MFA routes
-console.log('11f. Setting up MFA routes...');
 import mfaRoutes from './routes/v1/mfa.js';
 app.use('/api/v1/mfa', mfaRoutes);
-console.log('✅ MFA routes configured');
 
 // Encryption routes
-console.log('11g. Setting up encryption routes...');
 import encryptionRoutes from './routes/v1/encryption.js';
 app.use('/api/v1/encryption', encryptionRoutes);
-console.log('✅ Encryption routes configured');
 
 // Security monitoring routes
-console.log('11h. Setting up security monitoring routes...');
 import securityMonitoringRoutes from './routes/v1/securityMonitoring.js';
 app.use('/api/v1/security-monitoring', securityMonitoringRoutes);
-console.log('✅ Security monitoring routes configured');
-
-// Vendor routes are now handled in v1 routes
-console.log('11e. Vendor routes are handled in v1 routes...');
-console.log('✅ Vendor routes configured');
 
 // SSE endpoint
-console.log('12. Setting up SSE endpoint...');
 app.get('/api/v1/events', (req: Request, res: Response) => {
-  console.log('[SSE] Client attempting to connect to events endpoint');
-
   try {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -612,17 +507,8 @@ app.get('/api/v1/events', (req: Request, res: Response) => {
       }
     };
 
-    // Send initial connection message
-    console.log('[SSE] Sending initial connection message');
     sendEvent({ type: 'connected', timestamp: new Date().toISOString() });
 
-    // Handle client disconnect
-    req.on('close', () => {
-      console.log('[SSE] Client disconnected');
-      writeToLog('SSE client disconnected', 'INFO');
-    });
-
-    // Handle errors
     req.on('error', (error) => {
       console.error('[SSE] Request error:', error);
     });
@@ -630,19 +516,14 @@ app.get('/api/v1/events', (req: Request, res: Response) => {
     res.on('error', (error) => {
       console.error('[SSE] Response error:', error);
     });
-
-    console.log('[SSE] SSE connection established successfully');
   } catch (error) {
     console.error('[SSE] Error setting up SSE endpoint:', error);
     res.status(500).json({ error: 'SSE setup failed' });
   }
 });
-console.log('✅ SSE endpoint configured');
 
 // Add error logging middleware (must be last)
-writeToLog('🔧 Setting up error logging middleware...', 'INFO');
 app.use(errorLogger);
-writeToLog('✅ Error logging middleware configured', 'INFO');
 
 // Global error handler (must be last)
 interface AppErrorLike extends Error {
@@ -709,20 +590,11 @@ app.use((error: AppErrorLike, req: Request, res: Response, _next: NextFunction) 
 });
 
 // Socket.IO connection handling
-console.log('13. Setting up Socket.IO handlers...');
-console.log('13a. Configuring Socket.IO connection events...');
 io.on('connection', (socket) => {
-  console.log('Socket.IO client connected:', socket.id);
-
-  socket.on('disconnect', () => {
-    console.log('Socket.IO client disconnected:', socket.id);
-  });
-
   socket.on('error', (error) => {
     console.error('Socket.IO error:', error);
   });
 });
-console.log('✅ Socket.IO handlers configured');
 
 // Serve React frontend static files (production)
 const frontendPath = path.join(process.cwd(), '..', 'public');
@@ -734,84 +606,45 @@ if (fs.existsSync(frontendPath)) {
     }
     res.sendFile(path.join(frontendPath, 'index.html'));
   });
-  console.log(`✅ Serving frontend from ${frontendPath}`);
 }
 
 // Start server
-console.log('14. Starting server...');
-console.log('14a. Getting port configuration...');
-const port = parseInt(process.env.PORT || '3001', 10); // Use 3001 as default backend port
-console.log(`Port configured as: ${port}`);
-console.log(`Attempting to start server on port ${port}...`);
+const port = parseInt(process.env.PORT || '3001', 10);
 
 const startServer = async () => {
   try {
-    // ========== CRITICAL INITIALIZATIONS (must complete before server starts) ==========
-    console.log('🚀 Starting critical initializations...');
-
-    console.log('14a. Initializing database tables...');
+    // Critical initializations (must complete before server starts)
     const { initializeDatabase } = await import('./scripts/init-db.js');
     await initializeDatabase();
-    console.log('✅ Database tables initialized');
 
-    console.log('14b. Initializing token blacklist...');
     await initializeTokenBlacklist();
-    console.log('✅ Token blacklist initialized');
 
-    console.log('14c. Initializing environment configuration...');
     const envInitialized = await initializeEnvironmentConfig();
     if (!envInitialized) {
-      console.error('❌ Environment configuration initialization failed');
+      console.error('Environment configuration initialization failed');
       process.exit(1);
     }
-    console.log('✅ Environment configuration initialized');
 
-    console.log('14d. Checking for existing processes on port...');
     await killProcessOnPort(port);
-    console.log('✅ Port cleanup completed');
 
-    // ========== START SERVER IMMEDIATELY ==========
-    console.log('14e. Starting HTTP server...');
     httpServer.listen(port, '0.0.0.0', () => {
-      console.log(`✅ Server is now listening on http://0.0.0.0:${port}`);
-      console.log(`Try accessing http://localhost:${port}/api/v1/health`);
+      console.log(`Server started on port ${port} — http://localhost:${port}/api/v1/health`);
 
-      // ========== NON-CRITICAL INITIALIZATIONS (run in background after server starts) ==========
-      console.log('🔄 Starting background initializations...');
+      // Non-critical initializations run in background after server starts
       setImmediate(async () => {
         try {
-          // These run in background and don't block requests
-          console.log('[Background] Initializing session management...');
-          await initializeSessionManagement().catch(e => console.log('ℹ️ Session management init skipped:', e.message));
-
-          console.log('[Background] Initializing database security...');
-          await initializeDatabaseSecurity().catch(e => console.log('ℹ️ Database security init skipped:', e.message));
-
-          console.log('[Background] Initializing database encryption...');
+          await initializeSessionManagement().catch(e => console.warn('Session management init skipped:', e.message));
+          await initializeDatabaseSecurity().catch(e => console.warn('Database security init skipped:', e.message));
           initializeDatabaseEncryption();
-
-          console.log('[Background] Initializing API security...');
-          await initializeApiSecurity().catch(e => console.log('ℹ️ API security init skipped:', e.message));
-
-          console.log('[Background] Initializing MFA database...');
-          await initializeMFADatabase().catch(e => console.log('ℹ️ MFA database init skipped:', e.message));
-
-          console.log('[Background] Initializing encryption database...');
-          await initializeEncryptionDatabase().catch(e => console.log('ℹ️ Encryption database init skipped:', e.message));
-
-          console.log('[Background] Initializing security monitoring database...');
-          await initializeSecurityMonitoringDatabase().catch(e => console.log('ℹ️ Security monitoring init skipped:', e.message));
-
-          console.log('[Background] Initializing SSL/TLS...');
-          await initializeSSL().catch(e => console.log('ℹ️ SSL/TLS init skipped:', e.message));
-
-          console.log('[Background] Running organization locations migration...');
+          await initializeApiSecurity().catch(e => console.warn('API security init skipped:', e.message));
+          await initializeMFADatabase().catch(e => console.warn('MFA database init skipped:', e.message));
+          await initializeEncryptionDatabase().catch(e => console.warn('Encryption database init skipped:', e.message));
+          await initializeSecurityMonitoringDatabase().catch(e => console.warn('Security monitoring init skipped:', e.message));
+          await initializeSSL().catch(e => console.warn('SSL/TLS init skipped:', e.message));
           const { migrateOrganizationLocations } = await import('./scripts/migrate-locations.js');
-          await migrateOrganizationLocations().catch(e => console.log('ℹ️ Locations migration skipped:', e.message));
-
-          console.log('✅ All background initializations completed');
+          await migrateOrganizationLocations().catch(e => console.warn('Locations migration skipped:', e.message));
         } catch (bgError) {
-          console.error('⚠️ Some background initializations failed:', bgError);
+          console.error('Background initialization error:', bgError);
           // Don't exit - server is already running and can handle requests
         }
       });
@@ -828,32 +661,13 @@ const startServer = async () => {
       process.exit(1);
     });
 
-    httpServer.on('listening', () => {
-      console.log('14e. HTTP server listening event fired');
-      const address = httpServer.address();
-      if (address && typeof address === 'object') {
-        console.log(`✅ Server bound to ${address.address}:${address.port}`);
-        console.log(`Address type: ${address.family}`);
-      }
-      // Success message
-      console.log('\n🎉 ========================================');
-      console.log('🎉 BACKEND SERVER STARTED SUCCESSFULLY!');
-      console.log('🎉 ========================================');
-      console.log(`🌐 Server URL: http://localhost:${port}`);
-      console.log(`🔌 Health Check: http://localhost:${port}/api/v1/health`);
-      console.log(`📡 WebSocket: ws://localhost:${port}/socket.io/`);
-      console.log('🎉 ========================================\n');
-    });
   } catch (error) {
-    console.error('14f. Error in startServer:', error);
     writeErrorToLog(error, 'Server startup failed');
     process.exit(1);
   }
 };
 
 // Process handlers
-console.log('15. Setting up process handlers...');
-console.log('15a. Setting up SIGINT handler...');
 const gracefulShutdown = (signal: string) => {
   writeToLog(`Received ${signal}, shutting down gracefully...`, 'INFO');
   httpServer.close(async () => {
@@ -864,26 +678,18 @@ const gracefulShutdown = (signal: string) => {
 };
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-console.log('15b. Setting up SIGTERM handler...');
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
-console.log('15c. Setting up uncaughtException handler...');
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
   writeErrorToLog(error, 'Uncaught Exception');
   process.exit(1);
 });
 
-console.log('15d. Setting up unhandledRejection handler...');
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection:', reason);
   writeErrorToLog(reason, `Unhandled Rejection at ${promise}`);
   process.exit(1);
 });
-console.log('✅ Process handlers configured');
 
-// Start the server
-console.log('16. Calling startServer()...');
 startServer();
-console.log('17. startServer() called - waiting for server to start...');
