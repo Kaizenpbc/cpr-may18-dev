@@ -20,7 +20,7 @@ import {
 } from '../../services/instructorService';
 import analytics from '../../services/analytics';
 import logger from '../../utils/logger';
-import InstructorPortal from './InstructorPortal';
+import InstructorPortal, { StudentAttendance } from './InstructorPortal';
 import ErrorBoundary from '../common/ErrorBoundary';
 
 const InstructorPortalContainer: React.FC = () => {
@@ -126,7 +126,7 @@ const InstructorPortalContainer: React.FC = () => {
     }
   }, [completeClassMutation]);
 
-  const handleUpdateAttendance = useCallback(async (courseId: number, students: Array<{ id: number; attended: boolean; [key: string]: unknown }>) => {
+  const handleUpdateAttendance = useCallback(async (courseId: number, students: StudentAttendance[]) => {
     try {
       await updateAttendanceMutation.mutateAsync({ courseId, students });
       setSuccessState('Attendance updated successfully');

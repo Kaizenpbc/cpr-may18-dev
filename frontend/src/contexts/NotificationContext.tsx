@@ -200,7 +200,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Set up polling for real-time updates (every 60 seconds, respects backoff)
   useEffect(() => {
     if (!isAuthenticated) {
-      return;
+      return () => {};
     }
 
     let timeoutId: ReturnType<typeof setTimeout>;

@@ -30,7 +30,7 @@ const SessionWarning: React.FC<SessionWarningProps> = ({
   useEffect(() => {
     if (!sessionStatus?.hasToken || sessionStatus.isExpired) {
       setShowWarning(false);
-      return;
+      return () => {};
     }
 
     const checkSessionExpiry = () => {

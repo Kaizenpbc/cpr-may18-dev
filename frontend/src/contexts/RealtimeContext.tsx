@@ -219,6 +219,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         eventSource.close();
       };
     }
+    return () => {};
   }, [isConnected, queryClient]);
 
   return (

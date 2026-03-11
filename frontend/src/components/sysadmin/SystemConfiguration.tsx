@@ -64,7 +64,7 @@ const SystemConfiguration: React.FC = () => {
         setConfigurations(response.data.data);
         // Initialize edited values with current values
         const initialValues: Record<string, string> = {};
-        Object.values(response.data.data).flat().forEach((config: SystemConfig) => {
+        (Object.values(response.data.data).flat() as SystemConfig[]).forEach((config) => {
           initialValues[config.configKey] = config.configValue;
         });
         setEditedValues(initialValues);

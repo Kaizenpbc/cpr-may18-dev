@@ -20,7 +20,7 @@ interface AvailabilityDate {
   [key: string]: unknown;
 }
 
-interface StudentAttendance {
+export interface StudentAttendance {
   id?: number;
   studentid?: string;
   attended?: boolean;

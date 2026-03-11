@@ -49,6 +49,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onDismiss }) => {
 
       return () => clearInterval(interval);
     }
+    return () => {};
   }, [toast.duration, toast.showProgress]);
 
   // Handle dismiss with animation

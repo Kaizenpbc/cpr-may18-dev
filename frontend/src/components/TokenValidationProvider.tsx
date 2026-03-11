@@ -91,7 +91,7 @@ const TokenValidationProvider: React.FC<TokenValidationProviderProps> = ({
 
   // Periodic validation (every 10 minutes instead of 5) - LESS FREQUENT
   useEffect(() => {
-    if (!user) return;
+    if (!user) return () => {};
 
     const interval = setInterval(async () => {
       // Don't validate if there's no token (user might be logging out)

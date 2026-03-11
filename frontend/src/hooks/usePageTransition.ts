@@ -73,6 +73,7 @@ export const usePageTransition = () => {
 
       return () => clearTimeout(timer);
     }
+    return () => {};
   }, [location.pathname, state.currentPage, getTransitionConfig]);
 
   // Get transition type based on route direction

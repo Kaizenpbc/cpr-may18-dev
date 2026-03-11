@@ -175,7 +175,7 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
-    if (!onRefresh) return;
+    if (!onRefresh) return () => {};
     
     const interval = setInterval(() => {
       console.log('🔄 Auto-refreshing invoice list...');
