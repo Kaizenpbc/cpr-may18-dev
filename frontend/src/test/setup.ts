@@ -36,8 +36,10 @@ const localStorageMock = {
   setItem: vi.fn(),
   removeItem: vi.fn(),
   clear: vi.fn(),
+  length: 0,
+  key: vi.fn(),
 };
-global.localStorage = localStorageMock;
+global.localStorage = localStorageMock as unknown as Storage;
 
 // Mock sessionStorage
 const sessionStorageMock = {
@@ -45,8 +47,10 @@ const sessionStorageMock = {
   setItem: vi.fn(),
   removeItem: vi.fn(),
   clear: vi.fn(),
+  length: 0,
+  key: vi.fn(),
 };
-global.sessionStorage = sessionStorageMock;
+global.sessionStorage = sessionStorageMock as unknown as Storage;
 
 // Mock console methods to reduce noise in tests
 global.console = {
@@ -74,7 +78,7 @@ global.FileReader = vi.fn().mockImplementation(() => ({
   result: '',
   onload: null,
   onerror: null,
-}));
+})) as unknown as typeof FileReader;
 
 // Mock WebSocket
 global.WebSocket = vi.fn().mockImplementation(() => ({
@@ -83,15 +87,15 @@ global.WebSocket = vi.fn().mockImplementation(() => ({
   addEventListener: vi.fn(),
   removeEventListener: vi.fn(),
   readyState: 1,
-}));
+})) as unknown as typeof WebSocket;
 
 // Mock Notification API
 global.Notification = vi.fn().mockImplementation(() => ({
   close: vi.fn(),
-}));
+})) as unknown as typeof Notification;
 
 // Mock requestAnimationFrame
-global.requestAnimationFrame = vi.fn(cb => setTimeout(cb, 0));
+global.requestAnimationFrame = vi.fn(cb => setTimeout(cb, 0)) as unknown as typeof requestAnimationFrame;
 
 // Mock cancelAnimationFrame
 global.cancelAnimationFrame = vi.fn();
@@ -105,7 +109,7 @@ global.performance = {
 // Mock crypto.randomUUID
 global.crypto = {
   ...global.crypto,
-  randomUUID: vi.fn(() => 'mock-uuid'),
+  randomUUID: vi.fn(() => 'mock-uuid') as unknown as () => `${string}-${string}-${string}-${string}-${string}`,
 };
 
 // Setup cleanup after each test

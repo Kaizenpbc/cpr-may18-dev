@@ -1,13 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import logger from '../logger';
 
 describe('Logger Utility', () => {
   const originalEnv = process.env.NODE_ENV;
   let consoleSpy: {
-    debug: jest.SpyInstance;
-    info: jest.SpyInstance;
-    warn: jest.SpyInstance;
-    error: jest.SpyInstance;
+    debug: MockInstance;
+    info: MockInstance;
+    warn: MockInstance;
+    error: MockInstance;
   };
 
   beforeEach(() => {

@@ -3,11 +3,13 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from '../../contexts/AuthContext';
 import Login from '../Login';
-import authService from '../../services/authService';
+import { authService } from '../../services/authService';
+
+const mockLogin = vi.mocked(authService.login);
 
 // Mock authService
 vi.mock('../../services/authService', () => ({
-  default: {
+  authService: {
     login: vi.fn(),
   },
 }));
@@ -35,7 +37,7 @@ const renderLogin = () => {
 describe('Login Component', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
-    authService.login.mockClear();
+    mockLogin.mockClear();
   });
 
   it('renders login form', () => {
@@ -59,8 +61,8 @@ describe('Login Component', () => {
   });
 
   it('handles successful login', async () => {
-    const mockUser = { id: 1, username: 'testuser' };
-    authService.login.mockResolvedValue(mockUser);
+    const mockUser = { user: { id: 1, username: 'testuser', role: 'instructor' }, accessToken: 'tok' };
+    mockLogin.mockResolvedValue(mockUser);
 
     renderLogin();
     const usernameInput = screen.getByLabelText(/username/i);
@@ -79,7 +81,7 @@ describe('Login Component', () => {
 
   it('shows error message on failed login', async () => {
     const errorMessage = 'Invalid credentials';
-    authService.login.mockRejectedValue(new Error(errorMessage));
+    mockLogin.mockRejectedValue(new Error(errorMessage));
 
     renderLogin();
     const usernameInput = screen.getByLabelText(/username/i);
@@ -97,7 +99,7 @@ describe('Login Component', () => {
 
   it('clears error message when form is modified after error', async () => {
     const errorMessage = 'Invalid credentials';
-    authService.login.mockRejectedValue(new Error(errorMessage));
+    mockLogin.mockRejectedValue(new Error(errorMessage));
 
     renderLogin();
     const usernameInput = screen.getByLabelText(/username/i);
@@ -121,7 +123,7 @@ describe('Login Component', () => {
   });
 
   it('disables submit button while submitting', async () => {
-    authService.login.mockImplementation(
+    mockLogin.mockImplementation(
       () => new Promise(resolve => setTimeout(resolve, 100))
     );
 

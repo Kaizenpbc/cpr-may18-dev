@@ -27,7 +27,7 @@
       "@/*": ["src/*"],
       "src/*": ["src/*"]
     },
-    "types": ["react", "react-dom", "node"],
+    "types": ["react", "react-dom", "node", "vitest/globals"],
     "jsxImportSource": "react",
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false
