@@ -5,12 +5,12 @@ export async function initializeDatabase() {
   console.log('🔧 Initializing database...');
 
   try {
-    // CRITICAL: Drop any legacy views FIRST to prevent column reference errors
-    // This handles views that may have been created by older code versions
+    // Drop legacy views so they can be recreated with updated column definitions.
+    // No CASCADE — dependent objects must be handled explicitly, not silently destroyed.
     console.log('🧹 Cleaning up legacy views...');
-    await pool.query(`DROP VIEW IF EXISTS course_request_details CASCADE`);
-    await pool.query(`DROP VIEW IF EXISTS invoice_with_breakdown CASCADE`);
-    await pool.query(`DROP VIEW IF EXISTS course_student_counts CASCADE`);
+    try { await pool.query(`DROP VIEW IF EXISTS course_request_details`); } catch { /* ignore if has deps */ }
+    try { await pool.query(`DROP VIEW IF EXISTS invoice_with_breakdown`); } catch { /* ignore if has deps */ }
+    try { await pool.query(`DROP VIEW IF EXISTS course_student_counts`); } catch { /* ignore if has deps */ }
     console.log('✅ Legacy views cleaned up');
 
     // Create organizations table
@@ -1235,9 +1235,10 @@ export async function initializeDatabase() {
     // Create views for common queries
     console.log('📊 Creating database views...');
 
-    // Drop existing views first (required when column structure changes)
-    await pool.query(`DROP VIEW IF EXISTS invoice_with_breakdown CASCADE`);
-    await pool.query(`DROP VIEW IF EXISTS course_request_details CASCADE`);
+    // Drop existing views so they can be recreated with current column definitions.
+    // No CASCADE — dependent objects must be handled explicitly.
+    try { await pool.query(`DROP VIEW IF EXISTS invoice_with_breakdown`); } catch { /* ignore if has deps */ }
+    try { await pool.query(`DROP VIEW IF EXISTS course_request_details`); } catch { /* ignore if has deps */ }
 
     // Invoice breakdown view - now just a pass-through since base_cost and tax_amount are stored columns
     await pool.query(`

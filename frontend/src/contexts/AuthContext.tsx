@@ -94,6 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Only validate with backend if we don't have user data AND we didn't just log in
       // Skip backend validation if we just logged in (user data is fresh from login response)
+      let resolvedUser = user; // capture before any async state updates
       if (!user && !justLoggedIn) {
         console.log('[TOKEN VALIDATION] No user data, validating with backend');
         const userData = await authService.checkAuth();
@@ -107,15 +108,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
 
-        // Set the user data
+        // Set the user data AND update local variable — setUser is async so we
+        // cannot read from the `user` closure after this point
         setUser(userData);
+        resolvedUser = userData;
         console.log('[TOKEN VALIDATION] User data set from backend validation');
       } else if (justLoggedIn) {
         console.log('[TOKEN VALIDATION] Skipping backend validation - just logged in');
       }
 
-      // Use current user data (either from state or from backend validation)
-      const currentUser = user;
+      // Use resolvedUser (freshly fetched or existing from state)
+      const currentUser = resolvedUser;
       if (!currentUser) {
         console.log('[TOKEN VALIDATION] No current user data available');
         return {

@@ -106,17 +106,9 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
   }
 };
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  try {
-    await pool.end();
-    console.log('Database pool has ended');
-    process.exit(0);
-  } catch (err) {
-    console.error('Error during pool shutdown:', err);
-    process.exit(1);
-  }
-});
+// Graceful shutdown is handled centrally in index.ts via closeDatabaseConnections().
+// Do NOT register a SIGINT handler here — it would race with index.ts and call process.exit
+// before the HTTP server finishes closing.
 
 export const getClient = async () => {
   const client = await pool.connect();

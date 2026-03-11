@@ -3,42 +3,20 @@ import joi from 'joi';
 import { body, validationResult, matchedData } from 'express-validator';
 import validator from 'validator';
 
-// Basic XSS sanitization without external package
-function basicXssSanitize(input: string): string {
-  return input
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;');
-}
-
 /**
- * Sanitizes a string value by:
- * 1. Trimming whitespace
- * 2. Basic XSS protection
+ * Sanitizes a string value by trimming whitespace and removing null bytes.
  *
- * Note: SQL injection is handled by parameterized queries in the database layer.
- * Do NOT strip SQL keywords here - it breaks legitimate data like "Select Insurance".
+ * XSS prevention: React JSX automatically HTML-escapes output at render time.
+ *   Do NOT HTML-encode here — it causes double-encoding and corrupts stored data.
+ * SQL injection: prevented by parameterized queries ($1, $2, ...) in every query.
+ *   Do NOT strip SQL keywords — it breaks legitimate data like "Select Insurance".
  */
 export function sanitizeString(input: string): string {
   if (typeof input !== 'string') {
     return String(input);
   }
-
-  try {
-    // Basic sanitization
-    let sanitized = input.trim();
-
-    // Basic XSS protection
-    sanitized = basicXssSanitize(sanitized);
-
-    return sanitized;
-  } catch (error) {
-    console.error('Error in string sanitization:', error);
-    return input.trim(); // Fallback to basic trimming
-  }
+  // Only trim whitespace and strip null bytes (which can confuse some parsers)
+  return input.trim().replace(/\0/g, '');
 }
 
 /**

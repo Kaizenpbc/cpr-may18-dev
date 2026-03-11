@@ -11,6 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import cookieParser from 'cookie-parser';
 import emailTemplatesRouter from './routes/v1/emailTemplates.js';
+import { closeDatabaseConnections } from './config/database.js';
 import { initializeTokenBlacklist } from './utils/tokenBlacklist.js';
 import { apiLimiter, authLimiter, registerLimiter } from './middleware/rateLimiter.js';
 import { sanitizeInput } from './middleware/inputSanitizer.js';
@@ -74,15 +75,16 @@ function writeToLog(message: string, level: 'INFO' | 'ERROR' | 'WARN' | 'DEBUG' 
   const timestamp = new Date().toISOString();
   const logEntry = `[${timestamp}] [${level}] ${message}\n`;
 
-  // Write to console
-  console.log(logEntry.trim());
-
-  // Write to file
-  try {
-    fs.appendFileSync(logFile, logEntry);
-  } catch (error) {
-    console.error('Failed to write to log file:', error);
+  if (level === 'ERROR') {
+    console.error(logEntry.trim());
+  } else {
+    console.log(logEntry.trim());
   }
+
+  // Async write — does not block the event loop
+  fs.appendFile(logFile, logEntry, (err) => {
+    if (err) console.error('Failed to write to log file:', err);
+  });
 }
 
 function writeErrorToLog(error: unknown, context?: string) {
@@ -92,15 +94,12 @@ function writeErrorToLog(error: unknown, context?: string) {
   const stackTrace = error instanceof Error ? error.stack || '' : '';
   const logEntry = `[${timestamp}] [ERROR] ${errorMessage}\n${stackTrace}\n`;
 
-  // Write to console
   console.error(logEntry.trim());
 
-  // Write to error file
-  try {
-    fs.appendFileSync(errorLogFile, logEntry);
-  } catch (writeError) {
-    console.error('Failed to write to error log file:', writeError);
-  }
+  // Async write — does not block the event loop
+  fs.appendFile(errorLogFile, logEntry, (err) => {
+    if (err) console.error('Failed to write to error log file:', err);
+  });
 }
 
 // Request logging middleware
@@ -855,22 +854,19 @@ const startServer = async () => {
 // Process handlers
 console.log('15. Setting up process handlers...');
 console.log('15a. Setting up SIGINT handler...');
-process.on('SIGINT', () => {
-  writeToLog('🛑 Received SIGINT, shutting down gracefully...', 'INFO');
-  httpServer.close(() => {
-    writeToLog('✅ Server closed', 'INFO');
+const gracefulShutdown = (signal: string) => {
+  writeToLog(`Received ${signal}, shutting down gracefully...`, 'INFO');
+  httpServer.close(async () => {
+    await closeDatabaseConnections();
+    writeToLog('Server and DB connections closed.', 'INFO');
     process.exit(0);
   });
-});
+};
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 console.log('15b. Setting up SIGTERM handler...');
-process.on('SIGTERM', () => {
-  writeToLog('🛑 Received SIGTERM, shutting down gracefully...', 'INFO');
-  httpServer.close(() => {
-    writeToLog('✅ Server closed', 'INFO');
-    process.exit(0);
-  });
-});
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 console.log('15c. Setting up uncaughtException handler...');
 process.on('uncaughtException', (error) => {

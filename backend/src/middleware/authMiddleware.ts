@@ -5,7 +5,6 @@ import {
   generateTokens,
   TokenPayload
 } from '../utils/jwtUtils.js';
-import { extractTokenFromHeader } from '../utils/jwtUtils.js';
 import { ApiResponseBuilder } from '../utils/apiResponse.js';
 import { errorCodes } from '../utils/errorHandler.js';
 import { AppError } from '../utils/errorHandler.js';
@@ -141,8 +140,8 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
           res.setHeader('x-access-token', accessToken);
           res.cookie('refreshToken', newRefreshToken, {
             httpOnly: true,
-            secure: true, // Required for sameSite: 'none'
-            sameSite: 'none', // Required for cross-origin cookies
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
             path: '/',
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
           });
@@ -187,17 +186,6 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       }
     });
   }
-};
-
-// Helper function to extract token from headers
-const extractTokenFromHeaders = (req: Request): string | null => {
-  const authHeader = req.headers['authorization'];
-
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.substring(7);
-  }
-
-  return null;
 };
 
 // Middleware to authorize specific roles

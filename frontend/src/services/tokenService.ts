@@ -484,8 +484,3 @@ class TokenService {
 }
 
 export const tokenService = new TokenService();
-
-devLog('TokenService initialized');
-
-// Make tokenService globally available for debugging
-(window as unknown as { tokenService: TokenService }).tokenService = tokenService;
