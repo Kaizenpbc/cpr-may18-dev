@@ -1125,7 +1125,7 @@ export const fetchCourseAdminDashboardData = async (month: string) => {
       api.get<ApiResponse<Record<string, unknown>>>(`/admin/dashboard-summary?month=${month}`)
     ]);
 
-    const data = {
+    const data: { instructorStats: any; dashboardSummary: any } = {
       instructorStats: extractLegacyData(statsResponse) || [],
       dashboardSummary: extractLegacyData(summaryResponse) || null
     };
@@ -1143,7 +1143,7 @@ export const fetchCourseAdminDashboardData = async (month: string) => {
 };
 
 // Instructor Workload Report endpoint
-export const getInstructorWorkloadReport = async (startDate: string, endDate: string) => {
+export const getInstructorWorkloadReport = async (startDate: string, endDate: string): Promise<any[]> => {
   devLog('[Debug] api.ts - Fetching instructor workload report for:', { startDate, endDate });
   try {
     const response = await api.get<ApiResponse<Record<string, unknown>>>('/admin/instructor-workload-report', {
@@ -1152,7 +1152,7 @@ export const getInstructorWorkloadReport = async (startDate: string, endDate: st
     const data = extractLegacyData(response);
 
     devLog('[Debug] api.ts - Instructor workload report data received:', data);
-    return data || [];
+    return (data || []) as any[];
   } catch (error) {
     devLog('[Debug] api.ts - Error fetching instructor workload report:', error);
     if (axios.isAxiosError(error)) {

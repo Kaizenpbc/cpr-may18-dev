@@ -90,13 +90,13 @@ function PricingManager() {
     // alert('Add Pricing Rule dialog not implemented yet.'); // Removed placeholder
   };
 
-  const handleEditOpen = rule => {
+  const handleEditOpen = (rule: any) => {
     setEditingRule(rule);
     setDialogOpen(true);
     // alert(`Edit Pricing Rule ${rule.pricingid} dialog not implemented yet.`); // Removed placeholder
   };
 
-  const handleDelete = async id => {
+  const handleDelete = async (id: any) => {
     if (
       window.confirm(`Are you sure you want to delete Pricing Rule ID ${id}?`)
     ) {
@@ -129,7 +129,7 @@ function PricingManager() {
   };
 
   // Sorting handler
-  const handleSortRequest = property => {
+  const handleSortRequest = (property: any) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);

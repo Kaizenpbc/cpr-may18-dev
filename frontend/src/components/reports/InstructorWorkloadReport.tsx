@@ -55,7 +55,7 @@ const InstructorWorkloadReport = () => {
     fetchReport();
   }, [fetchReport]);
 
-  const handleDateChange = event => {
+  const handleDateChange = (event: any) => {
     setDateRange(prev => ({
       ...prev,
       [event.target.name]: event.target.value,

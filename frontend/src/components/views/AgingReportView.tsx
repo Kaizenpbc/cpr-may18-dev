@@ -97,11 +97,11 @@ const AgingReportView = () => {
     },
   });
 
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = (event: any, newValue: any) => {
     setSelectedTab(newValue);
   };
 
-  const handleBucketClick = bucket => {
+  const handleBucketClick = (bucket: any) => {
     setSelectedBucket(bucket);
     setDetailDialogOpen(true);
   };
@@ -141,7 +141,7 @@ const AgingReportView = () => {
         'Percentage',
         'Avg Days Outstanding',
       ],
-      ...reportData.aging_summary.map(bucket => [
+      ...reportData.aging_summary.map((bucket: any) => [
         bucket.aging_bucket,
         bucket.invoice_count,
         `$${bucket.total_balance.toLocaleString()}`,
@@ -162,19 +162,19 @@ const AgingReportView = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  const formatCurrency = amount => {
+  const formatCurrency = (amount: any) => {
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency: 'CAD',
     }).format(amount || 0);
   };
 
-  const formatDate = dateString => {
+  const formatDate = (dateString: any) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString();
   };
 
-  const getStatusColor = bucket => {
+  const getStatusColor = (bucket: any) => {
     switch (bucket) {
       case 'Current':
         return 'success';
@@ -191,7 +191,7 @@ const AgingReportView = () => {
     }
   };
 
-  const getRiskColor = riskScore => {
+  const getRiskColor = (riskScore: any) => {
     switch (riskScore) {
       case 'Low':
         return 'success';
@@ -206,14 +206,14 @@ const AgingReportView = () => {
 
   // Prepare chart data
   const pieChartData =
-    reportData?.aging_summary?.map(bucket => ({
+    reportData?.aging_summary?.map((bucket: any) => ({
       name: bucket.aging_bucket,
       value: bucket.total_balance,
       count: bucket.invoice_count,
     })) || [];
 
   const barChartData =
-    reportData?.aging_summary?.map(bucket => ({
+    reportData?.aging_summary?.map((bucket: any) => ({
       bucket: bucket.aging_bucket,
       amount: bucket.total_balance,
       count: bucket.invoice_count,
@@ -316,7 +316,7 @@ const AgingReportView = () => {
                   onChange={e => setOrganizationFilter(e.target.value)}
                 >
                   <MenuItem value=''>All Organizations</MenuItem>
-                  {organizations?.map(org => (
+                  {organizations?.map((org: any) => (
                     <MenuItem key={org.id} value={org.id}>
                       {org.name}
                     </MenuItem>
@@ -475,7 +475,7 @@ const AgingReportView = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {reportData?.aging_summary?.map(bucket => (
+                  {reportData?.aging_summary?.map((bucket: any) => (
                     <TableRow key={bucket.aging_bucket} hover>
                       <TableCell>
                         <Chip
@@ -556,7 +556,7 @@ const AgingReportView = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {reportData?.organization_breakdown?.map(org => (
+                  {reportData?.organization_breakdown?.map((org: any) => (
                     <TableRow key={org.organization_id} hover>
                       <TableCell>
                         <Typography variant='body2' fontWeight='medium'>
@@ -620,7 +620,7 @@ const AgingReportView = () => {
                       fill='#8884d8'
                       dataKey='value'
                     >
-                      {pieChartData.map((entry, index) => (
+                      {pieChartData.map((entry: any, index: any) => (
                         <Cell
                           key={`cell-${index}`}
                           fill={COLORS[index % COLORS.length]}
@@ -680,10 +680,10 @@ const AgingReportView = () => {
                 <TableBody>
                   {reportData?.invoice_details
                     ?.filter(
-                      invoice =>
+                      (invoice: any) =>
                         invoice.aging_bucket === selectedBucket.aging_bucket
                     )
-                    ?.map(invoice => (
+                    ?.map((invoice: any) => (
                       <TableRow key={invoice.id}>
                         <TableCell>{invoice.invoice_number}</TableCell>
                         <TableCell>{invoice.organization_name}</TableCell>

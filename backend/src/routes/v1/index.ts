@@ -57,60 +57,46 @@ router.use('/organization', organizationRouter);
 
 // Mount organization pricing routes
 router.use('/organization-pricing', organizationPricingRouter);
-devLog('✅ Organization pricing routes mounted');
 
 // Mount sysadmin routes
 router.use('/sysadmin', sysadminRouter);
 router.use('/sysadmin', sysadminEntitiesRouter);
-devLog('✅ Sysadmin routes mounted');
 
 // Mount profile changes routes
 router.use('/profile-changes', profileChangesRouter);
-devLog('✅ Profile changes routes mounted');
 
 // Mount HR dashboard routes
 router.use('/hr-dashboard', hrDashboardRouter);
-devLog('✅ HR dashboard routes mounted');
 
 // Mount timesheet routes
 router.use('/timesheet', timesheetRouter);
-devLog('✅ Timesheet routes mounted');
 
 // Mount payroll routes
 router.use('/payroll', payrollRouter);
-devLog('✅ Payroll routes mounted');
 
 // Mount pay rates routes
 router.use('/pay-rates', payRatesRouter);
-devLog('✅ Pay rates routes mounted');
 
 // Mount notifications routes
 router.use('/notifications', notificationsRouter);
-devLog('✅ Notifications routes mounted');
 
 // Mount vendor routes
 router.use('/vendor', vendorRouter);
-devLog('✅ Vendor routes mounted');
 
 // Mount instructor routes
 router.use('/instructor', instructorRouter);
-devLog('✅ Instructor routes mounted');
 
 // Mount accounting routes
 router.use('/', accountingRouter);
-devLog('✅ Accounting routes mounted');
 
 // Mount auth routes
 router.use('/auth', authRouter);
-devLog('✅ Auth routes mounted');
 
 // Mount holidays routes
 router.use('/holidays', holidaysRouter);
-devLog('✅ Holidays routes mounted');
 
 // Mount course requests routes (flat-mount)
 router.use('/', courseRequestsRouter);
-devLog('✅ Course requests routes mounted');
 
 // Get available instructors for a specific date (needs to be before auth middleware)
 router.get(
@@ -922,9 +908,7 @@ router.get(
 // Payment Requests Routes
 router.use('/payment-requests', paymentRequestsRouter);
 router.use('/', orgBillingRouter);
-devLog('✅ Org billing routes mounted');
 router.use('/', vendorInvoiceAdminRouter);
-devLog('✅ Vendor invoice admin routes mounted');
 
 // accounting/courses/:courseId/students and validate-billing-readiness extracted to course-requests.ts
 

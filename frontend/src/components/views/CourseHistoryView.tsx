@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import { format } from 'date-fns';
 
-const CourseHistoryView = ({ courseHistory }) => {
+const CourseHistoryView = ({ courseHistory }: { courseHistory: any }) => {
   return (
     <Paper elevation={3} sx={{ p: 3 }}>
       <Box sx={{ mb: 3 }}>
@@ -38,7 +38,7 @@ const CourseHistoryView = ({ courseHistory }) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {courseHistory.map(course => (
+            {courseHistory.map((course: any) => (
               <TableRow key={course.courseid}>
                 <TableCell>{course.coursenumber}</TableCell>
                 <TableCell>{course.coursetypename}</TableCell>

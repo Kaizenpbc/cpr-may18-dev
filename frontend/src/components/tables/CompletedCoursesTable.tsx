@@ -32,12 +32,19 @@ const CompletedCoursesTable = ({
   sortOrder,
   sortBy,
   onSortRequest,
+}: {
+  courses: any;
+  onViewStudentsClick: any;
+  onBillClick: any;
+  sortOrder: any;
+  sortBy: any;
+  onSortRequest: any;
 }) => {
   if (!courses || courses.length === 0) {
     return <Typography sx={{ mt: 2 }}>No completed courses found.</Typography>;
   }
 
-  const createSortHandler = property => event => {
+  const createSortHandler = (property: any) => (event: any) => {
     onSortRequest(property);
   };
 
@@ -123,7 +130,7 @@ const CompletedCoursesTable = ({
           </TableRow>
         </TableHead>
         <TableBody>
-          {courses.map(course => (
+          {courses.map((course: any) => (
             <TableRow
               key={course.courseid}
               hover

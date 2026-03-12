@@ -70,7 +70,7 @@ const CourseAdminPortalContainer: React.FC = () => {
     queryKey: ['course-admin-dashboard'],
     queryFn: async () => {
       // Placeholder - implement actual dashboard data fetching
-      return { stats: {}, recentActivity: [] };
+      return { stats: {} as any, recentActivity: [] as any[] };
     },
     enabled: !!user,
   });

@@ -17,7 +17,7 @@ import { formatDisplayDate } from '../../utils/dateUtils';
 // import VisibilityIcon from '@mui/icons-material/Visibility';
 
 // Reusable helper functions (Consider moving to utils)
-const getStatusChipColor = status => {
+const getStatusChipColor = (status: any) => {
   switch (status?.toLowerCase()) {
     case 'completed':
     case 'paid':

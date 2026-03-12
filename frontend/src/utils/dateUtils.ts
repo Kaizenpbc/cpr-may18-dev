@@ -89,7 +89,7 @@ export const formatLongDate = (date: string | Date): string => {
  * @param {string|Date} date - The date to format
  * @returns {string} Formatted time string (e.g., "2:30 PM")
  */
-export const formatTime = date => {
+export const formatTime = (date: any) => {
   if (!date) return '';
 
   const d = new Date(date);
@@ -111,18 +111,18 @@ export const formatTime = date => {
  * @returns {string} Color string for the date
  */
 export const getDateColor = (
-  date,
-  availableDates,
-  scheduledClasses,
-  holidays
+  date: any,
+  availableDates: any,
+  scheduledClasses: any,
+  holidays: any
 ) => {
-  if (holidays.some(h => isSameDay(new Date(h.date), date))) {
+  if (holidays.some((h: any) => isSameDay(new Date(h.date), date))) {
     return 'red';
   }
-  if (scheduledClasses.some(c => isSameDay(new Date(c.date), date))) {
+  if (scheduledClasses.some((c: any) => isSameDay(new Date(c.date), date))) {
     return 'blue';
   }
-  if (availableDates.some(d => isSameDay(d, date))) {
+  if (availableDates.some((d: any) => isSameDay(d, date))) {
     return 'green';
   }
   return 'gray';

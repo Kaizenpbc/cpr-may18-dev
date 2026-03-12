@@ -153,7 +153,7 @@ const InvoiceHistory: React.FC = () => {
         console.log('🔍 [FETCH DEBUG] Response is array, length:', response.length);
         console.log('🔍 [FETCH DEBUG] Raw invoice data:', response);
         
-        const processedInvoices = response.map(invoice => ({
+        const processedInvoices = response.map((invoice: any) => ({
           ...invoice,
           rate: typeof invoice.rate === 'string' ? parseFloat(invoice.rate) : invoice.rate || 0,
           amount: typeof invoice.amount === 'string' ? parseFloat(invoice.amount) : invoice.amount || 0,
@@ -162,16 +162,16 @@ const InvoiceHistory: React.FC = () => {
           total: typeof invoice.total === 'string' ? parseFloat(invoice.total) : invoice.total || 0,
           quantity: typeof invoice.quantity === 'string' ? parseInt(invoice.quantity) : invoice.quantity || null
         }));
-        
+
         console.log('🔍 [FETCH DEBUG] Processed invoices:', processedInvoices);
-        console.log('🔍 [FETCH DEBUG] Invoice statuses:', processedInvoices.map(inv => ({ id: inv.id, number: inv.invoiceNumber, status: inv.status })));
+        console.log('🔍 [FETCH DEBUG] Invoice statuses:', processedInvoices.map((inv: any) => ({ id: inv.id, number: inv.invoiceNumber, status: inv.status })));
 
         setInvoices(processedInvoices);
       } else if (response && response.data && Array.isArray(response.data)) {
         console.log('🔍 [FETCH DEBUG] Response has data property, length:', response.data.length);
         console.log('🔍 [FETCH DEBUG] Raw invoice data:', response.data);
         
-        const processedInvoices = response.data.map(invoice => ({
+        const processedInvoices = response.data.map((invoice: any) => ({
           ...invoice,
           rate: typeof invoice.rate === 'string' ? parseFloat(invoice.rate) : invoice.rate || 0,
           amount: typeof invoice.amount === 'string' ? parseFloat(invoice.amount) : invoice.amount || 0,
@@ -182,7 +182,7 @@ const InvoiceHistory: React.FC = () => {
         }));
         
         console.log('🔍 [FETCH DEBUG] Processed invoices:', processedInvoices);
-        console.log('🔍 [FETCH DEBUG] Invoice statuses:', processedInvoices.map(inv => ({ id: inv.id, number: inv.invoiceNumber, status: inv.status })));
+        console.log('🔍 [FETCH DEBUG] Invoice statuses:', processedInvoices.map((inv: any) => ({ id: inv.id, number: inv.invoiceNumber, status: inv.status })));
 
         setInvoices(processedInvoices);
       } else {

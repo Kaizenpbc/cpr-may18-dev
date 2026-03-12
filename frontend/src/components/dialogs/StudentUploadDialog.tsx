@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+// @ts-ignore
 import Papa from 'papaparse'; // Import PapaParse
 import {
   Dialog,
@@ -76,7 +77,7 @@ const StudentUploadDialog: React.FC<StudentUploadDialogProps> = ({ open, onClose
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      complete: results => {
+      complete: (results: any) => {
         logger.debug('[parseFile] Papa.parse complete. Results:', results);
         logger.debug(
           '[parseFile] Detected headers (results.meta.fields):',
@@ -85,7 +86,7 @@ const StudentUploadDialog: React.FC<StudentUploadDialogProps> = ({ open, onClose
 
         // Trim headers before checking
         const detectedHeaders = results.meta.fields
-          ? results.meta.fields.map(h => h.trim())
+          ? results.meta.fields.map((h: any) => h.trim())
           : [];
         logger.debug('[parseFile] Trimmed headers:', detectedHeaders);
 
@@ -111,7 +112,7 @@ const StudentUploadDialog: React.FC<StudentUploadDialogProps> = ({ open, onClose
         } else {
           logger.debug('[parseFile] Formatting student data...');
           const formattedStudents = results.data
-            .map(row => {
+            .map((row: any) => {
               logger.debug('[parseFile] Processing row:', row);
               return {
                 // Use the exact header keys detected by PapaParse, including whitespace
@@ -120,7 +121,7 @@ const StudentUploadDialog: React.FC<StudentUploadDialogProps> = ({ open, onClose
                 email: row['Email']?.trim() || null, // This one was likely okay
               };
             })
-            .filter(student => student.firstName && student.lastName);
+            .filter((student: any) => student.firstName && student.lastName);
 
           logger.debug(
             '[parseFile] Formatted/Filtered Students:',
@@ -141,7 +142,7 @@ const StudentUploadDialog: React.FC<StudentUploadDialogProps> = ({ open, onClose
         logger.debug('[parseFile] Setting isParsing to false.');
         setIsParsing(false);
       },
-      error: error => {
+      error: (error: any) => {
         logger.error('[parseFile] Papa.parse error callback:', error);
         const errorMsg = `Error parsing CSV: ${error.message}`;
         setParseError(errorMsg);

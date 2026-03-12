@@ -40,7 +40,7 @@ const initialOrgState = {
   ceoEmail: '',
 };
 
-function OrganizationDialog({ open, onClose, onSave, organization }) {
+function OrganizationDialog({ open, onClose, onSave, organization }: { open: any; onClose: any; onSave: any; organization: any }) {
   const [orgData, setOrgData] = useState(initialOrgState);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -128,7 +128,7 @@ function OrganizationDialog({ open, onClose, onSave, organization }) {
   };
 
   // Handles both TextField changes and PhoneInput changes
-  const handleChange = (name, value) => {
+  const handleChange = (name: string, value: any) => {
     setOrgData(prevData => ({
       ...prevData,
       [name]: value,

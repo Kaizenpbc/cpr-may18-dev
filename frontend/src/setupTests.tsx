@@ -22,36 +22,36 @@ Object.defineProperty(window, 'matchMedia', {
 // Mock IntersectionObserver
 const mockIntersectionObserver = jest.fn();
 mockIntersectionObserver.mockReturnValue({
-  observe: () => null,
-  unobserve: () => null,
-  disconnect: () => null,
+  observe: (): null => null,
+  unobserve: (): null => null,
+  disconnect: (): null => null,
 });
 window.IntersectionObserver = mockIntersectionObserver;
 
 // Mock ResizeObserver
 const mockResizeObserver = jest.fn();
 mockResizeObserver.mockReturnValue({
-  observe: () => null,
-  unobserve: () => null,
-  disconnect: () => null,
+  observe: (): null => null,
+  unobserve: (): null => null,
+  disconnect: (): null => null,
 });
 window.ResizeObserver = mockResizeObserver;
 
 // Mock Material-UI components
 jest.mock('@mui/material', () => ({
-  Container: ({ children }) => <div>{children}</div>,
-  Typography: ({ children }) => <div>{children}</div>,
-  Button: ({ children, onClick }) => (
+  Container: ({ children }: { children: any }) => <div>{children}</div>,
+  Typography: ({ children }: { children: any }) => <div>{children}</div>,
+  Button: ({ children, onClick }: { children: any; onClick: any }) => (
     <button onClick={onClick}>{children}</button>
   ),
-  Paper: ({ children }) => <div>{children}</div>,
-  Grid: ({ children }) => <div>{children}</div>,
-  Alert: ({ children }) => <div>{children}</div>,
+  Paper: ({ children }: { children: any }) => <div>{children}</div>,
+  Grid: ({ children }: { children: any }) => <div>{children}</div>,
+  Alert: ({ children }: { children: any }) => <div>{children}</div>,
   CircularProgress: () => <div>Loading...</div>,
-  Table: ({ children }) => <table>{children}</table>,
-  TableBody: ({ children }) => <tbody>{children}</tbody>,
-  TableCell: ({ children }) => <td>{children}</td>,
-  TableContainer: ({ children }) => <div>{children}</div>,
-  TableHead: ({ children }) => <thead>{children}</thead>,
-  TableRow: ({ children }) => <tr>{children}</tr>,
+  Table: ({ children }: { children: any }) => <table>{children}</table>,
+  TableBody: ({ children }: { children: any }) => <tbody>{children}</tbody>,
+  TableCell: ({ children }: { children: any }) => <td>{children}</td>,
+  TableContainer: ({ children }: { children: any }) => <div>{children}</div>,
+  TableHead: ({ children }: { children: any }) => <thead>{children}</thead>,
+  TableRow: ({ children }: { children: any }) => <tr>{children}</tr>,
 }));

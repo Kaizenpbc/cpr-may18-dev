@@ -77,7 +77,7 @@ const OrganizationManagement = () => {
     }
   };
 
-  const handleOpenDialog = (org = null) => {
+  const handleOpenDialog = (org: any = null) => {
     if (org) {
       // Editing existing org - use regular dialog
       setEditingOrg(org);
@@ -106,7 +106,7 @@ const OrganizationManagement = () => {
     setEditingOrg(null);
   };
 
-  const handleInputChange = e => {
+  const handleInputChange = (e: any) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -135,7 +135,7 @@ const OrganizationManagement = () => {
     loadOrganizations();
   };
 
-  const handleDelete = async orgId => {
+  const handleDelete = async (orgId: any) => {
     try {
       setError('');
       await sysAdminApi.deleteOrganization(orgId);
@@ -152,11 +152,11 @@ const OrganizationManagement = () => {
     }
   };
 
-  const formatDate = dateString => {
+  const formatDate = (dateString: any) => {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const formatPhone = phone => {
+  const formatPhone = (phone: any) => {
     if (!phone) return '';
     // Format as (xxx) xxx-xxxx
     const cleaned = phone.replace(/\D/g, '');

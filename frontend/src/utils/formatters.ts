@@ -3,7 +3,7 @@
 import logger from './logger';
 
 // Format date string (YYYY-MM-DD or ISO) to MM/DD/YYYY (or locale default)
-export const formatDate = dateString => {
+export const formatDate = (dateString: any) => {
   if (!dateString) return '-';
   try {
     return new Date(dateString).toLocaleDateString();
@@ -14,7 +14,7 @@ export const formatDate = dateString => {
 };
 
 // Format YYYY-MM-DD string specifically to MM/DD/YYYY
-export const formatDisplayDate = isoDateString => {
+export const formatDisplayDate = (isoDateString: any) => {
   if (!isoDateString) return 'N/A';
   try {
     const parts = isoDateString.split('-');
@@ -30,13 +30,13 @@ export const formatDisplayDate = isoDateString => {
 };
 
 // Format number as currency
-export const formatCurrency = amount => {
+export const formatCurrency = (amount: any) => {
   if (amount == null || isNaN(amount)) return '$0.00';
   return `$${parseFloat(amount).toFixed(2)}`;
 };
 
 // Get MUI Chip color based on payment status
-export const getStatusChipColor = status => {
+export const getStatusChipColor = (status: any) => {
   switch (status?.toLowerCase()) {
     case 'paid':
       return 'success';

@@ -2,9 +2,9 @@ import { io } from 'socket.io-client';
 import logger from '../utils/logger';
 import config from '../config';
 
-let socket = null;
+let socket: any = null;
 
-export const initializeSocket = token => {
+export const initializeSocket = (token: any) => {
   if (!socket) {
     const wsUrl = config.wsUrl;
     logger.info(`Initializing socket connection to ${wsUrl}`);
@@ -30,20 +30,20 @@ export const initializeSocket = token => {
       logger.info('Socket authenticated successfully');
     });
 
-    socket.on('authentication_error', error => {
+    socket.on('authentication_error', (error: any) => {
       logger.error('Socket authentication failed:', error);
       disconnectSocket();
     });
 
-    socket.on('disconnect', reason => {
+    socket.on('disconnect', (reason: any) => {
       logger.warn(`Socket disconnected: ${reason}`);
     });
 
-    socket.on('error', error => {
+    socket.on('error', (error: any) => {
       logger.error('Socket error:', error);
     });
 
-    socket.on('connect_error', error => {
+    socket.on('connect_error', (error: any) => {
       logger.error('Socket connection error:', error);
     });
   }
@@ -65,19 +65,19 @@ export const getSocket = () => {
   return socket;
 };
 
-export const emitEvent = (event, data) => {
+export const emitEvent = (event: any, data: any) => {
   const currentSocket = getSocket();
   logger.info(`Emitting event: ${event}`, data);
   currentSocket.emit(event, data);
 };
 
-export const onEvent = (event, callback) => {
+export const onEvent = (event: any, callback: any) => {
   const currentSocket = getSocket();
   logger.info(`Listening for event: ${event}`);
   currentSocket.on(event, callback);
 };
 
-export const offEvent = (event, callback) => {
+export const offEvent = (event: any, callback: any) => {
   const currentSocket = getSocket();
   logger.info(`Removing listener for event: ${event}`);
   currentSocket.off(event, callback);

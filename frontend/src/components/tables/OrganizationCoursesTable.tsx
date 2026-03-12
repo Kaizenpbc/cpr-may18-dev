@@ -61,7 +61,7 @@ const getStatusChipColor = (status: string): 'default' | 'primary' | 'secondary'
   }
 };
 
-const formatDate = dateString => {
+const formatDate = (dateString: any) => {
   if (!dateString) return '-';
   try {
     return new Date(dateString).toLocaleDateString();
@@ -71,7 +71,7 @@ const formatDate = dateString => {
   }
 };
 
-const formatTime = timeString => {
+const formatTime = (timeString: any) => {
   if (!timeString) return '-';
   try {
     return timeString.slice(0, 5); // HH:MM format
@@ -82,7 +82,7 @@ const formatTime = timeString => {
 };
 
 // Helper function to check if upload should be disabled
-const isUploadDisabled = course => {
+const isUploadDisabled = (course: any) => {
   // Disable if course is completed or cancelled
   if (['completed', 'cancelled'].includes(course.status?.toLowerCase())) {
     return true;
@@ -105,7 +105,7 @@ const isUploadDisabled = course => {
 };
 
 // Helper function to get upload tooltip message
-const getUploadTooltip = course => {
+const getUploadTooltip = (course: any) => {
   if (['completed', 'cancelled'].includes(course.status?.toLowerCase())) {
     return `Cannot upload students - Course is ${course.status?.toLowerCase()}`;
   }

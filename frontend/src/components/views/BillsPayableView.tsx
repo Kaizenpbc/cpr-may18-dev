@@ -85,7 +85,7 @@ const BillsPayableView = () => {
   } = useQuery({
     queryKey: ['organization-invoices', selectedTab],
     queryFn: async () => {
-      const statusMap = {
+      const statusMap: Record<number, string | undefined> = {
         0: undefined, // All
         1: 'pending',
         2: 'overdue',
@@ -159,7 +159,7 @@ const BillsPayableView = () => {
     }
   };
 
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = (event: any, newValue: any) => {
     setSelectedTab(newValue);
   };
 
@@ -183,7 +183,7 @@ const BillsPayableView = () => {
     });
   };
 
-  const handleViewInvoice = invoice => {
+  const handleViewInvoice = (invoice: any) => {
     setSelectedInvoice(invoice);
     setInvoiceDetailOpen(true);
     
@@ -193,7 +193,7 @@ const BillsPayableView = () => {
     }
   };
 
-  const handlePayInvoice = invoice => {
+  const handlePayInvoice = (invoice: any) => {
     setSelectedInvoice(invoice);
     setPaymentData(prev => ({
       ...prev,
@@ -202,12 +202,12 @@ const BillsPayableView = () => {
     setPaymentDialogOpen(true);
   };
 
-  const handlePreviewPDF = invoiceId => {
+  const handlePreviewPDF = (invoiceId: any) => {
     const previewUrl = `${API_URL}/accounting/invoices/${invoiceId}/preview`;
     window.open(previewUrl, '_blank', 'width=800,height=1000,scrollbars=yes');
   };
 
-  const getStatusColor = status => {
+  const getStatusColor = (status: any) => {
     switch (status) {
       case 'paid':
         return 'success';
@@ -222,7 +222,7 @@ const BillsPayableView = () => {
     }
   };
 
-  const getStatusIcon = status => {
+  const getStatusIcon = (status: any) => {
     switch (status) {
       case 'paid':
         return <PaidIcon />;
@@ -237,14 +237,14 @@ const BillsPayableView = () => {
     }
   };
 
-  const formatCurrency = amount => {
+  const formatCurrency = (amount: any) => {
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency: 'CAD',
     }).format(amount || 0);
   };
 
-  const formatDate = dateString => {
+  const formatDate = (dateString: any) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString();
   };
@@ -623,7 +623,7 @@ const BillsPayableView = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                invoicesData?.invoices?.map(invoice => (
+                invoicesData?.invoices?.map((invoice: any) => (
                   <TableRow key={invoice.invoice_id} hover>
                     <TableCell>
                       <Typography variant='body2' fontWeight='medium'>

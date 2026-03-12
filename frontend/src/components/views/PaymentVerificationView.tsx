@@ -111,7 +111,7 @@ const PaymentVerificationView = () => {
       console.log('🔍 [PAYMENT VERIFICATION] API Response:', response.data);
       
       // Filter to only show payments that are actually pending verification
-      const pendingPayments = response.data.data.payments?.filter(payment => 
+      const pendingPayments = response.data.data.payments?.filter((payment: any) =>
         payment.status === 'pending_verification' || 
         payment.status === 'pending' ||
         !payment.verifiedByAccountingAt
@@ -319,14 +319,14 @@ const PaymentVerificationView = () => {
     }];
   };
 
-  const formatCurrency = amount => {
+  const formatCurrency = (amount: any) => {
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency: 'CAD',
     }).format(amount || 0);
   };
 
-  const formatDate = dateString => {
+  const formatDate = (dateString: any) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString();
   };
@@ -464,7 +464,7 @@ const PaymentVerificationView = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                paymentsData.payments.map(payment => {
+                paymentsData.payments.map((payment: any) => {
                   if (!payment) return null;
                   return (
                     <TableRow key={payment.paymentId} hover>

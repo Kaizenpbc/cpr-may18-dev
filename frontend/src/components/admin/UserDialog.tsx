@@ -43,7 +43,7 @@ const roles = [
   'Accounting',
 ];
 
-function UserDialog({ open, onClose, onSave, user, existingUsers = [] }) {
+function UserDialog({ open, onClose, onSave, user, existingUsers = [] }: { open: any; onClose: any; onSave: any; user: any; existingUsers?: any[] }) {
   const [userData, setUserData] = useState(initialUserState);
   const [organizations, setOrganizations] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -120,7 +120,7 @@ function UserDialog({ open, onClose, onSave, user, existingUsers = [] }) {
   }, [user, isEditMode, open, fetchOrganizations, fetchLocations]);
 
   // Handler for standard MUI TextFields
-  const handleTextChange = event => {
+  const handleTextChange = (event: any) => {
     const { name, value } = event.target;
     setUserData(prevData => {
       const newData = {
@@ -153,7 +153,7 @@ function UserDialog({ open, onClose, onSave, user, existingUsers = [] }) {
   };
 
   // Handler specifically for react-phone-number-input
-  const handlePhoneChange = (name, value) => {
+  const handlePhoneChange = (name: string, value: any) => {
     setUserData(prevData => ({
       ...prevData,
       // Use the name passed ('phone') and the value directly

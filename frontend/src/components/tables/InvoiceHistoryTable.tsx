@@ -34,12 +34,12 @@ import InfoIcon from '@mui/icons-material/Info';
 import PostAddIcon from '@mui/icons-material/PostAdd';
 
 // Helper functions (copied from AccountsReceivableTable - consider moving to utils)
-const formatCurrency = amount => {
+const formatCurrency = (amount: any) => {
   if (amount == null || isNaN(amount)) return '$0.00';
   return `$${parseFloat(amount).toFixed(2)}`;
 };
 
-const getStatusChipColor = status => {
+const getStatusChipColor = (status: any) => {
   switch (status?.toLowerCase()) {
     case 'paid':
       return 'success';
@@ -52,7 +52,7 @@ const getStatusChipColor = status => {
   }
 };
 
-const getStatusIcon = status => {
+const getStatusIcon = (status: any) => {
   switch (status?.toLowerCase()) {
     case 'paid':
       return <CheckCircleIcon fontSize="small" />;
@@ -65,7 +65,7 @@ const getStatusIcon = status => {
   }
 };
 
-const getApprovalStatusChipColor = status => {
+const getApprovalStatusChipColor = (status: any) => {
   switch (status?.toLowerCase()) {
     case 'approved':
       return 'success';
@@ -83,7 +83,7 @@ const getApprovalStatusChipColor = status => {
   }
 };
 
-const getApprovalStatusIcon = status => {
+const getApprovalStatusIcon = (status: any) => {
   switch (status?.toLowerCase()) {
     case 'approved':
       return <CheckCircleIcon fontSize="small" />;
@@ -102,7 +102,7 @@ const getApprovalStatusIcon = status => {
 };
 
 // Component to display within the expanded row
-const PaymentDetails = ({ invoiceId, onViewInvoice }) => {
+const PaymentDetails = ({ invoiceId, onViewInvoice }: { invoiceId: any; onViewInvoice: any }) => {
   const [payments, setPayments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -170,7 +170,7 @@ const PaymentDetails = ({ invoiceId, onViewInvoice }) => {
   );
 };
 
-const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
+const InvoiceHistoryTable = ({ invoices = [], onRefresh }: { invoices?: any[]; onRefresh?: any }) => {
   const [expandedRowId, setExpandedRowId] = useState(null); // State to track expanded row
 
   // Auto-refresh every 30 seconds
@@ -185,16 +185,16 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }) => {
     return () => clearInterval(interval);
   }, [onRefresh]);
 
-  const handleExpandClick = invoiceId => {
+  const handleExpandClick = (invoiceId: any) => {
     setExpandedRowId(expandedRowId === invoiceId ? null : invoiceId); // Toggle expansion
   };
 
-  const handlePreview = invoiceId => {
+  const handlePreview = (invoiceId: any) => {
     const previewUrl = `${API_URL}/accounting/invoices/${invoiceId}/preview`;
     window.open(previewUrl, '_blank', 'width=800,height=1000,scrollbars=yes');
   };
 
-  const handleDownloadPDF = async (invoiceId, invoiceNumber) => {
+  const handleDownloadPDF = async (invoiceId: any, invoiceNumber: any) => {
     try {
       console.log(`[PDF Download] Starting download for invoice ${invoiceId}`);
 

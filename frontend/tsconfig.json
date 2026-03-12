@@ -30,7 +30,7 @@
     "types": ["react", "react-dom", "node", "vitest/globals"],
     "jsxImportSource": "react",
     "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": false
+    "noImplicitAny": true
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]

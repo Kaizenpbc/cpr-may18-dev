@@ -14,6 +14,12 @@ const CancelCourseDialog = ({
   onConfirm,
   courseNumber,
   courseId,
+}: {
+  open: any;
+  onClose: any;
+  onConfirm: any;
+  courseNumber: any;
+  courseId: any;
 }) => {
   return (
     <Dialog

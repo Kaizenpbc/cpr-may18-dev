@@ -357,9 +357,9 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
     this.setState(prevState => ({
       hasError: false,
-      error: null,
-      errorInfo: null,
-      enhancedError: null,
+      error: null as Error | null,
+      errorInfo: null as ErrorInfo | null,
+      enhancedError: null as EnhancedError | null,
       retryCount: prevState.retryCount + 1,
       isRetrying: false,
     }));

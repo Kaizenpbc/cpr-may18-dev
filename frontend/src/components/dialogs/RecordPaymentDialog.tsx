@@ -22,7 +22,7 @@ import logger from '../../utils/logger';
 import { recordPayment } from '../../services/paymentService';
 
 // Helper function to format currency
-const formatCurrency = amount => {
+const formatCurrency = (amount: any) => {
   if (amount == null || isNaN(amount)) return '$0.00'; // Default to 0 if null/NaN
   return `$${parseFloat(amount).toFixed(2)}`;
 };
@@ -33,6 +33,12 @@ const RecordPaymentDialog = ({
   invoice,
   onSuccess,
   onError,
+}: {
+  open: any;
+  onClose: any;
+  invoice: any;
+  onSuccess: any;
+  onError: any;
 }) => {
   const [paymentData, setPaymentData] = useState({
     paymentDate: new Date().toISOString().split('T')[0], // Default to today
@@ -48,7 +54,7 @@ const RecordPaymentDialog = ({
   const [balanceDue, setBalanceDue] = useState(invoice?.amount || 0);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
 
-  const handleChange = event => {
+  const handleChange = (event: any) => {
     const { name, value } = event.target;
     // Allow only numbers and one decimal for amount
     if (name === 'amountPaid' && value && !/^[0-9]*\.?[0-9]*$/.test(value)) {
@@ -61,7 +67,7 @@ const RecordPaymentDialog = ({
     setError(''); // Clear error on change
   };
 
-  const handleSubmit = async event => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
     setIsSubmitting(true);
@@ -133,7 +139,7 @@ const RecordPaymentDialog = ({
         try {
           const payments = await api.getInvoicePayments(invoice.invoiceid);
           const totalPaid = payments.reduce(
-            (sum, p) => sum + parseFloat(p.amount_paid || 0),
+            (sum: number, p: any) => sum + parseFloat(p.amount_paid || 0),
             0
           );
           const originalAmount = parseFloat(invoice.amount || 0);

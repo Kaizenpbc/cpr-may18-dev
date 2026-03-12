@@ -22,6 +22,10 @@ const ScheduledCoursesTable = ({
   courses,
   onViewStudentsClick,
   onCancelClick,
+}: {
+  courses: any;
+  onViewStudentsClick: any;
+  onCancelClick: any;
 }) => {
   logger.debug(
     '[ScheduledCoursesTable Render] Received courses prop:',
@@ -57,7 +61,7 @@ const ScheduledCoursesTable = ({
           </TableRow>
         </TableHead>
         <TableBody>
-          {courses.map(course => {
+          {courses.map((course: any) => {
             logger.debug(
               `[ScheduledCoursesTable Map] Rendering row for Course ID: ${course.courseid}. Full course object:`,
               JSON.stringify(course)

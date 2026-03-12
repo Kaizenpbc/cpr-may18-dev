@@ -19,6 +19,11 @@ const InstructorDashboardTable = ({
   sortOrder,
   sortBy,
   onSortRequest,
+}: {
+  data: any;
+  sortOrder: any;
+  sortBy: any;
+  onSortRequest: any;
 }) => {
   if (!data || data.length === 0) {
     return (
@@ -28,7 +33,7 @@ const InstructorDashboardTable = ({
     );
   }
 
-  const createSortHandler = property => event => {
+  const createSortHandler = (property: any) => (event: any) => {
     onSortRequest(property);
   };
 
@@ -110,7 +115,7 @@ const InstructorDashboardTable = ({
           </TableRow>
         </TableHead>
         <TableBody>
-          {data.map(item => {
+          {data.map((item: any) => {
             // Extract course number if it's a course item
             const courseNumber = item.id.startsWith('course-')
               ? item.coursenumber

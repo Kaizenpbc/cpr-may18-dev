@@ -27,7 +27,7 @@ import {
 } from 'react-phone-number-input'; // Use built-in formatters
 
 // Helper to safely format phone numbers
-const formatPhone = phoneString => {
+const formatPhone = (phoneString: any) => {
   if (!phoneString) return '-';
   // Use formatPhoneNumber for national format, formatPhoneNumberIntl for international
   // formatPhoneNumber might return undefined if invalid, so handle that
@@ -65,13 +65,13 @@ function OrganizationManager() {
     // alert('Add Organization dialog not implemented yet.'); // Remove placeholder
   };
 
-  const handleEditOpen = org => {
+  const handleEditOpen = (org: any) => {
     setEditingOrg(org); // Set the org data for Edit mode
     setDialogOpen(true);
     // alert(`Edit Organization ${org.organizationid} dialog not implemented yet.`); // Remove placeholder
   };
 
-  const handleDelete = async orgId => {
+  const handleDelete = async (orgId: any) => {
     // Add confirmation dialog later
     if (
       window.confirm(

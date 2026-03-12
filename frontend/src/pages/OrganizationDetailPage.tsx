@@ -30,7 +30,7 @@ import OrgCourseHistoryTable from '../components/tables/OrgCourseHistoryTable'; 
 // TODO: Import OrgCourseHistoryTable when created
 
 // Helper function to format currency
-const formatCurrency = amount => {
+const formatCurrency = (amount: any) => {
   if (amount == null || isNaN(amount)) return '$0.00';
   return `$${parseFloat(amount).toFixed(2)}`;
 };
@@ -109,14 +109,14 @@ const OrganizationDetailPage = () => {
   }, [orgId]);
 
   // Handler for viewing invoice details
-  const handleViewInvoiceDetails = (invoiceId) => {
+  const handleViewInvoiceDetails = (invoiceId: any) => {
     logger.info(`[OrganizationDetailPage] Viewing invoice details for ID: ${invoiceId}`);
     // Navigate to invoice details page or open a dialog
     navigate(`/organization/invoice/${invoiceId}`);
   };
 
   // Handler for paying invoice
-  const handlePayInvoice = (invoiceId) => {
+  const handlePayInvoice = (invoiceId: any) => {
     const invoice = orgInvoices.find(inv => inv.invoiceid === invoiceId);
     if (invoice) {
       setSelectedInvoice(invoice);
@@ -132,7 +132,7 @@ const OrganizationDetailPage = () => {
   };
 
   // Handler for emailing invoice
-  const handleEmailInvoice = async (invoiceId) => {
+  const handleEmailInvoice = async (invoiceId: any) => {
     try {
       logger.info(`[OrganizationDetailPage] Emailing invoice ID: ${invoiceId}`);
       // Call API to email invoice

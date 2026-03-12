@@ -81,14 +81,14 @@ const CourseScheduling = () => {
   const uniqueInstructors = useMemo((): string[] => {
     const instructors = courses
       .map((course: Record<string, unknown>) => course.instructorName as string)
-      .filter((name): name is string => !!name && name !== 'Not Assigned');
+      .filter((name: any): name is string => !!name && name !== 'Not Assigned');
     return Array.from(new Set<string>(instructors)).sort();
   }, [courses]);
 
   const uniqueOrganizations = useMemo((): string[] => {
     const organizations = courses
       .map((course: Record<string, unknown>) => course.organizationName as string)
-      .filter((name): name is string => !!name);
+      .filter((name: any): name is string => !!name);
     return Array.from(new Set<string>(organizations)).sort();
   }, [courses]);
 

@@ -26,7 +26,7 @@ import {
 import { sysAdminApi } from '../../services/api';
 import logger from '../../utils/logger';
 
-const SystemAdminDashboard = ({ onShowSnackbar }) => {
+const SystemAdminDashboard = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -50,11 +50,11 @@ const SystemAdminDashboard = ({ onShowSnackbar }) => {
     }
   };
 
-  const formatDate = dateString => {
+  const formatDate = (dateString: any) => {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const StatCard = ({ title, value, icon, color = 'primary' }) => (
+  const StatCard = ({ title, value, icon, color = 'primary' }: { title: any; value: any; icon: any; color?: any }) => (
     <Card elevation={2} sx={{ height: '100%' }}>
       <CardContent>
         <Box
@@ -173,7 +173,7 @@ const SystemAdminDashboard = ({ onShowSnackbar }) => {
             </Typography>
             {recentActivity?.users?.length > 0 ? (
               <List>
-                {recentActivity.users.map((user, index) => (
+                {recentActivity.users.map((user: any, index: any) => (
                   <ListItem
                     key={index}
                     divider={index < recentActivity.users.length - 1}
@@ -234,7 +234,7 @@ const SystemAdminDashboard = ({ onShowSnackbar }) => {
             </Typography>
             {recentActivity?.courses?.length > 0 ? (
               <List>
-                {recentActivity.courses.map((course, index) => (
+                {recentActivity.courses.map((course: any, index: any) => (
                   <ListItem
                     key={index}
                     divider={index < recentActivity.courses.length - 1}

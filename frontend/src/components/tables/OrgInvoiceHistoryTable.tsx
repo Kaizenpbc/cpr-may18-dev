@@ -33,6 +33,11 @@ const OrgInvoiceHistoryTable = ({
   onViewDetailsClick,
   onEmailInvoiceClick,
   onPayInvoiceClick,
+}: {
+  invoices?: any[];
+  onViewDetailsClick: any;
+  onEmailInvoiceClick: any;
+  onPayInvoiceClick: any;
 }) => {
   if (!invoices || invoices.length === 0) {
     return (

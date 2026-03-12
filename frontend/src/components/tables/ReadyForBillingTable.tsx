@@ -31,16 +31,21 @@ const ReadyForBillingTable = ({
   onCreateInvoice,
   isLoading,
   error,
+}: {
+  courses: any;
+  onCreateInvoice: any;
+  isLoading: any;
+  error: any;
 }) => {
   const { user } = useAuth();
-  const [creatingInvoice, setCreatingInvoice] = useState({});
+  const [creatingInvoice, setCreatingInvoice] = useState<Record<string, boolean>>({});
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [students, setStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [invoiceSuccess, setInvoiceSuccess] = useState(false);
 
-  const fetchStudents = async (courseId) => {
+  const fetchStudents = async (courseId: any) => {
     if (!courseId) {
       console.error('No course ID provided for fetching students');
       setStudents([]);
@@ -74,7 +79,7 @@ const ReadyForBillingTable = ({
       let normalizedStudents = response.data.data || [];
       if (user?.role === 'instructor') {
         // Transform instructor endpoint format to match accounting format
-        normalizedStudents = normalizedStudents.map(student => ({
+        normalizedStudents = normalizedStudents.map((student: any) => ({
           id: student.studentId,
           firstName: student.firstName,
           lastName: student.lastName,
@@ -99,7 +104,7 @@ const ReadyForBillingTable = ({
     }
   };
 
-  const handleViewInvoice = (course) => {
+  const handleViewInvoice = (course: any) => {
     if (!course || !course.courseId) {
       console.error('Invalid course data for invoice preview:', course);
       return;

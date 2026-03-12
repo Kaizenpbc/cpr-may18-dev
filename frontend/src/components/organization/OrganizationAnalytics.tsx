@@ -97,7 +97,7 @@ const OrganizationAnalytics = () => {
     }
   };
 
-  const handleTimeframeChange = event => {
+  const handleTimeframeChange = (event: any) => {
     setTimeframe(event.target.value);
   };
 
@@ -304,7 +304,7 @@ const OrganizationAnalytics = () => {
                   cx='50%'
                   cy='50%'
                   labelLine={false}
-                  label={({ courseName, percentage }) =>
+                  label={({ courseName, percentage }: any) =>
                     `${courseName}: ${percentage}%`
                   }
                   outerRadius={80}
@@ -312,7 +312,7 @@ const OrganizationAnalytics = () => {
                   dataKey='requestCount'
                 >
                   {(courseRequestData?.courseNamePreferences || []).map(
-                    (entry, index) => (
+                    (entry: any, index: any) => (
                       <Cell
                         key={`cell-${index}`}
                         fill={COLORS[index % COLORS.length]}
@@ -357,7 +357,7 @@ const OrganizationAnalytics = () => {
             </Typography>
             <List>
               {(courseRequestData?.leadTimeAnalysis || []).map(
-                (item, index) => (
+                (item: any, index: any) => (
                   <ListItem key={index}>
                     <ListItemIcon>
                       <AccessTime color='primary' />
@@ -386,7 +386,7 @@ const OrganizationAnalytics = () => {
             </Typography>
             <Box sx={{ mt: 2 }}>
               {(studentParticipationData?.attendanceRates || []).map(
-                (item, index) => (
+                (item: any, index: any) => (
                   <Box key={index} sx={{ mb: 2 }}>
                     <Box
                       sx={{
@@ -480,7 +480,7 @@ const OrganizationAnalytics = () => {
             </Typography>
             <Grid container spacing={2}>
               {(studentParticipationData?.completionRates || []).map(
-                (item, index) => (
+                (item: any, index: any) => (
                   <Grid item xs={12} sm={6} md={4} key={index}>
                     <Card variant='outlined'>
                       <CardContent>

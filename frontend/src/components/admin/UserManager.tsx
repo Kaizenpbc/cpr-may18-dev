@@ -26,7 +26,7 @@ import { formatPhoneNumber } from 'react-phone-number-input';
 import logger from '../../utils/logger';
 
 // Helper to safely format phone numbers (copied from OrganizationManager)
-const formatPhone = phoneString => {
+const formatPhone = (phoneString: any) => {
   if (!phoneString) return '-';
   return formatPhoneNumber(phoneString) || phoneString;
 };
@@ -71,12 +71,12 @@ function UserManager() {
     setDialogOpen(true);
   };
 
-  const handleEditOpen = user => {
+  const handleEditOpen = (user: any) => {
     setEditingUser(user); // Set the user data for Edit mode
     setDialogOpen(true);
   };
 
-  const handleDelete = async userId => {
+  const handleDelete = async (userId: any) => {
     const userToDelete = users.find(u => u.userId === userId);
     const confirmMessage = userToDelete
       ? `Are you sure you want to delete user: ${userToDelete.username} (ID: ${userId})?`

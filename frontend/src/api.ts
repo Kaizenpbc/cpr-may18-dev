@@ -73,7 +73,7 @@ export const updateCoursePricing = async (pricingId: number, price: number): Pro
 };
 
 // Invoice-related functions (placeholders for now since backend endpoints don't exist yet)
-export const getInvoices = async () => {
+export const getInvoices = async (): Promise<any[]> => {
   try {
     // This endpoint doesn't exist yet - return empty array for now
     return [];
@@ -83,7 +83,7 @@ export const getInvoices = async () => {
   }
 };
 
-export const getInvoiceDetails = async invoiceId => {
+export const getInvoiceDetails = async (invoiceId: any): Promise<any> => {
   try {
     // This endpoint doesn't exist yet - return null for now
     return null;
@@ -93,7 +93,7 @@ export const getInvoiceDetails = async invoiceId => {
   }
 };
 
-export const getInvoicePayments = async invoiceId => {
+export const getInvoicePayments = async (invoiceId: any): Promise<any[]> => {
   try {
     // This endpoint doesn't exist yet - return empty array for now
     return [];
@@ -113,7 +113,7 @@ export const recordPayment = async (invoiceId: number, amount: number): Promise<
   }
 };
 
-export const getBillingQueue = async () => {
+export const getBillingQueue = async (): Promise<any[]> => {
   try {
     // This endpoint doesn't exist yet - return empty array for now
     return [];
@@ -123,7 +123,7 @@ export const getBillingQueue = async () => {
   }
 };
 
-export const createInvoice = async courseId => {
+export const createInvoice = async (courseId: any): Promise<any> => {
   try {
     // This endpoint doesn't exist yet - return success for now
     return { success: true, invoiceId: Date.now() };
@@ -134,7 +134,7 @@ export const createInvoice = async courseId => {
 };
 
 // Report API functions (placeholders for now)
-export const getRevenueReport = async year => {
+export const getRevenueReport = async (year: any): Promise<{ year: any; months: any[]; totalRevenue: number }> => {
   try {
     // This endpoint doesn't exist yet - return empty data for now
     return {
@@ -148,7 +148,7 @@ export const getRevenueReport = async year => {
   }
 };
 
-export const getInstructorWorkloadReport = async (startDate, endDate) => {
+export const getInstructorWorkloadReport = async (startDate: any, endDate: any): Promise<any[]> => {
   try {
     // This endpoint doesn't exist yet - return empty data for now
     return [];
@@ -158,7 +158,7 @@ export const getInstructorWorkloadReport = async (startDate, endDate) => {
   }
 };
 
-export const getArAgingReport = async () => {
+export const getArAgingReport = async (): Promise<{ buckets: any[]; totalOutstanding: number }> => {
   try {
     // This endpoint doesn't exist yet - return empty data for now
     return {

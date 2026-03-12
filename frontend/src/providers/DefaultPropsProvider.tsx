@@ -23,7 +23,7 @@ const defaultTheme = createTheme({
   },
 });
 
-const DefaultPropsProvider = ({ children }) => {
+const DefaultPropsProvider = ({ children }: { children: React.ReactNode }) => {
   return <ThemeProvider theme={defaultTheme}>{children}</ThemeProvider>;
 };
 

@@ -39,7 +39,7 @@ import { useTodayClasses, useClassStudents, useMarkAttendance } from '../../../s
 import { instructorApi } from '../../../services/api';
 import { handleError } from '../../../services/errorHandler';
 
-const AttendanceView = ({ onAttendanceUpdate }) => {
+const AttendanceView = ({ onAttendanceUpdate }: { onAttendanceUpdate: any }) => {
   const { logout } = useAuth();
   const navigate = useNavigate();
   
@@ -74,13 +74,13 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
     }
   }, [classesError]);
 
-  const handleClassChange = event => {
+  const handleClassChange = (event: any) => {
     const classId = event.target.value;
-    const selected = todaysClasses.find(c => c.courseId === classId);
+    const selected = todaysClasses.find((c: any) => c.courseId === classId);
     setSelectedClass(selected);
   };
 
-  const handleAttendanceChange = async (studentId, attended) => {
+  const handleAttendanceChange = async (studentId: any, attended: any) => {
     if (!selectedClass) return;
 
     try {
@@ -139,7 +139,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
     }
   };
 
-  const formatTime = timeString => {
+  const formatTime = (timeString: any) => {
     if (!timeString) return '';
     return timeString.slice(0, 5); // Convert "09:00:00" to "09:00"
   };
@@ -204,7 +204,7 @@ const AttendanceView = ({ onAttendanceUpdate }) => {
                 label="Today's Classes"
                 onChange={handleClassChange}
               >
-                {todaysClasses.map(course => (
+                {todaysClasses.map((course: any) => (
                   <MenuItem key={course.courseId} value={course.courseId}>
                     <Box>
                       <Typography variant='body1'>

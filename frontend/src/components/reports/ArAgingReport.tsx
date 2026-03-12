@@ -18,7 +18,7 @@ import * as api from '../../services/api';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 
 // --- Helper to render the detail table for a bucket ---
-const BucketDetailTable = ({ invoices, bucketTitle }) => {
+const BucketDetailTable = ({ invoices, bucketTitle }: { invoices: any; bucketTitle: any }) => {
   if (!invoices || invoices.length === 0) {
     return (
       <Typography sx={{ p: 2, fontStyle: 'italic' }}>
@@ -47,7 +47,7 @@ const BucketDetailTable = ({ invoices, bucketTitle }) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {invoices.map(inv => (
+            {invoices.map((inv: any) => (
               <TableRow key={inv.invoiceId} hover>
                 <TableCell>{inv.invoiceNumber}</TableCell>
                 <TableCell>{inv.organizationName}</TableCell>
@@ -109,7 +109,7 @@ const ArAgingReport = () => {
     over90: { label: 'Over 90 Days Past Due', data: buckets.over90 },
   };
 
-  const handleBucketClick = key => {
+  const handleBucketClick = (key: any) => {
     setExpandedBucketKey(expandedBucketKey === key ? null : key); // Toggle expansion
   };
 

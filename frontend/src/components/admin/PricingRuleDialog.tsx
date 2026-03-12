@@ -26,7 +26,7 @@ const initialRuleState = {
   price: '', // Store as string for TextField
 };
 
-function PricingRuleDialog({ open, onClose, onSave, rule }) {
+function PricingRuleDialog({ open, onClose, onSave, rule }: { open: any; onClose: any; onSave: any; rule: any }) {
   const [formData, setFormData] = useState(initialRuleState);
   const [organizations, setOrganizations] = useState([]);
   const [courseTypes, setCourseTypes] = useState([]);
@@ -76,7 +76,7 @@ function PricingRuleDialog({ open, onClose, onSave, rule }) {
     }
   }, [rule, isEditMode, open, fetchLists]);
 
-  const handleChange = event => {
+  const handleChange = (event: any) => {
     const { name, value } = event.target;
     // Allow only numbers and one decimal point for price
     if (name === 'price' && value && !/^[0-9]*\.?[0-9]{0,2}$/.test(value)) {

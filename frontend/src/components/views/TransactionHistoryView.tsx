@@ -134,7 +134,7 @@ const TransactionHistoryView = () => {
     // Update dependencies
   }, [searchTerm, selectedOrgId, selectedMonth, selectedStatus, allInvoices]);
 
-  const handleSearchChange = event => {
+  const handleSearchChange = (event: any) => {
     setSearchTerm(event.target.value);
   };
 

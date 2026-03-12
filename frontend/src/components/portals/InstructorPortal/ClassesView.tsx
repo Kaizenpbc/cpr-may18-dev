@@ -5,7 +5,7 @@ import logger from '../../../utils/logger';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-const ClassesView = ({ classes }) => {
+const ClassesView = ({ classes }: { classes: any }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { logout } = useAuth();
@@ -13,7 +13,7 @@ const ClassesView = ({ classes }) => {
 
   logger.debug('[ClassesView] Component rendered with classes:', classes);
 
-  const handleUpdateAttendance = async (classId, attendance) => {
+  const handleUpdateAttendance = async (classId: any, attendance: any) => {
     logger.debug(
       '[ClassesView] Updating attendance for class:',
       classId,
@@ -45,7 +45,7 @@ const ClassesView = ({ classes }) => {
     }
   };
 
-  const handleUpdateNotes = async (classId, notes) => {
+  const handleUpdateNotes = async (classId: any, notes: any) => {
     logger.debug('[ClassesView] Updating notes for class:', classId, notes);
     setLoading(true);
     setError(null);

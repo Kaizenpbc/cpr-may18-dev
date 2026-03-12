@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import { format } from 'date-fns';
 
-const ScheduledClassesView = ({ scheduledClasses, onAttendanceClick }) => {
+const ScheduledClassesView = ({ scheduledClasses, onAttendanceClick }: { scheduledClasses: any; onAttendanceClick: any }) => {
   return (
     <Paper elevation={3} sx={{ p: 3 }}>
       <Box sx={{ mb: 3 }}>
@@ -41,7 +41,7 @@ const ScheduledClassesView = ({ scheduledClasses, onAttendanceClick }) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {scheduledClasses.map(course => (
+            {scheduledClasses.map((course: any) => (
               <TableRow key={course.courseid}>
                 <TableCell>{course.coursenumber}</TableCell>
                 <TableCell>{course.coursetypename}</TableCell>

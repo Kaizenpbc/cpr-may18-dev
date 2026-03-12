@@ -67,12 +67,12 @@ function PricingRuleManager() {
     setDialogOpen(true);
   };
 
-  const handleEditOpen = rule => {
+  const handleEditOpen = (rule: any) => {
     setEditingRule(rule);
     setDialogOpen(true);
   };
 
-  const handleDelete = async id => {
+  const handleDelete = async (id: any) => {
     // Confirmation
     if (
       window.confirm(

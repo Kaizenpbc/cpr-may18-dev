@@ -23,6 +23,11 @@ const PendingCoursesTable = ({
   onScheduleClick,
   onViewStudentsClick,
   onCancelClick,
+}: {
+  courses: any;
+  onScheduleClick: any;
+  onViewStudentsClick: any;
+  onCancelClick: any;
 }) => {
   if (!courses || courses.length === 0) {
     return <Typography sx={{ mt: 2 }}>No pending courses found.</Typography>;
@@ -50,7 +55,7 @@ const PendingCoursesTable = ({
           </TableRow>
         </TableHead>
         <TableBody>
-          {courses.map(course => (
+          {courses.map((course: any) => (
             <TableRow
               key={course.courseid}
               hover

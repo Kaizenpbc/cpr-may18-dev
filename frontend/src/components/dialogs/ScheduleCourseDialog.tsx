@@ -20,7 +20,7 @@ import ScheduleCourseForm from '../forms/ScheduleCourseForm';
 import logger from '../../utils/logger';
 import { formatDisplayDate } from '../../utils/dateUtils';
 
-const ScheduleCourseDialog = ({ open, onClose, course, onCourseScheduled }) => {
+const ScheduleCourseDialog = ({ open, onClose, course, onCourseScheduled }: { open: any; onClose: any; course: any; onCourseScheduled: any }) => {
   const [instructors, setInstructors] = useState([]);
   const [isLoadingInstructors, setIsLoadingInstructors] = useState(false);
   const [selectedInstructorId, setSelectedInstructorId] = useState('');
@@ -64,13 +64,13 @@ const ScheduleCourseDialog = ({ open, onClose, course, onCourseScheduled }) => {
     }
   }, [open]);
 
-  const handleCourseScheduled = course => {
+  const handleCourseScheduled = (course: any) => {
     logger.info('Course scheduled successfully:', course);
     onCourseScheduled(course);
     onClose();
   };
 
-  const handleError = error => {
+  const handleError = (error: any) => {
     logger.error('Error scheduling course:', error);
     setError(error.message || 'Failed to schedule course');
   };

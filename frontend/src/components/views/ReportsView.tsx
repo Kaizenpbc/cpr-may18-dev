@@ -18,7 +18,7 @@ const CourseSchedulingReport = () => (
 const ReportsView = () => {
   const [selectedReport, setSelectedReport] = useState(0); // Index of the selected tab
 
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = (event: any, newValue: any) => {
     setSelectedReport(newValue);
   };
 

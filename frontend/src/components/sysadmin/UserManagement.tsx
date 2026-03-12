@@ -39,7 +39,7 @@ import {
 import { sysAdminApi } from '../../services/api';
 import logger from '../../utils/logger';
 
-const UserManagement = ({ onShowSnackbar }) => {
+const UserManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
   const [users, setUsers] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -106,7 +106,7 @@ const UserManagement = ({ onShowSnackbar }) => {
     }
   };
 
-  const loadLocations = async (orgId) => {
+  const loadLocations = async (orgId: any) => {
     if (!orgId) {
       setLocations([]);
       return;
@@ -141,7 +141,7 @@ const UserManagement = ({ onShowSnackbar }) => {
     setShowDialog(true);
   };
 
-  const handleEdit = async user => {
+  const handleEdit = async (user: any) => {
     setEditingUser(user);
     setFormData({
       username: user.username || '',
@@ -169,7 +169,7 @@ const UserManagement = ({ onShowSnackbar }) => {
     setShowDialog(true);
   };
 
-  const handleDelete = async user => {
+  const handleDelete = async (user: any) => {
     if (
       window.confirm(
         `Are you sure you want to deactivate the user "${user.username}"?`
@@ -186,7 +186,7 @@ const UserManagement = ({ onShowSnackbar }) => {
     }
   };
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
 
     if (!formData.username.trim() || !formData.email.trim() || !formData.role) {
@@ -239,7 +239,7 @@ const UserManagement = ({ onShowSnackbar }) => {
     }
   };
 
-  const handleChange = async e => {
+  const handleChange = async (e: any) => {
     const { name, value, checked, type } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -257,11 +257,11 @@ const UserManagement = ({ onShowSnackbar }) => {
     }
   };
 
-  const formatDate = dateString => {
+  const formatDate = (dateString: any) => {
     return dateString ? new Date(dateString).toLocaleDateString() : '-';
   };
 
-  const getRoleColor = role => {
+  const getRoleColor = (role: any) => {
     switch (role) {
       case 'admin':
         return 'error';
@@ -369,7 +369,7 @@ const UserManagement = ({ onShowSnackbar }) => {
                 </TableCell>
               </TableRow>
             ) : (
-              users.map((user, index) => (
+              users.map((user: any, index: any) => (
                 <TableRow
                   key={user.id}
                   hover
@@ -560,7 +560,7 @@ const UserManagement = ({ onShowSnackbar }) => {
                     onChange={handleChange}
                   >
                     <MenuItem value=''>None</MenuItem>
-                    {organizations.map(org => (
+                    {organizations.map((org: any) => (
                       <MenuItem key={org.id} value={org.id}>
                         {org.organizationName}
                       </MenuItem>
@@ -579,7 +579,7 @@ const UserManagement = ({ onShowSnackbar }) => {
                       onChange={handleChange}
                     >
                       <MenuItem value=''>Select Location</MenuItem>
-                      {locations.map(loc => (
+                      {locations.map((loc: any) => (
                         <MenuItem key={loc.id} value={loc.id}>
                           {loc.locationName}
                         </MenuItem>

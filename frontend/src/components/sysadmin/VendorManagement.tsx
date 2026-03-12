@@ -39,7 +39,7 @@ import {
 import { sysAdminApi } from '../../services/api';
 import logger from '../../utils/logger';
 
-const VendorManagement = ({ onShowSnackbar }) => {
+const VendorManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -146,7 +146,7 @@ const VendorManagement = ({ onShowSnackbar }) => {
     setShowDialog(true);
   };
 
-  const handleEdit = vendor => {
+  const handleEdit = (vendor: any) => {
     setEditingVendor(vendor);
     setFormData({
       vendorName: vendor.vendorName || '',
@@ -179,7 +179,7 @@ const VendorManagement = ({ onShowSnackbar }) => {
     setShowDialog(true);
   };
 
-  const handleDelete = async vendor => {
+  const handleDelete = async (vendor: any) => {
     if (
       window.confirm(
         `Are you sure you want to deactivate the vendor "${vendor.vendorName}"?`
@@ -196,7 +196,7 @@ const VendorManagement = ({ onShowSnackbar }) => {
     }
   };
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
 
     if (!formData.vendorName.trim()) {
@@ -229,7 +229,7 @@ const VendorManagement = ({ onShowSnackbar }) => {
     }
   };
 
-  const handleChange = e => {
+  const handleChange = (e: any) => {
     const { name, value, checked, type } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -237,7 +237,7 @@ const VendorManagement = ({ onShowSnackbar }) => {
     }));
   };
 
-  const handleServicesChange = e => {
+  const handleServicesChange = (e: any) => {
     const { value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -245,11 +245,11 @@ const VendorManagement = ({ onShowSnackbar }) => {
     }));
   };
 
-  const formatDate = dateString => {
+  const formatDate = (dateString: any) => {
     return dateString ? new Date(dateString).toLocaleDateString() : '-';
   };
 
-  const getStatusColor = status => {
+  const getStatusColor = (status: any) => {
     switch (status) {
       case 'active':
         return 'success';
@@ -262,7 +262,7 @@ const VendorManagement = ({ onShowSnackbar }) => {
     }
   };
 
-  const getCertificationColor = status => {
+  const getCertificationColor = (status: any) => {
     switch (status) {
       case 'Certified':
         return 'success';
@@ -365,7 +365,7 @@ const VendorManagement = ({ onShowSnackbar }) => {
                 </TableCell>
               </TableRow>
             ) : (
-              vendors.map((vendor, index) => (
+              vendors.map((vendor: any, index: any) => (
                 <TableRow
                   key={vendor.id}
                   hover
@@ -412,7 +412,7 @@ const VendorManagement = ({ onShowSnackbar }) => {
                       {vendor.services && vendor.services.length > 0 ? (
                         vendor.services
                           .slice(0, 2)
-                          .map((service, idx) => (
+                          .map((service: any, idx: any) => (
                             <Chip
                               key={idx}
                               label={service}
@@ -616,9 +616,9 @@ const VendorManagement = ({ onShowSnackbar }) => {
                     value={formData.services}
                     label='Services Provided'
                     onChange={handleServicesChange}
-                    renderValue={selected => (
+                    renderValue={(selected: any) => (
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {selected.map(value => (
+                        {selected.map((value: any) => (
                           <Chip key={value} label={value} size='small' />
                         ))}
                       </Box>

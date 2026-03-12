@@ -1,10 +1,10 @@
 import { getInvoicePayments as apiGetInvoicePayments, recordInvoicePayment } from './api';
 
-export const getInvoicePayments = async invoiceId => {
+export const getInvoicePayments = async (invoiceId: any) => {
   return apiGetInvoicePayments(invoiceId);
 };
 
-export const recordPayment = async (invoiceId, paymentData) => {
+export const recordPayment = async (invoiceId: any, paymentData: any) => {
   return recordInvoicePayment(invoiceId, paymentData);
 };
 

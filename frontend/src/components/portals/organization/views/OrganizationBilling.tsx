@@ -253,7 +253,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
       console.log('Processed payment history data:', paymentsData);
       
       // Filter out invalid payments and remove duplicates
-      const validPayments = paymentsData.filter(payment => {
+      const validPayments = paymentsData.filter((payment: any) => {
         return payment && 
                payment.id && 
                (payment.amount_paid || payment.amount) && 
@@ -262,10 +262,10 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
       
       // Remove duplicates based on payment ID and ensure valid data
       const uniquePayments = validPayments
-        .filter((payment, index, self) => 
-          index === self.findIndex(p => p.id === payment.id)
+        .filter((payment: any, index: any, self: any) =>
+          index === self.findIndex((p: any) => p.id === payment.id)
         )
-        .map(payment => ({
+        .map((payment: any) => ({
           ...payment,
           amount_paid: Number(payment.amount_paid || payment.amount || 0),
           payment_date: payment.payment_date || payment.created_at,

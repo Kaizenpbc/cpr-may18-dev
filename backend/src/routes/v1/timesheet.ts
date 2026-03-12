@@ -3,6 +3,7 @@ import { authenticateToken } from '../../middleware/authMiddleware.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
 import { pool } from '../../config/database.js';
+import { devLog } from '../../utils/devLog.js';
 
 const router = express.Router();
 
@@ -764,7 +765,7 @@ router.post('/reminders/send', authenticateToken, asyncHandler(async (req: Reque
         sentCount++;
       } catch (notifError) {
         // If notifications table doesn't exist, just log
-        console.log('Notification table may not exist, skipping notification creation');
+        devLog('Notification table may not exist, skipping notification creation');
       }
     }
 

@@ -25,6 +25,15 @@ const CalendarView = ({
   ontarioHolidays2024,
   handleDateClick,
   viewType, // 'availability' or 'classes'
+}: {
+  currentDate: any;
+  handlePreviousMonth: any;
+  handleNextMonth: any;
+  availableDates: any;
+  scheduledClasses: any;
+  ontarioHolidays2024: any;
+  handleDateClick: any;
+  viewType: any;
 }) => {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -250,7 +259,7 @@ const CalendarView = ({
               ? ontarioHolidays2024.includes(isoDateString)
               : (ontarioHolidays2024?.has?.(isoDateString) ?? false);
             const scheduledClass = scheduledClasses?.find(
-              course =>
+              (course: any) =>
                 course.datescheduled &&
                 new Date(course.datescheduled).toISOString().split('T')[0] ===
                   isoDateString

@@ -82,12 +82,12 @@ const PaymentReversalView = () => {
     },
   });
 
-  const handleReversalClick = (payment) => {
+  const handleReversalClick = (payment: any) => {
     setSelectedPayment(payment);
     setReversalDialogOpen(true);
   };
 
-  const handleViewDetails = (payment) => {
+  const handleViewDetails = (payment: any) => {
     setSelectedPayment(payment);
     setViewDetailsDialogOpen(true);
   };
@@ -101,24 +101,24 @@ const PaymentReversalView = () => {
     });
   };
 
-  const formatCurrency = amount => {
+  const formatCurrency = (amount: any) => {
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency: 'CAD',
     }).format(amount || 0);
   };
 
-  const formatDate = dateString => {
+  const formatDate = (dateString: any) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString();
   };
 
-  const formatDateTime = dateString => {
+  const formatDateTime = (dateString: any) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleString();
   };
 
-  const canReversePayment = (payment) => {
+  const canReversePayment = (payment: any) => {
     if (payment.status !== 'verified') return false;
     
     const verificationDate = new Date(payment.verified_by_accounting_at);
@@ -128,7 +128,7 @@ const PaymentReversalView = () => {
     return hoursSinceVerification <= 48;
   };
 
-  const getTimeRemaining = (payment) => {
+  const getTimeRemaining = (payment: any) => {
     const verificationDate = new Date(payment.verified_by_accounting_at);
     const now = new Date();
     const hoursSinceVerification = (now.getTime() - verificationDate.getTime()) / (1000 * 60 * 60);
@@ -205,7 +205,7 @@ const PaymentReversalView = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {payments.map((payment) => (
+            {payments.map((payment: any) => (
               <TableRow key={payment.payment_id}>
                 <TableCell>{payment.payment_id}</TableCell>
                 <TableCell>{payment.invoice_number}</TableCell>

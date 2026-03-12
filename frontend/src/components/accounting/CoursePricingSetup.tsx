@@ -107,7 +107,7 @@ const CoursePricingSetup = () => {
     }
   };
 
-  const handleEditStart = pricing => {
+  const handleEditStart = (pricing: any) => {
     setEditingId(pricing.id);
     setEditPrice(pricing.pricePerStudent.toString());
   };
@@ -117,7 +117,7 @@ const CoursePricingSetup = () => {
     setEditPrice('');
   };
 
-  const handleEditSave = async id => {
+  const handleEditSave = async (id: any) => {
     try {
       const price = parseFloat(editPrice);
       if (isNaN(price) || price <= 0) {
@@ -168,23 +168,23 @@ const CoursePricingSetup = () => {
     }
   };
 
-  const formatCurrency = amount => {
+  const formatCurrency = (amount: any) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
     }).format(amount);
   };
 
-  const formatDate = dateString => {
+  const formatDate = (dateString: any) => {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const getOrganizationName = id => {
+  const getOrganizationName = (id: any) => {
     const org = organizations.find(o => o.id === id);
     return org ? org.name : 'Unknown';
   };
 
-  const getCourseTypeName = id => {
+  const getCourseTypeName = (id: any) => {
     const type = courseTypes.find(t => t.id === id);
     return type ? type.name : 'Unknown';
   };

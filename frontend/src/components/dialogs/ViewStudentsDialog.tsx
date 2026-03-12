@@ -26,7 +26,7 @@ import {
 import { organizationApi } from '../../services/api';
 import logger from '../../utils/logger';
 
-const ViewStudentsDialog = ({ open, onClose, courseId }) => {
+const ViewStudentsDialog = ({ open, onClose, courseId }: { open: any; onClose: any; courseId: any }) => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -55,7 +55,7 @@ const ViewStudentsDialog = ({ open, onClose, courseId }) => {
     }
   }, [open, courseId]);
 
-  const formatDate = dateString => {
+  const formatDate = (dateString: any) => {
     if (!dateString) return '';
     try {
       return new Date(dateString).toLocaleDateString();
@@ -64,7 +64,7 @@ const ViewStudentsDialog = ({ open, onClose, courseId }) => {
     }
   };
 
-  const getAttendanceChip = student => {
+  const getAttendanceChip = (student: any) => {
     if (!student.attendanceMarked) {
       return (
         <Chip

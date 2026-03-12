@@ -24,7 +24,7 @@ import * as api from '../../services/api';
 import { formatCurrency } from '../../utils/formatters';
 
 // Function to get month name from YYYY-MM
-const getMonthName = monthStr => {
+const getMonthName = (monthStr: any) => {
   if (!monthStr || monthStr.length !== 7) return monthStr;
   const date = new Date(`${monthStr}-01T12:00:00`); // Use midday to avoid TZ issues
   return date.toLocaleString('default', { month: 'short' });
@@ -44,7 +44,7 @@ const RevenueReport = () => {
       try {
         const data = await api.getRevenueReport(selectedYear);
         const formattedData = data.map
-          ? data.map(item => ({
+          ? data.map((item: any) => ({
               ...item,
               shortMonth: getMonthName(item.month),
               totalDue: item.balanceBroughtForward + item.totalInvoiced,
@@ -65,7 +65,7 @@ const RevenueReport = () => {
     fetchReport();
   }, [selectedYear]);
 
-  const handleYearChange = event => {
+  const handleYearChange = (event: any) => {
     const year = parseInt(event.target.value, 10);
     if (!isNaN(year)) {
       setSelectedYear(year);

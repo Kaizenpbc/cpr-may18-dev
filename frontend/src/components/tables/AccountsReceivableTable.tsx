@@ -40,7 +40,7 @@ import { formatDate, getStatusChipColor, formatCurrency } from '../../utils/form
 import PaymentHistoryTable from '../common/PaymentHistoryTable';
 
 // Helper function for approval status colors
-const getApprovalStatusChipColor = status => {
+const getApprovalStatusChipColor = (status: any) => {
   switch (status?.toLowerCase()) {
     case 'approved':
       return 'success';
@@ -59,9 +59,9 @@ const getApprovalStatusChipColor = status => {
 };
 
 // Student Attendance Dialog Component
-const StudentAttendanceDialog = ({ open, onClose, courseId, students, loadingStudents }) => {
-  const presentCount = students.filter(s => s.attended).length;
-  const absentCount = students.filter(s => s.attended === false).length;
+const StudentAttendanceDialog = ({ open, onClose, courseId, students, loadingStudents }: { open: any; onClose: any; courseId: any; students: any; loadingStudents: any }) => {
+  const presentCount = students.filter((s: any) => s.attended).length;
+  const absentCount = students.filter((s: any) => s.attended === false).length;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -88,7 +88,7 @@ const StudentAttendanceDialog = ({ open, onClose, courseId, students, loadingStu
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {students.map((student) => (
+                  {students.map((student: any) => (
                     <TableRow key={student.id}>
                       <TableCell>
                         <Typography variant="body2" fontWeight="medium">
@@ -228,6 +228,10 @@ const AccountsReceivableTable = ({
   invoices,
   onRecordPaymentClick,
   onViewDetailsClick,
+}: {
+  invoices: any;
+  onRecordPaymentClick: any;
+  onViewDetailsClick: any;
 }) => {
   const [expandedRowId, setExpandedRowId] = useState(null); // State to track expanded row
   const [students, setStudents] = useState([]);
@@ -235,7 +239,7 @@ const AccountsReceivableTable = ({
   const [studentDialogOpen, setStudentDialogOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState(null);
 
-  const handleExpandClick = invoiceId => {
+  const handleExpandClick = (invoiceId: any) => {
     setExpandedRowId(expandedRowId === invoiceId ? null : invoiceId); // Toggle expansion
   };
 
@@ -243,7 +247,7 @@ const AccountsReceivableTable = ({
    * Fetch student attendance data for a specific course
    * @param {string|number} courseId - The course request ID (from invoice.coursenumber)
    */
-  const fetchStudents = async (courseId) => {
+  const fetchStudents = async (courseId: any) => {
     setLoadingStudents(true);
     try {
       const response = await api.get(`/accounting/courses/${courseId}/students`);
@@ -260,7 +264,7 @@ const AccountsReceivableTable = ({
    * Handle opening the student attendance dialog
    * @param {string|number} courseId - The course request ID (from invoice.coursenumber)
    */
-  const handleViewStudents = (courseId) => {
+  const handleViewStudents = (courseId: any) => {
     setSelectedCourseId(courseId);
     setStudentDialogOpen(true);
     fetchStudents(courseId);
@@ -273,7 +277,7 @@ const AccountsReceivableTable = ({
   };
 
   // Get invoice amounts from backend (no recalculation)
-  const getInvoiceAmounts = (invoice) => {
+  const getInvoiceAmounts = (invoice: any) => {
     try {
       const baseCost = parseFloat(invoice.base_cost) || 0;
       const taxAmount = parseFloat(invoice.tax_amount) || 0;
@@ -352,7 +356,7 @@ const AccountsReceivableTable = ({
             </TableRow>
           </TableHead>
           <TableBody>
-            {invoices.map((invoice, index) => {
+            {invoices.map((invoice: any, index: any) => {
               const amounts = getInvoiceAmounts(invoice);
               
               return (

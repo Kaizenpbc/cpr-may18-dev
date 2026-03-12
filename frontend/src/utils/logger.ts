@@ -34,32 +34,32 @@ const shouldSuppress = (message: string) => {
 };
 
 const logger = {
-  debug: (...args) => {
+  debug: (...args: any[]) => {
     if (isDevelopment && !shouldSuppress(args.join(' '))) {
       console.debug('[DEBUG]', ...args);
     }
   },
 
-  info: (...args) => {
+  info: (...args: any[]) => {
     if (isDevelopment && !shouldSuppress(args.join(' '))) {
       console.info('[INFO]', ...args);
     }
   },
 
-  warn: (...args) => {
+  warn: (...args: any[]) => {
     if (!shouldSuppress(args.join(' '))) {
       console.warn('[WARN]', ...args);
     }
   },
 
-  error: (...args) => {
+  error: (...args: any[]) => {
     if (!shouldSuppress(args.join(' '))) {
       console.error('[ERROR]', ...args);
     }
   },
 
   // Format error objects for better logging
-  formatError: error => {
+  formatError: (error: any) => {
     if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx

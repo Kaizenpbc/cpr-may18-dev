@@ -40,7 +40,7 @@ import {
 import { sysAdminApi } from '../../services/api';
 import logger from '../../utils/logger';
 
-const CourseManagement = ({ onShowSnackbar }) => {
+const CourseManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -115,7 +115,7 @@ const CourseManagement = ({ onShowSnackbar }) => {
     setShowDialog(true);
   };
 
-  const handleEdit = course => {
+  const handleEdit = (course: any) => {
     setEditingCourse(course);
     setFormData({
       name: course.name || '',
@@ -132,7 +132,7 @@ const CourseManagement = ({ onShowSnackbar }) => {
     setShowDialog(true);
   };
 
-  const handleDelete = async course => {
+  const handleDelete = async (course: any) => {
     if (
       window.confirm(
         `Are you sure you want to deactivate the course "${course.name}"?`
@@ -149,7 +149,7 @@ const CourseManagement = ({ onShowSnackbar }) => {
     }
   };
 
-  const handleToggleActive = async course => {
+  const handleToggleActive = async (course: any) => {
     const action = course.isActive ? 'deactivate' : 'reactivate';
     if (
       window.confirm(
@@ -167,7 +167,7 @@ const CourseManagement = ({ onShowSnackbar }) => {
     }
   };
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
 
     if (!formData.name.trim()) {
@@ -205,7 +205,7 @@ const CourseManagement = ({ onShowSnackbar }) => {
     }
   };
 
-  const handleChange = e => {
+  const handleChange = (e: any) => {
     const { name, value, checked, type } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -213,11 +213,11 @@ const CourseManagement = ({ onShowSnackbar }) => {
     }));
   };
 
-  const formatDate = dateString => {
+  const formatDate = (dateString: any) => {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const formatDuration = (hours, minutes) => {
+  const formatDuration = (hours: any, minutes: any) => {
     if (!hours && !minutes) return 'Not specified';
     const parts = [];
     if (hours) parts.push(`${hours}h`);
