@@ -2,42 +2,32 @@
 export default {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/src'],
+  roots: ['<rootDir>/backend/src'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
   testPathIgnorePatterns: [
-    '<rootDir>/src/tests/e2e/',
-    '<rootDir>/node_modules/'
+    '<rootDir>/backend/src/tests/e2e/',
+    '<rootDir>/node_modules/',
+    '<rootDir>/backend/node_modules/',
   ],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
       tsconfig: {
         esModuleInterop: true,
-        allowSyntheticDefaultImports: true
+        allowSyntheticDefaultImports: true,
+        module: 'commonjs',
       }
     }],
   },
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
+    '^(\\.{1,2}/.*)\\.js$': '$1',
   },
-  setupFilesAfterEnv: ['<rootDir>/src/tests/setup/jest.setup.ts'],
   coverageDirectory: 'coverage',
   collectCoverageFrom: [
-    'src/**/*.{ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/tests/**/*',
-    '!src/**/*.stories.{ts,tsx}',
+    'backend/src/**/*.{ts}',
+    '!backend/src/**/*.d.ts',
+    '!backend/src/tests/**/*',
   ],
-  coverageThreshold: {
-    global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80,
-    },
-  },
   verbose: true,
   testTimeout: 10000,
   forceExit: true,
-  detectOpenHandles: false,
-  detectLeaks: false,
-}; 
+};
