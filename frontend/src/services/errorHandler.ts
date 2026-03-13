@@ -226,12 +226,7 @@ export class ErrorHandler {
 
   // Redirect to login page
   private redirectToLogin(): void {
-    // Clear any stored tokens
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
     sessionStorage.clear();
-    
-    // Redirect to login
     window.location.href = '/login';
   }
 

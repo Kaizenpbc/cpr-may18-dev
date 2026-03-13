@@ -38,14 +38,13 @@ export class EmailTemplateService {
   static async getAll(
     category?: string | string[],
     isActive?: boolean,
-    search?: string
-  ): Promise<EmailTemplate[]> {
+    search?: string,
+    page = 1,
+    limit = 100
+  ): Promise<{ rows: EmailTemplate[]; total: number }> {
     try {
-      console.log('[EmailTemplateService.getAll] Called with params:', {
-        category,
-        isActive,
-        search,
-      });
+      const safeLimit = Math.min(Math.max(1, limit), 500);
+      const safeOffset = (Math.max(1, page) - 1) * safeLimit;
 
       const params: (string | number | boolean | string[])[] = [];
       let query = `
@@ -96,24 +95,21 @@ export class EmailTemplateService {
 
       query += ' ORDER BY category, sub_category, name ASC';
 
-      console.log('[EmailTemplateService.getAll] Final query:', query);
-      console.log('[EmailTemplateService.getAll] Query params:', params);
+      // Count total matching rows for pagination metadata
+      const countResult = await pool.query(
+        `SELECT COUNT(*) FROM (${query}) AS _count`,
+        params
+      );
+      const total = parseInt(countResult.rows[0].count, 10);
+
+      // Apply pagination
+      params.push(safeLimit);
+      query += ` LIMIT $${params.length}`;
+      params.push(safeOffset);
+      query += ` OFFSET $${params.length}`;
 
       const result = await pool.query(query, params);
-
-      console.log(
-        '[EmailTemplateService.getAll] Query returned',
-        result.rows.length,
-        'rows'
-      );
-      if (result.rows.length > 0) {
-        console.log(
-          '[EmailTemplateService.getAll] First row sample:',
-          result.rows[0]
-        );
-      }
-
-      return result.rows;
+      return { rows: result.rows, total };
     } catch (error) {
       console.error('[EmailTemplateService.getAll] Error:', error);
       if (error instanceof Error) {

@@ -1,18 +1,9 @@
 import { Router } from 'express';
-import { Pool } from 'pg';
+import { pool } from '../../config/database.js';
 import { devLog } from '../../utils/devLog.js';
 import { getSafeErrorMessage } from '../../utils/errorHandler.js';
 
 const router = Router();
-
-// Initialize service clients
-const dbPool = new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    database: process.env.DB_NAME || 'cpr_may18',
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD
-});
 
 // Health check endpoint
 router.get('/', async (req, res) => {
@@ -20,7 +11,7 @@ router.get('/', async (req, res) => {
 
     try {
         // Check database connection
-        const client = await dbPool.connect();
+        const client = await pool.connect();
         await client.query('SELECT NOW()');
         client.release();
 

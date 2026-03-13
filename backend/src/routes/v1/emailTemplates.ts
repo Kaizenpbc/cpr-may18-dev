@@ -25,6 +25,8 @@ interface EmailTemplateQueryParams {
   category?: string[];
   active?: string;
   search?: string;
+  page?: string;
+  limit?: string;
 }
 
 const router = express.Router();
@@ -45,34 +47,21 @@ router.get(
       devLog('[EMAIL TEMPLATES] Query params:', req.query);
       devLog('[EMAIL TEMPLATES] User:', req.user);
 
-      const { category, active, search } = req.query;
+      const { category, active, search, page, limit } = req.query;
+      const pageNum = parseInt(page as string || '1', 10);
+      const limitNum = parseInt(limit as string || '100', 10);
 
-      devLog('[EMAIL TEMPLATES] Parsed params:', {
-        category,
-        active,
-        search,
-      });
-
-      const templates = await EmailTemplateService.getAll(
-        category as string | string[] | undefined, // Pass as-is, the model handles both
+      const { rows, total } = await EmailTemplateService.getAll(
+        category as string | string[] | undefined,
         active === 'true',
-        search as string
+        search as string,
+        pageNum,
+        limitNum
       );
 
-      devLog('[EMAIL TEMPLATES] Templates found:', templates.length);
-      devLog(
-        '[EMAIL TEMPLATES] Template categories:',
-        templates.map(t => `${t.name}: ${t.category}`)
-      );
+      devLog('[EMAIL TEMPLATES] Templates found:', rows.length, 'of', total);
 
-      const response = ApiResponseBuilder.success(keysToCamel(templates));
-      devLog(
-        '[EMAIL TEMPLATES] Sending response with',
-        templates.length,
-        'templates'
-      );
-
-      return res.json(response);
+      return res.json(ApiResponseBuilder.paginate(keysToCamel(rows) as any[], pageNum, limitNum, total));
     }
   )
 );

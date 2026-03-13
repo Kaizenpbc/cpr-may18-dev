@@ -9,11 +9,18 @@ dotenv.config();
 // Database configuration
 // Supports both DATABASE_URL (for Render/Heroku) and individual DB_* variables (for local)
 const getPoolConfig = (): PoolConfig => {
+  const poolLimits: PoolConfig = {
+    max: parseInt(process.env.DB_POOL_MAX || '10'),
+    idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000'),
+    connectionTimeoutMillis: parseInt(process.env.DB_CONN_TIMEOUT || '5000'),
+  };
+
   // If DATABASE_URL is set, use it (Render, Heroku, etc.)
   if (process.env.DATABASE_URL) {
     return {
       connectionString: process.env.DATABASE_URL,
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      ...poolLimits,
     };
   }
 
@@ -29,6 +36,7 @@ const getPoolConfig = (): PoolConfig => {
     host: process.env.DB_HOST || '127.0.0.1',
     port: parseInt(process.env.DB_PORT || '5432'),
     database: process.env.DB_NAME || 'cpr_jun21',
+    ...poolLimits,
   };
 };
 

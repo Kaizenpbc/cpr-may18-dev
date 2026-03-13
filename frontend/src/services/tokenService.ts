@@ -317,12 +317,8 @@ class TokenService {
 
     switch (data.type) {
       case 'tokenRefreshed':
-        // Another tab refreshed the token, update our local state
-        if (data.token && data.expiry) {
-          inMemoryToken = data.token;
-          tokenExpiry = data.expiry;
-          this.scheduleTokenRefresh();
-        }
+        // Another tab refreshed — trigger a silent refresh so this tab gets a fresh token too
+        this.refreshTokenSilently();
         break;
 
       case 'logout':
@@ -331,25 +327,19 @@ class TokenService {
         break;
 
       case 'heartbeat':
-        // Another tab is active, extend our session
-        if (data.token && data.expiry) {
-          inMemoryToken = data.token;
-          tokenExpiry = data.expiry;
-          this.scheduleTokenRefresh();
-        }
+        // No action needed — each tab manages its own token via the httpOnly refresh cookie
         break;
     }
   }
 
   /**
-   * Broadcasts session updates to other tabs
+   * Broadcasts session updates to other tabs.
+   * Never includes the token value — other tabs must refresh via their own httpOnly cookie.
    */
   private broadcastSessionUpdate(type: string, additionalData: Record<string, unknown> = {}): void {
     const data = {
       type,
       timestamp: Date.now(),
-      token: inMemoryToken,
-      expiry: tokenExpiry,
       ...additionalData
     };
 
