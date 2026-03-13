@@ -328,11 +328,6 @@ app.use(requestLogger);
 app.use(authLogger);
 app.use(auditLogger);
 
-// Basic health check route
-app.get('/api/v1/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok' });
-});
-
 // Database security health check route
 app.get('/api/v1/health/database', async (req: Request, res: Response) => {
   try {

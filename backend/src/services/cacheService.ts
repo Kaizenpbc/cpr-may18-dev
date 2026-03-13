@@ -1,5 +1,6 @@
 import { pool } from '../config/database.js';
 import { redisManager } from '../config/redis.js';
+import { devLog } from '../utils/devLog.js';
 
 interface CacheOptions {
   ttl?: number; // Time to live in seconds
@@ -40,7 +41,7 @@ class CacheService {
 
   private constructor() {
     this.isRedisEnabled = false; // Force Redis disabled for debugging
-    console.log('🔴 [CACHE] Redis caching is disabled');
+    devLog('🔴 [CACHE] Redis caching is disabled');
   }
 
   static getInstance(): CacheService {
@@ -66,7 +67,7 @@ class CacheService {
 
     // Skip cache lookup if Redis is disabled
     if (!this.isRedisEnabled) {
-      console.log(`📊 [CACHE MISS] Fetching fresh data for ${key}`);
+      devLog(`📊 [CACHE MISS] Fetching fresh data for ${key}`);
       return fetcher();
     }
 
@@ -77,7 +78,7 @@ class CacheService {
         const cached = await client.get(key);
 
         if (cached) {
-          console.log(`🚀 [CACHE HIT] ${key}`);
+          devLog(`🚀 [CACHE HIT] ${key}`);
           return JSON.parse(cached as string);
         }
       } catch (error) {
@@ -86,14 +87,12 @@ class CacheService {
     }
 
     // Cache miss - fetch fresh data
-    console.log(`📊 [CACHE MISS] Fetching fresh data for ${key}`);
-    console.log(`[DEBUG] About to call fetcher for ${key}`);
+    devLog(`📊 [CACHE MISS] Fetching fresh data for ${key}`);
     let data;
     try {
       data = await fetcher();
-      console.log(`[DEBUG] Fetcher completed successfully for ${key}:`, data);
     } catch (error) {
-      console.error(`[ERROR] Fetcher failed for ${key}:`, error);
+      console.error(`❌ [CACHE] Fetcher failed for ${key}:`, error);
       throw error;
     }
 
@@ -102,7 +101,7 @@ class CacheService {
       try {
         const client = redisManager.getClient();
         await client.setEx(key, ttl, JSON.stringify(data));
-        console.log(`✅ [CACHE SET] ${key} (TTL: ${ttl}s)`);
+        devLog(`✅ [CACHE SET] ${key} (TTL: ${ttl}s)`);
       } catch (error) {
         console.warn(`⚠️ [CACHE] Failed to set ${key}:`, error);
       }
@@ -297,66 +296,50 @@ class CacheService {
     return this.cache(
       cacheKey,
       async () => {
-        console.log(`[DEBUG] getDashboardStats called with role: ${role}, userId: ${userId}`);
-        
+        devLog(`[CACHE] getDashboardStats role=${role} userId=${userId}`);
+
         if (role === 'instructor' && userId) {
-          // Instructor-specific stats from 'course_requests' table (not 'classes')
-          console.log(`[DEBUG] Fetching instructor stats for userId: ${userId}`);
-          
           const totalRes = await pool.query(
             `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1`,
             [userId]
           );
-          console.log(`[DEBUG] Total query result:`, totalRes.rows[0]);
-          
           const scheduledRes = await pool.query(
             `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1 AND status = 'scheduled'`,
             [userId]
           );
-          console.log(`[DEBUG] Scheduled query result:`, scheduledRes.rows[0]);
-          
           const completedRes = await pool.query(
             `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1 AND status = 'completed'`,
             [userId]
           );
-          console.log(`[DEBUG] Completed query result:`, completedRes.rows[0]);
-          
           const cancelledRes = await pool.query(
             `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1 AND status = 'cancelled'`,
             [userId]
           );
-          console.log(`[DEBUG] Cancelled query result:`, cancelledRes.rows[0]);
-          
-          const result = {
+
+          return {
             totalClasses: parseInt(totalRes.rows[0]?.count || 0),
             scheduledClasses: parseInt(scheduledRes.rows[0]?.count || 0),
             completedClasses: parseInt(completedRes.rows[0]?.count || 0),
             cancelledClasses: parseInt(cancelledRes.rows[0]?.count || 0),
             lastUpdated: new Date().toISOString(),
           };
-          
-          console.log(`[DEBUG] Returning instructor stats:`, result);
-          return result;
         } else {
-          console.log(`[DEBUG] Fetching non-instructor stats for role: ${role}`);
           // Default/fallback (admin, org, etc)
           const pendingCourses = await pool.query(
             'SELECT COUNT(*) as count FROM course_requests WHERE status = $1',
             ['pending']
           );
           const completedThisMonth = await pool.query(`
-            SELECT COUNT(*) as count FROM course_requests 
-            WHERE status = 'completed' 
+            SELECT COUNT(*) as count FROM course_requests
+            WHERE status = 'completed'
             AND EXTRACT(MONTH FROM completed_at) = EXTRACT(MONTH FROM CURRENT_DATE)
             AND EXTRACT(YEAR FROM completed_at) = EXTRACT(YEAR FROM CURRENT_DATE)
           `);
-          const result = {
+          return {
             pendingCourses: parseInt(pendingCourses.rows[0]?.count || 0),
             completedThisMonth: parseInt(completedThisMonth.rows[0]?.count || 0),
             lastUpdated: new Date().toISOString(),
           };
-          console.log(`[DEBUG] Returning non-instructor stats:`, result);
-          return result;
         }
       },
       { ttl: 300, forceRefresh } // 5 minutes TTL for dashboard
@@ -368,7 +351,7 @@ class CacheService {
    */
   async invalidate(pattern: string): Promise<void> {
     if (!this.isRedisEnabled) {
-      console.log(`🔴 [CACHE] Redis disabled, skipping invalidation for ${pattern}`);
+      devLog(`🔴 [CACHE] Redis disabled, skipping invalidation for ${pattern}`);
       return;
     }
 
@@ -377,7 +360,7 @@ class CacheService {
       const keys = await client.keys(pattern);
       if (keys.length > 0) {
         await client.del(keys);
-        console.log(`✅ [CACHE] Invalidated ${keys.length} keys matching ${pattern}`);
+        devLog(`✅ [CACHE] Invalidated ${keys.length} keys matching ${pattern}`);
       }
     } catch (error) {
       console.error(`❌ [CACHE] Failed to invalidate ${pattern}:`, error);
@@ -389,14 +372,14 @@ class CacheService {
    */
   async clearAll(): Promise<void> {
     if (!this.isRedisEnabled) {
-      console.log('🔴 [CACHE] Redis disabled, skipping cache clear');
+      devLog('🔴 [CACHE] Redis disabled, skipping cache clear');
       return;
     }
 
     try {
       const client = redisManager.getClient();
       await client.flushDb();
-      console.log('✅ [CACHE] All cache entries cleared');
+      devLog('✅ [CACHE] All cache entries cleared');
     } catch (error) {
       console.error('❌ [CACHE] Failed to clear cache:', error);
     }

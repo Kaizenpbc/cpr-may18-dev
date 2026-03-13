@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { logSecurityEvent, AuditEventSeverity } from '../middleware/auditLogger.js';
+import { devLog } from '../utils/devLog.js';
 
 // Encryption Types
 export type EncryptionAlgorithm = 'aes-256-gcm' | 'aes-256-cbc' | 'aes-192-gcm' | 'aes-128-gcm';
@@ -161,9 +162,8 @@ export class EncryptionKeyManager {
       this.activeKeyId = keyId;
     }
 
-    // Log key generation (using console.log during startup)
     if (this.config.security.auditEncryptionOperations) {
-      console.log(`🔐 Encryption key generated: ${keyId} (${algorithm})`);
+      devLog(`🔐 Encryption key generated: ${keyId} (${algorithm})`);
     }
 
     return encryptionKey;
@@ -198,9 +198,8 @@ export class EncryptionKeyManager {
     // Set new key as active
     this.activeKeyId = newKey.id;
 
-    // Log key rotation (using console.log during startup)
     if (this.config.security.auditEncryptionOperations) {
-      console.log(`🔐 Encryption key rotated: ${this.activeKeyId} -> ${newKey.id} (${newKey.algorithm})`);
+      devLog(`🔐 Encryption key rotated: ${this.activeKeyId} -> ${newKey.id} (${newKey.algorithm})`);
     }
 
     return newKey;
@@ -295,9 +294,8 @@ export class EncryptionService {
       timestamp: new Date()
     };
 
-    // Log encryption operation (using console.log during startup)
     if (this.config.security.auditEncryptionOperations) {
-      console.log(`🔐 Data encrypted: ${data.length} bytes with key ${key.id}`);
+      devLog(`🔐 Data encrypted: ${data.length} bytes with key ${key.id}`);
     }
 
     return result;
@@ -339,9 +337,8 @@ export class EncryptionService {
       timestamp: new Date()
     };
 
-    // Log decryption operation (using console.log during startup)
     if (this.config.security.auditEncryptionOperations) {
-      console.log(`🔐 Data decrypted: ${decrypted.length} bytes with key ${keyId}`);
+      devLog(`🔐 Data decrypted: ${decrypted.length} bytes with key ${keyId}`);
     }
 
     return result;
