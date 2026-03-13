@@ -64,7 +64,7 @@ const AgingReportView = () => {
   const [asOfDate, setAsOfDate] = useState(
     new Date().toISOString().split('T')[0]
   );
-  const [selectedBucket, setSelectedBucket] = useState(null);
+  const [selectedBucket, setSelectedBucket] = useState<any>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
   // Fetch aging report data

@@ -129,7 +129,7 @@ const PaymentDetails = ({ invoiceId, onViewInvoice }: { invoiceId: any; onViewIn
         }
         
         setPayments(paymentsData);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error loading payments:', err);
         setError(err.message || 'Could not load payment details.');
         setPayments([]);
@@ -318,7 +318,7 @@ const InvoiceHistoryTable = ({ invoices = [], onRefresh }: { invoices?: any[]; o
       }
 
       console.log('[PDF Download] Download initiated successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('[PDF Download] Error:', error);
       alert(`Failed to download PDF: ${error.message}`);
     }

@@ -250,7 +250,7 @@ export const useAsyncErrorHandler = (options?: UseErrorHandlerOptions) => {
     ): Promise<T | null> => {
       try {
         return await asyncOperation();
-      } catch (error) {
+      } catch (error: any) {
         handleError(error, context);
         return null;
       }
@@ -269,7 +269,7 @@ export const useAsyncErrorHandler = (options?: UseErrorHandlerOptions) => {
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           return await asyncOperation();
-        } catch (error) {
+        } catch (error: any) {
           lastError = error;
           const standardError = handleEnhancedError(error, {
             ...context,

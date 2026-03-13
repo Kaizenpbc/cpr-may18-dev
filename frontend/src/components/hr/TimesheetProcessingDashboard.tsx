@@ -111,7 +111,7 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
       setStatsLoading(true);
       const statsData = await timesheetService.getStats();
       setStats(statsData);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading stats:', err);
       setError('Failed to load timesheet statistics');
     } finally {
@@ -134,7 +134,7 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
         total: response.pagination.total,
         pages: response.pagination.pages
       }));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading timesheets:', err);
       setError('Failed to load timesheets');
     } finally {
@@ -160,7 +160,7 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
       
       // Refresh data
       await Promise.all([loadStats(), loadTimesheets()]);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error processing timesheet:', err);
       setError(`Failed to ${approvalAction} timesheet`);
     } finally {
@@ -206,7 +206,7 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
       setReminderLoading(true);
       const data = await timesheetService.getPendingReminders();
       setPendingReminders(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading pending reminders:', err);
       setError('Failed to load instructors pending timesheet submission');
     } finally {
@@ -230,7 +230,7 @@ const TimesheetProcessingDashboard: React.FC<TimesheetProcessingDashboardProps> 
       const result = await timesheetService.sendReminders(instructorIds);
       setSuccess(`Reminders sent to ${result.sentCount} instructor(s)`);
       setReminderDialogOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error sending reminders:', err);
       setError('Failed to send reminders');
     } finally {

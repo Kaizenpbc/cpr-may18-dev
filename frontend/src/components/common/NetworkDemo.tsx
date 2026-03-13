@@ -58,7 +58,7 @@ const NetworkDemo: React.FC = () => {
           timestamp: new Date().toLocaleTimeString(),
         },
       ]);
-    } catch (error) {
+    } catch (error: any) {
       setResponses(prev => [
         ...prev,
         {
@@ -86,7 +86,7 @@ const NetworkDemo: React.FC = () => {
           timestamp: new Date().toLocaleTimeString(),
         },
       ]);
-    } catch (error) {
+    } catch (error: any) {
       setResponses(prev => [
         ...prev,
         {

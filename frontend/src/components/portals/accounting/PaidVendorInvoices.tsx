@@ -131,7 +131,7 @@ const PaidVendorInvoices: React.FC = () => {
       } else {
         setPaymentHistory([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching payment history:', error);
       setPaymentHistory([]);
     }

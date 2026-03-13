@@ -297,7 +297,7 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({
         } else {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-      } catch (error) {
+      } catch (error: any) {
         logger.error(
           `[NetworkContext] Queued request failed: ${request.method} ${request.url}`,
           error
@@ -352,7 +352,7 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({
       (navigator as NavigatorWithConnection).mozConnection ||
       (navigator as NavigatorWithConnection).webkitConnection;
     if (connection) {
-      connection.addEventListener('change', handleConnectionChange);
+      connection.addEventListener?.('change', handleConnectionChange);
     }
 
     // Set up periodic sync
@@ -395,7 +395,7 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({
       (navigator as NavigatorWithConnection).mozConnection ||
       (navigator as NavigatorWithConnection).webkitConnection;
     if (connection) {
-      connection.removeEventListener('change', handleConnectionChange);
+      connection.removeEventListener?.('change', handleConnectionChange);
     }
 
     // Clear sync timer
@@ -462,7 +462,7 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({
             `[NetworkContext] Loaded ${parsed.length} requests from storage`
           );
         }
-      } catch (error) {
+      } catch (error: any) {
         logger.error(
           '[NetworkContext] Failed to load queue from storage:',
           error
@@ -476,7 +476,7 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({
     if (enableOfflineQueue) {
       try {
         localStorage.setItem('networkQueue', JSON.stringify(queuedRequests));
-      } catch (error) {
+      } catch (error: any) {
         logger.error(
           '[NetworkContext] Failed to save queue to storage:',
           error

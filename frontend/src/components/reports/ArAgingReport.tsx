@@ -66,10 +66,10 @@ const BucketDetailTable = ({ invoices, bucketTitle }: { invoices: any; bucketTit
 // --- End Helper ---
 
 const ArAgingReport = () => {
-  const [reportData, setReportData] = useState(null);
+  const [reportData, setReportData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [expandedBucketKey, setExpandedBucketKey] = useState(null); // State for expansion
+  const [expandedBucketKey, setExpandedBucketKey] = useState<string | null>(null); // State for expansion
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -78,7 +78,7 @@ const ArAgingReport = () => {
       try {
         const data = await api.getArAgingReport();
         setReportData(data);
-      } catch (err) {
+      } catch (err: any) {
         setError(err.message || 'Could not load AR Aging report.');
         setReportData(null);
       } finally {

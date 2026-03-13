@@ -98,7 +98,7 @@ const ReturnedPaymentRequestDetailDialog: React.FC<ReturnedPaymentRequestDetailD
         onActionSuccess();
       }
       handleClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing returned payment request:', error);
       alert('Failed to process payment request. Please try again.');
     } finally {
@@ -279,7 +279,7 @@ const ReturnedPaymentRequests: React.FC = () => {
 
       setRequests(data.requests);
       setPagination(data.pagination);
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to load returned payment requests');
       console.error('Error loading returned payment requests:', err);
     } finally {

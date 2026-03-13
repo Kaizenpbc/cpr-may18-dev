@@ -52,7 +52,7 @@ const InstructorPortalContainer: React.FC = () => {
   }, [location.pathname]);
 
   // Error handler for error boundaries
-  const handleError = useCallback((error: Error, errorInfo: { componentStack?: string }) => {
+  const handleError = useCallback((error: Error, errorInfo: { componentStack?: string | null }) => {
     logger.error('Instructor Portal Error:', error, errorInfo);
     analytics.trackError(error, 'instructor_portal', {
       componentStack: errorInfo.componentStack,
@@ -88,7 +88,7 @@ const InstructorPortalContainer: React.FC = () => {
     try {
       await logout();
       navigate('/login');
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Logout error:', error);
       setError('Failed to logout. Please try again.');
     }
@@ -99,7 +99,7 @@ const InstructorPortalContainer: React.FC = () => {
     try {
       await addAvailabilityMutation.mutateAsync(date);
       setSuccessState('Availability added successfully');
-    } catch (error) {
+    } catch (error: any) {
       setError('Failed to add availability');
       logger.error('Add availability error:', error);
     }
@@ -109,7 +109,7 @@ const InstructorPortalContainer: React.FC = () => {
     try {
       await removeAvailabilityMutation.mutateAsync(date);
       setSuccessState('Availability removed successfully');
-    } catch (error) {
+    } catch (error: any) {
       setError('Failed to remove availability');
       logger.error('Remove availability error:', error);
     }
@@ -120,7 +120,7 @@ const InstructorPortalContainer: React.FC = () => {
     try {
       await completeClassMutation.mutateAsync(courseId);
       setSuccessState('Class completed successfully');
-    } catch (error) {
+    } catch (error: any) {
       setError('Failed to complete class');
       logger.error('Complete class error:', error);
     }
@@ -130,7 +130,7 @@ const InstructorPortalContainer: React.FC = () => {
     try {
       await updateAttendanceMutation.mutateAsync({ courseId, students });
       setSuccessState('Attendance updated successfully');
-    } catch (error) {
+    } catch (error: any) {
       setError('Failed to update attendance');
       logger.error('Update attendance error:', error);
     }
@@ -141,7 +141,7 @@ const InstructorPortalContainer: React.FC = () => {
     try {
       refreshData();
       setSuccessState('Data refreshed successfully');
-    } catch (error) {
+    } catch (error: any) {
       setError('Failed to refresh data');
       logger.error('Refresh data error:', error);
     }

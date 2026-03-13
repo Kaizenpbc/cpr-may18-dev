@@ -32,7 +32,7 @@ const formatPhone = (phoneString: any) => {
 };
 
 function UserManager() {
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // State for Add/Edit Dialog
@@ -54,7 +54,7 @@ function UserManager() {
     try {
       const data = await api.getUsers();
       setUsers(data || []);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error fetching users:', err);
       setError('Failed to load users');
     } finally {
@@ -89,7 +89,7 @@ function UserManager() {
         logger.info(`User ${userId} deleted successfully`);
         showSnackbar(`User ${userId} deleted successfully.`, 'success');
         fetchUsers(); // Refresh the list
-      } catch (err) {
+      } catch (err: any) {
         logger.error(`Error deleting user ${userId}:`, err);
         setError('Failed to delete user');
         showSnackbar(`Failed to delete user: ${err.message}`, 'error');

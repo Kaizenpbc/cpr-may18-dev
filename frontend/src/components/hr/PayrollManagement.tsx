@@ -69,7 +69,7 @@ const PaymentDetailsDialog: React.FC<PaymentDetailsDialogProps> = ({
       setTransactionId('');
       setNotes('');
       setAction('approve');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing payment:', error);
     } finally {
       setLoading(false);
@@ -251,7 +251,7 @@ const CalculatePayrollDialog: React.FC<CalculatePayrollDialogProps> = ({
       setStartDate('');
       setEndDate('');
       setHourlyRate('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error calculating payroll:', error);
     } finally {
       setLoading(false);
@@ -367,7 +367,7 @@ const PayrollManagement: React.FC = () => {
       setPayments(paymentsData.payments);
       setPagination(paymentsData.pagination);
       setStats(statsData);
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to load payroll data');
       console.error('Error loading payroll data:', err);
     } finally {
@@ -396,7 +396,7 @@ const PayrollManagement: React.FC = () => {
     try {
       await payrollService.processPayment(paymentId, { action, transaction_id: transactionId, notes });
       await loadData(); // Refresh data
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error processing payment:', err);
       throw err;
     }
@@ -407,7 +407,7 @@ const PayrollManagement: React.FC = () => {
       const result = await payrollService.calculatePayroll(instructorId, startDate, endDate, hourlyRate);
       setCalculation(result);
       setActiveTab(1); // Switch to calculation tab
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error calculating payroll:', err);
       throw err;
     }

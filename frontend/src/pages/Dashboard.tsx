@@ -105,7 +105,7 @@ const Dashboard: React.FC = () => {
       try {
         const response = await fetchInstructorAvailability();
         return response;
-      } catch (error) {
+      } catch (error: any) {
         if (error.response?.status === 401) {
           await logout();
           navigate('/login');
@@ -125,7 +125,7 @@ const Dashboard: React.FC = () => {
       try {
         const response = await fetchSchedule();
         return response;
-      } catch (error) {
+      } catch (error: any) {
         if (error.response?.status === 401) {
           await logout();
           navigate('/login');

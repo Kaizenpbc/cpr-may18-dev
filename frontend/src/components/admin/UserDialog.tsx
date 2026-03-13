@@ -45,8 +45,8 @@ const roles = [
 
 function UserDialog({ open, onClose, onSave, user, existingUsers = [] }: { open: any; onClose: any; onSave: any; user: any; existingUsers?: any[] }) {
   const [userData, setUserData] = useState(initialUserState);
-  const [organizations, setOrganizations] = useState([]);
-  const [locations, setLocations] = useState([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
   const [loadingOrgs, setLoadingOrgs] = useState(false);
   const [loadingLocations, setLoadingLocations] = useState(false);
   const [error, setError] = useState('');
@@ -235,7 +235,7 @@ function UserDialog({ open, onClose, onSave, user, existingUsers = [] }: { open:
     setLoading(true);
     try {
       // Prepare data for API (convert orgId and locationId back to number if set)
-      const dataToSend = {
+      const dataToSend: Record<string, any> = {
         ...userData,
         organizationId: userData.organizationId
           ? parseInt(userData.organizationId, 10)
@@ -264,7 +264,7 @@ function UserDialog({ open, onClose, onSave, user, existingUsers = [] }: { open:
       logger.info('[UserDialog] Save successful, calling onSave and onClose.');
       onSave();
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Save user error:', err);
       const message = err.message || 'Failed to save user.';
 

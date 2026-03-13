@@ -35,7 +35,7 @@ const Classes: React.FC = () => {
           '/instructors/classes'
         );
         return response.data;
-      } catch (error) {
+      } catch (error: any) {
         if (error.response?.status === 401) {
           await logout();
           navigate('/login');
@@ -95,7 +95,7 @@ const Classes: React.FC = () => {
                   Class {classItem.id}
                 </Typography>
                 <Typography color='text.secondary' gutterBottom>
-                  Date: {new Date(classItem.date).toLocaleDateString()}
+                  Date: {classItem.date ? new Date(classItem.date).toLocaleDateString() : '-'}
                 </Typography>
                 <Typography variant='body2'>
                   Time: {classItem.startTime} - {classItem.endTime}

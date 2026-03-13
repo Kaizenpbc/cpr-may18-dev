@@ -51,7 +51,7 @@ const CoursePricingManagement: React.FC = () => {
       const response = await api.get('/accounting/course-pricing');
       setCoursePricing(response.data.data);
       setError(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching course pricing:', err);
       setError('Failed to fetch course pricing data');
     } finally {
@@ -89,7 +89,7 @@ const CoursePricingManagement: React.FC = () => {
       setEditingId(null);
       setEditPrice('');
       fetchCoursePricing(); // Refresh the data
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating course pricing:', err);
       setError('Failed to update course pricing');
     }

@@ -44,8 +44,8 @@ const AttendanceView = ({ onAttendanceUpdate }: { onAttendanceUpdate: any }) => 
   const navigate = useNavigate();
   
   // State
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [students, setStudents] = useState([]);
+  const [selectedClass, setSelectedClass] = useState<any>(null);
+  const [students, setStudents] = useState<any[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [error, setError] = useState('');
   const [addStudentDialog, setAddStudentDialog] = useState(false);
@@ -106,7 +106,7 @@ const AttendanceView = ({ onAttendanceUpdate }: { onAttendanceUpdate: any }) => 
       if (onAttendanceUpdate) {
         onAttendanceUpdate();
       }
-    } catch (error) {
+    } catch (error: any) {
       handleError(error, { component: 'AttendanceView', action: 'update attendance' });
       setError('Failed to update attendance');
     }
@@ -133,7 +133,7 @@ const AttendanceView = ({ onAttendanceUpdate }: { onAttendanceUpdate: any }) => 
       if (onAttendanceUpdate) {
         onAttendanceUpdate();
       }
-    } catch (error) {
+    } catch (error: any) {
       handleError(error, { component: 'AttendanceView', action: 'add student' });
       setError('Failed to add student');
     }

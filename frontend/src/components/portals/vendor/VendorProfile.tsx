@@ -57,7 +57,7 @@ const VendorProfile: React.FC = () => {
         address: '123 Vendor St, Vendor City, ON, A1B 2C3',
         vendorType: 'supplier'
       });
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to load profile');
     } finally {
       setLoading(false);
@@ -94,7 +94,7 @@ const VendorProfile: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       setSuccess('Profile updated successfully!');
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to update profile. Please try again.');
     } finally {
       setSaving(false);

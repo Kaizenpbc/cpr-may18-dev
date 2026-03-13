@@ -215,7 +215,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
       } else {
         setAttendanceData([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading attendance data:', error);
       setAttendanceData([]);
     } finally {
@@ -275,7 +275,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
       
       console.log('Filtered unique payments:', uniquePayments);
       setPaymentHistory(uniquePayments);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading payment history:', error);
       setPaymentHistory([]);
     } finally {
@@ -554,7 +554,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
         if (response.data.success) {
           setBalanceCalculation(response.data.data);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error calculating balance:', error);
         setBalanceCalculation(null);
       } finally {
@@ -684,7 +684,7 @@ const OrganizationBilling: React.FC<OrganizationBillingProps> = ({
       link.remove();
       window.URL.revokeObjectURL(url);
       console.log('PDF downloaded successfully.');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error downloading PDF:', error);
       setPaymentError('Failed to download PDF.');
     }

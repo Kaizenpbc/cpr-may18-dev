@@ -40,14 +40,22 @@ import { sysAdminApi } from '../../services/api';
 import logger from '../../utils/logger';
 
 const VendorManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
-  const [vendors, setVendors] = useState([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   // Dialog state
   const [showDialog, setShowDialog] = useState(false);
-  const [editingVendor, setEditingVendor] = useState(null);
-  const [formData, setFormData] = useState({
+  const [editingVendor, setEditingVendor] = useState<any>(null);
+  const [formData, setFormData] = useState<{
+    vendorName: string; contactFirstName: string; contactLastName: string;
+    email: string; mobile: string; phone: string; addressStreet: string;
+    addressCity: string; addressProvince: string; addressPostalCode: string;
+    vendorType: string; services: any[]; contractStartDate: string;
+    contractEndDate: string; performanceRating: number | null;
+    insuranceExpiry: string; certificationStatus: string;
+    billingContactEmail: string; comments: string; status: string;
+  }>({
     vendorName: '',
     contactFirstName: '',
     contactLastName: '',
@@ -110,7 +118,7 @@ const VendorManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
       const response = await sysAdminApi.getVendors();
       setVendors(response.data || []);
       setError('');
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error loading vendors:', err);
       setError('Failed to load vendors');
       onShowSnackbar?.('Failed to load vendors', 'error');
@@ -189,7 +197,7 @@ const VendorManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
         await sysAdminApi.deleteVendor(vendor.id);
         onShowSnackbar?.('Vendor deactivated successfully', 'success');
         loadVendors();
-      } catch (err) {
+      } catch (err: any) {
         logger.error('Error deactivating vendor:', err);
         onShowSnackbar?.('Failed to deactivate vendor', 'error');
       }
@@ -223,7 +231,7 @@ const VendorManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
 
       setShowDialog(false);
       loadVendors();
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error saving vendor:', err);
       onShowSnackbar?.('Failed to save vendor', 'error');
     }

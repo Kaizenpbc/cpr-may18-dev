@@ -53,7 +53,7 @@ const Layout: React.FC = () => {
   const handleLogout = async () => {
     try {
       await logout();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to logout:', error);
     }
   };

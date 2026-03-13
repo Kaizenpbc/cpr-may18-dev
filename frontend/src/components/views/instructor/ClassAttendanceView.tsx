@@ -105,7 +105,7 @@ const ClassAttendanceView: React.FC = () => {
     try {
       const response = await collegesApi.getAll();
       setColleges(response.data?.data || response.data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading colleges:', error);
     }
   };

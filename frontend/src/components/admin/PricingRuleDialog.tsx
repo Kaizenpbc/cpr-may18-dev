@@ -28,8 +28,8 @@ const initialRuleState = {
 
 function PricingRuleDialog({ open, onClose, onSave, rule }: { open: any; onClose: any; onSave: any; rule: any }) {
   const [formData, setFormData] = useState(initialRuleState);
-  const [organizations, setOrganizations] = useState([]);
-  const [courseTypes, setCourseTypes] = useState([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [courseTypes, setCourseTypes] = useState<any[]>([]);
   const [loadingLists, setLoadingLists] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -137,7 +137,7 @@ function PricingRuleDialog({ open, onClose, onSave, rule }: { open: any; onClose
       }
       onSave();
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Save pricing rule error:', err);
       const message = err.message || 'Failed to save rule.';
       setError('Failed to save. Please fix highlighted field(s).');

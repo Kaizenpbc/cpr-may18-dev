@@ -65,9 +65,9 @@ const COLORS = [
 
 const OrganizationAnalytics = () => {
   const [timeframe, setTimeframe] = useState('12');
-  const [courseRequestData, setCourseRequestData] = useState(null);
+  const [courseRequestData, setCourseRequestData] = useState<any>(null);
   const [studentParticipationData, setStudentParticipationData] =
-    useState(null);
+    useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { error: showError } = useToast();
@@ -88,7 +88,7 @@ const OrganizationAnalytics = () => {
 
       setCourseRequestData(courseRequests);
       setStudentParticipationData(studentParticipation);
-    } catch (err) {
+    } catch (err: any) {
       const errorMessage = err.message || 'Failed to fetch analytics data';
       setError(errorMessage);
       showError(errorMessage);

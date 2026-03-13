@@ -49,7 +49,7 @@ import PaymentHistoryTable from '../common/PaymentHistoryTable';
 
 const BillsPayableView = () => {
   const [selectedTab, setSelectedTab] = useState(0);
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [invoiceDetailOpen, setInvoiceDetailOpen] = useState(false);
   const [paymentData, setPaymentData] = useState({
@@ -61,7 +61,7 @@ const BillsPayableView = () => {
   });
 
   // State for payment history
-  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
 
   const queryClient = useQueryClient();
@@ -151,7 +151,7 @@ const BillsPayableView = () => {
         console.warn('Unexpected payment history response format:', response.data);
         setPaymentHistory([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading payment history:', error);
       setPaymentHistory([]);
     } finally {

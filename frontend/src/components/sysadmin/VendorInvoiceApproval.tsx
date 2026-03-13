@@ -77,7 +77,7 @@ const VendorInvoiceApproval: React.FC = () => {
       const response = await sysAdminApi.getVendorInvoices();
       setInvoices(response.data || []);
       setError(null);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error fetching vendor invoices:', err);
       setError('Failed to load vendor invoices');
     } finally {
@@ -114,7 +114,7 @@ const VendorInvoiceApproval: React.FC = () => {
       setNotes('');
       
       logger.info(`Vendor invoice ${action}d successfully`);
-    } catch (err) {
+    } catch (err: any) {
       logger.error(`Error ${action}ing vendor invoice:`, err);
       setError(`Failed to ${action} invoice`);
     } finally {
@@ -134,7 +134,7 @@ const VendorInvoiceApproval: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error downloading invoice:', err);
       setError('Failed to download invoice');
     }

@@ -49,7 +49,7 @@ const ForgotPassword = () => {
       await requestPasswordReset(email);
       console.log('[Debug] ForgotPassword - Password reset request successful');
       setIsSuccess(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error(
         '[Debug] ForgotPassword - Password reset request error:',
         err

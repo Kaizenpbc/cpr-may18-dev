@@ -68,7 +68,7 @@ class TokenService {
         devLog('[TRACE] Token service - Token restored from storage');
         return inMemoryToken;
       }
-    } catch (error) {
+    } catch (error: any) {
       devLog('[TRACE] Token service - Error restoring token from storage:', error);
     }
 
@@ -98,7 +98,7 @@ class TokenService {
     try {
       sessionStorage.setItem(ACCESS_TOKEN_KEY, formattedToken);
       sessionStorage.setItem(TOKEN_EXPIRY_KEY, tokenExpiry.toString());
-    } catch (error) {
+    } catch (error: any) {
       devLog('[TRACE] Token service - Error storing token:', error);
     }
 
@@ -183,7 +183,7 @@ class TokenService {
       } else {
         devLog('[TRACE] Token service - Silent refresh failed, will retry on next request');
       }
-    } catch (error) {
+    } catch (error: any) {
       devLog('[TRACE] Token service - Silent refresh error:', error);
       // Don't clear tokens here, let the next API call handle it
     }
@@ -292,7 +292,7 @@ class TokenService {
         try {
           const data = JSON.parse(event.newValue || '{}');
           this.handleSessionSync(data);
-        } catch (error) {
+        } catch (error: any) {
           devLog('[TRACE] Token service - Session sync parse error:', error);
         }
       }

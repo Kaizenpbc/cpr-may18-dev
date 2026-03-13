@@ -50,14 +50,14 @@ const PasswordReset = () => {
 
     try {
       const token = searchParams.get('token');
-      await api.resetPassword(token, newPassword);
+      await api.resetPassword(token!, newPassword);
       setSuccess(
         'Password has been reset successfully. You can now log in with your new password.'
       );
       setTimeout(() => {
         navigate('/');
       }, 3000);
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'Failed to reset password');
     } finally {
       setLoading(false);

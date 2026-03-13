@@ -36,12 +36,12 @@ const PasswordReset = () => {
     }
 
     try {
-      await resetPassword(token, newPassword);
+      await resetPassword(token!, newPassword);
       setSuccess(true);
       setTimeout(() => {
         navigate('/login');
       }, 3000);
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'Failed to reset password');
     }
   };

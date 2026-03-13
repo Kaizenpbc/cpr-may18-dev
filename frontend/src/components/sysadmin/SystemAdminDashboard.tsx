@@ -27,7 +27,7 @@ import { sysAdminApi } from '../../services/api';
 import logger from '../../utils/logger';
 
 const SystemAdminDashboard = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
-  const [dashboardData, setDashboardData] = useState(null);
+  const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -41,7 +41,7 @@ const SystemAdminDashboard = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
       const response = await sysAdminApi.getDashboard();
       setDashboardData(response.data);
       setError('');
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error loading dashboard data:', err);
       setError('Failed to load dashboard data');
       onShowSnackbar?.('Failed to load dashboard data', 'error');

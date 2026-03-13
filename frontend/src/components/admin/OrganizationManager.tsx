@@ -35,7 +35,7 @@ const formatPhone = (phoneString: any) => {
 };
 
 function OrganizationManager() {
-  const [organizations, setOrganizations] = useState([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // State for Add/Edit Dialog
@@ -48,7 +48,7 @@ function OrganizationManager() {
     try {
       const data = await api.getOrganizations();
       setOrganizations(data || []);
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'Failed to load organizations.');
     } finally {
       setLoading(false);

@@ -124,7 +124,7 @@ const InvoiceStatusView: React.FC = () => {
       
       setInvoices(processedInvoices);
       calculateStatusSummary(processedInvoices);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching invoices:', error);
       setError('Failed to load invoices');
       setInvoices([]);

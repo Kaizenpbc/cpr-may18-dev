@@ -223,7 +223,7 @@ const EmailTemplateManager: React.FC = () => {
         }));
 
         setTemplates(mappedTemplates);
-      } catch (error) {
+      } catch (error: any) {
         console.error('[EmailTemplateManager] Error fetching templates:', error);
         showToast({ type: 'error', message: 'Failed to fetch templates', priority: 'normal' });
       }
@@ -242,7 +242,7 @@ const EmailTemplateManager: React.FC = () => {
       ]);
       setEventTriggers(triggersResponse.data.data || triggersResponse.data);
       setCommonVariables(variablesResponse.data.data || variablesResponse.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('[EmailTemplateManager] Error fetching metadata:', error);
       showToast({
         type: 'error',
@@ -319,7 +319,7 @@ const EmailTemplateManager: React.FC = () => {
       }
       setEditDialogOpen(false);
       fetchTemplates(categoryFilter, searchTerm); // Refetch templates
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving template:', error);
       showToast({
         type: 'error',
@@ -340,7 +340,7 @@ const EmailTemplateManager: React.FC = () => {
           message: 'Template deleted successfully!',
           priority: 'normal',
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error deleting template:', error);
         showToast({
           type: 'error',
@@ -361,7 +361,7 @@ const EmailTemplateManager: React.FC = () => {
         message: `Template cloned successfully as "${newName}"!`,
         priority: 'normal',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error cloning template:', error);
       showToast({
         type: 'error',
@@ -385,14 +385,14 @@ const EmailTemplateManager: React.FC = () => {
   const handleTestEmail = async () => {
     if (!selectedTemplate) return;
     try {
-      await emailTemplateApi.sendTest(selectedTemplate.id, testEmail, previewVariables);
+      await emailTemplateApi.sendTest(selectedTemplate.id!, testEmail, previewVariables);
       showToast({
         type: 'success',
         message: `Test email sent to ${testEmail}`,
         priority: 'normal',
       });
       setTestDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending test email:', error);
       showToast({
         type: 'error',

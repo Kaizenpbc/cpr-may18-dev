@@ -35,7 +35,7 @@ const getStatusChipColor = (status: any) => {
   }
 };
 
-const OrgCourseHistoryTable = ({ courses = [] }) => {
+const OrgCourseHistoryTable = ({ courses = [] }: { courses?: any[] }) => {
   if (!courses || courses.length === 0) {
     return (
       <Typography sx={{ mt: 2, fontStyle: 'italic' }}>

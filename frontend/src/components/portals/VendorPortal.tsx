@@ -68,7 +68,7 @@ const VendorPortal: React.FC<VendorPortalProps> = () => {
       const result = <InvoiceUpload />;
       console.log('📤 [VENDOR PORTAL] InvoiceUpload component rendered successfully');
       return result;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [VENDOR PORTAL] Error rendering InvoiceUpload:', error);
       return (
         <div>
@@ -88,7 +88,7 @@ const VendorPortal: React.FC<VendorPortalProps> = () => {
       const result = <InvoiceHistory />;
       console.log('📋 [VENDOR PORTAL] InvoiceHistory component rendered successfully');
       return result;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [VENDOR PORTAL] Error rendering InvoiceHistory:', error);
       return (
         <div>

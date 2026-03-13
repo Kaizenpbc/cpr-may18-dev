@@ -165,7 +165,7 @@ const StudentUploadDialog: React.FC<StudentUploadDialogProps> = ({ open, onClose
       logger.info('Starting file upload');
       const response = await api.organizationApi.uploadStudents(
         Number(courseId),
-        parsedStudents
+        parsedStudents as any[]
       );
       if (response.success) {
         onUploadComplete(response.message); // Notify parent of success

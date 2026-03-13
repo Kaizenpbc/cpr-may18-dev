@@ -21,14 +21,14 @@ import InvoiceHistoryTable from '../tables/InvoiceHistoryTable';
 import InvoiceStatsDashboard from '../dashboard/InvoiceStatsDashboard';
 
 const TransactionHistoryView = () => {
-  const [allInvoices, setAllInvoices] = useState([]);
-  const [filteredInvoices, setFilteredInvoices] = useState([]);
+  const [allInvoices, setAllInvoices] = useState<any[]>([]);
+  const [filteredInvoices, setFilteredInvoices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   // TODO: Add state for filter values (date range, org, status, search term)
   const [searchTerm, setSearchTerm] = useState('');
-  const [organizations, setOrganizations] = useState([]); // For dropdown
+  const [organizations, setOrganizations] = useState<any[]>([]); // For dropdown
   const [selectedOrgId, setSelectedOrgId] = useState(''); // Filter value
   const [selectedMonth, setSelectedMonth] = useState(''); // YYYY-MM format
   const [selectedStatus, setSelectedStatus] = useState(''); // e.g., Pending, Paid, Overdue
@@ -42,7 +42,7 @@ const TransactionHistoryView = () => {
       setAllInvoices(data || []);
       setFilteredInvoices(data || []); // Initialize filtered list
       logger.info('[TransactionHistory] Accounting invoices loaded:', data);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error loading invoice history:', err);
       setError(err.message || 'Failed to load invoice history.');
       setAllInvoices([]);
@@ -62,7 +62,7 @@ const TransactionHistoryView = () => {
       const organizations = orgData?.data || orgData || [];
       setOrganizations(Array.isArray(organizations) ? organizations : []);
       logger.debug('[fetchOrganizations] State updated with:', organizations); // Log what was set
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error fetching organizations for filter:', err);
       // Handle error - maybe show a snackbar or log it
       setOrganizations([]); // Set empty array on error

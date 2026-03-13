@@ -93,7 +93,7 @@ const ReadyForBillingView: React.FC = () => {
         setError('');
         const response = await getBillingQueue();
         setBillingQueue(response.data || []);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching billing queue:', error);
         setError('Failed to load billing queue. Please try again.');
       } finally {
@@ -866,7 +866,7 @@ const AccountingPortal: React.FC = () => {
       setTimeout(() => {
         logout();
       }, 1500);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Logout error:', error);
     }
   };

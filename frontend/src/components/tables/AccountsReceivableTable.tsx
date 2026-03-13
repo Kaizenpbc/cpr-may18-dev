@@ -171,7 +171,7 @@ const PaymentDetails = ({ invoiceId, onViewDetailsClick }: { invoiceId: number; 
       try {
         const response = await api.get(`/accounting/invoices/${invoiceId}/payments`);
         setPayments(response.data.data || []);
-      } catch (err) {
+      } catch (err: any) {
         logger.error('[PaymentDetails] Failed to load payments:', err);
         setError(err.response?.data?.error?.message || 'Failed to load payments');
         setPayments([]);
@@ -252,7 +252,7 @@ const AccountsReceivableTable = ({
     try {
       const response = await api.get(`/accounting/courses/${courseId}/students`);
       setStudents(response.data.data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching students:', error);
       setStudents([]);
     } finally {
@@ -300,7 +300,7 @@ const AccountsReceivableTable = ({
         totalAmount: totalAmount.toFixed(2),
         balanceDue: balanceDue.toFixed(2)
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting invoice amounts:', error);
       return {
         error: 'Error reading amounts',

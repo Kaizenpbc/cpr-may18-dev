@@ -109,7 +109,7 @@ const CSVUploadDialog: React.FC<CSVUploadDialogProps> = ({
       }
 
       // Send to backend
-      const response = await organizationApi.uploadStudents(courseRequestId, parsed.students);
+      const response = await organizationApi.uploadStudents(courseRequestId!, parsed.students);
       
       const result = { 
         fileName: selectedFile.name, 

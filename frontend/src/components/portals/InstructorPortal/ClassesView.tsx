@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 
 const ClassesView = ({ classes }: { classes: any }) => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -32,7 +32,7 @@ const ClassesView = ({ classes }: { classes: any }) => {
         }
       );
       logger.debug('[ClassesView] Update response:', response.data);
-    } catch (error) {
+    } catch (error: any) {
       logger.error('[ClassesView] Error updating attendance:', error);
       if (error.response?.status === 401) {
         await logout();
@@ -57,7 +57,7 @@ const ClassesView = ({ classes }: { classes: any }) => {
         notes,
       });
       logger.debug('[ClassesView] Update response:', response.data);
-    } catch (error) {
+    } catch (error: any) {
       logger.error('[ClassesView] Error updating notes:', error);
       if (error.response?.status === 401) {
         await logout();

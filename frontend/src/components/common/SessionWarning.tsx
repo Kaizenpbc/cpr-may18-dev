@@ -66,7 +66,7 @@ const SessionWarning: React.FC<SessionWarningProps> = ({
       setRefreshing(true);
       await refreshSession();
       setShowWarning(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to refresh session:', error);
     } finally {
       setRefreshing(false);

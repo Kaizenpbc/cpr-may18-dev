@@ -131,7 +131,7 @@ const OrganizationPaidInvoices: React.FC<OrganizationPaidInvoicesProps> = ({
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error downloading PDF:', error);
       setMessage({ type: 'error', text: 'Failed to download invoice PDF' });
     }

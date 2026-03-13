@@ -31,7 +31,7 @@ const getMonthName = (monthStr: any) => {
 };
 
 const RevenueReport = () => {
-  const [reportData, setReportData] = useState([]);
+  const [reportData, setReportData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -55,7 +55,7 @@ const RevenueReport = () => {
             }))
           : [];
         setReportData(formattedData);
-      } catch (err) {
+      } catch (err: any) {
         setError(err.message || 'Could not load Revenue report.');
         setReportData([]);
       } finally {

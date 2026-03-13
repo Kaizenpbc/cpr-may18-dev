@@ -74,7 +74,7 @@ const InvoiceUpload: React.FC = () => {
           const response = await vendorApi.getVendors();
           console.log('📋 [INVOICE UPLOAD] Vendors loaded:', response);
           setVendors(response || []);
-        } catch (error) {
+        } catch (error: any) {
           console.error('❌ [INVOICE UPLOAD] Error loading vendors:', error);
           setError('Failed to load vendors. Please try again.');
         } finally {
@@ -921,7 +921,7 @@ const InvoiceUpload: React.FC = () => {
         </Snackbar>
       </Box>
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ [INVOICE UPLOAD] Error in InvoiceUpload component:', error);
     return (
       <Box>

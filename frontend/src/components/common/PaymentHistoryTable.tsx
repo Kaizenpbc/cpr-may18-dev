@@ -93,7 +93,7 @@ const PaymentHistoryTable: React.FC<PaymentHistoryTableProps> = ({
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error downloading receipt:', error);
       // You could add a toast notification here
     }

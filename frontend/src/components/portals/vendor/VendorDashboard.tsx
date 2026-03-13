@@ -36,7 +36,7 @@ const VendorDashboard: React.FC = () => {
     try {
       const response = await vendorApi.getDashboard();
       setStats(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching dashboard stats:', error);
     }
   };

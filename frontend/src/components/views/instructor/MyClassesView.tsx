@@ -130,7 +130,7 @@ const MyClassesView: React.FC<MyClassesViewProps> = ({
     if (onRemoveAvailability) {
       try {
         await onRemoveAvailability(deleteDialog.date);
-      } catch (error) {
+      } catch (error: any) {
         handleError(error, { component: 'MyClassesView', action: 'remove availability' });
       }
     }

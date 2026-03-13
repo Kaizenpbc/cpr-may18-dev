@@ -71,7 +71,7 @@ try {
       </ErrorBoundary>
     </React.StrictMode>
   );
-} catch (error) {
+} catch (error: any) {
   console.error('[main.tsx] Fatal Error', error);
   document.body.innerHTML = `
     <div style="color: red; padding: 20px;">

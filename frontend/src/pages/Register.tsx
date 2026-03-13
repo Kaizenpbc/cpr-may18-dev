@@ -35,7 +35,7 @@ const Register: React.FC = () => {
     try {
       await register(username, email, password);
       navigate('/dashboard');
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to create account');
     } finally {
       setLoading(false);

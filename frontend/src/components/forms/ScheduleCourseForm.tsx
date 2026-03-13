@@ -106,7 +106,7 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
       try {
         const response = await api.organizationApi.getCourseTypes();
         setCourseTypes(response as CourseType[]);
-      } catch (err) {
+      } catch (err: any) {
         logger.error('Error fetching course types:', err);
         setError('Failed to load course types');
       } finally {
@@ -147,7 +147,7 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
         courseTypeId: formData.courseTypeId,
         registeredStudents: parseInt(formData.registeredStudents, 10),
         notes: formData.notes || '',
-        locationId: user.locationId || null,
+        locationId: user?.locationId || null,
       });
 
       if (response.data.success) {
@@ -162,7 +162,7 @@ const ScheduleCourseForm: React.FC<ScheduleCourseFormProps> = ({ onCourseSchedul
       } else {
         setError(response.data.message || 'Failed to submit course request');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error submitting course request:', err);
       setError('Failed to submit course request. Please try again.');
     }

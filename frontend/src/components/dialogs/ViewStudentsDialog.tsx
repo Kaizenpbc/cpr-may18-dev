@@ -27,7 +27,7 @@ import { organizationApi } from '../../services/api';
 import logger from '../../utils/logger';
 
 const ViewStudentsDialog = ({ open, onClose, courseId }: { open: any; onClose: any; courseId: any }) => {
-  const [students, setStudents] = useState([]);
+  const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -44,7 +44,7 @@ const ViewStudentsDialog = ({ open, onClose, courseId }: { open: any; onClose: a
             `Successfully fetched ${studentsData.length} students for course: ${courseId}`
           );
           setStudents(studentsData);
-        } catch (err) {
+        } catch (err: any) {
           logger.error('Failed to fetch students:', err);
           setError(err.message || 'Failed to fetch students');
         } finally {
@@ -59,7 +59,7 @@ const ViewStudentsDialog = ({ open, onClose, courseId }: { open: any; onClose: a
     if (!dateString) return '';
     try {
       return new Date(dateString).toLocaleDateString();
-    } catch (error) {
+    } catch (error: any) {
       return dateString;
     }
   };

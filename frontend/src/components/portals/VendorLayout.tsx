@@ -103,7 +103,7 @@ const VendorLayout: React.FC<VendorLayoutProps> = ({
   const handleLogout = async () => {
     try {
       await logout();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Logout error:', error);
     }
   };

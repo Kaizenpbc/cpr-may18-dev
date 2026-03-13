@@ -75,7 +75,7 @@ const SessionStatus: React.FC<SessionStatusProps> = ({
       await authService.refreshToken();
       const status = authService.getSessionStatus();
       setSessionStatus(status);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to refresh token:', error);
     } finally {
       setRefreshing(false);
@@ -86,7 +86,7 @@ const SessionStatus: React.FC<SessionStatusProps> = ({
     try {
       await logout();
       setShowDialog(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to logout:', error);
     }
   };

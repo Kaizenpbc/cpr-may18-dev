@@ -181,7 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         requiresReauth: false
       };
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('[TOKEN VALIDATION] Validation error:', err);
       
       const errorMessage = err instanceof Error ? err.message : 'Token validation failed';
@@ -229,7 +229,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       console.log('[TRACE] Auth check - Authentication successful');
-    } catch (err) {
+    } catch (err: any) {
       console.error('[TRACE] Auth check - Unexpected error:', err);
       setError(err instanceof Error ? err.message : 'Authentication failed');
       setUser(null);
@@ -254,7 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSessionStatus(status);
 
       console.log('[TRACE] Auth context - Session refreshed successfully');
-    } catch (err) {
+    } catch (err: any) {
       console.error('[TRACE] Auth context - Session refresh failed:', err);
       setError(err instanceof Error ? err.message : 'Session refresh failed');
       // Don't clear user here, let the next API call handle it
@@ -423,7 +423,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sessionStorage.setItem('from_auth_flow', 'true');
       navigate(targetRoute);
       console.log('[DEEP TRACE] AuthContext.login - Navigation completed');
-    } catch (err) {
+    } catch (err: any) {
       console.error('[DEEP TRACE] AuthContext.login - Error occurred:', {
         error: err,
         message: err instanceof Error ? err.message : 'Unknown error',
@@ -448,7 +448,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       tokenService.clearSavedLocation();
       sessionStorage.removeItem('location_restoration_attempted');
       navigate('/login');
-    } catch (err) {
+    } catch (err: any) {
       setError(err instanceof Error ? err.message : 'Logout failed');
     } finally {
       setLoading(false);

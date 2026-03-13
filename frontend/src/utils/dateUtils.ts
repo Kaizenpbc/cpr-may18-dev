@@ -24,7 +24,7 @@ export const formatDisplayDate = (date: string | Date): string => {
     const dateObj = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr;
     if (isNaN(dateObj.getTime())) return '';
     return format(dateObj, DATE_FORMATS.DISPLAY);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error formatting display date:', error);
     return '';
   }
@@ -42,7 +42,7 @@ export const formatShortDate = (date: string | Date): string => {
     const dateObj = typeof date === 'string' ? parseISO(date) : date;
     if (isNaN(dateObj.getTime())) return '';
     return format(dateObj, DATE_FORMATS.SHORT);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error formatting short date:', error);
     return '';
   }
@@ -60,7 +60,7 @@ export const formatISODate = (date: string | Date): string => {
     const dateObj = typeof date === 'string' ? parseISO(date) : date;
     if (isNaN(dateObj.getTime())) return '';
     return format(dateObj, DATE_FORMATS.ISO);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error formatting ISO date:', error);
     return '';
   }
@@ -78,7 +78,7 @@ export const formatLongDate = (date: string | Date): string => {
     const dateObj = typeof date === 'string' ? parseISO(date) : date;
     if (isNaN(dateObj.getTime())) return '';
     return format(dateObj, DATE_FORMATS.LONG);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error formatting long date:', error);
     return '';
   }

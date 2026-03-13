@@ -30,7 +30,7 @@ export const getScheduledClasses = async (): Promise<ApiResponse<any>> => {
   try {
     const response = await api.get('/classes/scheduled');
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error fetching scheduled classes:', error);
     throw error;
   }
@@ -40,7 +40,7 @@ export const getAvailability = async () => {
   try {
     const response = await api.get('/api/instructors/availability');
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error fetching availability:', error);
     throw error;
   }
@@ -51,7 +51,7 @@ export const getAccountingDashboard = async (): Promise<ApiResponse<any>> => {
   try {
     const response = await api.get('/accounting/dashboard');
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error fetching accounting dashboard:', error);
     throw error;
   }
@@ -66,7 +66,7 @@ export const updateCoursePricing = async (pricingId: number, price: number): Pro
   try {
     const response = await api.put(`/accounting/course-pricing/${pricingId}`, { price });
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error updating course price:', error);
     throw error;
   }
@@ -77,7 +77,7 @@ export const getInvoices = async (): Promise<any[]> => {
   try {
     // This endpoint doesn't exist yet - return empty array for now
     return [];
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error fetching invoices:', error);
     throw error;
   }
@@ -87,7 +87,7 @@ export const getInvoiceDetails = async (invoiceId: any): Promise<any> => {
   try {
     // This endpoint doesn't exist yet - return null for now
     return null;
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error fetching invoice details:', error);
     throw error;
   }
@@ -97,7 +97,7 @@ export const getInvoicePayments = async (invoiceId: any): Promise<any[]> => {
   try {
     // This endpoint doesn't exist yet - return empty array for now
     return [];
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error fetching invoice payments:', error);
     throw error;
   }
@@ -107,7 +107,7 @@ export const recordPayment = async (invoiceId: number, amount: number): Promise<
   try {
     const response = await api.post(`/accounting/invoices/${invoiceId}/payments`, { amount });
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error recording payment:', error);
     throw error;
   }
@@ -117,7 +117,7 @@ export const getBillingQueue = async (): Promise<any[]> => {
   try {
     // This endpoint doesn't exist yet - return empty array for now
     return [];
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error fetching billing queue:', error);
     throw error;
   }
@@ -127,7 +127,7 @@ export const createInvoice = async (courseId: any): Promise<any> => {
   try {
     // This endpoint doesn't exist yet - return success for now
     return { success: true, invoiceId: Date.now() };
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error creating invoice:', error);
     throw error;
   }
@@ -142,7 +142,7 @@ export const getRevenueReport = async (year: any): Promise<{ year: any; months: 
       months: [],
       totalRevenue: 0,
     };
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error fetching revenue report:', error);
     throw error;
   }
@@ -152,7 +152,7 @@ export const getInstructorWorkloadReport = async (startDate: any, endDate: any):
   try {
     // This endpoint doesn't exist yet - return empty data for now
     return [];
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error fetching instructor workload report:', error);
     throw error;
   }
@@ -165,7 +165,7 @@ export const getArAgingReport = async (): Promise<{ buckets: any[]; totalOutstan
       buckets: [],
       totalOutstanding: 0,
     };
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error fetching AR aging report:', error);
     throw error;
   }

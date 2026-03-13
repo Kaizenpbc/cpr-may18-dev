@@ -94,7 +94,7 @@ const PaymentRequestDetailDialog: React.FC<PaymentRequestDetailDialogProps> = ({
         onActionSuccess();
       }
       handleClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing payment request:', error);
       alert('Failed to process payment request. Please try again.');
     } finally {
@@ -105,8 +105,8 @@ const PaymentRequestDetailDialog: React.FC<PaymentRequestDetailDialogProps> = ({
   if (!request) return null;
 
   // Calculate payment breakdown if available
-  const baseAmount = request.baseAmount || (request.totalHours * (request.hourlyRate || 25));
-  const bonusAmount = request.bonusAmount || (request.coursesTaught * (request.courseBonus || 50));
+  const baseAmount = request.baseAmount || ((request.totalHours ?? 0) * (request.hourlyRate || 25));
+  const bonusAmount = request.bonusAmount || ((request.coursesTaught ?? 0) * (request.courseBonus || 50));
   const totalAmount = request.amount || (baseAmount + bonusAmount);
 
   return (
@@ -162,7 +162,7 @@ const PaymentRequestDetailDialog: React.FC<PaymentRequestDetailDialogProps> = ({
                 <Typography variant="h6" gutterBottom color="primary">
                   📅 Timesheet Information
                 </Typography>
-                <Typography><strong>Week Starting:</strong> {new Date(request.weekStartDate).toLocaleDateString()}</Typography>
+                <Typography><strong>Week Starting:</strong> {request.weekStartDate ? new Date(request.weekStartDate).toLocaleDateString() : '-'}</Typography>
                 <Typography><strong>Total Hours:</strong> {request.totalHours} hours</Typography>
                 <Typography><strong>Courses Taught:</strong> {request.coursesTaught} courses</Typography>
                 {request.timesheetComment && (
@@ -373,7 +373,7 @@ const PaymentRequestsDashboard: React.FC = () => {
       setStats(statsData);
       setRequests(requestsData.requests);
       setPagination(requestsData.pagination);
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to load payment requests data');
       console.error('Error loading payment requests:', err);
     } finally {

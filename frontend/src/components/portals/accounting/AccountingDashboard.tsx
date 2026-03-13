@@ -255,7 +255,7 @@ const PendingActionsSidebar: React.FC = () => {
         
         console.log('🔍 [PENDING ACTIONS] Setting real data:', realData);
         setPendingActions(realData);
-      } catch (error) {
+      } catch (error: any) {
         console.error('🔍 [PENDING ACTIONS] Error fetching pending actions:', error);
         setPendingActions([]);
       } finally {
@@ -332,7 +332,7 @@ const PendingActionsSidebar: React.FC = () => {
       
       console.log('🔍 [PENDING ACTIONS] Refresh - Setting real data:', realData);
       setPendingActions(realData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('🔍 [PENDING ACTIONS] Error refreshing pending actions:', error);
     } finally {
       setLoading(false);
@@ -498,7 +498,7 @@ const AccountingDashboard: React.FC = () => {
       const data = await fetchAccountingDashboardData() as unknown as DashboardData;
       setDashboardData(data);
       setError(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching dashboard data:', err);
       setError('Failed to fetch dashboard data');
     } finally {
@@ -675,7 +675,7 @@ const AccountingDashboard: React.FC = () => {
       </Box>
     </Box>
   );
-  } catch (error) {
+  } catch (error: any) {
     console.error('[AccountingDashboard] Error during render:', error);
     return (
       <Box sx={{ p: 3 }}>

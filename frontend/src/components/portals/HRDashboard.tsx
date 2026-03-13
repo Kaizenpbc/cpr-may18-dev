@@ -72,7 +72,7 @@ const HRDashboard: React.FC<HRDashboardProps> = ({ onViewChange }) => {
       setError(null);
       const dashboardStats = await hrDashboardService.getDashboardStats();
       setStats(dashboardStats);
-    } catch (err) {
+    } catch (err: any) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -97,7 +97,7 @@ const HRDashboard: React.FC<HRDashboardProps> = ({ onViewChange }) => {
       setApprovalDialog(false);
       setSelectedChange(null);
       setApprovalComment('');
-    } catch (err) {
+    } catch (err: any) {
       setError(err instanceof Error ? err.message : 'Failed to process approval');
     } finally {
       setProcessingApproval(false);

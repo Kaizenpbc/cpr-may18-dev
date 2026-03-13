@@ -132,7 +132,7 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
                   >
                     <TableCell sx={{ backgroundColor: rowColor }}>
                       <Typography variant='body2' fontWeight='medium'>
-                        {formatDisplayDate(course.date)}
+                        {course.date ? formatDisplayDate(course.date) : '-'}
                       </Typography>
                     </TableCell>
 
@@ -184,9 +184,9 @@ const InstructorArchiveTable: React.FC<InstructorArchiveTableProps> = ({
 
                     <TableCell sx={{ backgroundColor: rowColor }}>
                       <Typography variant='body2' color='text.secondary'>
-                        {formatDisplayDate(
-                          course.updatedAt || course.date
-                        )}
+                        {(course.updatedAt || course.date) ? formatDisplayDate(
+                          (course.updatedAt || course.date)!
+                        ) : '-'}
                       </Typography>
                     </TableCell>
 

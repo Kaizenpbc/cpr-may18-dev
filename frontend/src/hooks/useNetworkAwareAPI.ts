@@ -164,7 +164,7 @@ export const useNetworkAwareAPI = () => {
               };
             }
           }
-        } catch (error) {
+        } catch (error: any) {
           logger.warn('[NetworkAwareAPI] Failed to read from cache:', error);
         }
       }
@@ -185,7 +185,7 @@ export const useNetworkAwareAPI = () => {
               timestamp: Date.now(),
             })
           );
-        } catch (error) {
+        } catch (error: any) {
           logger.warn('[NetworkAwareAPI] Failed to cache response:', error);
         }
       }

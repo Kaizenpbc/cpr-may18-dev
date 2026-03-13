@@ -92,7 +92,7 @@ const PaymentVerificationView = () => {
   const [loadingAttendance, setLoadingAttendance] = useState(false);
 
   // State for payment history
-  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
 
   // State for invoice viewing
@@ -142,7 +142,7 @@ const PaymentVerificationView = () => {
       } else {
         setAttendanceData([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading attendance data:', error);
       setAttendanceData([]);
     } finally {
@@ -168,7 +168,7 @@ const PaymentVerificationView = () => {
         console.warn('Unexpected payment history response format:', response.data);
         setPaymentHistory([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading payment history:', error);
       setPaymentHistory([]);
     } finally {
@@ -266,7 +266,7 @@ const PaymentVerificationView = () => {
     });
 
     verifyPaymentMutation.mutate({
-      paymentId: paymentId.toString(),
+      paymentId: String(paymentId ?? ''),
       action: verificationAction,
       notes: verificationNotes,
     });
@@ -288,7 +288,7 @@ const PaymentVerificationView = () => {
       const response = await api.get(`/accounting/invoices/${invoiceId}`);
       setSelectedInvoice(response.data.data);
       setInvoiceDialogOpen(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading invoice:', error);
     } finally {
       setLoadingInvoice(false);
@@ -308,7 +308,7 @@ const PaymentVerificationView = () => {
     // In the future, this could be expanded to show multiple courses
     const amount = payment.amount || 0;
     return [{
-      date: payment.paymentDate || payment.submittedByOrgAt,
+      date: payment.paymentDate || payment.submittedByOrgAt || '',
       location: payment.location || 'N/A',
       course: payment.courseTypeName || payment.courseType || 'N/A',
       students: payment.studentsAttended || payment.registeredStudents || 0,
@@ -789,7 +789,7 @@ const PaymentVerificationView = () => {
                   if (selectedPayment) {
                     const paymentId = selectedPayment.paymentId || selectedPayment.id;
                     verifyPaymentMutation.mutate({
-                      paymentId: paymentId.toString(),
+                      paymentId: String(paymentId ?? ''),
                       action: 'approve',
                       notes: '',
                     });

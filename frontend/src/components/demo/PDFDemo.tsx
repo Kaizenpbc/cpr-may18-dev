@@ -77,7 +77,7 @@ const PDFDemo = () => {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
       }, 100);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error downloading PDF:', error);
       alert(`Failed to download PDF: ${error.message}`);
     }

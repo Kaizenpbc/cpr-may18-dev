@@ -35,15 +35,15 @@ import LocationsDialog from './LocationsDialog';
 import OrganizationWizard from './OrganizationWizard';
 
 const OrganizationManagement = () => {
-  const [organizations, setOrganizations] = useState([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [openWizard, setOpenWizard] = useState(false);
-  const [editingOrg, setEditingOrg] = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [locationsDialogOrg, setLocationsDialogOrg] = useState(null);
+  const [editingOrg, setEditingOrg] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
+  const [locationsDialogOrg, setLocationsDialogOrg] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -69,7 +69,7 @@ const OrganizationManagement = () => {
       setLoading(true);
       const response = await sysAdminApi.getOrganizations();
       setOrganizations(response.data || []);
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to load organizations');
       console.error(err);
     } finally {
@@ -121,7 +121,7 @@ const OrganizationManagement = () => {
       setSuccess('Organization updated successfully');
       handleCloseDialog();
       loadOrganizations();
-    } catch (err) {
+    } catch (err: any) {
       setError(
         err.response?.data?.error?.message || 'Failed to save organization'
       );
@@ -142,7 +142,7 @@ const OrganizationManagement = () => {
       setSuccess('Organization deleted successfully');
       setDeleteConfirm(null);
       loadOrganizations();
-    } catch (err) {
+    } catch (err: any) {
       setError(
         err.response?.data?.error?.message ||
           err.response?.data?.error?.details ||

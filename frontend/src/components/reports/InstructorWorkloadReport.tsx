@@ -29,7 +29,7 @@ const getDefaultDateRange = () => {
 };
 
 const InstructorWorkloadReport = () => {
-  const [reportData, setReportData] = useState([]);
+  const [reportData, setReportData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [dateRange, setDateRange] = useState(getDefaultDateRange());
@@ -43,7 +43,7 @@ const InstructorWorkloadReport = () => {
         dateRange.endDate
       );
       setReportData(Array.isArray(data) ? data : []);
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'Could not load Instructor Workload report.');
       setReportData([]);
     } finally {

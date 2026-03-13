@@ -16,8 +16,8 @@ import { useAuth } from '../contexts/AuthContext';
 function Navbar() {
   const navigate = useNavigate();
   const { isAuthenticated, logout } = useAuth();
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const [mobileMenuAnchorEl, setMobileMenuAnchorEl] = React.useState(null);
+  const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
+  const [mobileMenuAnchorEl, setMobileMenuAnchorEl] = React.useState<HTMLElement | null>(null);
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);

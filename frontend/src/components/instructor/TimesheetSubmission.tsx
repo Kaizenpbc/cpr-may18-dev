@@ -107,7 +107,7 @@ const TimesheetSubmission: React.FC<TimesheetSubmissionProps> = ({ onTimesheetSu
         ts.weekStartDate.startsWith(weekStartDate)
       );
       setExistingTimesheet(existing);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error checking existing timesheet:', err);
     } finally {
       setCheckingExisting(false);

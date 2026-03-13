@@ -73,7 +73,7 @@ const InstructorDashboard: React.FC = () => {
       const data = await fetchCourseAdminDashboardData(selectedMonth);
       setInstructorStats(Array.isArray(data.instructorStats) ? data.instructorStats : []);
       setDashboardSummary(data.dashboardSummary as unknown as DashboardSummary);
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to fetch dashboard data');
       console.error('Dashboard fetch error:', err);
     } finally {

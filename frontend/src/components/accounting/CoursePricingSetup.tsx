@@ -37,9 +37,9 @@ import * as api from '../../services/api';
 import logger from '../../utils/logger';
 
 const CoursePricingSetup = () => {
-  const [coursePricing, setCoursePricing] = useState([]);
-  const [organizations, setOrganizations] = useState([]);
-  const [courseTypes, setCourseTypes] = useState([]);
+  const [coursePricing, setCoursePricing] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [courseTypes, setCourseTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -69,7 +69,7 @@ const CoursePricingSetup = () => {
         loadOrganizations(),
         loadCourseTypes(),
       ]);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error loading course pricing data:', err);
       setError('Failed to load course pricing data');
     } finally {
@@ -81,7 +81,7 @@ const CoursePricingSetup = () => {
     try {
       const response = await api.getCoursePricing();
       setCoursePricing(response.data || []);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error loading course pricing:', err);
       throw err;
     }
@@ -91,7 +91,7 @@ const CoursePricingSetup = () => {
     try {
       const response = await api.getOrganizations();
       setOrganizations(response.data || []);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error loading organizations:', err);
       throw err;
     }
@@ -101,7 +101,7 @@ const CoursePricingSetup = () => {
     try {
       const response = await api.getClassTypes();
       setCourseTypes(response || []);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error loading course types:', err);
       throw err;
     }
@@ -130,7 +130,7 @@ const CoursePricingSetup = () => {
       setEditingId(null);
       setEditPrice('');
       loadCoursePricing();
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error updating course pricing:', err);
       setError('Failed to update course pricing');
     }
@@ -162,7 +162,7 @@ const CoursePricingSetup = () => {
         price_per_student: '',
       });
       loadCoursePricing();
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error creating course pricing:', err);
       setError('Failed to create course pricing');
     }

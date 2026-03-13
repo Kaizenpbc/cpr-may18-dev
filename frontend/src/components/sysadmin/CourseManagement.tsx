@@ -41,13 +41,13 @@ import { sysAdminApi } from '../../services/api';
 import logger from '../../utils/logger';
 
 const CourseManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
-  const [courses, setCourses] = useState([]);
+  const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   // Dialog state
   const [showDialog, setShowDialog] = useState(false);
-  const [editingCourse, setEditingCourse] = useState(null);
+  const [editingCourse, setEditingCourse] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -89,7 +89,7 @@ const CourseManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
       const response = await sysAdminApi.getCourses();
       setCourses(response.data || []);
       setError('');
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error loading courses:', err);
       setError('Failed to load courses');
       onShowSnackbar?.('Failed to load courses', 'error');
@@ -142,7 +142,7 @@ const CourseManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
         await sysAdminApi.deleteCourse(course.id);
         onShowSnackbar?.('Course deactivated successfully', 'success');
         loadCourses();
-      } catch (err) {
+      } catch (err: any) {
         logger.error('Error deactivating course:', err);
         onShowSnackbar?.('Failed to deactivate course', 'error');
       }
@@ -160,7 +160,7 @@ const CourseManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
         await sysAdminApi.toggleCourseActive(course.id);
         onShowSnackbar?.(`Course ${action}d successfully`, 'success');
         loadCourses();
-      } catch (err) {
+      } catch (err: any) {
         logger.error(`Error toggling course status:`, err);
         onShowSnackbar?.(`Failed to ${action} course`, 'error');
       }
@@ -180,13 +180,13 @@ const CourseManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
         ...formData,
         durationHours: formData.durationHours
           ? parseInt(formData.durationHours)
-          : null,
+          : undefined,
         durationMinutes: formData.durationMinutes
           ? parseInt(formData.durationMinutes)
-          : null,
+          : undefined,
         validityPeriodMonths: formData.validityPeriodMonths
           ? parseInt(formData.validityPeriodMonths)
-          : null,
+          : undefined,
       };
 
       if (editingCourse) {
@@ -199,7 +199,7 @@ const CourseManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
 
       setShowDialog(false);
       loadCourses();
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error saving course:', err);
       onShowSnackbar?.('Failed to save course', 'error');
     }

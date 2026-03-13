@@ -71,7 +71,7 @@ const SystemConfiguration: React.FC = () => {
       } else {
         setError('Failed to load configurations');
       }
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error loading configurations:', err);
       setError('Failed to load system configurations');
     } finally {
@@ -101,7 +101,7 @@ const SystemConfiguration: React.FC = () => {
       } else {
         setError(`Failed to update ${key}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       logger.error(`Error updating configuration ${key}:`, err);
       setError(`Failed to update ${key}`);
     } finally {
@@ -122,7 +122,7 @@ const SystemConfiguration: React.FC = () => {
       await Promise.all(updatePromises);
       setSuccess('All configurations updated successfully');
       await loadConfigurations();
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error updating configurations:', err);
       setError('Failed to update some configurations');
     } finally {

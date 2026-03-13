@@ -29,7 +29,7 @@ import PricingRuleDialog from './PricingRuleDialog'; // Import the dialog
 import logger from '../../utils/logger';
 
 function PricingManager() {
-  const [pricingRules, setPricingRules] = useState([]);
+  const [pricingRules, setPricingRules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [snackbar, setSnackbar] = useState<{
@@ -45,8 +45,8 @@ function PricingManager() {
   const [editingRule, setEditingRule] = useState(null);
 
   // State for filtering
-  const [organizations, setOrganizations] = useState([]);
-  const [courseTypes, setCourseTypes] = useState([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [courseTypes, setCourseTypes] = useState<any[]>([]);
   const [filterOrg, setFilterOrg] = useState(''); // Selected Org ID for filtering
   const [filterType, setFilterType] = useState(''); // Selected Course Type ID for filtering
 
@@ -68,7 +68,7 @@ function PricingManager() {
       setPricingRules(rulesData || []);
       setOrganizations(orgData || []);
       setCourseTypes(typeData || []);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error fetching pricing rules:', err);
       setError('Failed to load data.');
       // Clear all states on error?
@@ -107,7 +107,7 @@ function PricingManager() {
         logger.info(`Pricing rule ${id} deleted successfully`);
         showSnackbar(`Pricing Rule ${id} deleted successfully.`, 'success');
         fetchData(); // Refresh list
-      } catch (err) {
+      } catch (err: any) {
         logger.error(`Error deleting pricing rule ${id}:`, err);
         setError(err.message || 'Failed to delete pricing rule.');
         showSnackbar(err.message || 'Failed to delete pricing rule.', 'error');

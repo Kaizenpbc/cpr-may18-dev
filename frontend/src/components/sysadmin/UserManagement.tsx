@@ -40,15 +40,15 @@ import { sysAdminApi } from '../../services/api';
 import logger from '../../utils/logger';
 
 const UserManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
-  const [users, setUsers] = useState([]);
-  const [organizations, setOrganizations] = useState([]);
-  const [locations, setLocations] = useState([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   // Dialog state
   const [showDialog, setShowDialog] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
+  const [editingUser, setEditingUser] = useState<any>(null);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -88,7 +88,7 @@ const UserManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
       const response = await sysAdminApi.getUsers();
       setUsers(response.data || []);
       setError('');
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error loading users:', err);
       setError('Failed to load users');
       onShowSnackbar?.('Failed to load users', 'error');
@@ -101,7 +101,7 @@ const UserManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
     try {
       const response = await sysAdminApi.getOrganizations();
       setOrganizations(response.data || []);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error loading organizations:', err);
     }
   };
@@ -114,7 +114,7 @@ const UserManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
     try {
       const response = await sysAdminApi.getOrganizationLocations(orgId);
       setLocations(response.data || []);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error loading locations:', err);
       setLocations([]);
     }
@@ -179,7 +179,7 @@ const UserManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
         await sysAdminApi.deleteUser(user.id);
         onShowSnackbar?.('User deactivated successfully', 'success');
         loadUsers();
-      } catch (err) {
+      } catch (err: any) {
         logger.error('Error deactivating user:', err);
         onShowSnackbar?.('Failed to deactivate user', 'error');
       }
@@ -208,8 +208,9 @@ const UserManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
       };
 
       // Remove password if it's empty (for updates)
-      if (!submitData.password) {
-        delete submitData.password;
+      const mutableSubmitData: Record<string, unknown> = { ...submitData };
+      if (!mutableSubmitData.password) {
+        delete mutableSubmitData.password;
       }
 
       if (editingUser) {
@@ -222,7 +223,7 @@ const UserManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
 
       setShowDialog(false);
       loadUsers();
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error saving user:', err);
 
       // Extract specific error message from API response

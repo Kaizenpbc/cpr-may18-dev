@@ -122,7 +122,7 @@ const PersonnelManagement: React.FC<PersonnelManagementProps> = ({ onViewChange 
       );
       setInstructors(data.instructors);
       setInstructorPagination(data.pagination);
-    } catch (err) {
+    } catch (err: any) {
       setError(err instanceof Error ? err.message : 'Failed to load instructors');
     } finally {
       setLoading(false);
@@ -140,7 +140,7 @@ const PersonnelManagement: React.FC<PersonnelManagementProps> = ({ onViewChange 
       );
       setOrganizations(data.organizations);
       setOrganizationPagination(data.pagination);
-    } catch (err) {
+    } catch (err: any) {
       setError(err instanceof Error ? err.message : 'Failed to load organizations');
     } finally {
       setLoading(false);
@@ -174,7 +174,7 @@ const PersonnelManagement: React.FC<PersonnelManagementProps> = ({ onViewChange 
       const userData = await hrDashboardService.getUserProfile(userId);
       setSelectedUser(userData);
       setUserDetailsDialog(true);
-    } catch (err) {
+    } catch (err: any) {
       setError(err instanceof Error ? err.message : 'Failed to load user details');
     }
   };

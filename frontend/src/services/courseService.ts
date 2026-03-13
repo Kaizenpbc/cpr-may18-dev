@@ -26,7 +26,7 @@ class CourseService {
       const response = await api.get('/courses');
       logger.debug('[CourseService] Successfully fetched courses');
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       const err = error as ApiError;
       logger.error('[CourseService] Error fetching courses:', {
         error: err.message,
@@ -44,7 +44,7 @@ class CourseService {
       const response = await api.get(`/courses/${id}`);
       logger.debug(`[CourseService] Successfully fetched course ${id}`);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       const err = error as ApiError;
       logger.error(`[CourseService] Error fetching course ${id}:`, {
         error: err.message,
@@ -62,7 +62,7 @@ class CourseService {
       const response = await api.post('/courses', courseData);
       logger.debug('[CourseService] Successfully created course');
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       const err = error as ApiError;
       logger.error('[CourseService] Error creating course:', {
         error: err.message,
@@ -80,7 +80,7 @@ class CourseService {
       const response = await api.put(`/courses/${id}`, courseData);
       logger.debug(`[CourseService] Successfully updated course ${id}`);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       const err = error as ApiError;
       logger.error(`[CourseService] Error updating course ${id}:`, {
         error: err.message,
@@ -97,7 +97,7 @@ class CourseService {
       logger.debug(`[CourseService] Deleting course ${id}`);
       await api.delete(`/courses/${id}`);
       logger.debug(`[CourseService] Successfully deleted course ${id}`);
-    } catch (error) {
+    } catch (error: any) {
       const err = error as ApiError;
       logger.error(`[CourseService] Error deleting course ${id}:`, {
         error: err.message,

@@ -285,7 +285,7 @@ const InstructorManagement: React.FC = () => {
       
       // Date filter
       if (dateFilter) {
-        const courseDate = new Date(course.confirmedDate);
+        const courseDate = new Date(course.confirmedDate ?? '');
         const filterDate = new Date(dateFilter);
         if (courseDate.toDateString() !== filterDate.toDateString()) {
           return false;
@@ -395,7 +395,7 @@ const InstructorManagement: React.FC = () => {
       
       setInstructorSchedule(combinedData);
       setInstructorAvailability(availabilityRes.data.data || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching instructor schedule:', err);
       setError('Failed to fetch instructor schedule data');
     }
@@ -545,7 +545,7 @@ const InstructorManagement: React.FC = () => {
           });
         }
         setAvailableInstructors(availableList);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching available instructors:', err);
         setAvailableInstructors([]);
       }
@@ -585,7 +585,7 @@ const InstructorManagement: React.FC = () => {
       }
       queryClient.invalidateQueries({ queryKey: ['instructors'] });
       handleClose();
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to save instructor');
     }
   };
@@ -604,7 +604,7 @@ const InstructorManagement: React.FC = () => {
       setSuccess('Availability updated successfully');
       queryClient.invalidateQueries({ queryKey: ['instructors'] });
       handleAvailabilityClose();
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to update availability');
     }
   };
@@ -617,7 +617,7 @@ const InstructorManagement: React.FC = () => {
       await api.delete(`/instructors/${id}`);
       setSuccess('Instructor deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['instructors'] });
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to delete instructor');
     }
   };
@@ -699,7 +699,7 @@ const InstructorManagement: React.FC = () => {
 • Organization contact
 
 📅 Course Details:
-• Date: ${formatDisplayDate(selectedCourse.scheduledDate)}
+• Date: ${selectedCourse.scheduledDate ? formatDisplayDate(selectedCourse.scheduledDate) : '-'}
 • Time: ${assignmentData.startTime} - ${assignmentData.endTime}
 • Location: ${selectedCourse.location}
 • Students: ${selectedCourse.registeredStudents || 0}
@@ -757,7 +757,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
         }
 
         setAvailableInstructors(availableList);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching available instructors:', err);
         setAvailableInstructors([]);
       }
@@ -784,14 +784,14 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
       queryClient.invalidateQueries({ queryKey: ['instructors'] }); // This will refresh the instructor availability display
 
       handleEditScheduleClose();
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to update course schedule');
     }
   };
 
   // Function to check if course is within 7 days
   const isCourseWithinSevenDays = (course: Course) => {
-    const scheduledDate = new Date(course.scheduledDate);
+    const scheduledDate = new Date(course.scheduledDate ?? '');
     const today = new Date();
     const diffTime = scheduledDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -800,7 +800,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
   };
 
   const isCoursePastScheduledDate = (course: Course) => {
-    const scheduledDate = new Date(course.scheduledDate);
+    const scheduledDate = new Date(course.scheduledDate ?? '');
     const today = new Date();
     // Set both dates to midnight for accurate day comparison
     scheduledDate.setHours(0, 0, 0, 0);
@@ -830,7 +830,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
     if (isCoursePastScheduledDate(course)) {
       return 'Past Due';
     }
-    return course.status.charAt(0).toUpperCase() + course.status.slice(1);
+    return (course.status ?? '').charAt(0).toUpperCase() + (course.status ?? '').slice(1);
   };
 
   const handleViewStudentsOpen = (course: Course) => {
@@ -848,7 +848,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
     try {
       const validationResponse = await api.get(`/courses/${courseId}/validate-billing-readiness`);
       return validationResponse.data.data;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error checking billing readiness:', err);
       return { isValid: false, validationErrors: ['Unable to validate billing readiness'] };
     }
@@ -906,7 +906,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
       await api.post(`/courses/${courseId}/update-reminder`);
       // Refetch pending courses to update the UI
       queryClient.invalidateQueries({ queryKey: ['pendingCourses'] });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error acknowledging reminder:', error);
       setError('Failed to acknowledge reminder');
     }
@@ -914,7 +914,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
 
   const handleEditClick = (course: Course) => {
     setSelectedCourse(course);
-    setNewScheduledDate(course.scheduledDate);
+    setNewScheduledDate(course.scheduledDate ?? '');
     setEditDialogOpen(true);
   };
 
@@ -926,7 +926,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
 
   const handleEditSave = async () => {
     try {
-      const response = await api.put(`/courses/${selectedCourse.id}/schedule`, {
+      const response = await api.put(`/courses/${selectedCourse!.id}/schedule`, {
         scheduled_date: newScheduledDate
       });
       
@@ -937,7 +937,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
       
       setSuccess('Course schedule updated successfully');
       handleEditClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating course schedule:', error);
       setError('Failed to update course schedule');
     }
@@ -1054,7 +1054,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
               {pendingCourses.map(course => (
                 <TableRow key={course.id}>
                   <TableCell>
-                    {formatDisplayDate(course.requestSubmittedDate)}
+                    {course.requestSubmittedDate ? formatDisplayDate(course.requestSubmittedDate) : '-'}
                   </TableCell>
                   <TableCell>
                     {course.scheduledDate
@@ -1464,7 +1464,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
               {filteredConfirmedCourses.map(course => (
                 <TableRow key={course.id}>
                   <TableCell>
-                    {formatDisplayDate(course.requestSubmittedDate)}
+                    {course.requestSubmittedDate ? formatDisplayDate(course.requestSubmittedDate) : '-'}
                   </TableCell>
                   <TableCell>
                     {course.scheduledDate
@@ -1611,7 +1611,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
               {completedCourses.map(course => (
                 <TableRow key={course.id}>
                   <TableCell>
-                    {formatDisplayDate(course.requestSubmittedDate)}
+                    {course.requestSubmittedDate ? formatDisplayDate(course.requestSubmittedDate) : '-'}
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2' fontWeight='medium'>
@@ -1923,7 +1923,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
                 }
                 fullWidth
                 required
-                helperText={`${availableInstructors.length} instructor(s) available on ${formatDisplayDate(selectedCourse?.scheduledDate)}`}
+                helperText={`${availableInstructors.length} instructor(s) available on ${selectedCourse?.scheduledDate ? formatDisplayDate(selectedCourse.scheduledDate) : '-'}`}
               >
                 <MenuItem value=''>Select an instructor</MenuItem>
                 {availableInstructors.map(instructor => (
@@ -2106,7 +2106,7 @@ The course status has been updated to "Confirmed" and moved to the confirmed cou
         <DialogContent>
           <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle1" gutterBottom>
-              Current Schedule: {selectedCourse && formatDisplayDate(selectedCourse.scheduledDate)}
+              Current Schedule: {selectedCourse && selectedCourse.scheduledDate ? formatDisplayDate(selectedCourse.scheduledDate) : '-'}
             </Typography>
             <TextField
               type="datetime-local"

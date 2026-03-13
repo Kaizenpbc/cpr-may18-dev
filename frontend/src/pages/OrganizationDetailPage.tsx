@@ -38,17 +38,17 @@ const formatCurrency = (amount: any) => {
 const OrganizationDetailPage = () => {
   const { orgId } = useParams(); // Get orgId from URL
   const navigate = useNavigate();
-  const [orgDetails, setOrgDetails] = useState(null);
-  const [orgCourses, setOrgCourses] = useState([]);
-  const [orgInvoices, setOrgInvoices] = useState([]);
+  const [orgDetails, setOrgDetails] = useState<any>(null);
+  const [orgCourses, setOrgCourses] = useState<any[]>([]);
+  const [orgInvoices, setOrgInvoices] = useState<any[]>([]);
   // const [orgPayments, setOrgPayments] = useState([]); // Fetch payments later if needed
-  const [financialSummary, setFinancialSummary] = useState(null);
+  const [financialSummary, setFinancialSummary] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   
   // Payment dialog state
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [paymentData, setPaymentData] = useState({
     amount: '',
     paymentMethod: '',
@@ -93,7 +93,7 @@ const OrganizationDetailPage = () => {
         setFinancialSummary(summaryRes);
 
         logger.info('[OrganizationDetailPage] All data loaded.');
-      } catch (err) {
+      } catch (err: any) {
         logger.error(`Error loading organization data for ID ${orgId}:`, err);
         setError(err.message || 'Failed to load organization data.');
         // Clear potentially partial data
@@ -142,7 +142,7 @@ const OrganizationDetailPage = () => {
         message: 'Invoice email sent successfully!',
         severity: 'success',
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`Error emailing invoice ${invoiceId}:`, error);
       setSnackbar({
         open: true,
@@ -192,10 +192,10 @@ const OrganizationDetailPage = () => {
       setSelectedInvoice(null);
       
       // Reload invoice data to reflect payment
-      const invoicesRes = await api.getOrganizationInvoices(parseInt(orgId, 10));
+      const invoicesRes = await api.getOrganizationInvoices(parseInt(orgId!, 10));
       setOrgInvoices(invoicesRes || []);
       
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`Error recording payment for invoice ${selectedInvoice.invoiceid}:`, error);
       setSnackbar({
         open: true,

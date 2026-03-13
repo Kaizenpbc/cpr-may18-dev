@@ -54,7 +54,7 @@ const OrganizationPricing: React.FC<OrganizationPricingProps> = ({ organizationI
         const data = response.data || [];
         
         setPricingData(data);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching organization pricing:', err);
         setError('Failed to load pricing information. Please try again later.');
       } finally {

@@ -39,9 +39,9 @@ const ReadyForBillingTable = ({
 }) => {
   const { user } = useAuth();
   const [creatingInvoice, setCreatingInvoice] = useState<Record<string, boolean>>({});
-  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [students, setStudents] = useState([]);
+  const [students, setStudents] = useState<any[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [invoiceSuccess, setInvoiceSuccess] = useState(false);
 
@@ -91,7 +91,7 @@ const ReadyForBillingTable = ({
       
       setStudents(normalizedStudents);
       console.log('[ReadyForBillingTable] Students loaded successfully:', normalizedStudents.length);
-    } catch (error) {
+    } catch (error: any) {
       console.error('[ReadyForBillingTable] Error fetching students:', error);
       console.error('[ReadyForBillingTable] Error details:', {
         status: error.response?.status,
@@ -133,7 +133,7 @@ const ReadyForBillingTable = ({
         setStudents([]);
         setInvoiceSuccess(false);
       }, 1500); // Show success for 1.5 seconds
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [INVOICE] Invoice creation failed in table component:', error);
       // Error handling is done in the parent component, but we keep the dialog open
       // so the user can see the error message and try again if needed

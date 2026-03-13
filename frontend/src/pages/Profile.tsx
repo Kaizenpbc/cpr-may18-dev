@@ -41,7 +41,7 @@ export default function Profile() {
         const data = response.data?.data || response.data;
         setProfile(data);
         setFormData(data);
-      } catch (err) {
+      } catch (err: any) {
         setError('Failed to load profile information');
       } finally {
         setLoading(false);
@@ -58,7 +58,7 @@ export default function Profile() {
       const data = response.data?.data || response.data;
       setProfile(data);
       setIsEditing(false);
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to update profile');
     }
   };

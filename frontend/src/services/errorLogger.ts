@@ -61,6 +61,8 @@ export class ErrorLogger {
     const enhancedError: StandardError = {
       ...error,
       context: {
+        service: error.context?.service ?? '',
+        method: error.context?.method ?? '',
         ...error.context,
         route: routeContext.route,
         params: routeContext.params,
@@ -86,6 +88,7 @@ export class ErrorLogger {
     const enhancedError: StandardError = {
       ...error,
       context: {
+        service: error.context?.service ?? '',
         ...error.context,
         endpoint: apiContext.endpoint,
         method: apiContext.method,
@@ -112,6 +115,8 @@ export class ErrorLogger {
     const enhancedError: StandardError = {
       ...error,
       context: {
+        service: error.context?.service ?? '',
+        method: error.context?.method ?? '',
         ...error.context,
         action: authContext.action,
         userId: authContext.userId,
@@ -220,7 +225,7 @@ export class ErrorLogger {
           version: import.meta.env.VITE_APP_VERSION || '1.0.0',
         }),
       });
-    } catch (error) {
+    } catch (error: any) {
       // Silently fail for external logging to avoid infinite loops
       console.warn('[ErrorLogger] Failed to send to external logger:', error);
     }
@@ -247,7 +252,7 @@ export class ErrorLogger {
       
       // Store back to localStorage
       localStorage.setItem(storageKey, JSON.stringify(recentLogs));
-    } catch (error) {
+    } catch (error: any) {
       // Silently fail if localStorage is not available
       console.warn('[ErrorLogger] Failed to store in localStorage:', error);
     }
@@ -295,7 +300,7 @@ export class ErrorLogger {
           }),
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.warn('[ErrorLogger] Failed to send to analytics:', error);
     }
   }
@@ -307,7 +312,7 @@ export class ErrorLogger {
     try {
       const storageKey = 'app_error_logs';
       return JSON.parse(localStorage.getItem(storageKey) || '[]') as LogEntry[];
-    } catch (error) {
+    } catch (error: any) {
       console.warn('[ErrorLogger] Failed to retrieve stored logs:', error);
       return [];
     }
@@ -320,7 +325,7 @@ export class ErrorLogger {
     try {
       const storageKey = 'app_error_logs';
       localStorage.removeItem(storageKey);
-    } catch (error) {
+    } catch (error: any) {
       console.warn('[ErrorLogger] Failed to clear stored logs:', error);
     }
   }
@@ -366,6 +371,8 @@ export class ErrorLogger {
     const enhancedError: StandardError = {
       ...error,
       context: {
+        service: error.context?.service ?? '',
+        method: error.context?.method ?? '',
         ...error.context,
         operation: performanceContext.operation,
         duration: performanceContext.duration,

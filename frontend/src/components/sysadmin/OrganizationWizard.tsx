@@ -166,7 +166,7 @@ const OrganizationWizard: React.FC<OrganizationWizardProps> = ({
     if (createdOrgId && activeStep === 1) {
       try {
         await sysAdminApi.deleteOrganization(createdOrgId);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to cleanup org:', err);
       }
     }

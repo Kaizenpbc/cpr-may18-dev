@@ -109,7 +109,7 @@ const CourseDialog: React.FC<CourseDialogProps> = ({
     try {
       await onSave(formData as Omit<Course, 'coursetypeid'>);
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       setError(err instanceof Error ? err.message : 'Failed to save course');
     } finally {
       setLoading(false);

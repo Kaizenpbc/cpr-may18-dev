@@ -51,7 +51,7 @@ const CourseManager: React.FC<CourseManagerProps> = ({ showSnackbar }) => {
       const response = await api.get('/courses');
       setCourses(response.data.data || []);
       setError(null);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error fetching courses:', err);
       setError('Failed to load courses');
     } finally {
@@ -88,7 +88,7 @@ const CourseManager: React.FC<CourseManagerProps> = ({ showSnackbar }) => {
         } else {
           throw new Error(response.data.message || 'Failed to delete course');
         }
-      } catch (err) {
+      } catch (err: any) {
         logger.error(`Error deleting course ${id}:`, err);
         showSnackbar(
           err instanceof Error ? err.message : 'Failed to delete course.',
@@ -108,7 +108,7 @@ const CourseManager: React.FC<CourseManagerProps> = ({ showSnackbar }) => {
         showSnackbar('Course created successfully', 'success');
       }
       fetchCourses();
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error saving course:', err);
       showSnackbar(
         err instanceof Error ? err.message : 'Failed to save course',

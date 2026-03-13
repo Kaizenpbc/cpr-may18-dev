@@ -353,7 +353,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
           toast => toast.priority === 'critical' || toast.type === 'error'
         );
         localStorage.setItem('toastQueue', JSON.stringify(persistentToasts));
-      } catch (error) {
+      } catch (error: any) {
         logger.error('[ToastContext] Failed to persist toasts:', error);
       }
     }
@@ -379,7 +379,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
             );
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         logger.error('[ToastContext] Failed to load persisted toasts:', error);
       }
     }

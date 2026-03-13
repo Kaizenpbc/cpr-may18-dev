@@ -130,7 +130,7 @@ const InstructorDashboard: React.FC = () => {
           instructorStats: stats,
           dashboardSummary: stats
         });
-      } catch (err) {
+      } catch (err: any) {
         handleError(err, { component: 'InstructorDashboard', action: 'process dashboard data' });
         setErrorState(err instanceof Error ? err.message : 'Failed to process dashboard data.');
       }

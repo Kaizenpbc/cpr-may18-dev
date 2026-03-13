@@ -85,7 +85,7 @@ const ClassManagement: React.FC = () => {
     try {
       const response = await api.get('/classes');
       setClasses(response.data.data);
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to fetch classes');
     }
   };
@@ -94,7 +94,7 @@ const ClassManagement: React.FC = () => {
     try {
       const response = await api.get('/courses');
       setCourses(response.data.data);
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to fetch courses');
     }
   };
@@ -103,7 +103,7 @@ const ClassManagement: React.FC = () => {
     try {
       const response = await api.get('/instructors');
       setInstructors(response.data.data);
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to fetch instructors');
     }
   };
@@ -193,7 +193,7 @@ const ClassManagement: React.FC = () => {
       }
       fetchClasses();
       handleClose();
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to save class');
     }
   };
@@ -205,7 +205,7 @@ const ClassManagement: React.FC = () => {
       await api.delete(`/classes/${id}`);
       setSuccess('Class deleted successfully');
       fetchClasses();
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to delete class');
     }
   };

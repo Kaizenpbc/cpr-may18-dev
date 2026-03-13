@@ -25,7 +25,7 @@ import { formatCurrency } from '../../utils/formatters'; // Import formatter
 import logger from '../../utils/logger';
 
 function PricingRuleManager() {
-  const [pricingRules, setPricingRules] = useState([]);
+  const [pricingRules, setPricingRules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [snackbar, setSnackbar] = useState<{
@@ -84,7 +84,7 @@ function PricingRuleManager() {
         await api.deletePricingRule(id);
         showSnackbar(`Pricing Rule ${id} deleted successfully.`, 'success');
         fetchPricingRules(); // Refresh list
-      } catch (err) {
+      } catch (err: any) {
         logger.error(`Error deleting pricing rule ${id}:`, err);
         showSnackbar(err.message || 'Failed to delete pricing rule.', 'error');
       }

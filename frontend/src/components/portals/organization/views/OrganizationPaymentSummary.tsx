@@ -63,7 +63,7 @@ const OrganizationPaymentSummary: React.FC<OrganizationPaymentSummaryProps> = ({
       try {
         const response = await api.get(`/organization/payment-summary`);
         setSummary(response.data);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error loading payment summary:', err);
         setError('Failed to load payment summary');
       } finally {

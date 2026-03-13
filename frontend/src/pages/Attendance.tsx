@@ -68,7 +68,7 @@ const Attendance: React.FC = () => {
       try {
         const response = await api.get('/instructors/attendance');
         return response.data.data;
-      } catch (error) {
+      } catch (error: any) {
         if (error.response?.status === 401) {
           await logout();
           navigate('/login');

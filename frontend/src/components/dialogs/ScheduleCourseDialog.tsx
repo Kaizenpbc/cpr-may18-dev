@@ -21,7 +21,7 @@ import logger from '../../utils/logger';
 import { formatDisplayDate } from '../../utils/dateUtils';
 
 const ScheduleCourseDialog = ({ open, onClose, course, onCourseScheduled }: { open: any; onClose: any; course: any; onCourseScheduled: any }) => {
-  const [instructors, setInstructors] = useState([]);
+  const [instructors, setInstructors] = useState<any[]>([]);
   const [isLoadingInstructors, setIsLoadingInstructors] = useState(false);
   const [selectedInstructorId, setSelectedInstructorId] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
@@ -53,7 +53,7 @@ const ScheduleCourseDialog = ({ open, onClose, course, onCourseScheduled }: { op
         try {
           const data = await api.getAllInstructors();
           setInstructors(data || []);
-        } catch (err) {
+        } catch (err: any) {
           setError(err.message || 'Failed to load instructors');
           setInstructors([]);
         } finally {
@@ -92,7 +92,7 @@ const ScheduleCourseDialog = ({ open, onClose, course, onCourseScheduled }: { op
       } else {
         setError(response.message || 'Failed to schedule course.');
       }
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'An error occurred while scheduling.');
     } finally {
       setIsScheduling(false);

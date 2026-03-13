@@ -213,7 +213,7 @@ try {
     },
   });
   console.log('theme.ts - Theme created successfully');
-} catch (error) {
+} catch (error: any) {
   console.error('theme.ts - Error creating theme:', error);
   throw new Error(
     `Failed to create theme: ${error instanceof Error ? error.message : 'Unknown error'}`

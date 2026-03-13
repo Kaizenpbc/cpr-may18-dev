@@ -10,7 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 
-const InstructorWorkloadSummaryTable = ({ workloads = [] }) => {
+const InstructorWorkloadSummaryTable = ({ workloads = [] }: { workloads?: any[] }) => {
   if (!workloads || workloads.length === 0) {
     return (
       <Typography sx={{ mt: 1, mb: 1, fontStyle: 'italic' }}>

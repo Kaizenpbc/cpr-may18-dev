@@ -107,7 +107,7 @@ const VendorInvoiceApproval: React.FC = () => {
       const response = await adminApi.getVendorInvoices();
       setInvoices(response.data || []);
       setError(null);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error fetching vendor invoices:', err);
       setError('Failed to load vendor invoices');
     } finally {
@@ -142,7 +142,7 @@ const VendorInvoiceApproval: React.FC = () => {
       } else {
         setPaymentHistory([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching payment history:', error);
       setPaymentHistory([]);
     }
@@ -178,7 +178,7 @@ const VendorInvoiceApproval: React.FC = () => {
       setNotes('');
       
       logger.info(`Vendor invoice ${action}d successfully`);
-    } catch (err) {
+    } catch (err: any) {
       logger.error(`Error ${action}ing vendor invoice:`, err);
       setError(`Failed to ${action} invoice`);
     } finally {
@@ -198,7 +198,7 @@ const VendorInvoiceApproval: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error downloading invoice:', err);
       setError('Failed to download invoice');
     }
@@ -222,7 +222,7 @@ const VendorInvoiceApproval: React.FC = () => {
       await fetchVendorInvoices();
       
       logger.info('Notes saved successfully');
-    } catch (err) {
+    } catch (err: any) {
       logger.error('Error saving notes:', err);
       setError('Failed to save notes');
     } finally {

@@ -90,7 +90,7 @@ function OrganizationDialog({ open, onClose, onSave, organization }: { open: any
       try {
         const data = await api.getOrganizationLocations(orgId);
         setLocations(data || []);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to load locations:', err);
       } finally {
         setLocationsLoading(false);
@@ -173,7 +173,7 @@ function OrganizationDialog({ open, onClose, onSave, organization }: { open: any
       }
       onSave();
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'Failed to save organization');
     } finally {
       setLoading(false);

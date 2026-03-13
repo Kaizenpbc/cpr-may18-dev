@@ -189,7 +189,7 @@ const InvoiceHistory: React.FC = () => {
         console.log('🔍 [FETCH DEBUG] Unexpected response format:', response);
         setInvoices([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [FETCH DEBUG] Error fetching invoices:', error);
       setError('Failed to fetch invoices');
       setInvoices([]);
@@ -283,7 +283,7 @@ const InvoiceHistory: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error downloading invoice:', error);
       alert('Failed to download invoice');
     }
@@ -303,7 +303,7 @@ const InvoiceHistory: React.FC = () => {
       }
       
       setViewDialogOpen(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching invoice details:', error);
       alert('Failed to load invoice details');
     }
@@ -319,7 +319,7 @@ const InvoiceHistory: React.FC = () => {
       await vendorApi.submitToAdmin(invoiceId);
       alert('Invoice submitted to admin successfully');
       fetchInvoices(); // Refresh the list
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting to admin:', error);
       alert('Failed to submit invoice to admin');
     }
@@ -330,7 +330,7 @@ const InvoiceHistory: React.FC = () => {
       await vendorApi.resendToAdmin(invoiceId, notes);
       alert('Invoice resent to admin successfully');
       fetchInvoices(); // Refresh the list
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error resending to admin:', error);
       alert('Failed to resend invoice to admin');
     }

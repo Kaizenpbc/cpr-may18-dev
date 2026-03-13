@@ -107,7 +107,7 @@ const SuperAdminPortal = () => {
         logger.info('Fetching admin data');
         // ... existing fetch logic ...
         logger.info('Admin data fetched successfully');
-      } catch (err) {
+      } catch (err: any) {
         logger.error('Error fetching admin data:', err);
       } finally {
         setLoading(false);

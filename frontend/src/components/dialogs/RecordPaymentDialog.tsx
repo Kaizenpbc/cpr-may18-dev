@@ -108,7 +108,7 @@ const RecordPaymentDialog = ({
       console.log('🔍 [RecordPaymentDialog] Payment recorded successfully!');
       logger.info(`Payment recorded successfully for invoice: ${invoice?.invoiceid}`);
       onSuccess(paymentData.notes || 'Payment recorded successfully.'); // Notify parent
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ [RecordPaymentDialog] Payment recording failed:', err);
       logger.error('Failed to record payment:', err);
       const errorMessage = err.message || 'Failed to record payment';
@@ -148,7 +148,7 @@ const RecordPaymentDialog = ({
           logger.debug(
             `[RecordPaymentDialog] Payment summary loaded: Paid=${totalPaid}, Balance=${originalAmount - totalPaid}`
           );
-        } catch (err) {
+        } catch (err: any) {
           logger.error('Error loading payment summary:', err);
           // Don't block the dialog, but maybe show a small error?
           // For now, just default to 0 paid / full balance

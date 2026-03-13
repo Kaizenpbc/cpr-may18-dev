@@ -171,7 +171,7 @@ const VendorInvoiceManagement: React.FC = () => {
       } else {
         setPaymentHistory([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching payment history:', error);
       setPaymentHistory([]);
     }
@@ -196,7 +196,7 @@ const VendorInvoiceManagement: React.FC = () => {
         if (historyResponse.success && historyResponse.data.payments) {
           setPaymentHistory(historyResponse.data.payments);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error refreshing payment history:', error);
       }
       

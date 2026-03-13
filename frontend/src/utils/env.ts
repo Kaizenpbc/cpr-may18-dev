@@ -13,7 +13,7 @@ export type Env = z.infer<typeof envSchema>;
 export const validateEnv = () => {
   try {
     return envSchema.parse(import.meta.env);
-  } catch (error) {
+  } catch (error: any) {
     console.warn('[ENV] Environment validation warning:', error);
     return import.meta.env;
   }

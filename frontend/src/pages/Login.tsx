@@ -85,9 +85,9 @@ const Login = () => {
       let errorMessage = 'Failed to login. Please check your credentials.';
 
       if (typeof errorData?.error === 'object') {
-        errorMessage = errorData.error.message;
-        if (errorData.error.retryAfter) {
-          errorMessage += ` Try again in ${errorData.error.retryAfter}.`;
+        errorMessage = (errorData.error as { message?: string }).message ?? errorMessage;
+        if ((errorData.error as { retryAfter?: string }).retryAfter) {
+          errorMessage += ` Try again in ${(errorData.error as { retryAfter?: string }).retryAfter}.`;
         }
       } else if (typeof errorData?.error === 'string') {
         errorMessage = errorData.error;
@@ -95,7 +95,7 @@ const Login = () => {
 
       setError(errorMessage);
       const errorObj = errorData?.error as { code?: string } | undefined;
-      setErrorCode(errorData?.code || errorObj?.code);
+      setErrorCode(errorData?.code || errorObj?.code || null);
       setSuggestions(errorData?.suggestions || []);
     } finally {
       setIsLoading(false);

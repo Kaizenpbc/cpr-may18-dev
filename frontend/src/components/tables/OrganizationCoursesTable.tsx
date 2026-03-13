@@ -65,7 +65,7 @@ const formatDate = (dateString: any) => {
   if (!dateString) return '-';
   try {
     return new Date(dateString).toLocaleDateString();
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error formatting date:', error);
     return dateString;
   }
@@ -75,7 +75,7 @@ const formatTime = (timeString: any) => {
   if (!timeString) return '-';
   try {
     return timeString.slice(0, 5); // HH:MM format
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error formatting time:', error);
     return timeString;
   }

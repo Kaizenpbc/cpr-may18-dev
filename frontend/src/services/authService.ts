@@ -88,7 +88,7 @@ export const authService = {
       api.defaults.headers.common['Authorization'] = accessToken;
 
       return response.data.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [AUTH] Frontend login error:', {
         error: error instanceof Error ? error.message : 'Unknown error',
         response: error instanceof AxiosError ? {
@@ -163,7 +163,7 @@ export const authService = {
         });
 
       return refreshPromise;
-    } catch (error) {
+    } catch (error: any) {
       console.error('[TRACE] Auth service - Unexpected refresh error:', error);
       throw error;
     }
@@ -198,7 +198,7 @@ export const authService = {
       }
 
       return response.data.data;
-    } catch (error) {
+    } catch (error: any) {
       throw error;
     }
   },
@@ -277,7 +277,7 @@ export const authService = {
         });
 
       return authCheckPromise;
-    } catch (error) {
+    } catch (error: any) {
       console.error('[TRACE] Auth service - Unexpected error:', error);
       throw error;
     }

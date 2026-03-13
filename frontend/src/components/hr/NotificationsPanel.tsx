@@ -188,7 +188,7 @@ const SendNotificationDialog: React.FC<SendNotificationDialogProps> = ({
       setType('');
       setTitle('');
       setMessage('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending notification:', error);
     } finally {
       setLoading(false);
@@ -312,7 +312,7 @@ const NotificationsPanel: React.FC = () => {
       setUnreadCount(notificationsData.unreadCount);
       setSystemNotifications(systemData);
       setStats(statsData);
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to load notification data');
       console.error('Error loading notification data:', err);
     } finally {
@@ -336,7 +336,7 @@ const NotificationsPanel: React.FC = () => {
     try {
       await notificationService.markAsRead(notificationId);
       await loadData(); // Refresh data
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error marking notification as read:', err);
     }
   };
@@ -345,7 +345,7 @@ const NotificationsPanel: React.FC = () => {
     try {
       await notificationService.deleteNotification(notificationId);
       await loadData(); // Refresh data
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error deleting notification:', err);
     }
   };
@@ -354,7 +354,7 @@ const NotificationsPanel: React.FC = () => {
     try {
       await notificationService.markAllAsRead();
       await loadData(); // Refresh data
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error marking all notifications as read:', err);
     }
   };
@@ -368,7 +368,7 @@ const NotificationsPanel: React.FC = () => {
         message
       });
       await loadData(); // Refresh data
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error sending notification:', err);
       throw err;
     }

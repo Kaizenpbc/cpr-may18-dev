@@ -52,7 +52,7 @@ const CourseManagement: React.FC = () => {
     try {
       const response = await api.get('/courses');
       setCourses(response.data.data);
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to fetch courses');
     }
   };
@@ -106,7 +106,7 @@ const CourseManagement: React.FC = () => {
       }
       fetchCourses();
       handleClose();
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to save course');
     }
   };
@@ -118,7 +118,7 @@ const CourseManagement: React.FC = () => {
       await api.delete(`/courses/${id}`);
       setSuccess('Course deleted successfully');
       fetchCourses();
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to delete course');
     }
   };

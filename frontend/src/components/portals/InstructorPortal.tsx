@@ -272,7 +272,7 @@ const InstructorPortal: React.FC<InstructorPortalProps> = ({
                         try {
                           await onRemoveAvailability(date);
                           return { success: true };
-                        } catch (error) {
+                        } catch (error: any) {
                           return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
                         }
                       }}

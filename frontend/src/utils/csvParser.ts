@@ -122,7 +122,7 @@ export const parseCSV = (csvContent: string, courseRequestId?: number, organizat
       console.log(`[TRACE] CSV Parser - Valid student data:`, student);
       students.push(student);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error(`[TRACE] CSV Parser - Error processing row ${rowNumber}:`, error);
       errors.push(`Row ${rowNumber}: Error processing data`);
     }

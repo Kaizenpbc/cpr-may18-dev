@@ -161,8 +161,8 @@ const InvoiceDetailDialog = ({
     if (!invoiceData) return [];
 
     return [{
-      date: invoiceData.datecompleted,
-      location: invoiceData.location,
+      date: invoiceData.datecompleted || '',
+      location: invoiceData.location || '',
       course: `${invoiceData.name} (${invoiceData.coursenumber})`,
       students: invoiceData.studentsattendance || 0,
       ratePerStudent: invoiceData.ratePerStudent || 0,
@@ -185,7 +185,7 @@ const InvoiceDetailDialog = ({
       const response = await api.get(`/accounting/courses/${courseId}/students`);
       setStudents(response.data.data || []);
       console.log('[InvoiceDetailDialog] Students loaded successfully:', response.data.data?.length || 0);
-    } catch (error) {
+    } catch (error: any) {
       console.error('[InvoiceDetailDialog] Error fetching students:', error);
       setStudents([]);
     } finally {
@@ -215,7 +215,7 @@ const InvoiceDetailDialog = ({
         console.warn('Unexpected payment history response format:', response.data);
         setPaymentHistory([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching payment history:', error);
       setPaymentHistory([]);
     } finally {
@@ -377,7 +377,7 @@ const InvoiceDetailDialog = ({
 
     try {
       logger.info('Saving invoice details:', formData);
-      const savedInvoice = await updateInvoice(invoiceId, formData);
+      const savedInvoice = await updateInvoice(invoiceId!, formData);
       logger.info('Invoice saved successfully:', savedInvoice);
       onClose();
     } catch (err: unknown) {
@@ -398,7 +398,7 @@ const InvoiceDetailDialog = ({
   };
 
   const handlePreview = () => {
-    logger.info('Generating invoice preview for:', invoice.id);
+    logger.info('Generating invoice preview for:', invoice?.id);
     // Add preview logic here
   };
 
@@ -593,12 +593,12 @@ const InvoiceDetailDialog = ({
               <Grid xs={6} md={3}>
                 <Typography variant='body2'>
                   <strong>Invoice Date:</strong>{' '}
-                  {formatDisplayDate(invoice.invoicedate)}
+                  {invoice.invoicedate ? formatDisplayDate(invoice.invoicedate) : ''}
                 </Typography>
               </Grid>
               <Grid xs={6} md={3}>
                 <Typography variant='body2'>
-                  <strong>Due Date:</strong> {formatDisplayDate(invoice.duedate)}
+                  <strong>Due Date:</strong> {invoice.duedate ? formatDisplayDate(invoice.duedate) : ''}
                 </Typography>
               </Grid>
               <Grid xs={6} md={3}>

@@ -36,7 +36,7 @@ export const useTokenValidation = (): UseTokenValidationReturn => {
         error: result.error,
         requiresReauth: result.requiresReauth
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('[TOKEN VALIDATION HOOK] Validation error:', error);
       return {
         isValid: false,
