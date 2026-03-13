@@ -260,7 +260,9 @@ router.post('/forgot-password', asyncHandler(async (req: Request, res: Response)
       [resetToken, user.id]
     );
 
-    // In a real application, you would send an email here
+    // Send reset email
+    const resetLink = `${process.env.FRONTEND_URL || 'https://cpr.kpbc.ca'}/reset-password?token=${resetToken}`;
+    await emailService.sendPasswordResetEmail(user.email, user.username, resetLink);
 
     return res.json({
       message: 'Password reset instructions have been sent to your email address.',
