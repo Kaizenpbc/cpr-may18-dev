@@ -3,7 +3,7 @@ import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { AppError, asyncHandler } from '../../utils/errorHandler.js';
 import { keysToCamel } from '../../utils/caseConverter.js';
 import { EmailTemplateService } from '../../models/EmailTemplate.js';
-import { authorizeRoles } from '../../middleware/authMiddleware.js';
+import { authenticateToken, authorizeRoles } from '../../middleware/authMiddleware.js';
 import { errorCodes } from '../../utils/errorHandler.js';
 import { validateEmailTemplate } from '../../middleware/inputSanitizer.js';
 import { emailService } from '../../services/emailService.js';
@@ -32,6 +32,8 @@ const router = express.Router();
 // Get all email templates
 router.get(
   '/',
+  authenticateToken,
+  authorizeRoles(['admin']),
   asyncHandler(
     async (
       req: Request<{}, {}, {}, EmailTemplateQueryParams>,
@@ -78,6 +80,8 @@ router.get(
 // Get single email template
 router.get(
   '/:id',
+  authenticateToken,
+  authorizeRoles(['admin']),
   asyncHandler(async (req: Request, res: Response) => {
     const template = await EmailTemplateService.getById(
       parseInt(req.params.id)
@@ -94,6 +98,7 @@ router.get(
 // Create email template
 router.post(
   '/',
+  authenticateToken,
   validateEmailTemplate,
   authorizeRoles(['admin']),
   asyncHandler(
@@ -126,6 +131,7 @@ router.post(
 // Update email template
 router.put(
   '/:id',
+  authenticateToken,
   validateEmailTemplate,
   authorizeRoles(['admin']),
   asyncHandler(
@@ -167,6 +173,7 @@ router.put(
 // Delete email template
 router.delete(
   '/:id',
+  authenticateToken,
   authorizeRoles(['admin']),
   asyncHandler(async (req: Request, res: Response) => {
     await EmailTemplateService.delete(parseInt(req.params.id));
@@ -181,6 +188,8 @@ router.delete(
 // Preview email template
 router.post(
   '/:id/preview',
+  authenticateToken,
+  authorizeRoles(['admin']),
   asyncHandler(async (req: Request, res: Response) => {
     const template = await EmailTemplateService.getById(
       parseInt(req.params.id)
@@ -208,6 +217,8 @@ router.post(
 // Send test email
 router.post(
   '/:id/test',
+  authenticateToken,
+  authorizeRoles(['admin']),
   asyncHandler(async (req: Request, res: Response) => {
     const template = await EmailTemplateService.getById(
       parseInt(req.params.id)
@@ -267,6 +278,8 @@ router.post(
 // Clone email template
 router.post(
   '/:id/clone',
+  authenticateToken,
+  authorizeRoles(['admin']),
   asyncHandler(
     async (req: Request & { user?: { userId: string } }, res: Response) => {
       const originalTemplate = await EmailTemplateService.getById(
@@ -310,6 +323,8 @@ router.post(
 // Get available event triggers
 router.get(
   '/meta/event-triggers',
+  authenticateToken,
+  authorizeRoles(['admin']),
   asyncHandler(async (_req: Request, res: Response) => {
     const eventTriggers = [
       {
@@ -375,45 +390,11 @@ router.get(
   })
 );
 
-// Get event triggers
-router.get(
-  '/meta/event-triggers',
-  asyncHandler(async (_req: Request, res: Response) => {
-    const eventTriggers = [
-      {
-        name: 'INSTRUCTOR_COURSE_ASSIGNMENT',
-        description: 'When an instructor is assigned to a course',
-        category: 'Instructor',
-      },
-      {
-        name: 'ORGANIZATION_COURSE_CONFIRMATION',
-        description: 'When a course is confirmed for an organization',
-        category: 'Organization',
-      },
-      {
-        name: 'PASSWORD_RESET',
-        description: 'When a user requests a password reset',
-        category: 'System',
-      },
-      {
-        name: 'WELCOME_EMAIL',
-        description: 'When a new user account is created',
-        category: 'System',
-      },
-      {
-        name: 'COURSE_REMINDER_INSTRUCTOR',
-        description: 'Reminder sent to instructor before course',
-        category: 'Instructor',
-      },
-    ];
-
-    return res.json(ApiResponseBuilder.success(keysToCamel(eventTriggers)));
-  })
-);
-
 // Get common template variables
 router.get(
   '/meta/variables',
+  authenticateToken,
+  authorizeRoles(['admin']),
   asyncHandler(async (_req: Request, res: Response) => {
     const commonVariables = [
       // User variables
@@ -522,29 +503,25 @@ router.get(
   })
 );
 
-// Simple test email endpoint (for development/testing only)
-router.post('/send-test', async (req, res) => {
+// Simple test email endpoint (admin only)
+router.post('/send-test', authenticateToken, authorizeRoles(['admin']), asyncHandler(async (req, res) => {
   const { to, subject, body } = req.body;
   if (!to || !subject || !body) {
-    return res.status(400).json({ error: 'to, subject, and body are required' });
+    throw new AppError(400, 'VALIDATION_ERROR', 'to, subject, and body are required');
   }
-  try {
-    const result = await emailService.sendInvoicePostedNotification(to, {
-      organizationName: 'Test Organization',
-      invoiceNumber: 'TEST-001',
-      invoiceDate: new Date().toLocaleDateString(),
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-      amount: 100.00,
-      courseType: 'Test Course',
-      location: 'Test Location',
-      courseDate: new Date().toLocaleDateString(),
-      studentsBilled: 1,
-      portalUrl: 'http://localhost:5173'
-    });
-    res.json({ success: true, result });
-  } catch (error) {
-    res.status(500).json({ error: (error as Error).message || 'Failed to send email' });
-  }
-});
+  const result = await emailService.sendInvoicePostedNotification(to, {
+    organizationName: 'Test Organization',
+    invoiceNumber: 'TEST-001',
+    invoiceDate: new Date().toLocaleDateString(),
+    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+    amount: 100.00,
+    courseType: 'Test Course',
+    location: 'Test Location',
+    courseDate: new Date().toLocaleDateString(),
+    studentsBilled: 1,
+    portalUrl: 'http://localhost:5173'
+  });
+  return res.json(ApiResponseBuilder.success({ result }));
+}));
 
 export default router;

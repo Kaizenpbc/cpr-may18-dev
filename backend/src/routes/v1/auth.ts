@@ -21,6 +21,7 @@ import { redisManager, ensureRedisConnection } from '../../config/redis.js';
 import { sessionManager } from '../../services/sessionManager.js';
 import { cacheService } from '../../services/cacheService.js';
 import { authenticateToken } from '../../middleware/authMiddleware.js';
+import { emailService } from '../../services/emailService.js';
 
 const router = express.Router();
 
@@ -713,7 +714,22 @@ router.post(
 
       const user = result.rows[0];
 
-      // TODO: Implement actual email sending
+      // Generate a signed reset token (1-hour expiry)
+      const resetToken = jwt.sign(
+        { userId: user.id, type: 'password_reset' },
+        RESET_TOKEN_SECRET,
+        { expiresIn: '1h' }
+      );
+
+      // Persist token and expiry in DB
+      await pool.query(
+        'UPDATE users SET reset_token = $1, reset_token_expires = NOW() + INTERVAL \'1 hour\' WHERE id = $2',
+        [resetToken, user.id]
+      );
+
+      // Send reset email
+      const resetLink = `${process.env.FRONTEND_URL || 'https://cpr.kpbc.ca'}/reset-password?token=${resetToken}`;
+      await emailService.sendPasswordResetEmail(user.email, user.username, resetLink);
 
       res.json(
         ApiResponseBuilder.success(

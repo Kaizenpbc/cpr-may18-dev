@@ -1,4 +1,4 @@
-import { snakeToCamel, camelToSnake, keysToCamel, keysToSnake } from '../../utils/caseConverter';
+import { snakeToCamel, camelToSnake, keysToCamel, keysToSnake } from '../../utils/caseConverter.js';
 
 describe('snakeToCamel', () => {
   it('converts snake_case to camelCase', () => {

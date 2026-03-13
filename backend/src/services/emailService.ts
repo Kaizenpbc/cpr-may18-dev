@@ -611,6 +611,37 @@ This is an automated reminder. For questions, please contact our accounting depa
     `;
     await this.sendEmail(userEmail, subject, html);
   }
+
+  async sendPasswordResetEmail(
+    userEmail: string,
+    username: string,
+    resetLink: string
+  ): Promise<boolean> {
+    const subject = 'CPR Training System - Password Reset Request';
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #007bff;">Password Reset Request</h2>
+        <p>Hi <strong>${username}</strong>,</p>
+        <p>We received a request to reset the password for your CPR Training System account.</p>
+        <p>Click the button below to reset your password. This link will expire in <strong>1 hour</strong>.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetLink}"
+             style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-size: 16px;">
+            Reset Password
+          </a>
+        </div>
+        <p>Or copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #6c757d; font-size: 0.9em;">${resetLink}</p>
+        <hr style="border: none; border-top: 1px solid #dee2e6; margin: 20px 0;">
+        <p style="color: #6c757d; font-size: 0.85em;">
+          If you did not request a password reset, you can safely ignore this email.
+          Your password will not be changed.
+        </p>
+        <p style="color: #6c757d; font-size: 0.85em;">This is an automated message, please do not reply.</p>
+      </div>
+    `;
+    return this.sendEmail(userEmail, subject, html);
+  }
 }
 
 // Export the singleton instance

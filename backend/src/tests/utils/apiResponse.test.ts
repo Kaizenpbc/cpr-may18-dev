@@ -1,4 +1,4 @@
-import { ApiResponseBuilder } from '../../utils/apiResponse';
+import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 
 describe('ApiResponseBuilder.success', () => {
   it('returns success:true with data', () => {
