@@ -612,6 +612,36 @@ This is an automated reminder. For questions, please contact our accounting depa
     await this.sendEmail(userEmail, subject, html);
   }
 
+  async sendOverdueInvoiceNotification(
+    organizationEmail: string,
+    organizationName: string,
+    invoiceNumber: string,
+    dueDate: string,
+    amount: number
+  ): Promise<boolean> {
+    const subject = `OVERDUE: Invoice ${invoiceNumber} Payment Required`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #d32f2f; color: white; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Overdue Invoice Notice</h2>
+        </div>
+        <div style="padding: 20px; background-color: #f5f5f5;">
+          <p>Dear <strong>${organizationName}</strong>,</p>
+          <p>Our records show that the following invoice is <strong style="color: #d32f2f;">overdue</strong>:</p>
+          <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
+            <p><strong>Invoice Number:</strong> ${invoiceNumber}</p>
+            <p><strong>Due Date:</strong> <span style="color: #d32f2f;">${dueDate}</span></p>
+            <p><strong>Amount Outstanding:</strong> <span style="font-size: 20px; color: #d32f2f;">$${amount.toFixed(2)}</span></p>
+          </div>
+          <p>Please arrange payment at your earliest convenience to avoid any disruption to services.</p>
+          <p>If you have already made payment, please disregard this notice or contact us to confirm receipt.</p>
+          <p style="color: #6c757d; font-size: 0.85em;">This is an automated message. Please contact your account manager if you have any questions.</p>
+        </div>
+      </div>
+    `;
+    return this.sendEmail(organizationEmail, subject, html);
+  }
+
   async sendPasswordResetEmail(
     userEmail: string,
     username: string,

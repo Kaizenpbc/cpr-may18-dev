@@ -293,10 +293,7 @@ router.post('/reset-password', asyncHandler(async (req: Request, res: Response) 
     [hashedPassword, decoded.userId]
   );
 
-  res.json({
-    message: 'Password has been reset successfully. You can now log in with your new password.',
-    code: 'PASSWORD_RESET'
-  });
+  return res.json(ApiResponseBuilder.success({ message: 'Password has been reset successfully. You can now log in with your new password.' }));
 }));
 
 // Change password (for logged-in users)

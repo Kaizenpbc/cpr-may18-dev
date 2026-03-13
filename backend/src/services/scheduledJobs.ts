@@ -68,15 +68,7 @@ export class ScheduledJobsService {
           `📊 [OVERDUE UPDATE] Updated ${result.rows.length} invoices to overdue status`
         );
 
-        // Log each updated invoice
-        result.rows.forEach(invoice => {
-          console.log(
-            `  - Invoice #${invoice.invoice_number} (ID: ${invoice.id}) - Due: ${invoice.due_date}`
-          );
-        });
-
-        // TODO: Here you can add email notification logic for overdue invoices
-        // await this.sendOverdueNotifications(result.rows);
+        await this.sendOverdueNotifications(result.rows);
       } else {
         console.log('📊 [OVERDUE UPDATE] No invoices to update');
       }
@@ -87,6 +79,43 @@ export class ScheduledJobsService {
       console.error('❌ [OVERDUE UPDATE ERROR]', error);
     } finally {
       client.release();
+    }
+  }
+
+  private async sendOverdueNotifications(
+    invoices: Array<{ id: number; invoice_number: string; organization_id: number; due_date: string }>
+  ): Promise<void> {
+    try {
+      const orgIds = [...new Set(invoices.map(i => i.organization_id))];
+      const orgResult = await pool.query<{ id: number; email: string; name: string }>(
+        'SELECT id, email, name FROM organizations WHERE id = ANY($1)',
+        [orgIds]
+      );
+      const orgMap = new Map(orgResult.rows.map(o => [o.id, o]));
+
+      // Fetch amounts for overdue invoices
+      const invoiceIds = invoices.map(i => i.id);
+      const amountResult = await pool.query<{ id: number; amount: string }>(
+        'SELECT id, amount FROM invoices WHERE id = ANY($1)',
+        [invoiceIds]
+      );
+      const amountMap = new Map(amountResult.rows.map(r => [r.id, parseFloat(r.amount)]));
+
+      for (const invoice of invoices) {
+        const org = orgMap.get(invoice.organization_id);
+        if (!org?.email) continue;
+
+        await emailService.sendOverdueInvoiceNotification(
+          org.email,
+          org.name,
+          invoice.invoice_number,
+          new Date(invoice.due_date).toLocaleDateString(),
+          amountMap.get(invoice.id) ?? 0
+        );
+        console.log(`📧 [OVERDUE NOTIFY] Sent overdue notice for invoice ${invoice.invoice_number} to ${org.email}`);
+      }
+    } catch (error) {
+      console.error('❌ [OVERDUE NOTIFY] Failed to send overdue notifications:', error);
     }
   }
 

@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, master, develop ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, master, develop ]
 
 env:
   NODE_VERSION: '18'
@@ -109,14 +109,10 @@ jobs:
         npm run db:migrate || echo "No migrations to run"
         
     - name: Run backend tests
-      run: |
-        cd backend
-        npm test
-        
+      run: npm test
+
     - name: Generate test coverage
-      run: |
-        cd backend
-        npm run test:coverage || echo "Coverage not configured yet"
+      run: npm run test:coverage || echo "Coverage not configured yet"
         
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3
@@ -243,7 +239,7 @@ jobs:
         
     - name: Run integration tests
       run: |
-        npm run test:integration || echo "Integration tests not configured yet"
+        npm run test:integration
         
     - name: Stop services
       run: |

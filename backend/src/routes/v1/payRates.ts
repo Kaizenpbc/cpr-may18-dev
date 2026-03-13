@@ -3,6 +3,7 @@ import { pool } from '../../config/database.js';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
+import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 
 const router = Router();
 
@@ -468,77 +469,68 @@ router.post('/bulk-update', authenticateToken, requireRole(['hr']), asyncHandler
   try {
     await client.query('BEGIN');
     
-    const results = [];
-    
-    for (const instructorId of instructor_ids) {
-      // End current active rate
-      await client.query(`
-        UPDATE instructor_pay_rates 
-        SET end_date = $1, is_active = false, updated_at = CURRENT_TIMESTAMP
-        WHERE instructor_id = $2 
-        AND is_active = true 
-        AND (end_date IS NULL OR end_date >= CURRENT_DATE)
-      `, [effective_date || new Date().toISOString().split('T')[0], instructorId]);
-      
-      // Get old rate for history
-      const oldRateResult = await client.query(`
-        SELECT hourly_rate, course_bonus, tier_id 
-        FROM instructor_pay_rates 
-        WHERE instructor_id = $1 
-        AND is_active = false 
-        ORDER BY effective_date DESC 
-        LIMIT 1
-      `, [instructorId]);
-      
-      const oldRate = oldRateResult.rows[0];
-      
-      // Create new rate
-      const newRateResult = await client.query(`
-        INSERT INTO instructor_pay_rates (
-          instructor_id, tier_id, hourly_rate, course_bonus, 
-          effective_date, notes, created_by
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING *
-      `, [
-        instructorId, 
-        tier_id, 
-        hourly_rate, 
-        course_bonus || 50.00, 
-        effective_date || new Date().toISOString().split('T')[0], 
-        notes, 
-        userId
-      ]);
-      
-      // Record in history
-      await client.query(`
-        INSERT INTO pay_rate_history (
-          instructor_id, old_hourly_rate, new_hourly_rate, 
+    const effectiveDateVal = effective_date || new Date().toISOString().split('T')[0];
+    const courseBonusVal = course_bonus || 50.00;
+
+    // 1. Fetch current active rates for all instructors before deactivating
+    const oldRatesResult = await client.query<{instructor_id: number; hourly_rate: number; course_bonus: number; tier_id: number}>(
+      `SELECT DISTINCT ON (instructor_id) instructor_id, hourly_rate, course_bonus, tier_id
+       FROM instructor_pay_rates
+       WHERE instructor_id = ANY($1) AND is_active = true
+       ORDER BY instructor_id, effective_date DESC`,
+      [instructor_ids]
+    );
+    const oldRateMap = new Map(oldRatesResult.rows.map(r => [r.instructor_id, r]));
+
+    // 2. Batch deactivate current rates (1 query instead of N)
+    await client.query(
+      `UPDATE instructor_pay_rates
+       SET end_date = $1, is_active = false, updated_at = CURRENT_TIMESTAMP
+       WHERE instructor_id = ANY($2)
+         AND is_active = true
+         AND (end_date IS NULL OR end_date >= CURRENT_DATE)`,
+      [effectiveDateVal, instructor_ids]
+    );
+
+    // 3. Batch insert new rates with unnest (1 query instead of N)
+    const newRatesResult = await client.query(
+      `INSERT INTO instructor_pay_rates
+         (instructor_id, tier_id, hourly_rate, course_bonus, effective_date, notes, created_by)
+       SELECT unnest($1::int[]), $2, $3, $4, $5, $6, $7
+       RETURNING *`,
+      [instructor_ids, tier_id, hourly_rate, courseBonusVal, effectiveDateVal, notes, userId]
+    );
+
+    // 4. Batch insert history records with unnest (1 query instead of N)
+    await client.query(
+      `INSERT INTO pay_rate_history
+         (instructor_id, old_hourly_rate, new_hourly_rate,
           old_course_bonus, new_course_bonus, old_tier_id, new_tier_id,
-          change_reason, changed_by, effective_date
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      `, [
-        instructorId,
-        oldRate?.hourly_rate || null,
+          change_reason, changed_by, effective_date)
+       SELECT
+         unnest($1::int[]),
+         unnest($2::numeric[]),
+         $3,
+         unnest($4::numeric[]),
+         $5,
+         unnest($6::int[]),
+         $7, $8, $9, $10`,
+      [
+        instructor_ids,
+        instructor_ids.map((id: number) => oldRateMap.get(id)?.hourly_rate ?? null),
         hourly_rate,
-        oldRate?.course_bonus || null,
-        course_bonus || 50.00,
-        oldRate?.tier_id || null,
-        tier_id,
-        change_reason,
-        userId,
-        effective_date || new Date().toISOString().split('T')[0]
-      ]);
-      
-      results.push(newRateResult.rows[0]);
-    }
+        instructor_ids.map((id: number) => oldRateMap.get(id)?.course_bonus ?? null),
+        courseBonusVal,
+        instructor_ids.map((id: number) => oldRateMap.get(id)?.tier_id ?? null),
+        tier_id, change_reason, userId, effectiveDateVal,
+      ]
+    );
+
+    const results = newRatesResult.rows;
     
     await client.query('COMMIT');
     
-    res.json({
-      success: true,
-      message: `Pay rates updated for ${results.length} instructors.`,
-      data: results
-    });
+    return res.json(ApiResponseBuilder.success(results));
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
