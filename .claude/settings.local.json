@@ -34,7 +34,15 @@
       "Bash(PGPASSWORD=cNTJ7zXihPWU2iqDUEuzVM8IBtbSQp9V pg_dump:*)",
       "Bash(PGPASSWORD=cNTJ7zXihPWU2iqDUEuzVM8IBtbSQp9V psql:*)",
       "Bash(timeout 10 npm start)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(cd C:/Users/gerog/Documents/cpr-jun21-dev && npm test 2>&1 | grep -A 20 \"Cannot find module\")",
+      "Bash(npm test:*)",
+      "Bash(cat npm-error:*)",
+      "Bash(cd /c/Users/gerog/Documents/cpr-jun21-dev && npm audit --audit-level=high 2>&1 | grep -A3 \"undici\")",
+      "Bash(npm audit:*)",
+      "Bash(npm ls:*)",
+      "Bash(rm -rf /c/Users/gerog/Documents/cpr-jun21-dev/backend/node_modules/undici && cd /c/Users/gerog/Documents/cpr-jun21-dev && npm install --legacy-peer-deps --ignore-scripts 2>&1 | tail -5 && cat backend/node_modules/undici/package.json | grep '\"version\"')",
+      "Bash(npm show:*)"
     ]
   }
 }

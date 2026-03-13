@@ -11,11 +11,7 @@ export default {
   ],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
-      tsconfig: {
-        esModuleInterop: true,
-        allowSyntheticDefaultImports: true,
-        module: 'commonjs',
-      }
+      tsconfig: 'backend/tsconfig.test.json',
     }],
   },
   moduleNameMapper: {

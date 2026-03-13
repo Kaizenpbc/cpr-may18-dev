@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { ApiResponseBuilder } from './apiResponse.js';
+import { captureException } from '../config/sentry.js';
 
 export class AppError extends Error {
   statusCode: number;
@@ -69,6 +70,11 @@ export function errorHandler(
     stack: err.stack,
     ...(err instanceof AppError && { details: err.details }),
   });
+
+  // Report unexpected (non-AppError) errors to Sentry
+  if (!(err instanceof AppError)) {
+    captureException(err);
+  }
 
   if (err instanceof AppError) {
     return res

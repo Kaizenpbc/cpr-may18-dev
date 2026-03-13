@@ -1,3 +1,8 @@
+import { initSentry, getSentryRequestHandler, getSentryErrorHandler, captureException } from './config/sentry.js';
+
+// Initialise Sentry as early as possible — before any other imports that might throw
+initSentry();
+
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -309,6 +314,9 @@ app.use(express.json());
 // Parse cookies
 app.use(cookieParser());
 
+// Sentry request handler — must come before routes and most other middleware
+app.use(getSentryRequestHandler());
+
 // Rate limiting middleware
 app.use('/api/v1/auth/login', authLimiter);
 app.use('/api/v1/auth/register', registerLimiter);
@@ -523,6 +531,9 @@ app.get('/api/v1/events', (req: Request, res: Response) => {
 // Add error logging middleware (must be last)
 app.use(errorLogger);
 
+// Sentry error handler — must come BEFORE the global error handler
+app.use(getSentryErrorHandler());
+
 // Global error handler (must be last)
 interface AppErrorLike extends Error {
   statusCode?: number;
@@ -680,12 +691,14 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
+  captureException(error, { type: 'uncaughtException' });
   writeErrorToLog(error, 'Uncaught Exception');
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection:', reason);
+  captureException(reason, { type: 'unhandledRejection', promise: String(promise) });
   writeErrorToLog(reason, `Unhandled Rejection at ${promise}`);
   process.exit(1);
 });
