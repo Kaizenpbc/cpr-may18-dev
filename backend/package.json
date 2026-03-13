@@ -42,7 +42,7 @@
     "@google-cloud/storage": "^7.11.0",
     "@google-cloud/vision": "^4.3.0",
     "@lifeomic/attempt": "^3.1.0",
-    "@sentry/node": "^10.43.0",
+    "@sentry/node": "^8.55.0",
     "@types/bcrypt": "^5.0.2",
     "@types/express-session": "^1.18.1",
     "@types/knex": "^0.15.2",

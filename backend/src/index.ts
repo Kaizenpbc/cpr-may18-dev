@@ -1,7 +1,7 @@
 import { initSentry, getSentryRequestHandler, getSentryErrorHandler, captureException } from './config/sentry.js';
 
-// Initialise Sentry as early as possible — before any other imports that might throw
-initSentry();
+// Initialise Sentry — fire-and-forget async (graceful no-op if package not installed)
+initSentry().catch(() => {});
 
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
