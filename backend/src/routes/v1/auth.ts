@@ -62,6 +62,7 @@ router.post(
       // Combined query: fetch user, organization, and location in a single JOIN query
       const result = await pool.query(
         `SELECT u.id, u.username, u.password_hash, u.role, u.organization_id, u.location_id,
+                u.failed_login_attempts, u.locked_until,
                 o.name as organization_name, ol.location_name
          FROM users u
          LEFT JOIN organizations o ON u.organization_id = o.id
@@ -89,14 +90,44 @@ router.post(
       const organizationName = user.organization_name || '';
       const locationName = user.location_name || '';
 
+      // Check account lockout
+      const MAX_FAILED_ATTEMPTS = 10;
+      const LOCKOUT_MINUTES = 15;
+      if (user.locked_until && new Date(user.locked_until) > new Date()) {
+        const unlockTime = new Date(user.locked_until).toLocaleTimeString();
+        return res.status(429).json({
+          error: `Account temporarily locked due to too many failed attempts. Try again after ${unlockTime}.`,
+          code: 'ACCOUNT_LOCKED',
+        });
+      }
+
       const isValidPassword = await bcrypt.compare(
         password,
         user.password_hash
       );
 
       if (!isValidPassword) {
+        const newAttempts = (user.failed_login_attempts || 0) + 1;
+        if (newAttempts >= MAX_FAILED_ATTEMPTS) {
+          const lockedUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
+          await pool.query(
+            'UPDATE users SET failed_login_attempts = $1, locked_until = $2 WHERE id = $3',
+            [newAttempts, lockedUntil, user.id]
+          );
+        } else {
+          await pool.query(
+            'UPDATE users SET failed_login_attempts = $1 WHERE id = $2',
+            [newAttempts, user.id]
+          );
+        }
         return res.status(401).json(invalidCredentialsResponse);
       }
+
+      // Successful login — reset lockout counters
+      await pool.query(
+        'UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1',
+        [user.id]
+      );
 
       // Enforce organization and location for Organization role users
       if (user.role && user.role.toLowerCase() === 'organization') {

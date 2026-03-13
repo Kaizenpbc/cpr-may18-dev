@@ -312,6 +312,9 @@ app.use(cookieParser());
 // Rate limiting middleware
 app.use('/api/v1/auth/login', authLimiter);
 app.use('/api/v1/auth/register', registerLimiter);
+app.use('/api/v1/auth/forgot-password', authLimiter);
+app.use('/api/v1/auth/recover-password', authLimiter);
+app.use('/api/v1/auth/reset-password', authLimiter);
 app.use('/api/v1', apiLimiter);
 
 // Input sanitization middleware

@@ -1537,7 +1537,7 @@ router.get(
       const userRole = req.user?.role;
 
       // Only admin and courseadmin users can access this endpoint
-      if (userRole !== 'admin' && userRole !== 'courseadmin') {
+      if (userRole !== 'admin' && userRole !== 'sysadmin' && userRole !== 'courseadmin') {
         throw new AppError(
           403,
           errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
@@ -1545,11 +1545,17 @@ router.get(
         );
       }
 
-      // Verify the course exists
-      const courseCheck = await pool.query(
-        'SELECT id FROM course_requests WHERE id = $1',
-        [courseId]
-      );
+      // Verify the course exists — courseadmin is org-scoped, admin/sysadmin can see all orgs
+      const isSuperAdmin = userRole === 'admin' || userRole === 'sysadmin';
+      const courseCheck = isSuperAdmin
+        ? await pool.query(
+            'SELECT id, organization_id FROM course_requests WHERE id = $1',
+            [courseId]
+          )
+        : await pool.query(
+            'SELECT id, organization_id FROM course_requests WHERE id = $1 AND organization_id = $2',
+            [courseId, req.user?.organizationId]
+          );
 
       if (courseCheck.rows.length === 0) {
         throw new AppError(
@@ -1598,6 +1604,8 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { courseId } = req.params;
+      const userRole = req.user?.role;
+      const isSuperUser = userRole === 'admin' || userRole === 'sysadmin' || userRole === 'accountant';
 
       devLog(`[VALIDATION] Checking billing readiness for course ${courseId}`);
 
@@ -1635,6 +1643,15 @@ router.get(
       }
 
       const course = courseResult.rows[0];
+
+      // Org scoping: non-admin users may only check their own org's courses
+      if (!isSuperUser && course.organization_id !== req.user?.organizationId) {
+        throw new AppError(
+          403,
+          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
+          'Access denied'
+        );
+      }
       const validationErrors = [];
       const warnings = [];
 
