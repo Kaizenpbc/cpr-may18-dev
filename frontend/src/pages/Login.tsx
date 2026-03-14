@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -414,6 +414,15 @@ const Login = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Box sx={{ mt: 3, textAlign: 'center' }}>
+        <Typography variant="caption" color="text.secondary">
+          By using this service you agree to our{' '}
+          <Link component={RouterLink} to="/privacy" color="inherit">
+            Privacy Policy
+          </Link>
+        </Typography>
+      </Box>
     </Container>
   );
 };

@@ -14,6 +14,7 @@ import AccountingPortal from './components/portals/AccountingPortal.tsx';
 import SystemAdminPortal from './components/portals/SystemAdminPortal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import RecoverPassword from './pages/RecoverPassword';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import TestCSV from './pages/TestCSV';
 import { RealtimeProvider } from './contexts/RealtimeContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
@@ -42,6 +43,7 @@ function App() {
                 <Route path='/forgot-password' element={<ForgotPassword />} />
                 <Route path='/reset-password' element={<ResetPassword />} />
                 <Route path='/test-csv' element={<TestCSV />} />
+                <Route path='/privacy' element={<PrivacyPolicy />} />
                 <Route path='/' element={<RoleBasedRouter />} />
 
                 {/* Protected routes */}

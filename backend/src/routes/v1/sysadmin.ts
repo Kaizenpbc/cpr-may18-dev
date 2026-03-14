@@ -4,6 +4,7 @@ import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { AppError } from '../../utils/errorHandler.js';
 import { errorCodes } from '../../utils/errorHandler.js';
 import ConfigService from '../../services/configService.js';
+import { pool } from '../../config/database.js';
 
 const router = Router();
 
@@ -175,4 +176,48 @@ router.get(
   })
 );
 
-export default router; 
+// PIPEDA right to erasure — anonymise a user's personal data
+// Anonymises rather than hard-deletes to preserve referential integrity for
+// course attendance and billing records.
+router.delete(
+  '/users/:userId/personal-data',
+  authenticateToken,
+  requireSysadmin,
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = parseInt(req.params.userId, 10);
+
+    if (isNaN(userId) || userId <= 0) {
+      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid userId');
+    }
+
+    // Confirm user exists before anonymising
+    const checkResult = await pool.query(
+      'SELECT id FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (checkResult.rowCount === 0) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, `User ${userId} not found`);
+    }
+
+    await pool.query(
+      `UPDATE users
+       SET username   = 'deleted_' || id,
+           email      = 'deleted_' || id || '@deleted.invalid',
+           first_name = NULL,
+           last_name  = NULL,
+           phone      = NULL,
+           deleted_at = NOW()
+       WHERE id = $1`,
+      [userId]
+    );
+
+    console.log(
+      `[PIPEDA] Personal data anonymised for userId=${userId} by sysadmin=${req.user?.username ?? 'unknown'}`
+    );
+
+    res.json({ success: true, message: 'Personal data anonymised' });
+  })
+);
+
+export default router;
