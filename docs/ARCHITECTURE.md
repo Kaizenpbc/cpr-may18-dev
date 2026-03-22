@@ -2,8 +2,8 @@
 
 | Document Info | |
 |---------------|---|
-| **Version** | 1.0 |
-| **Last Updated** | January 2026 |
+| **Version** | 2.0 |
+| **Last Updated** | March 2026 |
 | **Type** | Technical Architecture |
 
 ---
@@ -22,44 +22,45 @@
 └───────┼─────────────┼─────────────┼─────────────┼───────────────────┘
         │             │             │             │
         └─────────────┴──────┬──────┴─────────────┘
-                             │ HTTPS
+                             │ HTTPS (cpr.kpbc.ca)
                              v
 ┌─────────────────────────────────────────────────────────────────────┐
-│                      FRONTEND (React SPA)                           │
-│                         Port 5173 (dev)                             │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │  React Router → Portal Components → API Service Layer       │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-└───────────────────────────────┬─────────────────────────────────────┘
-                                │ HTTP/HTTPS (API calls)
-                                v
-┌─────────────────────────────────────────────────────────────────────┐
-│                      BACKEND (Node.js/Express)                      │
-│                           Port 3001                                 │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │  Middleware → Routes → Services → Database                  │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-└────────┬──────────────────┬──────────────────┬──────────────────────┘
-         │                  │                  │
-         v                  v                  v
-┌─────────────┐    ┌─────────────┐    ┌─────────────────┐
-│ PostgreSQL  │    │   Redis     │    │ External APIs   │
-│  Database   │    │   Cache     │    │ (GCP, SMTP)     │
-└─────────────┘    └─────────────┘    └─────────────────┘
+│              TMD HOSTING — Apache + CloudLinux Passenger            │
+│                                                                     │
+│  ┌──────────────────────────┐  ┌────────────────────────────────┐   │
+│  │   React SPA (static)     │  │   Node.js/Express Backend      │   │
+│  │   /public/ (Apache)      │  │   ESM, port 3001 (Passenger)   │   │
+│  └──────────────────────────┘  └───────────────┬────────────────┘   │
+└──────────────────────────────────────────────────┼───────────────────┘
+                                                   │
+                         ┌─────────────────────────┘
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+              v                     v
+   ┌─────────────────┐    ┌──────────────────────┐
+   │  Neon PostgreSQL│    │  External: SMTP       │
+   │  (cloud DB)     │    │  (Gmail / Nodemailer) │
+   └─────────────────┘    └──────────────────────┘
 ```
 
-### 1.2 Technology Stack Summary
+**Note:** Redis is disabled. A no-op stub is in place (`backend/src/config/redis.ts`).
+Socket.io is mounted but used only for real-time notifications — it uses HTTP long-polling
+as primary transport for compatibility with Apache/Passenger.
 
-| Layer | Technology |
-|-------|------------|
-| **Frontend** | React 18, TypeScript, Vite, Material-UI |
-| **Backend** | Node.js, Express, TypeScript |
-| **Database** | PostgreSQL |
-| **Cache** | Redis |
-| **Real-time** | Socket.io |
-| **File Storage** | Google Cloud Storage |
-| **OCR** | Google Cloud Vision API |
-| **Email** | Nodemailer (SMTP) |
+### 1.2 Technology Stack
+
+| Layer | Technology | Notes |
+|-------|------------|-------|
+| **Frontend** | React 18, TypeScript, Vite, Material-UI | Built locally, deployed as static files |
+| **Backend** | Node.js 20, Express, TypeScript (ESM) | Compiled with `tsc`, served via Passenger |
+| **Database** | Neon PostgreSQL | Cloud-hosted, `pg` driver, connection pool |
+| **Cache** | Redis (disabled) | Stub in place; sessions fall back to DB |
+| **Real-time** | Socket.io | Polling + WebSocket; Apache-compatible |
+| **Email** | Nodemailer (SMTP) | Gmail SMTP; requires SMTP_PASS in `.htaccess` |
+| **Error monitoring** | Sentry (`@sentry/node`) | Active in production via SENTRY_DSN |
+| **OCR** | Google Cloud Vision | Present in code; not configured in production |
+| **File storage** | Local `uploads/` directory | No cloud storage in production |
 
 ---
 
@@ -69,340 +70,246 @@
 cpr-jun21-dev/
 ├── backend/
 │   ├── src/
-│   │   ├── config/           # Configuration modules
-│   │   │   ├── database.ts   # PostgreSQL connection
-│   │   │   ├── redis.ts      # Redis client
-│   │   │   ├── security.ts   # Security settings
-│   │   │   └── mfa.ts        # MFA configuration
-│   │   ├── controllers/      # Request handlers
-│   │   │   └── authController.ts
-│   │   ├── middleware/       # Express middleware
-│   │   │   ├── authMiddleware.ts
-│   │   │   ├── rateLimiter.ts
-│   │   │   ├── validation.ts
-│   │   │   └── security.ts
-│   │   ├── routes/           # API route definitions
-│   │   │   └── v1/
-│   │   │       └── index.ts  # All v1 routes (~8000 lines)
-│   │   ├── services/         # Business logic
-│   │   │   ├── emailService.ts
-│   │   │   ├── pdfService.ts
-│   │   │   ├── ocrService.ts
-│   │   │   └── notificationService.ts
-│   │   ├── scripts/          # Initialization scripts
-│   │   │   └── init-db.ts    # Database schema & migrations
-│   │   ├── db/
-│   │   │   ├── migrations/   # Schema versioning
-│   │   │   └── seeds/        # Initial data
-│   │   ├── models/           # Data models
-│   │   ├── types/            # TypeScript definitions
-│   │   ├── utils/            # Helper functions
-│   │   └── index.ts          # Entry point
-│   ├── dist/                 # Compiled output
-│   ├── uploads/              # Uploaded files
+│   │   ├── config/
+│   │   │   ├── database.ts         # PostgreSQL pool (DATABASE_URL or DB_* vars)
+│   │   │   ├── redis.ts            # No-op stub — Redis disabled
+│   │   │   ├── sentry.ts           # Sentry init (dynamic import, graceful no-op)
+│   │   │   ├── environmentConfig.ts# Env var validation & typed config
+│   │   │   ├── encryptionConfig.ts # Field-level encryption helpers
+│   │   │   └── sslConfig.ts        # SSL/TLS configuration
+│   │   ├── middleware/
+│   │   │   ├── authMiddleware.ts   # JWT verification, requireRole()
+│   │   │   ├── rateLimiter.ts      # apiLimiter (100/15min), authLimiter (10/hr)
+│   │   │   ├── inputSanitizer.ts   # Input validation (Zod schemas)
+│   │   │   └── auditLogger.ts      # Audit trail logging
+│   │   ├── routes/v1/
+│   │   │   ├── index.ts            # Router assembly (~934 lines)
+│   │   │   ├── auth.ts             # Login, logout, refresh, password reset
+│   │   │   ├── instructor.ts       # Instructor portal routes
+│   │   │   ├── organization.ts     # Organization portal routes
+│   │   │   ├── course-requests.ts  # Course request management
+│   │   │   ├── accounting.ts       # Accounting & invoices
+│   │   │   ├── org-billing.ts      # Org-side billing
+│   │   │   ├── vendor.ts           # Vendor portal routes
+│   │   │   ├── vendor-invoice-admin.ts  # Admin vendor invoice management
+│   │   │   ├── hr-dashboard.ts     # HR portal routes
+│   │   │   ├── payRates.ts         # Instructor pay rates
+│   │   │   ├── timesheet.ts        # Timesheet management
+│   │   │   ├── payroll.ts          # Payroll processing
+│   │   │   ├── sysadmin.ts         # Sysadmin operations
+│   │   │   ├── sysadmin-entities.ts# Sysadmin entity management
+│   │   │   ├── health.ts           # Health check
+│   │   │   ├── notifications.ts    # Notification system
+│   │   │   └── emailTemplates.ts   # Email template management
+│   │   ├── services/
+│   │   │   ├── emailService.ts     # Nodemailer wrapper
+│   │   │   ├── pdfService.ts       # Invoice PDF generation
+│   │   │   ├── ocrService.ts       # Google Cloud Vision (not prod-configured)
+│   │   │   ├── cacheService.ts     # In-process cache (Redis fallback)
+│   │   │   └── sessionManager.ts   # JWT session tracking
+│   │   ├── utils/
+│   │   │   ├── apiResponse.ts      # ApiResponseBuilder — standardised responses
+│   │   │   ├── errorHandler.ts     # AppError, asyncHandler, error codes
+│   │   │   ├── devLog.ts           # console.log suppressed in production
+│   │   │   ├── jwtUtils.ts         # Token generation and verification
+│   │   │   ├── tokenBlacklist.ts   # In-memory revoked token list
+│   │   │   └── logger.ts           # Winston logger
+│   │   ├── tests/
+│   │   │   └── routes/
+│   │   │       └── auth.test.ts    # Auth integration tests (51 tests)
+│   │   └── index.ts                # Entry point — Sentry, middleware, routes, server
+│   ├── dist/                       # Compiled output (deployed to server)
 │   └── package.json
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── portals/      # Role-based portal UIs
-│   │   │   │   ├── AccountingPortal.tsx
-│   │   │   │   ├── InstructorPortal.tsx
-│   │   │   │   ├── OrganizationPortal.tsx
-│   │   │   │   ├── VendorPortal.tsx
-│   │   │   │   ├── HRPortal.tsx
-│   │   │   │   ├── CourseAdminPortal.tsx
-│   │   │   │   ├── SuperAdminPortal.tsx
-│   │   │   │   └── SystemAdminPortal.tsx
-│   │   │   ├── common/       # Shared components
-│   │   │   ├── forms/        # Form components
-│   │   │   ├── tables/       # Data tables
-│   │   │   ├── dialogs/      # Modal dialogs
-│   │   │   ├── views/        # View components
-│   │   │   └── auth/         # Auth components
-│   │   ├── contexts/         # React contexts
-│   │   │   ├── AuthContext.tsx
-│   │   │   ├── ThemeContext.tsx
-│   │   │   └── NotificationContext.tsx
-│   │   ├── services/         # API service layer
-│   │   │   └── api.ts
-│   │   ├── pages/            # Page components
-│   │   ├── utils/            # Utilities
-│   │   └── App.tsx           # Main app component
+│   │   ├── components/portals/     # Role-based portal UIs (one per role)
+│   │   ├── contexts/
+│   │   │   ├── AuthContext.tsx     # Auth state, token management
+│   │   │   └── ThemeContext.tsx    # MUI theme (CustomThemeProvider)
+│   │   ├── services/api.ts         # Axios instance with interceptors
+│   │   └── App.tsx                 # Router + context providers
 │   └── package.json
 │
-├── docs/                     # Documentation
-├── .github/                  # CI/CD workflows
-├── docker-compose.yml        # Container orchestration
-└── package.json              # Root workspace
+├── docs/                           # Documentation
+├── .github/                        # CI/CD workflows
+└── package.json                    # Root workspace (npm workspaces)
 ```
 
 ---
 
 ## 3. Backend Architecture
 
-### 3.1 Layer Architecture
+### 3.1 Middleware Stack (in order)
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    HTTP Request                         │
-└───────────────────────────┬─────────────────────────────┘
-                            v
-┌─────────────────────────────────────────────────────────┐
-│                    MIDDLEWARE LAYER                     │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐   │
-│  │ Helmet  │  │  CORS   │  │  Auth   │  │  Rate   │   │
-│  │(Security)│ │         │  │  JWT    │  │ Limiter │   │
-│  └─────────┘  └─────────┘  └─────────┘  └─────────┘   │
-└───────────────────────────┬─────────────────────────────┘
-                            v
-┌─────────────────────────────────────────────────────────┐
-│                     ROUTE LAYER                         │
-│  Routes define endpoints and map to handlers            │
-│  /api/v1/auth, /api/v1/instructor, /api/v1/org, etc.   │
-└───────────────────────────┬─────────────────────────────┘
-                            v
-┌─────────────────────────────────────────────────────────┐
-│                    SERVICE LAYER                        │
-│  Business logic, data transformation, external APIs     │
-│  emailService, pdfService, ocrService, etc.            │
-└───────────────────────────┬─────────────────────────────┘
-                            v
-┌─────────────────────────────────────────────────────────┐
-│                     DATA LAYER                          │
-│  PostgreSQL queries via pg driver                       │
-│  Redis for caching and sessions                         │
-└─────────────────────────────────────────────────────────┘
+HTTP Request
+     │
+     ▼
+Sentry request handler       ← must be first
+     │
+     ▼
+Helmet (security headers)
+     │
+     ▼
+CORS
+     │
+     ▼
+express.json / cookieParser
+     │
+     ▼
+Morgan (HTTP request logging)
+     │
+     ▼
+Rate limiters (apiLimiter / authLimiter per-route)
+     │
+     ▼
+Routes
+     │
+     ▼
+Sentry error handler         ← before global error handler
+     │
+     ▼
+Global error handler (AppError → JSON)
 ```
 
-### 3.2 Middleware Stack
+### 3.2 Rate Limiting
 
-| Middleware | Purpose | Configuration |
-|------------|---------|---------------|
-| **Helmet** | Security headers | CSP, HSTS, X-Frame-Options |
-| **CORS** | Cross-origin requests | Configurable origins |
-| **express.json** | Body parsing | 50mb limit |
-| **Rate Limiter** | DDoS protection | 100 req/15min general, 5/15min auth |
-| **authenticateToken** | JWT verification | Bearer token required |
-| **requireRole** | Role-based access | Portal-specific |
-| **express-validator** | Input validation | Schema-based |
+| Limiter | Window | Limit | Applied to |
+|---------|--------|-------|-----------|
+| `apiLimiter` | 15 min | 100 (prod) / 1000 (dev) | All `/api/v1/*` routes |
+| `authLimiter` | 1 hour | 10 (prod) / 100 (dev) | `/auth/login`, `/auth/forgot-password`, `/auth/recover-password`, `/auth/reset-password` |
+| `registrationLimiter` | 24 hours | 3 | Registration endpoints |
 
-### 3.3 API Versioning
+### 3.3 API Routes
 
-All APIs are versioned under `/api/v1/`:
+All routes are under `/api/v1/`:
 
 ```
 /api/v1/
-├── auth/                 # Authentication
-├── instructor/           # Instructor operations
-├── organization/         # Organization operations
-├── accounting/           # Accounting operations
-├── vendor/               # Vendor operations
-├── hr/                   # HR operations
-├── admin/                # Admin operations
-├── sysadmin/             # System admin
-├── health/               # Health checks
-├── notifications/        # Notification system
-└── email-templates/      # Email management
+├── auth/                 # Login, logout, token refresh, password reset
+├── instructor/           # Instructor portal
+├── organization/         # Organization portal
+├── course-requests/      # Course request lifecycle (admin + org views)
+├── accounting/           # Invoices, payments, financial reports
+├── org-billing/          # Org-facing billing views
+├── vendor/               # Vendor portal
+├── admin/vendor-invoices # Vendor invoice admin
+├── hr/                   # Timesheets, pay rates, payroll
+├── sysadmin/             # System administration
+├── health/               # Health check (DB ping)
+├── notifications/        # In-app notifications
+└── email-templates/      # Email template management
 ```
 
 ### 3.4 Error Handling
 
-```typescript
-// Standard error response format
-{
-  "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human readable message"
-  }
-}
+All routes use `asyncHandler()` to catch async errors. Errors are thrown as `AppError`:
 
-// Error codes
-- AUTH_INVALID_CREDENTIALS
-- AUTH_INSUFFICIENT_PERMISSIONS
-- RESOURCE_NOT_FOUND
-- VALIDATION_ERROR
-- INTERNAL_SERVER_ERROR
+```typescript
+throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Course not found');
 ```
+
+Standard response shape:
+
+```json
+// Success
+{ "success": true, "data": { ... }, "meta": { "page": 1, "total": 42 } }
+
+// Error
+{ "success": false, "error": { "code": "RESOURCE_NOT_FOUND", "message": "Course not found" } }
+```
+
+Error codes live in `backend/src/utils/errorHandler.ts`.
 
 ---
 
 ## 4. Frontend Architecture
 
-### 4.1 Component Hierarchy
+### 4.1 Provider Hierarchy
 
 ```
-App.tsx
-├── AuthContext.Provider
-│   ├── ThemeContext.Provider
-│   │   ├── SnackbarContext.Provider
-│   │   │   ├── NotificationProvider
-│   │   │   │   └── Router
-│   │   │   │       ├── LoginPage
-│   │   │   │       ├── RoleBasedRouter
-│   │   │   │       │   ├── InstructorPortal
-│   │   │   │       │   ├── OrganizationPortal
-│   │   │   │       │   ├── AccountingPortal
-│   │   │   │       │   ├── VendorPortal
-│   │   │   │       │   ├── HRPortal
-│   │   │   │       │   ├── CourseAdminPortal
-│   │   │   │       │   ├── SuperAdminPortal
-│   │   │   │       │   └── SystemAdminPortal
+main.tsx
+└── QueryClientProvider          (React Query — single instance)
+    └── CustomThemeProvider      (MUI theme)
+        └── AuthContext.Provider
+            └── App.tsx
+                └── Router
+                    ├── LoginPage
+                    └── RoleBasedRouter
+                        ├── InstructorPortal
+                        ├── OrganizationPortal
+                        ├── AccountingPortal
+                        ├── VendorPortal
+                        ├── HRPortal
+                        ├── CourseAdminPortal
+                        ├── SuperAdminPortal
+                        └── SystemAdminPortal
 ```
 
 ### 4.2 State Management
 
-| State Type | Solution | Use Case |
-|------------|----------|----------|
-| **Auth State** | React Context | User, tokens, role |
-| **Theme** | React Context | Light/dark mode |
-| **Server State** | React Query | API data caching |
-| **Form State** | React Hook Form | Form handling |
-| **UI State** | useState | Component-local state |
+| State | Solution | Notes |
+|-------|----------|-------|
+| **Auth / user** | React Context (`AuthContext`) | Token + user profile; no localStorage for tokens |
+| **Theme** | React Context (`ThemeContext`) | MUI CustomThemeProvider |
+| **Server data** | React Query | Caching, refetch, pagination |
+| **Form state** | React Hook Form | |
 | **Notifications** | React Context | Toast messages |
+| **Component state** | `useState` | Local UI state |
 
 ### 4.3 API Service Layer
 
-```typescript
-// frontend/src/services/api.ts
+`frontend/src/services/api.ts` — Axios instance:
 
-// Axios instance with interceptors
-const api = axios.create({
-  baseURL: API_URL,
-  headers: { 'Content-Type': 'application/json' }
-});
-
-// Request interceptor - add auth token
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
-// Response interceptor - handle token refresh
-api.interceptors.response.use(
-  response => response,
-  async error => {
-    if (error.response?.status === 401) {
-      // Attempt token refresh
-    }
-    return Promise.reject(error);
-  }
-);
-```
-
-### 4.4 Routing Structure
-
-```typescript
-// Role-based routing
-<Routes>
-  <Route path="/login" element={<LoginPage />} />
-  <Route path="/instructor/*" element={<InstructorPortal />} />
-  <Route path="/organization/*" element={<OrganizationPortal />} />
-  <Route path="/accounting/*" element={<AccountingPortal />} />
-  <Route path="/vendor/*" element={<VendorPortal />} />
-  <Route path="/hr/*" element={<HRPortal />} />
-  <Route path="/admin/*" element={<CourseAdminPortal />} />
-  <Route path="/superadmin/*" element={<SuperAdminPortal />} />
-  <Route path="/sysadmin/*" element={<SystemAdminPortal />} />
-</Routes>
-```
+- **Request interceptor**: attaches JWT access token from AuthContext (memory, not localStorage)
+- **Response interceptor**: on 401 → calls `/auth/refresh` using httpOnly cookie, retries original request
+- Refresh token is an **httpOnly, SameSite=Strict cookie** set by the server — never accessible to JS
 
 ---
 
 ## 5. Database Architecture
 
-### 5.1 Entity Relationship Diagram
+### 5.1 Connection
 
-```
-┌─────────────────┐       ┌─────────────────┐
-│  ORGANIZATIONS  │       │     USERS       │
-├─────────────────┤       ├─────────────────┤
-│ id (PK)         │◄──────│ organization_id │
-│ name            │       │ id (PK)         │
-│ contact_email   │       │ username        │
-│ contact_phone   │       │ email           │
-│ address         │       │ role            │
-└────────┬────────┘       └────────┬────────┘
-         │                         │
-         │                         │
-         v                         v
-┌─────────────────┐       ┌─────────────────┐
-│ COURSE_REQUESTS │       │ INSTRUCTOR_     │
-├─────────────────┤       │ AVAILABILITY    │
-│ id (PK)         │       ├─────────────────┤
-│ organization_id │       │ instructor_id   │
-│ course_type_id  │       │ date            │
-│ instructor_id   │       │ status          │
-│ scheduled_date  │       └─────────────────┘
-│ status          │
-│ location        │
-└────────┬────────┘
-         │
-         v
-┌─────────────────┐       ┌─────────────────┐
-│    INVOICES     │       │    PAYMENTS     │
-├─────────────────┤       ├─────────────────┤
-│ id (PK)         │◄──────│ invoice_id      │
-│ organization_id │       │ id (PK)         │
-│ course_request_ │       │ amount          │
-│ invoice_number  │       │ payment_date    │
-│ amount          │       │ status          │
-│ approval_status │       └─────────────────┘
-│ posted_to_org   │
-└─────────────────┘
-
-┌─────────────────┐       ┌─────────────────┐
-│    VENDORS      │       │ VENDOR_INVOICES │
-├─────────────────┤       ├─────────────────┤
-│ id (PK)         │◄──────│ vendor_id       │
-│ company_name    │       │ id (PK)         │
-│ email           │       │ invoice_number  │
-│ payment_method  │       │ amount          │
-└─────────────────┘       │ status          │
-                          │ pdf_filename    │
-                          └─────────────────┘
-
-┌─────────────────┐       ┌─────────────────┐
-│   TIMESHEETS    │       │ PAYROLL_PAYMENTS│
-├─────────────────┤       ├─────────────────┤
-│ id (PK)         │       │ id (PK)         │
-│ instructor_id   │       │ instructor_id   │
-│ week_start_date │       │ amount          │
-│ total_hours     │       │ payment_date    │
-│ status          │       │ status          │
-└─────────────────┘       └─────────────────┘
-```
+- Driver: `pg` (node-postgres)
+- Config: `DATABASE_URL` env var (Neon connection string with SSL)
+- Pool limits: max 10 connections, 30s idle timeout, 5s connection timeout
+- Retry: `@lifeomic/attempt` — 3 attempts, exponential backoff
 
 ### 5.2 Key Tables
 
-| Table | Purpose | Key Fields |
-|-------|---------|------------|
-| **organizations** | Companies using the system | name, contact_email |
-| **users** | All system users | username, role, organization_id |
-| **class_types** | Course type definitions | name, duration_minutes |
-| **course_requests** | Course requests/scheduling | organization_id, scheduled_date, status |
-| **invoices** | Organization billing | invoice_number, amount, approval_status |
-| **payments** | Payment records | invoice_id, amount, status |
-| **vendors** | External vendors | company_name, email |
-| **vendor_invoices** | Vendor billing | vendor_id, amount, status |
-| **timesheets** | Instructor hours | instructor_id, total_hours |
-| **course_pricing** | Per-org pricing | organization_id, price_per_student |
+| Table | Purpose |
+|-------|---------|
+| `organizations` | Companies using the system |
+| `users` | All users — `role`, `organization_id`, `failed_login_attempts`, `locked_until` |
+| `class_types` | Course type definitions |
+| `course_requests` | Course request lifecycle |
+| `invoices` | Organization billing |
+| `vendor_invoices` | Vendor invoice management |
+| `timesheets` | Instructor timesheet submissions |
+| `payroll_payments` | Payment records |
+| `email_templates` | Configurable email templates |
+| `course_pricing` | Per-org pricing overrides |
 
-### 5.3 Database Initialization
+### 5.3 ERD (simplified)
 
-```bash
-# Initialize schema and run migrations
-npm run db:init
-
-# Process:
-# 1. Create tables if not exist
-# 2. Add columns for schema updates
-# 3. Run data migrations
-# 4. Create indexes
-# 5. Set up foreign keys
 ```
+ORGANIZATIONS ──< USERS
+      │
+      └──< COURSE_REQUESTS >── USERS (instructor)
+                 │
+                 └──< INVOICES >── PAYMENTS
+
+VENDORS ──< VENDOR_INVOICES
+
+USERS (instructor) ──< TIMESHEETS
+                   ──< PAYROLL_PAYMENTS
+```
+
+### 5.4 Multi-tenancy
+
+All data is scoped by `organization_id`. Every query in organization-facing routes filters by `req.user.organizationId`. Super-admin and sysadmin roles may access cross-org data explicitly.
 
 ---
 
@@ -411,277 +318,200 @@ npm run db:init
 ### 6.1 Authentication Flow
 
 ```
-┌──────────┐     POST /auth/login      ┌──────────┐
-│  Client  │ ────────────────────────► │  Server  │
-│          │   {username, password}    │          │
-└──────────┘                           └────┬─────┘
-                                            │
-                                            v
-                                    ┌───────────────┐
-                                    │ Verify        │
-                                    │ Credentials   │
-                                    │ (bcrypt)      │
-                                    └───────┬───────┘
-                                            │
-                                            v
-                                    ┌───────────────┐
-                                    │ Generate JWT  │
-                                    │ + Refresh     │
-                                    │ Token         │
-                                    └───────┬───────┘
-                                            │
-┌──────────┐     {token, refresh}          │
-│  Client  │ ◄──────────────────────────────┘
-│          │
-└──────────┘
+POST /auth/login
+  → validate credentials
+  → check account lockout (locked_until > NOW)
+  → bcrypt verify password
+  → on failure: increment failed_login_attempts; lock after 10 failures for 15 min
+  → on success: reset failed_login_attempts
+  → generate access token (JWT, 15 min) + refresh token (JWT, 7 days)
+  → return access token in response body
+  → set refresh token as httpOnly SameSite=Strict cookie
 ```
 
-### 6.2 JWT Token Structure
+### 6.2 JWT Tokens
 
 ```javascript
-// Access Token (15 min expiry)
+// Access Token — 15 min, returned in response body
 {
-  "userId": 123,
-  "username": "john.doe",
-  "role": "accountant",
-  "organizationId": 5,
-  "iat": 1706184000,
-  "exp": 1706184900
+  "id": 123, "userId": "123", "username": "jane",
+  "role": "accountant", "organizationId": 5,
+  "iat": ..., "exp": ...
 }
 
-// Refresh Token (7 day expiry)
+// Refresh Token — 7 days, httpOnly cookie only
 {
-  "userId": 123,
-  "tokenVersion": 1,
-  "iat": 1706184000,
-  "exp": 1706788800
+  "userId": 123, "iat": ..., "exp": ...
 }
 ```
 
 ### 6.3 Authorization Matrix
 
-| Endpoint | Organization | Instructor | Accountant | Admin | HR |
-|----------|--------------|------------|------------|-------|-----|
-| `/organization/*` | Yes | - | - | - | - |
-| `/instructor/*` | - | Yes | - | - | - |
-| `/accounting/*` | - | - | Yes | - | - |
-| `/admin/*` | - | - | - | Yes | - |
-| `/hr/*` | - | - | - | - | Yes |
-| `/vendor/*` | - | - | - | - | - |
+| Route prefix | orguser | instructor | courseadmin | accountant | hr | vendor | admin | sysadmin |
+|---|---|---|---|---|---|---|---|---|
+| `/organization/*` | ✓ | | | | | | ✓ | ✓ |
+| `/instructor/*` | | ✓ | | | | | ✓ | ✓ |
+| `/accounting/*` | | | | ✓ | | | ✓ | ✓ |
+| `/admin/*` | | | ✓ | | | | ✓ | ✓ |
+| `/hr/*` | | | | | ✓ | | ✓ | ✓ |
+| `/vendor/*` | | | | | | ✓ | ✓ | ✓ |
+| `/sysadmin/*` | | | | | | | | ✓ |
 
 ### 6.4 Security Headers (Helmet)
 
-```javascript
-// Content Security Policy
-"default-src 'self'"
-"script-src 'self'"
-"style-src 'self' 'unsafe-inline'"
-"img-src 'self' data: https:"
-
-// Other Headers
+```
+Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; ...
 X-Content-Type-Options: nosniff
 X-Frame-Options: DENY
-X-XSS-Protection: 1; mode=block
-Strict-Transport-Security: max-age=31536000
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+Cross-Origin-Embedder-Policy: require-corp
 ```
 
 ---
 
-## 7. Integration Architecture
+## 7. External Services
 
-### 7.1 External Services
+### 7.1 Email (Nodemailer / SMTP)
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    APPLICATION                          │
-└───────────┬──────────────┬──────────────┬───────────────┘
-            │              │              │
-            v              v              v
-     ┌──────────┐   ┌──────────┐   ┌──────────┐
-     │  SMTP    │   │  Google  │   │  Google  │
-     │  Server  │   │  Cloud   │   │  Cloud   │
-     │ (Email)  │   │  Vision  │   │  Storage │
-     └──────────┘   │  (OCR)   │   │ (Files)  │
-                    └──────────┘   └──────────┘
-```
+- **Current state**: email delivery not yet working in production (see EMAIL-1 in TODO.md)
+- `emailService.ts` supports three transport modes (selected at startup):
+  1. Authenticated SMTP — when `SMTP_HOST` + `SMTP_USER` + `SMTP_PASS` all set
+  2. Unauthenticated SMTP — when `SMTP_HOST` set but no credentials (e.g. localhost:25)
+  3. Mock transporter — logs to console only (fallback when no SMTP config)
+- **Next step**: configure `.htaccess` with `mail.kpbc.ca:587` + `noreply@kpbc.ca` credentials (mailbox exists)
+- Used for: password reset, course confirmations, invoice notifications, overdue reminders
 
-### 7.2 Email Service
+### 7.2 Sentry Error Monitoring
 
-```typescript
-// emailService.ts
-- Send course confirmations
-- Send invoice notifications
-- Send payment reminders
-- Send password reset links
-- Template-based emails
-```
+- Package: `@sentry/node` v8
+- Init: dynamic `import()` in try/catch — app boots even if package missing
+- Config: `SENTRY_DSN` in `.htaccess`
+- Captures: uncaught exceptions, unhandled rejections, Express errors via `expressErrorHandler()`
 
-### 7.3 OCR Service
+### 7.3 OCR (Google Cloud Vision)
 
-```typescript
-// ocrService.ts
-- Extract text from PDF invoices
-- Parse invoice number, amount, date
-- Detect vendor from document
-- Return structured data
-```
-
-### 7.4 PDF Service
-
-```typescript
-// pdfService.ts
-- Generate invoice PDFs
-- Generate payment receipts
-- Use PDFKit for native generation
-```
+- Present in `backend/src/services/ocrService.ts`
+- Not configured in production (no `GOOGLE_APPLICATION_CREDENTIALS` in `.htaccess`)
+- Used for: extracting data from uploaded vendor invoice PDFs
 
 ---
 
-## 8. Caching Strategy
+## 8. Caching
 
-### 8.1 Redis Usage
+Redis is **disabled**. The `cacheService.ts` uses an in-process Map-based cache as fallback:
 
-| Use Case | TTL | Key Pattern |
-|----------|-----|-------------|
-| Session data | 24h | `session:{sessionId}` |
-| User profile | 15m | `user:{userId}` |
-| Course list | 5m | `courses:{orgId}` |
-| Pricing data | 30m | `pricing:{orgId}:{courseType}` |
-| Rate limiting | 15m | `ratelimit:{ip}:{endpoint}` |
+- TTL-based eviction
+- Not shared across Passenger worker processes
+- Suitable for low-traffic single-worker deployment
 
-### 8.2 Cache Invalidation
-
-```typescript
-// Invalidate on write operations
-- User update → clear user cache
-- Pricing update → clear pricing cache
-- Course update → clear course cache
-```
+When Redis is eventually enabled, set `REDIS_ENABLED=true` and provide `REDIS_URL`.
 
 ---
 
-## 9. Real-time Communication
+## 9. Real-time (Socket.io)
 
-### 9.1 Socket.io Events
+Socket.io is mounted at `/socket.io/` with transport order `['polling', 'websocket']` for compatibility with Apache reverse proxy. Used for:
 
-```typescript
-// Server-to-client events
-'notification:new'     // New notification
-'invoice:status'       // Invoice status change
-'course:update'        // Course status change
+- `notification:new` — push new notifications to connected clients
+- `invoice:status` — invoice status changes
+- `course:update` — course status changes
 
-// Client-to-server events
-'notification:read'    // Mark notification read
-'subscribe:room'       // Join notification room
-```
-
-### 9.2 Connection Management
-
-```typescript
-// Connection authenticated via JWT
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
-  // Verify JWT
-  // Attach user to socket
-});
-
-// Room-based notifications
-socket.join(`user:${userId}`);
-socket.join(`org:${organizationId}`);
-```
+Connections authenticate via JWT passed in the handshake.
 
 ---
 
-## 10. Deployment Architecture
+## 10. Deployment
 
-### 10.1 Production Environment (Render)
+### 10.1 Production Environment
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      RENDER                             │
-│  ┌─────────────────┐    ┌─────────────────┐            │
-│  │  Web Service    │    │  Web Service    │            │
-│  │  (Frontend)     │    │  (Backend)      │            │
-│  │  Static Files   │    │  Node.js API    │            │
-│  └────────┬────────┘    └────────┬────────┘            │
-│           │                      │                      │
-│           └──────────┬───────────┘                      │
-│                      │                                  │
-│           ┌──────────┴───────────┐                      │
-│           │   PostgreSQL         │                      │
-│           │   (Managed DB)       │                      │
-│           └──────────────────────┘                      │
-└─────────────────────────────────────────────────────────┘
+TMD Hosting (cpr.kpbc.ca / 69.72.136.201)
+├── Apache + CloudLinux Passenger
+│   ├── .htaccess — Passenger config + all env vars (SetEnv)
+│   └── server.js — ESM dynamic import() entry point
+├── /public/                    ← React SPA static files (served by Apache)
+└── /backend/dist/              ← Compiled Node.js backend (run by Passenger)
+
+Neon PostgreSQL (cloud, GTACPR project)
 ```
 
-### 10.2 Environment Variables
+### 10.2 Environment Variables (all set via `.htaccess` SetEnv)
 
 ```bash
-# Backend
 NODE_ENV=production
 PORT=3001
-DATABASE_URL=postgresql://...
-REDIS_URL=redis://...
+DATABASE_URL=postgresql://...@neon.tech/neondb?sslmode=require
 JWT_SECRET=...
+JWT_ACCESS_SECRET=...
 JWT_REFRESH_SECRET=...
-SMTP_HOST=...
-SMTP_USER=...
-SMTP_PASS=...
-GOOGLE_CLOUD_PROJECT=...
-GOOGLE_APPLICATION_CREDENTIALS=...
-
-# Frontend
-VITE_API_URL=https://api.example.com
+REFRESH_TOKEN_SECRET=...
+JWT_RESET_SECRET=...
+FRONTEND_URL=https://cpr.kpbc.ca
+REDIS_ENABLED=false
+BCRYPT_SALT_ROUNDS=12
+ACCESS_TOKEN_EXPIRY=15m
+REFRESH_TOKEN_EXPIRY=7d
+SMTP_HOST=localhost        # pending EMAIL-1: change to mail.kpbc.ca
+SMTP_PORT=25               # pending EMAIL-1: change to 587
+SMTP_FROM=noreply@kpbc.ca  # mailbox created; add SMTP_USER + SMTP_PASS to activate
+SENTRY_DSN=https://...@sentry.io/...
 ```
 
-### 10.3 Build & Deploy
+### 10.3 Deploy Process
 
 ```bash
-# Build
-npm run build           # Builds both frontend and backend
+# 1. Build backend
+cd backend && npx tsc
 
-# Backend build
-cd backend && npm run build   # TypeScript → JavaScript
+# 2. Build frontend
+cd frontend && VITE_API_URL=https://cpr.kpbc.ca/api/v1 npm run build
 
-# Frontend build
-cd frontend && npm run build  # Vite production build
+# 3. Upload backend dist files
+curl --ftp-ssl --insecure -u "kaizenmo:<password>" \
+  -T backend/dist/routes/v1/foo.js \
+  ftp://69.72.136.201/cpr.kpbc.ca/backend/dist/routes/v1/foo.js
 
-# Start
-npm run start           # Starts production server
+# 4. Upload frontend assets
+curl --ftp-ssl --insecure -u "kaizenmo:<password>" \
+  -T frontend/dist/index.html \
+  ftp://69.72.136.201/cpr.kpbc.ca/public/index.html
+
+# 5. Restart Passenger
+curl -u "kaizenmo:<password>" -X POST \
+  "https://69.72.136.201:2083/execute/Fileman/save_file_content" \
+  --data-urlencode "dir=/home/kaizenmo/cpr.kpbc.ca/tmp" \
+  --data-urlencode "file=restart.txt" \
+  --data-urlencode "content=restart"
 ```
+
+**WAF/AV note:** cPanel's WAF blocks large JS POST bodies and ClamAV blocks gzip-compressed JS. Always use FTPS (`curl --ftp-ssl`) to upload compiled `.js` files, not the cPanel file manager API.
+
+**LVE process limits:** TMD shared hosting enforces a cap of 100 processes, 2GB RAM, 2 CPU cores per account. Passenger is configured with `PassengerMaxPoolSize 1` and `PassengerMinInstances 1` to pin to a single worker — Node.js's event loop handles concurrency within that process. Never run `npm install` or build tools on the server; always compile locally and FTPS-upload.
 
 ---
 
 ## 11. Monitoring & Observability
 
-### 11.1 Health Checks
+### 11.1 Health Check
 
-| Endpoint | Checks |
-|----------|--------|
-| `/api/v1/health` | API responding |
-| `/api/v1/health/database` | DB connection |
-| `/api/v1/health/redis` | Redis connection |
-| `/api/v1/health/ssl` | SSL certificate |
+Single endpoint: `GET /api/v1/health`
 
-### 11.2 Logging
+- Pings the database with `SELECT NOW()`
+- Returns `{"status":"UP"}` (200) or `{"status":"DOWN","error":"..."}` (500)
 
-```typescript
-// Winston logger configuration
-- Console output (development)
-- File output (production)
-- Error level separation
-- Request/response logging
-- Audit trail logging
-```
+### 11.2 Sentry
 
-### 11.3 Metrics (Prometheus)
+Active in production. Captures:
+- Express route errors (via `expressErrorHandler`)
+- `uncaughtException` and `unhandledRejection` process events
+- Manual `captureException(err, context?)` calls
 
-```
-- http_requests_total
-- http_request_duration_seconds
-- database_query_duration
-- active_connections
-```
+### 11.3 Logging
+
+- **Winston** (`backend/src/utils/logger.ts`): structured file + console logging
+- **Morgan**: HTTP request logging
+- **devLog()** (`backend/src/utils/devLog.ts`): debug logs suppressed in `NODE_ENV=production`
+- **Audit logger** (`backend/src/middleware/auditLogger.ts`): security event trail
 
 ---
 
@@ -690,36 +520,26 @@ npm run start           # Starts production server
 ### 12.1 Local Setup
 
 ```bash
-# Clone repository
-git clone <repo-url>
+git clone <repo>
 cd cpr-jun21-dev
-
-# Install dependencies
 npm install
-
-# Set up environment
-cp .env.example .env
-
-# Initialize database
-npm run db:init
-
-# Start development
-npm run dev
+# Create backend/.env with DATABASE_URL and JWT_SECRET etc.
+npm run dev        # starts backend (port 3001) + frontend (port 5173)
 ```
 
-### 12.2 Scripts
+### 12.2 Key Scripts
 
 | Script | Purpose |
 |--------|---------|
 | `npm run dev` | Start both servers |
 | `npm run dev:backend` | Backend only |
 | `npm run dev:frontend` | Frontend only |
-| `npm run build` | Production build |
-| `npm run test` | Run tests |
-| `npm run lint` | Run linter |
-| `npm run db:init` | Initialize DB |
-| `npm run db:migrate` | Run migrations |
-| `npm run db:seed` | Seed data |
+| `npm run test` | Jest (51 tests across 4 suites) |
+| `npm run lint` | ESLint |
+| `npm run db:init` | Initialize DB schema |
+| `npm run security:audit` | npm audit across all workspaces |
+| `cd backend && npx tsc` | Compile backend |
+| `cd frontend && npm run build` | Build frontend for production |
 
 ---
 
@@ -728,4 +548,6 @@ npm run dev
 - [System Overview](./SYSTEM_OVERVIEW.md)
 - [API Documentation](./API_DOCUMENTATION.md)
 - [Deployment Guide](./DEPLOYMENT_GUIDE.md)
+- [User Guide](./USER_GUIDE.md)
+- [Onboarding Guide](./ONBOARDING_GUIDE.md)
 - [Invoice Approval Workflow](./invoice-approval-workflow.md)

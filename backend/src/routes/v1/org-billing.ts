@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../../utils/errorHandler.js';
-import { authenticateToken } from '../../middleware/authMiddleware.js';
+import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
 import { PDFService } from '../../services/pdfService.js';
 import { notificationService } from '../../services/NotificationService.js';
 import { pool } from '../../config/database.js';
@@ -1459,6 +1459,7 @@ router.get(
 router.get(
   '/accounting/payments/:id/receipt',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;

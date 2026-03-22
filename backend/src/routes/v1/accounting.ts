@@ -15,6 +15,7 @@ const router = Router();
 router.get(
   '/accounting/dashboard',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       // Total Billed (Total Invoiced Amount)
@@ -98,6 +99,7 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     devLog('[Debug] Getting course pricing with cache');
+    // Note: handler has conditional logic — accountants see all, org users see theirs
 
     try {
       const user = req.user!;
@@ -149,6 +151,7 @@ router.get(
 router.put(
   '/accounting/course-pricing/:id',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -196,6 +199,7 @@ router.put(
 router.get(
   '/accounting/organizations',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     devLog('[Debug] Getting organizations with cache');
 
@@ -245,6 +249,7 @@ router.get(
 router.post(
   '/accounting/course-pricing',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const {
@@ -325,6 +330,7 @@ router.post(
 router.delete(
   '/accounting/course-pricing/:id',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -362,6 +368,7 @@ router.delete(
 router.get(
   '/accounting/billing-queue',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const result = await pool.query(`
@@ -418,6 +425,7 @@ router.get(
 router.post(
   '/accounting/invoices',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { courseId } = req.body;
@@ -565,10 +573,11 @@ router.post(
   })
 );
 
-// Get invoices pending approval
+// Get invoices pending approval — accountant only
 router.get(
   '/accounting/invoices/pending-approval',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       devLog('[DEBUG] Fetching invoices pending approval');
@@ -626,6 +635,7 @@ router.get(
 router.put(
   '/accounting/invoices/:id/approval',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -736,6 +746,7 @@ router.put(
 router.get(
   '/accounting/invoices/rejected',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const result = await pool.query(
@@ -768,6 +779,7 @@ router.get(
 router.put(
   '/accounting/invoices/:id/resubmit',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -821,6 +833,7 @@ router.put(
 router.put(
   '/accounting/invoices/:id/fix-calculations',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -923,6 +936,7 @@ router.put(
 router.put(
   '/accounting/invoices/:id/post-to-org',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -1111,6 +1125,7 @@ router.put(
 router.get(
   '/accounting/invoices',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const user = req.user!;
@@ -1205,6 +1220,7 @@ router.get(
 router.get(
   '/accounting/invoices/:id',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -1313,6 +1329,7 @@ router.get(
 router.put(
   '/accounting/invoices/:id',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -1374,6 +1391,7 @@ router.put(
 router.post(
   '/accounting/invoices/:id/email',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -1472,6 +1490,7 @@ router.post(
 router.get(
   '/accounting/invoices/:id/payments',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -1514,6 +1533,7 @@ router.get(
 router.post(
   '/accounting/invoices/:id/payments',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -1610,6 +1630,8 @@ router.post(
 // Generate PDF for invoice
 router.get(
   '/accounting/invoices/:id/pdf',
+  authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -1692,6 +1714,8 @@ router.get(
 // Preview invoice HTML
 router.get(
   '/accounting/invoices/:id/preview',
+  authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -1762,6 +1786,8 @@ router.get(
 // Revenue report endpoint
 router.get(
   '/accounting/reports/revenue',
+  authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { year } = req.query;
@@ -2410,18 +2436,10 @@ router.get(
 router.post(
   '/accounting/trigger-overdue-update',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const user = req.user!;
-
-      // Only allow accountant or admin roles
-      if (user.role !== 'accountant' && user.role !== 'admin') {
-        throw new AppError(
-          403,
-          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
-          'Access denied. Accountant or admin role required.'
-        );
-      }
 
       // Import and trigger the scheduled job
       const { ScheduledJobsService } = await import(
@@ -2445,18 +2463,10 @@ router.post(
 router.post(
   '/accounting/trigger-email-reminders',
   authenticateToken,
+  requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const user = req.user!;
-
-      // Only allow accountant or admin roles
-      if (user.role !== 'accountant' && user.role !== 'admin') {
-        throw new AppError(
-          403,
-          errorCodes.AUTH_INSUFFICIENT_PERMISSIONS,
-          'Access denied. Accountant or admin role required.'
-        );
-      }
 
       // Import and trigger the email reminders
       const { ScheduledJobsService } = await import(

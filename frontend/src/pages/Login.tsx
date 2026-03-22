@@ -311,6 +311,7 @@ const Login = () => {
             <Box sx={{ textAlign: 'center', mt: 2 }}>
               <Link
                 component="button"
+                type="button"
                 variant="body2"
                 onClick={() => setShowForgotPassword(true)}
                 sx={{ cursor: 'pointer' }}
@@ -418,6 +419,10 @@ const Login = () => {
       <Box sx={{ mt: 3, textAlign: 'center' }}>
         <Typography variant="caption" color="text.secondary">
           By using this service you agree to our{' '}
+          <Link component={RouterLink} to="/terms" color="inherit">
+            Terms of Service
+          </Link>
+          {' '}and{' '}
           <Link component={RouterLink} to="/privacy" color="inherit">
             Privacy Policy
           </Link>

@@ -242,35 +242,20 @@ class EmailService {
   private static instance: EmailService;
 
   private constructor() {
-    // Check if SMTP is configured
     const smtpHost = process.env.SMTP_HOST;
     const smtpUser = process.env.SMTP_USER;
     const smtpPass = process.env.SMTP_PASS;
-    
-    if (!smtpHost || !smtpUser || !smtpPass) {
-      console.log('🔴 [EMAIL SERVICE] SMTP not configured, using mock transporter');
-      console.log('📧 [EMAIL SERVICE] Emails will be logged to console instead of sent');
-      
-      // Create a mock transporter that logs emails
-      this.transporter = {
-        sendMail: async (mailOptions: SendMailOptions) => {
-          console.log('📧 [EMAIL SERVICE] MOCK EMAIL SENT:');
-          console.log('   From:', mailOptions.from);
-          console.log('   To:', mailOptions.to);
-          console.log('   Subject:', mailOptions.subject);
-          const htmlContent = typeof mailOptions.html === 'string' ? mailOptions.html : '';
-          console.log('   HTML Preview:', htmlContent.substring(0, 200) + '...');
-          console.log('📧 [EMAIL SERVICE] Mock email logged successfully');
-          return { messageId: `mock_${Date.now()}` };
-        },
-        verify: async () => {
-          console.log('✅ [EMAIL SERVICE] Mock transporter verified');
-          return true;
-        }
-      } as Transporter;
-    } else {
+    const usesSendmail = process.env.EMAIL_TRANSPORT === 'sendmail';
+
+    if (usesSendmail) {
+      console.log('✅ [EMAIL SERVICE] Using sendmail transport (cPanel/exim)');
+      this.transporter = nodemailer.createTransport({
+        sendmail: true,
+        newline: 'unix',
+        path: '/usr/sbin/sendmail',
+      } as Parameters<typeof nodemailer.createTransport>[0]);
+    } else if (smtpHost && smtpUser && smtpPass) {
       console.log('✅ [EMAIL SERVICE] SMTP configured, using real transporter');
-      // Create reusable transporter object using SMTP transport
       this.transporter = nodemailer.createTransport({
         host: smtpHost,
         port: parseInt(process.env.SMTP_PORT || '587'),
@@ -280,6 +265,29 @@ class EmailService {
           pass: smtpPass,
         },
       });
+    } else if (smtpHost) {
+      // Unauthenticated SMTP — for cPanel localhost:25
+      console.log(`✅ [EMAIL SERVICE] Using unauthenticated SMTP: ${smtpHost}:${process.env.SMTP_PORT || '25'}`);
+      this.transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: parseInt(process.env.SMTP_PORT || '25'),
+        secure: false,
+        ignoreTLS: true,
+      });
+    } else {
+      console.log('🔴 [EMAIL SERVICE] SMTP not configured, using mock transporter');
+      this.transporter = {
+        sendMail: async (mailOptions: SendMailOptions) => {
+          console.log('📧 [EMAIL SERVICE] MOCK EMAIL SENT:');
+          console.log('   From:', mailOptions.from);
+          console.log('   To:', mailOptions.to);
+          console.log('   Subject:', mailOptions.subject);
+          const htmlContent = typeof mailOptions.html === 'string' ? mailOptions.html : '';
+          console.log('   HTML Preview:', htmlContent.substring(0, 200) + '...');
+          return { messageId: `mock_${Date.now()}` };
+        },
+        verify: async () => true,
+      } as Transporter;
     }
   }
 

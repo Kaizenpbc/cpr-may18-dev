@@ -120,8 +120,8 @@ const CourseManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
     setFormData({
       name: course.name || '',
       description: course.description || '',
-      durationHours: course.durationHours || '',
-      durationMinutes: course.durationMinutes || '',
+      durationHours: course.durationMinutes ? Math.floor(course.durationMinutes / 60).toString() : '',
+      durationMinutes: course.durationMinutes ? (course.durationMinutes % 60).toString() : '',
       prerequisites: course.prerequisites || [],
       certificationType: course.certificationType || '',
       validityPeriodMonths: course.validityPeriodMonths || '',
@@ -175,15 +175,21 @@ const CourseManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
       return;
     }
 
+    const hours = formData.durationHours ? parseInt(formData.durationHours) : 0;
+    const mins = formData.durationMinutes ? parseInt(formData.durationMinutes) : 0;
+    const totalMinutes = hours * 60 + mins;
+
+    if (totalMinutes <= 0) {
+      onShowSnackbar?.('Duration is required', 'error');
+      return;
+    }
+
     try {
       const submitData = {
         ...formData,
-        durationHours: formData.durationHours
-          ? parseInt(formData.durationHours)
-          : undefined,
-        durationMinutes: formData.durationMinutes
-          ? parseInt(formData.durationMinutes)
-          : undefined,
+        duration_minutes: totalMinutes,
+        durationHours: hours,
+        durationMinutes: mins,
         validityPeriodMonths: formData.validityPeriodMonths
           ? parseInt(formData.validityPeriodMonths)
           : undefined,
@@ -353,8 +359,8 @@ const CourseManagement = ({ onShowSnackbar }: { onShowSnackbar: any }) => {
                   <TableCell>
                     <Typography variant='body2'>
                       {formatDuration(
-                        course.durationHours,
-                        course.durationMinutes
+                        course.durationMinutes ? Math.floor(course.durationMinutes / 60) : undefined,
+                        course.durationMinutes ? course.durationMinutes % 60 : undefined
                       )}
                     </Typography>
                   </TableCell>

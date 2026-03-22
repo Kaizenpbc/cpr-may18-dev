@@ -15,6 +15,7 @@ import SystemAdminPortal from './components/portals/SystemAdminPortal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import RecoverPassword from './pages/RecoverPassword';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 import TestCSV from './pages/TestCSV';
 import { RealtimeProvider } from './contexts/RealtimeContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
@@ -44,6 +45,7 @@ function App() {
                 <Route path='/reset-password' element={<ResetPassword />} />
                 <Route path='/test-csv' element={<TestCSV />} />
                 <Route path='/privacy' element={<PrivacyPolicy />} />
+                <Route path='/terms' element={<TermsOfService />} />
                 <Route path='/' element={<RoleBasedRouter />} />
 
                 {/* Protected routes */}

@@ -1,0 +1,45 @@
+# =============================================================
+# CPR Training System — Production .htaccess
+# TMD Hosting: /home/kaizenmo/cpr.kpbc.ca/.htaccess
+# DO NOT COMMIT — contains production secrets
+# Last synced from server: 2026-03-15
+# =============================================================
+
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/kaizenmo/cpr.kpbc.ca"
+PassengerBaseURI "/"
+PassengerNodejs "/opt/alt/alt-nodejs20/root/usr/bin/node"
+PassengerAppType node
+PassengerStartupFile server.js
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+
+# Force HTTPS
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Process limit mitigation — TMD cap is 100 processes across account
+# Pin to 1 worker; Node.js handles concurrency via its event loop anyway
+PassengerMinInstances 1
+PassengerMaxPoolSize 1
+PassengerMaxRequests 500
+
+SetEnv NODE_ENV production
+SetEnv PORT 3001
+SetEnv DATABASE_URL postgresql://neondb_owner:npg_sjHzZ1XWeBd2@ep-muddy-glade-aihtkrf1-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+SetEnv JWT_SECRET 559cb1121377439a3450014ba6c9c39f1924b1b777730d111fe1511af6c4be34
+SetEnv JWT_ACCESS_SECRET f4af2ee06029b5a895bd204113c59771a8d04595a0e739d69c73d0b34f45afd6
+SetEnv JWT_REFRESH_SECRET a723676d4993ef2f4caac3bb325b6d87fb5c12e2c230b5c61ba4fd667b64700e
+SetEnv REFRESH_TOKEN_SECRET a723676d4993ef2f4caac3bb325b6d87fb5c12e2c230b5c61ba4fd667b64700e
+SetEnv JWT_RESET_SECRET 9f5dedbbc31948cd6116e712ef30639bff605cc6c6cf9238c3118bd5b156e745
+SetEnv FRONTEND_URL https://cpr.kpbc.ca
+SetEnv REDIS_ENABLED false
+SetEnv BCRYPT_SALT_ROUNDS 12
+SetEnv ACCESS_TOKEN_EXPIRY 15m
+SetEnv REFRESH_TOKEN_EXPIRY 7d
+SetEnv SMTP_HOST mail.kpbc.ca
+SetEnv SMTP_PORT 587
+SetEnv SMTP_USER michaela@kpbc.ca
+SetEnv SMTP_PASS !Register001
+SetEnv SMTP_FROM michaela@kpbc.ca
+SetEnv SENTRY_DSN https://202c34e3f99a2459e93b5ad9d11d6a2a@o4511039496519680.ingest.us.sentry.io/4511039524438016

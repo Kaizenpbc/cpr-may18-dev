@@ -33,16 +33,15 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     let connectionAttempts = 0;
     const maxLoggedAttempts = 1; // Only log the first failure
 
+    // Socket.IO disabled — Passenger shared hosting can't maintain session state
+    // across worker processes. SSE fallback handles real-time updates.
     const socketInstance = io(WS_URL, {
-      reconnection: true,
-      reconnectionAttempts: 3, // Reduced - SSE fallback will handle updates
-      reconnectionDelay: 3000,
-      reconnectionDelayMax: 10000,
+      reconnection: false,
+      reconnectionAttempts: 0,
       path: '/socket.io',
-      // Use polling first (more reliable on Render free tier), then upgrade to websocket
       transports: ['polling', 'websocket'],
       withCredentials: true,
-      autoConnect: true,
+      autoConnect: false,
       timeout: 10000
     });
 

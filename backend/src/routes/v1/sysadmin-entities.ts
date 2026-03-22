@@ -60,11 +60,11 @@ router.post(
       } = req.body;
 
       if (!name) {
-        throw new AppError(
-          400,
-          errorCodes.VALIDATION_ERROR,
-          'Course name is required'
-        );
+        return res.status(400).json({ success: false, error: { code: 'VAL_2001', message: 'Course name is required' } });
+      }
+
+      if (duration_minutes === undefined || duration_minutes === null) {
+        return res.status(400).json({ success: false, error: { code: 'VAL_2001', message: 'Duration (minutes) is required' } });
       }
 
       // Check for duplicate course name
