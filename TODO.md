@@ -151,8 +151,8 @@
 3. ~~**BUG-1**~~ ✅ Fixed sysadmin/courses POST 500
 4. ~~**LEGAL-1**~~ ✅ Terms of Service page live at `/terms`
 5. ~~**SECURITY-2**~~ ✅ Org data isolation audit complete — 9 issues fixed
-6. **BIZ-1** — Decide SaaS pricing & billing model
-7. **BIZ-2** — Define offboarding / cancellation policy (PIPEDA requirement)
+6. **BIZ-1** — Decide SaaS pricing & billing model *(deferred — options: flat monthly fee, per-student, per-course, or manual invoicing for early customers)*
+7. **BIZ-2** — Define offboarding / cancellation policy *(deferred — ToS already covers 30-day notice, 30-day data export window, then anonymization; formalize as internal process when first customer churns)*
 
 ### **🟡 Medium Priority**
 - **RATELIMIT-1** — Re-enable rate limiting (`index.ts` lines 321–326 commented out) before scaling
