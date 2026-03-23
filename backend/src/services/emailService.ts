@@ -1,17 +1,6 @@
-import nodemailer, { SendMailOptions, Transporter } from 'nodemailer';
-import { createTransport } from 'nodemailer';
+import { Resend } from 'resend';
 import { format } from 'date-fns';
 import { pool } from '../config/database.js';
-
-interface EmailConfig {
-  host: string;
-  port: number;
-  secure: boolean;
-  auth: {
-    user: string;
-    pass: string;
-  };
-}
 
 interface InvoiceReminderData {
   organizationName: string;
@@ -167,9 +156,9 @@ const EMAIL_TEMPLATES = {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #007bff;">Invoice Delivered</h2>
         <p>Dear ${invoiceData.organizationName},</p>
-        
+
         <p>Your invoice has been generated and is attached to this email. This invoice includes the complete attendance list for your records.</p>
-        
+
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
           <h3 style="color: #007bff; margin-top: 0;">Invoice Summary</h3>
           <table style="width: 100%; border-collapse: collapse;">
@@ -227,10 +216,10 @@ const EMAIL_TEMPLATES = {
         </div>
 
         <p>If you have any questions about this invoice or need to verify attendance records, please contact our accounting department.</p>
-        
+
         <p style="color: #6c757d; font-size: 0.9em; margin-top: 30px;">
           This invoice has been automatically generated and delivered. Please do not reply to this email.<br>
-          For questions, contact: billing@gtacpr.com or (416) 555-0123
+          For questions, contact: admin@kpbc.ca
         </p>
       </div>
     `,
@@ -238,56 +227,19 @@ const EMAIL_TEMPLATES = {
 };
 
 class EmailService {
-  private transporter: nodemailer.Transporter;
+  private resend: Resend | null = null;
+  private fromAddress: string;
   private static instance: EmailService;
 
   private constructor() {
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    const usesSendmail = process.env.EMAIL_TRANSPORT === 'sendmail';
+    const apiKey = process.env.RESEND_API_KEY;
+    this.fromAddress = process.env.EMAIL_FROM || 'CPR Training Portal <noreply@kpbc.ca>';
 
-    if (usesSendmail) {
-      console.log('✅ [EMAIL SERVICE] Using sendmail transport (cPanel/exim)');
-      this.transporter = nodemailer.createTransport({
-        sendmail: true,
-        newline: 'unix',
-        path: '/usr/sbin/sendmail',
-      } as Parameters<typeof nodemailer.createTransport>[0]);
-    } else if (smtpHost && smtpUser && smtpPass) {
-      console.log('✅ [EMAIL SERVICE] SMTP configured, using real transporter');
-      this.transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-      });
-    } else if (smtpHost) {
-      // Unauthenticated SMTP — for cPanel localhost:25
-      console.log(`✅ [EMAIL SERVICE] Using unauthenticated SMTP: ${smtpHost}:${process.env.SMTP_PORT || '25'}`);
-      this.transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: parseInt(process.env.SMTP_PORT || '25'),
-        secure: false,
-        ignoreTLS: true,
-      });
+    if (apiKey) {
+      this.resend = new Resend(apiKey);
+      console.log('✅ [EMAIL SERVICE] Resend configured');
     } else {
-      console.log('🔴 [EMAIL SERVICE] SMTP not configured, using mock transporter');
-      this.transporter = {
-        sendMail: async (mailOptions: SendMailOptions) => {
-          console.log('📧 [EMAIL SERVICE] MOCK EMAIL SENT:');
-          console.log('   From:', mailOptions.from);
-          console.log('   To:', mailOptions.to);
-          console.log('   Subject:', mailOptions.subject);
-          const htmlContent = typeof mailOptions.html === 'string' ? mailOptions.html : '';
-          console.log('   HTML Preview:', htmlContent.substring(0, 200) + '...');
-          return { messageId: `mock_${Date.now()}` };
-        },
-        verify: async () => true,
-      } as Transporter;
+      console.log('🔴 [EMAIL SERVICE] RESEND_API_KEY not set — using mock transport');
     }
   }
 
@@ -298,28 +250,50 @@ class EmailService {
     return EmailService.instance;
   }
 
-  private async sendEmail(to: string, subject: string, html: string) {
+  private async sendEmail(
+    to: string,
+    subject: string,
+    html: string,
+    attachments?: { filename: string; content: Buffer }[]
+  ): Promise<boolean> {
     console.log('📧 [EMAIL SERVICE] Sending email to:', to);
     console.log('📧 [EMAIL SERVICE] Subject:', subject);
-    
+
+    if (!this.resend) {
+      console.log('📧 [EMAIL SERVICE] MOCK — From:', this.fromAddress);
+      console.log('📧 [EMAIL SERVICE] MOCK — To:', to);
+      console.log('📧 [EMAIL SERVICE] MOCK — Subject:', subject);
+      return true;
+    }
+
     try {
-      const mailOptions = {
-        from:
-          process.env.SMTP_FROM ||
-          '"CPR Training System" <noreply@cprtraining.com>',
-        to,
+      const payload: Parameters<Resend['emails']['send']>[0] = {
+        from: this.fromAddress,
+        to: [to],
         subject,
         html,
       };
 
-      const info = await this.transporter.sendMail(mailOptions);
+      if (attachments?.length) {
+        payload.attachments = attachments.map(a => ({
+          filename: a.filename,
+          content: a.content,
+        }));
+      }
+
+      const { data, error } = await this.resend.emails.send(payload);
+
+      if (error) {
+        console.error('❌ [EMAIL SERVICE] Resend error:', error);
+        return false;
+      }
+
       console.log('✅ [EMAIL SERVICE] Email sent successfully to:', to);
-      console.log('✅ [EMAIL SERVICE] Message ID:', info.messageId);
+      console.log('✅ [EMAIL SERVICE] Resend ID:', data?.id);
       return true;
     } catch (error) {
       console.error('❌ [EMAIL SERVICE] Failed to send email to:', to);
       console.error('❌ [EMAIL SERVICE] Error:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('❌ [EMAIL SERVICE] Full error:', error);
       return false;
     }
   }
@@ -339,27 +313,17 @@ class EmailService {
     return this.sendEmail(email, template.subject, template.html);
   }
 
-  async sendCourseAssignedNotification(
-    instructorEmail: string,
-    courseDetails: CourseDetails
-  ) {
+  async sendCourseAssignedNotification(instructorEmail: string, courseDetails: CourseDetails) {
     const template = EMAIL_TEMPLATES.COURSE_ASSIGNED_INSTRUCTOR(courseDetails);
     return this.sendEmail(instructorEmail, template.subject, template.html);
   }
 
-  async sendCourseScheduledToOrganization(
-    organizationEmail: string,
-    courseDetails: CourseDetails
-  ) {
-    const template =
-      EMAIL_TEMPLATES.COURSE_SCHEDULED_ORGANIZATION(courseDetails);
+  async sendCourseScheduledToOrganization(organizationEmail: string, courseDetails: CourseDetails) {
+    const template = EMAIL_TEMPLATES.COURSE_SCHEDULED_ORGANIZATION(courseDetails);
     return this.sendEmail(organizationEmail, template.subject, template.html);
   }
 
-  async sendInvoicePostedNotification(
-    organizationEmail: string,
-    invoiceData: InvoiceData
-  ) {
+  async sendInvoicePostedNotification(organizationEmail: string, invoiceData: InvoiceData) {
     const template = EMAIL_TEMPLATES.INVOICE_POSTED(invoiceData);
     return this.sendEmail(organizationEmail, template.subject, template.html);
   }
@@ -371,178 +335,74 @@ class EmailService {
     filename: string
   ) {
     const template = EMAIL_TEMPLATES.INVOICE_POSTED(invoiceData);
-    
     console.log('📧 [EMAIL SERVICE] Sending invoice PDF to:', organizationEmail);
-    console.log('📧 [EMAIL SERVICE] Subject:', template.subject);
     console.log('📧 [EMAIL SERVICE] PDF filename:', filename);
     console.log('📧 [EMAIL SERVICE] PDF size:', pdfBuffer.length, 'bytes');
-    
-    try {
-      const mailOptions = {
-        from:
-          process.env.SMTP_FROM ||
-          '"CPR Training System" <noreply@cprtraining.com>',
-        to: organizationEmail,
-        subject: `Invoice ${invoiceData.invoiceNumber} - Complete with Attendance`,
-        html: template.html,
-        attachments: [
-          {
-            filename: filename,
-            content: pdfBuffer,
-            contentType: 'application/pdf'
-          }
-        ]
-      };
-
-      const info = await this.transporter.sendMail(mailOptions);
-      console.log('✅ [EMAIL SERVICE] Invoice PDF sent successfully to:', organizationEmail);
-      console.log('✅ [EMAIL SERVICE] Message ID:', info.messageId);
-      return true;
-    } catch (error) {
-      console.error('❌ [EMAIL SERVICE] Failed to send invoice PDF to:', organizationEmail);
-      console.error('❌ [EMAIL SERVICE] Error:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('❌ [EMAIL SERVICE] Full error:', error);
-      return false;
-    }
+    return this.sendEmail(
+      organizationEmail,
+      `Invoice ${invoiceData.invoiceNumber} - Complete with Attendance`,
+      template.html,
+      [{ filename, content: pdfBuffer }]
+    );
   }
 
-  async verifyConnection() {
-    try {
-      await this.transporter.verify();
-      console.log('Email service is ready');
-      return true;
-    } catch (error) {
-      console.error('Email service verification failed:', error);
+  async verifyConnection(): Promise<boolean> {
+    if (!this.resend) {
+      console.log('⚠️ [EMAIL SERVICE] No API key — mock mode');
       return false;
     }
+    console.log('✅ [EMAIL SERVICE] Resend client ready');
+    return true;
   }
 
   public async sendInvoiceReminder(
     data: InvoiceReminderData,
     recipientEmail: string
   ): Promise<boolean> {
-    try {
-      await this.transporter.verify();
-      if (!this.transporter) {
-        throw new Error('Email transporter not initialized');
-      }
+    const subject = `Payment Reminder: Invoice ${data.invoiceNumber} Due in ${data.daysUntilDue} Days`;
 
-      const subject = `Payment Reminder: Invoice ${data.invoiceNumber} Due in ${data.daysUntilDue} Days`;
-
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #1976d2; color: white; padding: 20px; text-align: center; }
-            .content { background-color: #f5f5f5; padding: 20px; margin-top: 20px; }
-            .invoice-details { background-color: white; padding: 15px; margin: 15px 0; border-radius: 5px; }
-            .amount { font-size: 24px; color: #1976d2; font-weight: bold; }
-            .due-date { color: #d32f2f; font-weight: bold; }
-            .button { display: inline-block; padding: 10px 20px; background-color: #1976d2; color: white; text-decoration: none; border-radius: 5px; margin-top: 15px; }
-            .footer { margin-top: 20px; text-align: center; font-size: 12px; color: #666; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Payment Reminder</h1>
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #1976d2; color: white; padding: 20px; text-align: center;">
+            <h1 style="margin: 0;">Payment Reminder</h1>
+          </div>
+          <div style="background-color: #f5f5f5; padding: 20px; margin-top: 20px;">
+            <p>Dear ${data.organizationName},</p>
+            <p>This is a friendly reminder that your invoice is due soon.</p>
+            <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
+              <h3>Invoice Details:</h3>
+              <p><strong>Invoice Number:</strong> ${data.invoiceNumber}</p>
+              <p><strong>Amount Due:</strong> <span style="font-size: 24px; color: #1976d2; font-weight: bold;">$${data.amount.toFixed(2)}</span></p>
+              <p><strong>Due Date:</strong> <span style="color: #d32f2f; font-weight: bold;">${data.dueDate}</span></p>
+              <p><strong>Days Until Due:</strong> ${data.daysUntilDue} days</p>
             </div>
-            <div class="content">
-              <p>Dear ${data.organizationName},</p>
-              
-              <p>This is a friendly reminder that your invoice is due soon.</p>
-              
-              <div class="invoice-details">
-                <h3>Invoice Details:</h3>
-                <p><strong>Invoice Number:</strong> ${data.invoiceNumber}</p>
-                <p><strong>Amount Due:</strong> <span class="amount">$${data.amount.toFixed(2)}</span></p>
-                <p><strong>Due Date:</strong> <span class="due-date">${data.dueDate}</span></p>
-                <p><strong>Days Until Due:</strong> ${data.daysUntilDue} days</p>
-              </div>
-              
-              <p>Please ensure payment is made by the due date to avoid any late fees or service interruptions.</p>
-              
-              <p>You can view and pay this invoice by logging into your account portal.</p>
-              
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/organization/bills-payable" class="button">
+            <p>Please ensure payment is made by the due date to avoid any late fees or service interruptions.</p>
+            <p>
+              <a href="${process.env.FRONTEND_URL || 'https://cpr.kpbc.ca'}/organization/bills-payable"
+                 style="display: inline-block; padding: 10px 20px; background-color: #1976d2; color: white; text-decoration: none; border-radius: 5px;">
                 View Invoice
               </a>
-              
-              <p>If you have already made payment, please disregard this reminder.</p>
-              
-              <p>Thank you for your prompt attention to this matter.</p>
-            </div>
-            <div class="footer">
-              <p>This is an automated reminder. Please do not reply to this email.</p>
-              <p>For questions, please contact our accounting department.</p>
-            </div>
+            </p>
+            <p>If you have already made payment, please disregard this reminder.</p>
           </div>
-        </body>
-        </html>
-      `;
+          <div style="margin-top: 20px; text-align: center; font-size: 12px; color: #666;">
+            <p>This is an automated reminder. Please do not reply to this email.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
 
-      const textContent = `
-Payment Reminder
+    const sent = await this.sendEmail(recipientEmail, subject, html);
 
-Dear ${data.organizationName},
-
-This is a friendly reminder that your invoice is due soon.
-
-Invoice Details:
-- Invoice Number: ${data.invoiceNumber}
-- Amount Due: $${data.amount.toFixed(2)}
-- Due Date: ${data.dueDate}
-- Days Until Due: ${data.daysUntilDue} days
-
-Please ensure payment is made by the due date to avoid any late fees or service interruptions.
-
-You can view and pay this invoice by logging into your account portal at:
-${process.env.FRONTEND_URL || 'http://localhost:5173'}/organization/bills-payable
-
-If you have already made payment, please disregard this reminder.
-
-Thank you for your prompt attention to this matter.
-
-This is an automated reminder. For questions, please contact our accounting department.
-      `;
-
-      const mailOptions = {
-        from:
-          process.env.EMAIL_FROM ||
-          '"CPR Training System" <noreply@cprtraining.com>',
-        to: recipientEmail,
-        subject: subject,
-        text: textContent,
-        html: htmlContent,
-      };
-
-      const info = await this.transporter.sendMail(mailOptions);
-
-      console.log(`📧 [EMAIL] Reminder sent successfully to ${recipientEmail}`);
-      console.log(`📧 [EMAIL] Message ID: ${info.messageId}`);
-
-      // If using test account, log the preview URL
-      if (!process.env.EMAIL_USER) {
-        console.log(
-          `📧 [EMAIL] Preview URL: ${nodemailer.getTestMessageUrl(info)}`
-        );
-      }
-
-      // Log the email send event
-      await this.logEmailSent(
-        data.invoiceId,
-        recipientEmail,
-        data.daysUntilDue
-      );
-
-      return true;
-    } catch (error) {
-      console.error('❌ [EMAIL] Error sending reminder:', error);
-      return false;
+    if (sent) {
+      await this.logEmailSent(data.invoiceId, recipientEmail, data.daysUntilDue);
     }
+
+    return sent;
   }
 
   private async logEmailSent(
@@ -551,7 +411,6 @@ This is an automated reminder. For questions, please contact our accounting depa
     daysBeforeDue: number
   ): Promise<void> {
     try {
-      // First, ensure the email_reminders table exists
       await pool.query(`
         CREATE TABLE IF NOT EXISTS email_reminders (
           id SERIAL PRIMARY KEY,
@@ -564,14 +423,10 @@ This is an automated reminder. For questions, please contact our accounting depa
         )
       `);
 
-      // Log the email
       await pool.query(
-        `
-        INSERT INTO email_reminders (invoice_id, recipient_email, reminder_type, days_before_due)
-        VALUES ($1, $2, 'invoice_due', $3)
-        ON CONFLICT (invoice_id, days_before_due) DO UPDATE
-        SET sent_at = CURRENT_TIMESTAMP
-      `,
+        `INSERT INTO email_reminders (invoice_id, recipient_email, reminder_type, days_before_due)
+         VALUES ($1, $2, 'invoice_due', $3)
+         ON CONFLICT (invoice_id, days_before_due) DO UPDATE SET sent_at = CURRENT_TIMESTAMP`,
         [invoiceId, recipientEmail, daysBeforeDue]
       );
     } catch (error) {
@@ -579,22 +434,14 @@ This is an automated reminder. For questions, please contact our accounting depa
     }
   }
 
-  public async hasReminderBeenSent(
-    invoiceId: number,
-    daysBeforeDue: number
-  ): Promise<boolean> {
+  public async hasReminderBeenSent(invoiceId: number, daysBeforeDue: number): Promise<boolean> {
     try {
       const result = await pool.query(
-        `
-        SELECT COUNT(*) as count
-        FROM email_reminders
-        WHERE invoice_id = $1 
-        AND days_before_due = $2
-        AND sent_at > CURRENT_TIMESTAMP - INTERVAL '24 hours'
-      `,
+        `SELECT COUNT(*) as count FROM email_reminders
+         WHERE invoice_id = $1 AND days_before_due = $2
+         AND sent_at > CURRENT_TIMESTAMP - INTERVAL '24 hours'`,
         [invoiceId, daysBeforeDue]
       );
-
       return parseInt(result.rows[0].count) > 0;
     } catch (error) {
       console.error('❌ [EMAIL] Error checking reminder status:', error);
@@ -602,14 +449,7 @@ This is an automated reminder. For questions, please contact our accounting depa
     }
   }
 
-  /**
-   * Send MFA verification code email
-   */
-  async sendMFAVerificationCode(
-    userEmail: string,
-    code: string,
-    expiryMinutes: number
-  ): Promise<void> {
+  async sendMFAVerificationCode(userEmail: string, code: string, expiryMinutes: number): Promise<void> {
     const subject = 'CPR Training System - MFA Verification Code';
     const html = `
       <h2>MFA Verification Code</h2>
@@ -642,7 +482,6 @@ This is an automated reminder. For questions, please contact our accounting depa
             <p><strong>Amount Outstanding:</strong> <span style="font-size: 20px; color: #d32f2f;">$${amount.toFixed(2)}</span></p>
           </div>
           <p>Please arrange payment at your earliest convenience to avoid any disruption to services.</p>
-          <p>If you have already made payment, please disregard this notice or contact us to confirm receipt.</p>
           <p style="color: #6c757d; font-size: 0.85em;">This is an automated message. Please contact your account manager if you have any questions.</p>
         </div>
       </div>
@@ -650,17 +489,13 @@ This is an automated reminder. For questions, please contact our accounting depa
     return this.sendEmail(organizationEmail, subject, html);
   }
 
-  async sendPasswordResetEmail(
-    userEmail: string,
-    username: string,
-    resetLink: string
-  ): Promise<boolean> {
-    const subject = 'CPR Training System - Password Reset Request';
+  async sendPasswordResetEmail(userEmail: string, username: string, resetLink: string): Promise<boolean> {
+    const subject = 'CPR Training Portal - Password Reset Request';
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #007bff;">Password Reset Request</h2>
         <p>Hi <strong>${username}</strong>,</p>
-        <p>We received a request to reset the password for your CPR Training System account.</p>
+        <p>We received a request to reset the password for your CPR Training Portal account.</p>
         <p>Click the button below to reset your password. This link will expire in <strong>1 hour</strong>.</p>
         <div style="text-align: center; margin: 30px 0;">
           <a href="${resetLink}"
@@ -682,5 +517,4 @@ This is an automated reminder. For questions, please contact our accounting depa
   }
 }
 
-// Export the singleton instance
 export const emailService = EmailService.getInstance();

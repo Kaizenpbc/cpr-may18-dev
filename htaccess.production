@@ -37,9 +37,6 @@ SetEnv REDIS_ENABLED false
 SetEnv BCRYPT_SALT_ROUNDS 12
 SetEnv ACCESS_TOKEN_EXPIRY 15m
 SetEnv REFRESH_TOKEN_EXPIRY 7d
-SetEnv SMTP_HOST mail.kpbc.ca
-SetEnv SMTP_PORT 587
-SetEnv SMTP_USER michaela@kpbc.ca
-SetEnv SMTP_PASS !Register001
-SetEnv SMTP_FROM michaela@kpbc.ca
+SetEnv RESEND_API_KEY re_6xyt55Qt_Mec5qFsepgsWshpT8tsXa16x
+SetEnv EMAIL_FROM CPR Training Portal <noreply@kpbc.ca>
 SetEnv SENTRY_DSN https://202c34e3f99a2459e93b5ad9d11d6a2a@o4511039496519680.ingest.us.sentry.io/4511039524438016
