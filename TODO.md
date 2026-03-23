@@ -44,7 +44,7 @@
 - [x] **Session management** — httpOnly cookies, token blacklist, login lockout after 10 attempts
 - [x] **🔴 Fix sysadmin/courses POST 500 (BUG-1)**: `null value in column "duration_minutes" of relation "class_types"` — sysadmin course creation crashes. Investigate `class_types` insert in `sysadmin.ts` / `sysadmin-entities.ts`; ensure `duration_minutes` is required in the request body or has a DB default.
 - [x] **🔴 Terms of Service page (LEGAL-1)**: Privacy policy exists at `/privacy` but no ToS/Service Agreement. Required before taking money. Add `/terms` page and link it alongside the privacy policy on the login screen.
-- [ ] **🔴 Org data isolation audit (SECURITY-2)**: Multi-tenancy relies on every org-facing query filtering by `organization_id`. One missed filter = cross-org data leak. Audit every route in `organization.ts`, `org-billing.ts`, `course-requests.ts`, `accounting.ts` to confirm all queries scope by `req.user.organizationId`.
+- [x] **🔴 Org data isolation audit (SECURITY-2)**: Audited all 67 routes across 4 files. Fixed 9 issues: 8 unauthenticated/unscoped course-admin routes in `course-requests.ts` (added `authenticateToken` + `requireRole`), 1 fetch-before-check in `org-billing.ts` (moved org scope into WHERE clause).
 - [ ] **🟡 Customer onboarding flow (ONBOARD-1)**: Currently sysadmin manually creates orgs and users — no self-signup or invite flow. Fine for early customers; document the manual process and decide if/when to build self-serve onboarding.
 - [ ] **🟡 Uptime monitoring (OPS-1)**: Nothing alerts if the site goes down. Set up a free UptimeRobot monitor on `https://cpr.kpbc.ca/api/v1/health` — alerts by email if it goes down. Takes 5 minutes.
 - [ ] **Revisit npm audit vulnerabilities**: Pre-commit audit shows 6 low + 5 moderate vulns
@@ -150,7 +150,7 @@
 2. **BACKUP-1** — Database backup strategy (decision required: Neon paid PITR or pg_dump cron)
 3. ~~**BUG-1**~~ ✅ Fixed sysadmin/courses POST 500
 4. ~~**LEGAL-1**~~ ✅ Terms of Service page live at `/terms`
-5. **SECURITY-2** — Org data isolation audit (confirm all org routes filter by `organization_id`)
+5. ~~**SECURITY-2**~~ ✅ Org data isolation audit complete — 9 issues fixed
 6. **BIZ-1** — Decide SaaS pricing & billing model
 7. **BIZ-2** — Define offboarding / cancellation policy (PIPEDA requirement)
 

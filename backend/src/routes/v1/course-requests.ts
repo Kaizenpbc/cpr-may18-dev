@@ -484,6 +484,7 @@ router.get(
 router.get(
   '/courses/pending',
   authenticateToken,
+  requireRole(['admin', 'sysadmin', 'superadmin']),
   asyncHandler(async (_req: Request, res: Response) => {
     try {
       const result = await pool.query(`
@@ -514,6 +515,8 @@ router.get(
 // Update reminder timestamp endpoint
 router.post(
   '/courses/:id/update-reminder',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'superadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -549,6 +552,8 @@ router.post(
 // Get confirmed courses
 router.get(
   '/courses/confirmed',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'superadmin']),
   asyncHandler(async (_req: Request, res: Response) => {
     try {
       const result = await pool.query(
@@ -576,6 +581,8 @@ router.get(
 // Get completed courses
 router.get(
   '/courses/completed',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'superadmin']),
   asyncHandler(async (_req: Request, res: Response) => {
     try {
       const result = await pool.query(
@@ -603,6 +610,8 @@ router.get(
 // Get cancelled courses
 router.get(
   '/courses/cancelled',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'superadmin']),
   asyncHandler(async (_req: Request, res: Response) => {
     try {
       const result = await pool.query(
@@ -630,6 +639,8 @@ router.get(
 // Cancel a course request
 router.put(
   '/courses/:id/cancel',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'superadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -787,6 +798,8 @@ router.put(
 // Update course schedule (reschedule)
 router.put(
   '/courses/:id/schedule',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'superadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -955,6 +968,8 @@ router.put(
 // Assign instructor to course request
 router.put(
   '/courses/:id/assign-instructor',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin', 'superadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;

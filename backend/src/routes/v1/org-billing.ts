@@ -432,7 +432,8 @@ router.get(
       const { id } = req.params;
       const proposedAmount = parseFloat(req.query.amount as string) || 0;
 
-      // Get invoice with payment totals
+      // Get invoice with payment totals — scope by org for organization role
+      const isOrgUser = user.role === 'organization';
       const invoiceResult = await pool.query(
         `
         SELECT
@@ -445,9 +446,10 @@ router.get(
         FROM invoices i
         LEFT JOIN payments p ON i.id = p.invoice_id
         WHERE i.id = $1
+          AND ($2::int IS NULL OR i.organization_id = $2)
         GROUP BY i.id, i.amount, i.status, i.organization_id
         `,
-        [id]
+        [id, isOrgUser ? user.organizationId : null]
       );
 
       if (invoiceResult.rows.length === 0) {
@@ -455,11 +457,6 @@ router.get(
       }
 
       const invoice = invoiceResult.rows[0];
-
-      // Verify organization access
-      if (user.role === 'organization' && invoice.organization_id !== user.organizationId) {
-        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied');
-      }
 
       const totalInvoiceAmount = parseFloat(invoice.amount) || 0;
       const verifiedPayments = parseFloat(invoice.verified_payments) || 0;
