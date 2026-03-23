@@ -1,4 +1,3 @@
-import { Resend } from 'resend';
 import { format } from 'date-fns';
 import { pool } from '../config/database.js';
 
@@ -227,17 +226,16 @@ const EMAIL_TEMPLATES = {
 };
 
 class EmailService {
-  private resend: Resend | null = null;
+  private apiKey: string | null;
   private fromAddress: string;
   private static instance: EmailService;
 
   private constructor() {
-    const apiKey = process.env.RESEND_API_KEY;
+    this.apiKey = process.env.RESEND_API_KEY || null;
     this.fromAddress = process.env.EMAIL_FROM || 'CPR Training Portal <noreply@kpbc.ca>';
 
-    if (apiKey) {
-      this.resend = new Resend(apiKey);
-      console.log('✅ [EMAIL SERVICE] Resend configured');
+    if (this.apiKey) {
+      console.log('✅ [EMAIL SERVICE] Resend configured (fetch transport)');
     } else {
       console.log('🔴 [EMAIL SERVICE] RESEND_API_KEY not set — using mock transport');
     }
@@ -259,7 +257,7 @@ class EmailService {
     console.log('📧 [EMAIL SERVICE] Sending email to:', to);
     console.log('📧 [EMAIL SERVICE] Subject:', subject);
 
-    if (!this.resend) {
+    if (!this.apiKey) {
       console.log('📧 [EMAIL SERVICE] MOCK — From:', this.fromAddress);
       console.log('📧 [EMAIL SERVICE] MOCK — To:', to);
       console.log('📧 [EMAIL SERVICE] MOCK — Subject:', subject);
@@ -267,7 +265,7 @@ class EmailService {
     }
 
     try {
-      const payload: Parameters<Resend['emails']['send']>[0] = {
+      const body: Record<string, unknown> = {
         from: this.fromAddress,
         to: [to],
         subject,
@@ -275,21 +273,30 @@ class EmailService {
       };
 
       if (attachments?.length) {
-        payload.attachments = attachments.map(a => ({
+        body.attachments = attachments.map(a => ({
           filename: a.filename,
-          content: a.content,
+          content: a.content.toString('base64'),
         }));
       }
 
-      const { data, error } = await this.resend.emails.send(payload);
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
 
-      if (error) {
-        console.error('❌ [EMAIL SERVICE] Resend error:', error);
+      const data = await response.json() as { id?: string; name?: string; message?: string };
+
+      if (!response.ok) {
+        console.error('❌ [EMAIL SERVICE] Resend error:', data);
         return false;
       }
 
       console.log('✅ [EMAIL SERVICE] Email sent successfully to:', to);
-      console.log('✅ [EMAIL SERVICE] Resend ID:', data?.id);
+      console.log('✅ [EMAIL SERVICE] Resend ID:', data.id);
       return true;
     } catch (error) {
       console.error('❌ [EMAIL SERVICE] Failed to send email to:', to);
@@ -347,7 +354,7 @@ class EmailService {
   }
 
   async verifyConnection(): Promise<boolean> {
-    if (!this.resend) {
+    if (!this.apiKey) {
       console.log('⚠️ [EMAIL SERVICE] No API key — mock mode');
       return false;
     }
