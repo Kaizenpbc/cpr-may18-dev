@@ -232,7 +232,7 @@ class EmailService {
 
   private constructor() {
     this.apiKey = process.env.RESEND_API_KEY || null;
-    this.fromAddress = process.env.EMAIL_FROM || 'CPR Training Portal <noreply@kpbc.ca>';
+    this.fromAddress = process.env.EMAIL_FROM || 'noreply@kpbc.ca';
 
     if (this.apiKey) {
       console.log('✅ [EMAIL SERVICE] Resend configured (fetch transport)');

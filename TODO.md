@@ -146,16 +146,16 @@
 ## 🎯 **Priority Levels**
 
 ### **🔴 Must do before first paying customer**
-1. **RATELIMIT-1** — Re-enable rate limiting (`index.ts` lines 321–326 commented out)
-2. **EMAIL-1** — Fix email delivery (noreply@kpbc.ca mailbox ready; update .htaccess SMTP vars)
-3. **BACKUP-1** — Database backup strategy (decision required: Neon paid PITR or pg_dump cron)
-4. **BUG-1** — Fix sysadmin/courses POST 500 (`duration_minutes` null crash)
-5. **LEGAL-1** — Terms of Service page at `/terms`
-6. **SECURITY-2** — Org data isolation audit (confirm all org routes filter by `organization_id`)
-7. **BIZ-1** — Decide SaaS pricing & billing model
-8. **BIZ-2** — Define offboarding / cancellation policy (PIPEDA requirement)
+1. ~~**EMAIL-1**~~ ✅ Email delivery working via Resend (noreply@kpbc.ca)
+2. **BACKUP-1** — Database backup strategy (decision required: Neon paid PITR or pg_dump cron)
+3. ~~**BUG-1**~~ ✅ Fixed sysadmin/courses POST 500
+4. ~~**LEGAL-1**~~ ✅ Terms of Service page live at `/terms`
+5. **SECURITY-2** — Org data isolation audit (confirm all org routes filter by `organization_id`)
+6. **BIZ-1** — Decide SaaS pricing & billing model
+7. **BIZ-2** — Define offboarding / cancellation policy (PIPEDA requirement)
 
 ### **🟡 Medium Priority**
+- **RATELIMIT-1** — Re-enable rate limiting (`index.ts` lines 321–326 commented out) before scaling
 - **HOSTING-1** — Plan VPS upgrade before multiple concurrent paying customers
 - **ONBOARD-1** — Customer onboarding flow (self-serve or documented manual process)
 - Mobile responsiveness
