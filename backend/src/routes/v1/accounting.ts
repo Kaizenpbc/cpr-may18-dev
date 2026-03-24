@@ -1800,6 +1800,7 @@ router.get(
         );
       }
 
+      const yearDate = `${year}-01-01`;
       const result = await pool.query(
         `
       WITH monthly_data AS (
@@ -1837,7 +1838,7 @@ router.get(
       LEFT JOIN payments_by_month pbm ON md.month = pbm.month
       ORDER BY md.month
     `,
-        [year]
+        [yearDate]
       );
 
       res.json({
