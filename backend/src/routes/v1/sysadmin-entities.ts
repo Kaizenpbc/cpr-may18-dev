@@ -1359,13 +1359,13 @@ router.get(
       SELECT
         o.id as organizationid,
         o.name as organizationname,
-        o.address as addressstreet,
+        o.address_street as addressstreet,
         o.contact_name as contactname,
         o.contact_email as contactemail,
         o.contact_phone as contactphone,
-        o.city as addresscity,
-        o.province as addressprovince,
-        o.postal_code as addresspostalcode,
+        o.address_city as addresscity,
+        o.address_province as addressprovince,
+        o.address_postal_code as addresspostalcode,
         o.created_at,
         o.updated_at
       FROM organizations o
@@ -1690,7 +1690,7 @@ router.get(
     const query = `
       SELECT
         cr.id as courseid,
-        cr.course_number as coursenumber,
+        cr.id as coursenumber,
         ct.name as coursetypename,
         cr.status,
         cr.confirmed_date as confirmeddate,
