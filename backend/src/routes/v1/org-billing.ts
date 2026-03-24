@@ -1548,9 +1548,9 @@ router.get(
         `
       SELECT
         COUNT(*) as total_payments,
-        COALESCE(SUM(amount), 0) as total_amount_paid,
-        COUNT(CASE WHEN status = 'verified' THEN 1 END) as verified_payments,
-        COUNT(CASE WHEN status = 'pending_verification' THEN 1 END) as pending_payments
+        COALESCE(SUM(p.amount), 0) as total_amount_paid,
+        COUNT(CASE WHEN p.status = 'verified' THEN 1 END) as verified_payments,
+        COUNT(CASE WHEN p.status = 'pending_verification' THEN 1 END) as pending_payments
       FROM payments p
       JOIN invoices i ON p.invoice_id = i.id
       WHERE i.organization_id = $1
