@@ -1885,7 +1885,7 @@ router.get(
             i.due_date,
             CASE
               WHEN i.due_date IS NULL THEN 0
-              ELSE EXTRACT(DAY FROM ($1::date - i.due_date::date))
+              ELSE ($1::date - i.due_date::date)
             END as days_overdue,
             i.status
           FROM invoices i

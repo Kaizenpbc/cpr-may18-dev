@@ -248,6 +248,8 @@ CREATE TABLE IF NOT EXISTS invoices (
   approved_by INTEGER REFERENCES users(id),
   approved_at TIMESTAMP,
   approval_status VARCHAR(20) DEFAULT 'pending',
+  rejected_by INTEGER REFERENCES users(id),
+  rejected_at TIMESTAMP,
   deleted_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
