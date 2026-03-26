@@ -401,10 +401,9 @@ router.get('/returned-payment-requests', authenticateToken, requireHRRole, async
       FROM payment_requests pr
       JOIN users u ON pr.instructor_id = u.id
       JOIN timesheets t ON pr.timesheet_id = t.id
-      LEFT JOIN instructor_pay_rates ipr ON ipr.instructor_id = pr.instructor_id 
-        AND ipr.is_active = true 
+      LEFT JOIN instructor_pay_rates ipr ON ipr.instructor_id = pr.instructor_id
+        AND ipr.is_active = true
         AND ipr.effective_date <= t.week_start_date
-        AND (ipr.end_date IS NULL OR ipr.end_date >= t.week_start_date)
       LEFT JOIN pay_rate_tiers prt ON ipr.tier_id = prt.id
       WHERE pr.status = 'returned_to_hr'
       ORDER BY pr.updated_at DESC

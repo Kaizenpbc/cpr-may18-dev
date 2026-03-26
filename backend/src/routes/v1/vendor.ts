@@ -289,7 +289,7 @@ router.get('/invoices', authenticateToken, asyncHandler(async (req: Request, res
       v.name as billing_company,
       COALESCE(vi.rate, 0) as rate,
       COALESCE(vi.amount, 0) as amount,
-      COALESCE(vi.subtotal, vi.amount) as subtotal,
+      COALESCE(vi.amount, 0) as subtotal,
       COALESCE(vi.hst, 0) as hst,
       COALESCE(vi.total, vi.amount) as total
     FROM vendor_invoices vi
@@ -514,7 +514,7 @@ router.get('/invoices/:id', authenticateToken, asyncHandler(async (req: Request,
       v.name as billing_company,
       COALESCE(vi.rate, 0) as rate,
       COALESCE(vi.amount, 0) as amount,
-      COALESCE(vi.subtotal, vi.amount) as subtotal,
+      COALESCE(vi.amount, 0) as subtotal,
       COALESCE(vi.hst, 0) as hst,
       COALESCE(vi.total, vi.amount) as total,
       u_approved.username as approved_by_name,
@@ -566,7 +566,7 @@ router.get('/invoices/:id/details', authenticateToken, asyncHandler(async (req: 
       v.name as billing_company,
       COALESCE(vi.rate, 0) as rate,
       COALESCE(vi.amount, 0) as amount,
-      COALESCE(vi.subtotal, vi.amount) as subtotal,
+      COALESCE(vi.amount, 0) as subtotal,
       COALESCE(vi.hst, 0) as hst,
       COALESCE(vi.total, vi.amount) as total,
       u_approved.username as approved_by_name,
@@ -675,7 +675,7 @@ router.get('/invoices/:id/download', authenticateToken, asyncHandler(async (req:
       v.contact_email as vendor_email,
       COALESCE(vi.rate, 0) as rate,
       COALESCE(vi.amount, 0) as amount,
-      COALESCE(vi.subtotal, vi.amount) as subtotal,
+      COALESCE(vi.amount, 0) as subtotal,
       COALESCE(vi.hst, 0) as hst,
       COALESCE(vi.total, vi.amount) as total
     FROM vendor_invoices vi
