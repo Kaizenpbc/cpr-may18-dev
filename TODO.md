@@ -47,10 +47,7 @@
 - [x] **🔴 Org data isolation audit (SECURITY-2)**: Audited all 67 routes across 4 files. Fixed 9 issues: 8 unauthenticated/unscoped course-admin routes in `course-requests.ts` (added `authenticateToken` + `requireRole`), 1 fetch-before-check in `org-billing.ts` (moved org scope into WHERE clause).
 - [ ] **🟡 Customer onboarding flow (ONBOARD-1)**: Currently sysadmin manually creates orgs and users — no self-signup or invite flow. Fine for early customers; document the manual process and decide if/when to build self-serve onboarding.
 - [x] **🟡 Uptime monitoring (OPS-1)**: UptimeRobot monitor active on `https://cpr.kpbc.ca/api/v1/health` — alerts kpbcma@gmail.com every 5 minutes.
-- [ ] **Revisit npm audit vulnerabilities**: Pre-commit audit shows 6 low + 5 moderate vulns
-  (all dev tooling — `esbuild`/`vite`/`@google-cloud/storage`). All require breaking-change upgrades
-  (`npm audit fix --force`). Revisit when upgrading Vite or Google Cloud Storage.
-  Run `npm audit` for current status.
+- [x] **Revisit npm audit vulnerabilities**: Ran `npm audit fix` — picomatch high-severity ReDoS fixed. Remaining: 6 low + 5 moderate (all dev tooling: `esbuild`/`vite`/`@google-cloud/storage`) — require breaking-change upgrades. Revisit when upgrading Vite or Google Cloud Storage.
 
 ## 📊 **Features & Enhancements**
 
