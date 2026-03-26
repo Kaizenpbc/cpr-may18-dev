@@ -1575,7 +1575,6 @@ router.post(
             new Date(),
             null,
             null,
-            null,
             null
           ]
         );
