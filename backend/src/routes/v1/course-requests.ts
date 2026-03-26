@@ -79,23 +79,22 @@ router.get(
       const result = await pool.query(`
       SELECT
         c.id,
-        c.date,
+        DATE(c.start_time) as date,
         c.start_time,
         c.end_time,
         c.location,
         c.status,
         c.max_students,
-        c.current_students,
         ct.name as type,
         u.username as instructor_name,
-        COUNT(e.student_id) as enrolled_students
+        COUNT(cs.student_id) as enrolled_students
       FROM classes c
-      JOIN class_types ct ON c.type_id = ct.id
-      JOIN users u ON c.instructor_id = u.id
-      LEFT JOIN enrollments e ON c.id = e.class_id
-      WHERE c.date >= CURRENT_DATE
+      JOIN class_types ct ON c.class_type_id = ct.id
+      LEFT JOIN users u ON c.instructor_id = u.id
+      LEFT JOIN class_students cs ON c.id = cs.class_id
+      WHERE DATE(c.start_time) >= CURRENT_DATE
       GROUP BY c.id, ct.name, u.username
-      ORDER BY c.date ASC, c.start_time ASC
+      ORDER BY c.start_time ASC
     `);
 
       const schedule = result.rows.map(row => ({
@@ -980,6 +979,14 @@ router.put(
           400,
           errorCodes.VALIDATION_ERROR,
           'Instructor ID is required'
+        );
+      }
+
+      if (!startTime || !endTime) {
+        throw new AppError(
+          400,
+          errorCodes.VALIDATION_ERROR,
+          'Start time and end time are required'
         );
       }
 
@@ -2010,10 +2017,10 @@ router.get(
         u.last_name as lastname,
         u.email,
         u.phone,
-        u.is_active as isactive
+        (u.status = 'active') as isactive
       FROM users u
       WHERE u.role = 'instructor'
-        AND (u.is_active = true OR u.is_active IS NULL)
+        AND (u.status = 'active' OR u.status IS NULL)
       ORDER BY u.last_name, u.first_name
     `;
 
