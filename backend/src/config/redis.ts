@@ -1,5 +1,3 @@
-import { createClient, RedisClientType } from 'redis';
-
 interface RedisConfig {
   host: string;
   port: number;
@@ -12,7 +10,7 @@ interface RedisConfig {
 }
 
 class RedisManager {
-  private client: RedisClientType | null = null;
+  private client: any = null;
   private config: RedisConfig;
   private isConnected: boolean = false;
   private reconnectAttempts: number = 0;
@@ -51,6 +49,7 @@ class RedisManager {
         `🔴 [REDIS] Configuration: ${this.config.host}:${this.config.port} (DB: ${this.config.db})`
       );
 
+      const { createClient } = await import('redis');
       this.client = createClient({
         url: `redis://${this.config.password ? ':' + this.config.password + '@' : ''}${this.config.host}:${this.config.port}/${this.config.db}`,
         socket: {
@@ -80,7 +79,7 @@ class RedisManager {
         console.log('✅ [REDIS] Redis client ready for operations');
       });
 
-      this.client.on('error', error => {
+      this.client.on('error', (error: any) => {
         console.error('❌ [REDIS] Redis connection error:', error.message);
         this.isConnected = false;
       });
@@ -131,7 +130,7 @@ class RedisManager {
     }
   }
 
-  getClient(): RedisClientType {
+  getClient(): any {
     if (!this.config.enabled) {
       throw new Error('Redis is disabled');
     }

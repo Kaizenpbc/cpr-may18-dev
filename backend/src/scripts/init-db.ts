@@ -1,7 +1,27 @@
 import { pool } from '../config/database.js';
 import bcrypt from 'bcryptjs';
 
+// Bump this string whenever you make schema changes that require re-running init-db.
+const SCHEMA_VERSION = '2026-03-29';
+
 export async function initializeDatabase() {
+  console.log('🔧 Checking database schema...');
+
+  if (!process.env.FORCE_DB_INIT) {
+    try {
+      // Check if schema_info table exists and version matches
+      const versionCheck = await pool.query(`
+        SELECT value FROM schema_info WHERE key = 'version' LIMIT 1
+      `);
+      if (versionCheck.rows.length > 0 && versionCheck.rows[0].value === SCHEMA_VERSION) {
+        console.log(`✅ Database schema is current (v${SCHEMA_VERSION}) — skipping init`);
+        return;
+      }
+    } catch {
+      // schema_info table doesn't exist yet — fall through to full init
+    }
+  }
+
   console.log('🔧 Initializing database...');
 
   try {
@@ -1422,6 +1442,19 @@ export async function initializeDatabase() {
       ('Lead', 'Lead instructor rate', 45.00, 100.00)
       ON CONFLICT DO NOTHING
     `);
+
+    // Record schema version so subsequent startups skip full init
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS schema_info (
+        key VARCHAR(100) PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await pool.query(`
+      INSERT INTO schema_info (key, value) VALUES ('version', $1)
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP
+    `, [SCHEMA_VERSION]);
 
     console.log('✅ Database initialization complete');
   } catch (error) {
