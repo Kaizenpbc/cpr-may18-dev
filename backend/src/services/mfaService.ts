@@ -1,4 +1,4 @@
-import { pool } from '../config/database.js';
+import { query } from '../config/database.js';
 import { Request } from 'express';
 import {
   MFAConfig,
@@ -281,7 +281,7 @@ export class MFAService {
     message: string;
   }> {
     try {
-      await pool.query(
+      await query(
         'UPDATE mfa_users SET status = $1, updated_at = NOW() WHERE user_id = $2',
         ['disabled', userId]
       );
@@ -346,7 +346,7 @@ export class MFAService {
 
   // Private helper methods
   private async storeMFAUserData(userId: string, data: MFAUserData): Promise<void> {
-    await pool.query(
+    await query(
       `INSERT INTO mfa_users (user_id, status, totp_secret, totp_backup_codes, sms_verified, 
        email_verified, failed_attempts, trusted_devices, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -362,7 +362,7 @@ export class MFAService {
   }
 
   private async getMFAUserData(userId: string): Promise<MFAUserData | null> {
-    const result = await pool.query(
+    const result = await query(
       'SELECT * FROM mfa_users WHERE user_id = $1',
       [userId]
     );
@@ -389,7 +389,7 @@ export class MFAService {
   }
 
   private async recordFailedAttempt(userId: string): Promise<void> {
-    const result = await pool.query(
+    const result = await query(
       'SELECT failed_attempts FROM mfa_users WHERE user_id = $1',
       [userId]
     );
@@ -401,7 +401,7 @@ export class MFAService {
       ? calculateLockoutTime(failedAttempts, this.config)
       : null;
 
-    await pool.query(
+    await query(
       'UPDATE mfa_users SET failed_attempts = $1, locked_until = $2, updated_at = NOW() WHERE user_id = $3',
       [failedAttempts, lockedUntil, userId]
     );
@@ -416,14 +416,14 @@ export class MFAService {
       values.push(deviceFingerprint);
     }
 
-    await pool.query(
+    await query(
       `UPDATE mfa_users SET ${updates.join(', ')}, updated_at = NOW() WHERE user_id = $1`,
       values
     );
   }
 
   private async removeBackupCode(userId: string, code: string): Promise<void> {
-    await pool.query(
+    await query(
       'UPDATE mfa_users SET totp_backup_codes = array_remove(totp_backup_codes, $1), updated_at = NOW() WHERE user_id = $2',
       [code, userId]
     );
@@ -433,14 +433,14 @@ export class MFAService {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + expiryMinutes);
 
-    await pool.query(
+    await query(
       'INSERT INTO mfa_codes (user_id, type, code, expires_at) VALUES ($1, $2, $3, $4)',
       [userId, type, code, expiresAt]
     );
   }
 
   private async verifyStoredCode(userId: string, code: string, type: string): Promise<boolean> {
-    const result = await pool.query(
+    const result = await query(
       'DELETE FROM mfa_codes WHERE user_id = $1 AND type = $2 AND code = $3 AND expires_at > NOW() RETURNING id',
       [userId, type, code]
     );

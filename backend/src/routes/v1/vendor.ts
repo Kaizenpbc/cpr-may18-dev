@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
-import { pool } from '../../config/database.js';
+import { query } from '../../config/database.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -16,7 +16,7 @@ const router = express.Router();
 
 // Get all vendors for dropdown selection
 router.get('/vendors', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const result = await pool.query(
+  const result = await query(
     'SELECT id, name as vendor_name, vendor_type FROM vendors WHERE is_active = true ORDER BY name'
   );
   res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
@@ -58,7 +58,7 @@ router.get('/profile', authenticateToken, asyncHandler(async (req: Request, res:
   }
 
   // Get user email from database using user ID
-  const userResult = await pool.query(
+  const userResult = await query(
     'SELECT email FROM users WHERE id = $1',
     [req.user.id]
   );
@@ -69,7 +69,7 @@ router.get('/profile', authenticateToken, asyncHandler(async (req: Request, res:
 
   const userEmail = userResult.rows[0].email;
 
-  const result = await pool.query(
+  const result = await query(
     'SELECT * FROM vendors WHERE contact_email = $1',
     [userEmail]
   );
@@ -100,7 +100,7 @@ router.put('/profile', authenticateToken, asyncHandler(async (req: Request, res:
   } = req.body;
 
   // Get user email from database using user ID
-  const userResult = await pool.query(
+  const userResult = await query(
     'SELECT email FROM users WHERE id = $1',
     [req.user.id]
   );
@@ -111,7 +111,7 @@ router.put('/profile', authenticateToken, asyncHandler(async (req: Request, res:
 
   const userEmail = userResult.rows[0].email;
 
-  const result = await pool.query(
+  const result = await query(
     'SELECT id FROM vendors WHERE contact_email = $1',
     [userEmail]
   );
@@ -120,7 +120,7 @@ router.put('/profile', authenticateToken, asyncHandler(async (req: Request, res:
     throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Vendor not found');
   }
 
-  await pool.query(
+  await query(
     `UPDATE vendors
      SET vendor_name = $1,
          contact_first_name = $2,
@@ -159,7 +159,7 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: Request, re
   devLog('[VENDOR DEBUG] User object:', req.user);
 
   // Get user email and role from database using user ID
-  const userResult = await pool.query(
+  const userResult = await query(
     'SELECT email, role FROM users WHERE id = $1',
     [req.user.id]
   );
@@ -181,7 +181,7 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: Request, re
     throw new AppError(403, errorCodes.ACCESS_DENIED, 'Access denied. Vendor role required.');
   }
 
-  const vendorResult = await pool.query(
+  const vendorResult = await query(
     'SELECT id FROM vendors WHERE contact_email = $1',
     [userEmail]
   );
@@ -196,21 +196,21 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: Request, re
   const vendorId = vendorResult.rows[0].id;
 
   const [pendingResult, totalResult, paidResult, avgResult] = await Promise.all([
-    pool.query(
+    query(
       `SELECT COUNT(*) as count FROM vendor_invoices
        WHERE vendor_id = $1 AND status = 'submitted'`,
       [vendorId]
     ),
-    pool.query(
+    query(
       'SELECT COUNT(*) as count FROM vendor_invoices WHERE vendor_id = $1',
       [vendorId]
     ),
-    pool.query(
+    query(
       'SELECT COALESCE(SUM(amount), 0) as total FROM vendor_invoices WHERE vendor_id = $1 AND status = $2',
       [vendorId, 'paid']
     ),
-    pool.query(
-      `SELECT COALESCE(AVG(EXTRACT(DAY FROM (payment_date - created_at))), 0) as avg_days
+    query(
+      `SELECT COALESCE(AVG(DATEDIFF(payment_date, created_at)), 0) as avg_days
        FROM vendor_invoices
        WHERE vendor_id = $1 AND status = $2 AND payment_date IS NOT NULL`,
       [vendorId, 'paid']
@@ -218,10 +218,13 @@ router.get('/dashboard', authenticateToken, asyncHandler(async (req: Request, re
   ]);
 
   res.json({
-    pendingInvoices: parseInt(pendingResult.rows[0].count) || 0,
-    totalInvoices: parseInt(totalResult.rows[0].count) || 0,
-    totalPaid: parseFloat(paidResult.rows[0].total) || 0,
-    averagePaymentTime: Math.round(parseFloat(avgResult.rows[0].avg_days) || 0)
+    success: true,
+    data: {
+      pendingInvoices: parseInt(pendingResult.rows[0].count) || 0,
+      totalInvoices: parseInt(totalResult.rows[0].count) || 0,
+      totalPaid: parseFloat(paidResult.rows[0].total) || 0,
+      averagePaymentTime: Math.round(parseFloat(avgResult.rows[0].avg_days) || 0)
+    }
   });
 }));
 
@@ -232,7 +235,7 @@ router.get('/invoices', authenticateToken, asyncHandler(async (req: Request, res
   }
 
   // Get user email and role from database using user ID
-  const userResult = await pool.query(
+  const userResult = await query(
     'SELECT email, role FROM users WHERE id = $1',
     [req.user.id]
   );
@@ -267,7 +270,7 @@ router.get('/invoices', authenticateToken, asyncHandler(async (req: Request, res
 
   if (!isVendorUser) {
     // For regular vendors, get their specific vendor ID
-    const vendorResult = await pool.query(
+    const vendorResult = await query(
       'SELECT id FROM vendors WHERE contact_email = $1',
       [userEmail]
     );
@@ -282,7 +285,7 @@ router.get('/invoices', authenticateToken, asyncHandler(async (req: Request, res
   const { status, search } = req.query;
 
   // Build query to get invoices
-  let query = `
+  let sql = `
     SELECT
       vi.*,
       v.name as company,
@@ -299,33 +302,33 @@ router.get('/invoices', authenticateToken, asyncHandler(async (req: Request, res
   // Add WHERE clause based on user type
   if (isVendorUser) {
     // Vendor user (GTACPR employee) can see ALL vendor invoices
-    query += ' WHERE 1=1';
+    sql += ' WHERE 1=1';
   } else {
     // Regular vendor can only see their own invoices
-    query += ` WHERE vi.vendor_id = $${paramIndex}`;
+    sql += ` WHERE vi.vendor_id = $${paramIndex}`;
     params.push(vendorId);
     paramIndex++;
   }
 
   if (status) {
-    query += ` AND vi.status = $${paramIndex}`;
+    sql += ` AND vi.status = $${paramIndex}`;
     params.push(status as string);
     paramIndex++;
   }
 
   if (search) {
-    query += ` AND (vi.invoice_number ILIKE $${paramIndex} OR vi.description ILIKE $${paramIndex})`;
+    sql += ` AND (vi.invoice_number LIKE $${paramIndex} OR vi.description LIKE $${paramIndex})`;
     params.push(`%${search}%`);
     paramIndex++;
   }
 
-  query += ' ORDER BY vi.created_at DESC';
+  sql += ' ORDER BY vi.created_at DESC';
 
   devLog('🔍 [VENDOR INVOICES] Query:', query);
   devLog('🔍 [VENDOR INVOICES] Params:', params);
   devLog('🔍 [VENDOR INVOICES] isVendorUser:', isVendorUser);
 
-  const result = await pool.query(query, params);
+  const result = await query(sql, params);
   devLog('🔍 [VENDOR INVOICES] Result rows:', result.rows.length);
 
   res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
@@ -356,7 +359,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncH
   }
 
   // Get user email from database using user ID
-  const userResult = await pool.query(
+  const userResult = await query(
     'SELECT email FROM users WHERE id = $1',
     [req.user.id]
   );
@@ -374,7 +377,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncH
     // Use detected vendor ID if provided and valid
     devLog('🔍 [VENDOR DETECTION] Using detected vendor ID:', detected_vendor_id);
 
-    const detectedVendorResult = await pool.query(
+    const detectedVendorResult = await query(
       'SELECT id FROM vendors WHERE id = $1 AND is_active = true',
       [detected_vendor_id]
     );
@@ -385,7 +388,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncH
     } else {
       devLog('⚠️ [VENDOR DETECTION] Detected vendor ID not found, falling back to authenticated user');
       // Fall back to authenticated user's vendor ID
-      const vendorResult = await pool.query(
+      const vendorResult = await query(
         'SELECT id FROM vendors WHERE contact_email = $1 AND is_active = true',
         [userEmail]
       );
@@ -398,7 +401,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncH
   } else {
     // Use authenticated user's vendor ID (fallback)
     devLog('🔍 [VENDOR DETECTION] No detected vendor ID, using authenticated user');
-    const vendorResult = await pool.query(
+    const vendorResult = await query(
       'SELECT id FROM vendors WHERE contact_email = $1 AND is_active = true',
       [userEmail]
     );
@@ -409,7 +412,7 @@ router.post('/invoices', authenticateToken, upload.single('invoice_pdf'), asyncH
     vendor_id = vendorResult.rows[0].id;
   }
 
-  const result = await pool.query(
+  const result = await query(
     `INSERT INTO vendor_invoices (
       vendor_id, invoice_number, amount, description, invoice_date, due_date,
       manual_type, quantity, pdf_filename, status, rate, subtotal, hst, total,
@@ -496,7 +499,7 @@ router.get('/invoices/:id', authenticateToken, asyncHandler(async (req: Request,
   }
 
   // Get user email from database using user ID
-  const userResult = await pool.query(
+  const userResult = await query(
     'SELECT email FROM users WHERE id = $1',
     [req.user.id]
   );
@@ -507,7 +510,7 @@ router.get('/invoices/:id', authenticateToken, asyncHandler(async (req: Request,
 
   // 🔍 PHASE 3: Allow GTACPR staff to view any invoice (not just their own vendor's invoices)
   // This allows GTACPR staff to see all invoices they uploaded on behalf of any vendor
-  const result = await pool.query(`
+  const result = await query(`
     SELECT
       vi.*,
       v.name as company,
@@ -549,7 +552,7 @@ router.get('/invoices/:id/details', authenticateToken, asyncHandler(async (req: 
   }
 
   // Get user email from database using user ID
-  const userResult = await pool.query(
+  const userResult = await query(
     'SELECT email FROM users WHERE id = $1',
     [req.user.id]
   );
@@ -559,7 +562,7 @@ router.get('/invoices/:id/details', authenticateToken, asyncHandler(async (req: 
   }
 
   // Get invoice details with payment information
-  const invoiceResult = await pool.query(`
+  const invoiceResult = await query(`
     SELECT
       vi.*,
       v.name as company,
@@ -592,7 +595,7 @@ router.get('/invoices/:id/details', authenticateToken, asyncHandler(async (req: 
   }
 
   // Get payment history
-  const paymentsResult = await pool.query(`
+  const paymentsResult = await query(`
     SELECT
       vp.*,
       u_processed.username as processed_by_name
@@ -615,7 +618,7 @@ router.get('/invoices/:id/details', authenticateToken, asyncHandler(async (req: 
 router.post('/invoices/:id/submit-to-admin', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  const result = await pool.query(
+  const result = await query(
     `UPDATE vendor_invoices
      SET status = 'submitted_to_admin',
          updated_at = NOW()
@@ -640,7 +643,7 @@ router.post('/invoices/:id/resend-to-admin', authenticateToken, asyncHandler(asy
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Notes are required when resending rejected invoice');
   }
 
-  const result = await pool.query(
+  const result = await query(
     `UPDATE vendor_invoices
      SET status = 'submitted_to_admin',
          admin_notes = $2,
@@ -667,7 +670,7 @@ router.get('/invoices/:id/download', authenticateToken, asyncHandler(async (req:
   const staffRoles = ['admin', 'sysadmin', 'accounting'];
 
   // Get invoice with vendor info
-  const result = await pool.query(`
+  const result = await query(`
     SELECT
       vi.*,
       v.name as company,
@@ -687,12 +690,12 @@ router.get('/invoices/:id/download', authenticateToken, asyncHandler(async (req:
     throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Invoice not found');
   }
 
-  const invoice = result.rows[0];
+  const invoice = result.rows[0] as any;
 
   // Authorization check: staff can access any invoice, vendors only their own
   if (!staffRoles.includes(userRole || '')) {
     // For non-staff, verify they own this invoice
-    const userResult = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
+    const userResult = await query('SELECT email FROM users WHERE id = $1', [userId]);
     if (userResult.rows.length === 0) {
       throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'User not found');
     }

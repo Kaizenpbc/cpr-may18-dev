@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { pool } from '../../config/database.js';
+import { query } from '../../config/database.js';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
 import { asyncHandler, AppError } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
@@ -10,7 +10,7 @@ const router = express.Router();
 
 // Get all active colleges (for dropdown)
 router.get('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const result = await pool.query(
+  const result = await query(
     'SELECT id, name FROM colleges WHERE is_active = true ORDER BY name ASC'
   );
   res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
@@ -18,7 +18,7 @@ router.get('/', authenticateToken, asyncHandler(async (req: Request, res: Respon
 
 // Get all colleges including inactive (admin only)
 router.get('/all', authenticateToken, requireRole(['admin', 'sysadmin']), asyncHandler(async (req: Request, res: Response) => {
-  const result = await pool.query(
+  const result = await query(
     'SELECT id, name, is_active, created_at, updated_at FROM colleges ORDER BY name ASC'
   );
   res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
@@ -33,7 +33,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'sysadmin']), asyncHan
   }
 
   try {
-    const result = await pool.query(
+    const result = await query(
       'INSERT INTO colleges (name) VALUES ($1) RETURNING id, name, is_active, created_at',
       [name.trim()]
     );
@@ -75,7 +75,7 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'sysadmin']), asyncH
   values.push(id);
 
   try {
-    const result = await pool.query(
+    const result = await query(
       `UPDATE colleges SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING id, name, is_active, updated_at`,
       values
     );
@@ -97,7 +97,7 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'sysadmin']), asyncH
 router.delete('/:id', authenticateToken, requireRole(['admin', 'sysadmin']), asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  const result = await pool.query(
+  const result = await query(
     'DELETE FROM colleges WHERE id = $1 RETURNING id',
     [id]
   );

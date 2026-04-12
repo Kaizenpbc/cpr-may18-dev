@@ -4,7 +4,7 @@ import { asyncHandler, AppError, errorCodes } from '../../utils/errorHandler.js'
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { keysToCamel } from '../../utils/caseConverter.js';
 import { AuthenticatedRequest, isDatabaseError } from '../../types/index.js';
-import { pool } from '../../config/database.js';
+import { query } from '../../config/database.js';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
 import { devLog } from '../../utils/devLog.js';
 import bcrypt from 'bcryptjs';
@@ -22,7 +22,7 @@ router.get(
   '/courses',
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const result = await pool.query(`
+      const result = await query(`
         SELECT
           id,
           name,
@@ -68,7 +68,7 @@ router.post(
       }
 
       // Check for duplicate course name
-      const existingCourse = await pool.query(
+      const existingCourse = await query(
         'SELECT id FROM class_types WHERE LOWER(name) = LOWER($1)',
         [name]
       );
@@ -81,7 +81,7 @@ router.post(
         );
       }
 
-      const result = await pool.query(
+      const result = await query(
         `
         INSERT INTO class_types (
           name, description, duration_minutes, course_code, is_active
@@ -125,7 +125,7 @@ router.put(
 
       // Check for duplicate course name (excluding current course)
       if (name) {
-        const existingCourse = await pool.query(
+        const existingCourse = await query(
           'SELECT id FROM class_types WHERE LOWER(name) = LOWER($1) AND id != $2',
           [name, id]
         );
@@ -139,7 +139,7 @@ router.put(
         }
       }
 
-      const result = await pool.query(
+      const result = await query(
         `
         UPDATE class_types
         SET
@@ -189,7 +189,7 @@ router.put(
     try {
       const { id } = req.params;
 
-      const result = await pool.query(
+      const result = await query(
         `
         UPDATE class_types
         SET
@@ -232,7 +232,7 @@ router.delete(
       const { id } = req.params;
 
       // Check if course has any associated course requests
-      const usageCheck = await pool.query(
+      const usageCheck = await query(
         'SELECT COUNT(*) as count FROM course_requests WHERE course_type_id = $1',
         [id]
       );
@@ -241,7 +241,7 @@ router.delete(
 
       if (usageCount > 0) {
         // Soft delete - set is_active to false
-        const result = await pool.query(
+        const result = await query(
           `
           UPDATE class_types
           SET is_active = false, updated_at = CURRENT_TIMESTAMP
@@ -267,7 +267,7 @@ router.delete(
         });
       } else {
         // Hard delete - no course requests reference this course
-        const result = await pool.query(
+        const result = await query(
           `DELETE FROM class_types WHERE id = $1 RETURNING *`,
           [id]
         );
@@ -299,7 +299,7 @@ router.get(
   '/users',
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const result = await pool.query(`
+      const result = await query(`
       SELECT
         u.id,
         u.username,
@@ -425,7 +425,7 @@ router.post(
       }
 
       // Check if username already exists
-      const existingUsername = await pool.query(
+      const existingUsername = await query(
         'SELECT id FROM users WHERE username = $1',
         [username]
       );
@@ -438,7 +438,7 @@ router.post(
       }
 
       // Check if email already exists
-      const existingEmail = await pool.query(
+      const existingEmail = await query(
         'SELECT id FROM users WHERE email = $1',
         [email]
       );
@@ -452,7 +452,7 @@ router.post(
 
       const passwordHash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
 
-      const result = await pool.query(
+      const result = await query(
         `
       INSERT INTO users (
         username, email, password_hash, role, organization_id, location_id,
@@ -488,7 +488,7 @@ router.post(
       // Fetch the organization and location names
       const userData = result.rows[0];
       if (userData.organizationId) {
-        const orgResult = await pool.query(
+        const orgResult = await query(
           'SELECT name FROM organizations WHERE id = $1',
           [userData.organizationId]
         );
@@ -497,7 +497,7 @@ router.post(
         }
       }
       if (userData.locationId) {
-        const locResult = await pool.query(
+        const locResult = await query(
           'SELECT location_name FROM organization_locations WHERE id = $1',
           [userData.locationId]
         );
@@ -581,7 +581,7 @@ router.put(
       const userCommentsVal = userComments ?? user_comments;
 
       // Fetch existing user to check current role if role not being changed
-      const existingUser = await pool.query(
+      const existingUser = await query(
         'SELECT role, organization_id, location_id FROM users WHERE id = $1',
         [id]
       );
@@ -618,7 +618,7 @@ router.put(
         passwordHash = bcrypt.hashSync(password, 10);
       }
 
-      const result = await pool.query(
+      const result = await query(
         `
       UPDATE users
       SET
@@ -675,7 +675,7 @@ router.put(
       // Fetch the organization and location names
       const userData = result.rows[0];
       if (userData.organizationId) {
-        const orgResult = await pool.query(
+        const orgResult = await query(
           'SELECT name FROM organizations WHERE id = $1',
           [userData.organizationId]
         );
@@ -684,7 +684,7 @@ router.put(
         }
       }
       if (userData.locationId) {
-        const locResult = await pool.query(
+        const locResult = await query(
           'SELECT location_name FROM organization_locations WHERE id = $1',
           [userData.locationId]
         );
@@ -711,7 +711,7 @@ router.delete(
     try {
       const { id } = req.params;
 
-      const result = await pool.query(
+      const result = await query(
         `
       DELETE FROM users
       WHERE id = $1
@@ -745,7 +745,7 @@ router.get(
   '/vendors',
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const result = await pool.query(`
+      const result = await query(`
       SELECT
         id,
         name as "vendorName",
@@ -818,6 +818,7 @@ router.post(
         contact_first_name,
         contact_last_name,
         email, // Frontend sends this, map to 'contact_email'
+        contactEmail, // camelCase variant also accepted
         mobile,
         phone, // Frontend sends this, map to 'contact_phone'
         address_street,
@@ -859,13 +860,13 @@ router.post(
         fullAddress = addressParts.join(', ');
       }
 
-      // Use email if provided, otherwise fall back to contact_email
-      const contactEmail = email || contact_email;
+      // Use email if provided, otherwise fall back to contactEmail (camelCase) or contact_email (snake_case)
+      const resolvedContactEmail = email || contactEmail || contact_email;
       
       // Use phone if provided, otherwise fall back to contact_phone
       const contactPhone = phone || contact_phone;
 
-      const result = await pool.query(
+      const result = await query(
         `
       INSERT INTO vendors (
         name, contact_email, contact_phone, address, vendor_type, is_active
@@ -875,7 +876,7 @@ router.post(
     `,
         [
           vendorName,
-          contactEmail,
+          resolvedContactEmail,
           contactPhone,
           fullAddress,
           vendor_type,
@@ -945,7 +946,7 @@ router.put(
       // Use phone if provided, otherwise fall back to contact_phone
       const contactPhone = phone || contact_phone;
 
-      const result = await pool.query(
+      const result = await query(
         `
       UPDATE vendors
       SET 
@@ -996,7 +997,7 @@ router.delete(
     try {
       const { id } = req.params;
 
-      const result = await pool.query(
+      const result = await query(
         `
       UPDATE vendors
       SET is_active = false, updated_at = CURRENT_TIMESTAMP
@@ -1032,28 +1033,28 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       // Get total counts
-      const userCount = await pool.query(
+      const userCount = await query(
         "SELECT COUNT(*) as count FROM users"
       );
-      const organizationCount = await pool.query(
+      const organizationCount = await query(
         'SELECT COUNT(*) as count FROM organizations'
       );
-      const courseCount = await pool.query(
+      const courseCount = await query(
         'SELECT COUNT(*) as count FROM class_types WHERE is_active = true'
       );
-      const vendorCount = await pool.query(
+      const vendorCount = await query(
         "SELECT COUNT(*) as count FROM vendors WHERE is_active = true"
       );
 
       // Get recent activity
-      const recentUsers = await pool.query(`
+      const recentUsers = await query(`
       SELECT username, role, created_at as "createdAt"
       FROM users
       ORDER BY created_at DESC
       LIMIT 5
     `);
 
-      const recentCourses = await pool.query(`
+      const recentCourses = await query(`
       SELECT name, course_code as "courseCode", created_at as "createdAt"
       FROM class_types
       WHERE is_active = true
@@ -1091,7 +1092,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     devLog('[Debug] Getting all organizations for sysadmin');
 
-    const query = `
+    const sql = `
     SELECT
       o.id,
       o.name as "organizationName",
@@ -1111,8 +1112,8 @@ router.get(
       o.organization_comments as "organizationComments",
       o.created_at as "createdAt",
       o.updated_at as "updatedAt",
-      COUNT(DISTINCT u.id)::int as "userCount",
-      COUNT(DISTINCT cr.id)::int as "courseCount"
+      COUNT(DISTINCT u.id) as "userCount",
+      COUNT(DISTINCT cr.id) as "courseCount"
     FROM organizations o
     LEFT JOIN users u ON u.organization_id = o.id
     LEFT JOIN course_requests cr ON cr.organization_id = o.id
@@ -1120,7 +1121,7 @@ router.get(
     ORDER BY o.name
   `;
 
-    const result = await pool.query(query);
+    const result = await query(sql);
 
     res.json({
       success: true,
@@ -1165,7 +1166,7 @@ router.post(
       organization_comments,
     } = req.body;
 
-    const query = `
+    const sql = `
     INSERT INTO organizations (
       name, contact_name, contact_email, contact_phone, contact_position,
       address, address_street, address_city, address_province, address_postal_code,
@@ -1192,7 +1193,7 @@ router.post(
       organizationComments || organization_comments || null,
     ];
 
-    const result = await pool.query(query, values);
+    const result = await query(sql, values);
 
     res.status(201).json({
       success: true,
@@ -1239,7 +1240,7 @@ router.put(
       organization_comments,
     } = req.body;
 
-    const query = `
+    const sql = `
     UPDATE organizations
     SET
       name = COALESCE($1, name),
@@ -1281,7 +1282,7 @@ router.put(
       id,
     ];
 
-    const result = await pool.query(query, values);
+    const result = await query(sql, values);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -1315,7 +1316,7 @@ router.delete(
     WHERE o.id = $1
   `;
 
-    const checkResult = await pool.query(checkQuery, [id]);
+    const checkResult = await query(checkQuery, [id]);
     const { user_count, course_count } = checkResult.rows[0];
 
     if (parseInt(user_count) > 0 || parseInt(course_count) > 0) {
@@ -1330,7 +1331,7 @@ router.delete(
     }
 
     const deleteQuery = 'DELETE FROM organizations WHERE id = $1 RETURNING *';
-    const result = await pool.query(deleteQuery, [id]);
+    const result = await query(deleteQuery, [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -1355,7 +1356,7 @@ router.get(
     const { id } = req.params;
     devLog('[Debug] Getting organization details for ID:', id);
 
-    const query = `
+    const sql = `
       SELECT
         o.id as organizationid,
         o.name as organizationname,
@@ -1372,7 +1373,7 @@ router.get(
       WHERE o.id = $1
     `;
 
-    const result = await pool.query(query, [id]);
+    const result = await query(sql, [id]);
 
     if (result.rows.length === 0) {
       throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Organization not found');
@@ -1393,7 +1394,7 @@ router.get(
     const { orgId } = req.params;
     devLog('[Debug] Getting locations for organization ID:', orgId);
 
-    const query = `
+    const sql = `
       SELECT
         ol.id,
         ol.organization_id as "organizationId",
@@ -1409,15 +1410,15 @@ router.get(
         ol.is_active as "isActive",
         ol.created_at as "createdAt",
         ol.updated_at as "updatedAt",
-        (SELECT COUNT(*) FROM users u WHERE u.location_id = ol.id)::int as "userCount",
-        (SELECT COUNT(*) FROM course_requests cr WHERE cr.location_id = ol.id)::int as "courseCount",
-        (SELECT COUNT(*) FROM invoices i WHERE i.location_id = ol.id)::int as "invoiceCount"
+        (SELECT COUNT(*) FROM users u WHERE u.location_id = ol.id) as "userCount",
+        (SELECT COUNT(*) FROM course_requests cr WHERE cr.location_id = ol.id) as "courseCount",
+        (SELECT COUNT(*) FROM invoices i WHERE i.location_id = ol.id) as "invoiceCount"
       FROM organization_locations ol
       WHERE ol.organization_id = $1
       ORDER BY ol.location_name
     `;
 
-    const result = await pool.query(query, [orgId]);
+    const result = await query(sql, [orgId]);
 
     res.json({
       success: true,
@@ -1434,7 +1435,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const { orgId, id } = req.params;
 
-    const query = `
+    const sql = `
       SELECT
         ol.id,
         ol.organization_id as "organizationId",
@@ -1454,7 +1455,7 @@ router.get(
       WHERE ol.id = $1 AND ol.organization_id = $2
     `;
 
-    const result = await pool.query(query, [id, orgId]);
+    const result = await query(sql, [id, orgId]);
 
     if (result.rows.length === 0) {
       throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Location not found');
@@ -1489,12 +1490,12 @@ router.post(
     devLog('[Debug] Creating location for org:', orgId, req.body);
 
     // Verify organization exists
-    const orgCheck = await pool.query('SELECT id FROM organizations WHERE id = $1', [orgId]);
+    const orgCheck = await query('SELECT id FROM organizations WHERE id = $1', [orgId]);
     if (orgCheck.rows.length === 0) {
       throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Organization not found');
     }
 
-    const query = `
+    const sql = `
       INSERT INTO organization_locations (
         organization_id,
         location_name,
@@ -1525,7 +1526,7 @@ router.post(
         updated_at as "updatedAt"
     `;
 
-    const result = await pool.query(query, [
+    const result = await query(sql, [
       orgId,
       locationName,
       address || null,
@@ -1568,7 +1569,7 @@ router.put(
 
     devLog('[Debug] Updating location:', id, 'for org:', orgId, req.body);
 
-    const query = `
+    const sql = `
       UPDATE organization_locations
       SET
         location_name = COALESCE($1, location_name),
@@ -1600,7 +1601,7 @@ router.put(
         updated_at as "updatedAt"
     `;
 
-    const result = await pool.query(query, [
+    const result = await query(sql, [
       locationName,
       address,
       city,
@@ -1640,15 +1641,15 @@ router.delete(
     // Check if location has any courses or invoices
     const checkQuery = `
       SELECT
-        (SELECT COUNT(*) FROM course_requests WHERE location_id = $1)::int as course_count,
-        (SELECT COUNT(*) FROM invoices WHERE location_id = $1)::int as invoice_count
+        (SELECT COUNT(*) FROM course_requests WHERE location_id = $1) as course_count,
+        (SELECT COUNT(*) FROM invoices WHERE location_id = $1) as invoice_count
     `;
-    const checkResult = await pool.query(checkQuery, [id]);
+    const checkResult = await query(checkQuery, [id]);
     const { course_count, invoice_count } = checkResult.rows[0];
 
     if (course_count > 0 || invoice_count > 0) {
       // Soft delete - set is_active = false
-      await pool.query(
+      await query(
         'UPDATE organization_locations SET is_active = FALSE, updated_at = NOW() WHERE id = $1 AND organization_id = $2',
         [id, orgId]
       );
@@ -1660,7 +1661,7 @@ router.delete(
     }
 
     // Hard delete if no dependencies
-    const result = await pool.query(
+    const result = await query(
       'DELETE FROM organization_locations WHERE id = $1 AND organization_id = $2 RETURNING id',
       [id, orgId]
     );
@@ -1687,7 +1688,7 @@ router.get(
     const { id } = req.params;
     devLog('[Debug] Getting courses for organization ID:', id);
 
-    const query = `
+    const sql = `
       SELECT
         cr.id as courseid,
         cr.id as coursenumber,
@@ -1709,7 +1710,7 @@ router.get(
       ORDER BY cr.confirmed_date DESC NULLS LAST, cr.created_at DESC
     `;
 
-    const result = await pool.query(query, [id]);
+    const result = await query(sql, [id]);
 
     res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
   })
@@ -1724,7 +1725,7 @@ router.get(
     const { id } = req.params;
     devLog('[Debug] Getting invoices for organization ID:', id);
 
-    const query = `
+    const sql = `
       SELECT
         i.id as invoiceid,
         i.invoice_number as invoicenumber,
@@ -1745,7 +1746,7 @@ router.get(
       ORDER BY i.invoice_date DESC NULLS LAST, i.created_at DESC
     `;
 
-    const result = await pool.query(query, [id]);
+    const result = await query(sql, [id]);
 
     res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
   })
@@ -1760,7 +1761,7 @@ router.get(
     const { id } = req.params;
     devLog('[Debug] Getting financial summary for organization ID:', id);
 
-    const query = `
+    const sql = `
       SELECT
         COALESCE(SUM(i.amount), 0) as total_invoiced,
         COALESCE(SUM(
@@ -1778,7 +1779,7 @@ router.get(
         AND i.status NOT IN ('void', 'cancelled')
     `;
 
-    const result = await pool.query(query, [id]);
+    const result = await query(sql, [id]);
     const row = result.rows[0] || { total_invoiced: 0, total_paid: 0, balance_due: 0 };
 
     res.json(ApiResponseBuilder.success({

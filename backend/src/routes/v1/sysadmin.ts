@@ -4,7 +4,7 @@ import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { AppError } from '../../utils/errorHandler.js';
 import { errorCodes } from '../../utils/errorHandler.js';
 import ConfigService from '../../services/configService.js';
-import { pool } from '../../config/database.js';
+import { query } from '../../config/database.js';
 
 const router = Router();
 
@@ -191,7 +191,7 @@ router.delete(
     }
 
     // Confirm user exists before anonymising
-    const checkResult = await pool.query(
+    const checkResult = await query(
       'SELECT id FROM users WHERE id = $1',
       [userId]
     );
@@ -200,7 +200,7 @@ router.delete(
       throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, `User ${userId} not found`);
     }
 
-    await pool.query(
+    await query(
       `UPDATE users
        SET username   = 'deleted_' || id,
            email      = 'deleted_' || id || '@deleted.invalid',

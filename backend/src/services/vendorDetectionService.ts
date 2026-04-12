@@ -1,4 +1,3 @@
-import { Pool } from 'pg';
 
 /**
  * Vendor alias interface for fuzzy matching
@@ -10,32 +9,23 @@ interface VendorAlias {
   confidence: number;
 }
 
+import { query } from '../config/database.js';
+
 // Vendor detection service for auto-matching vendor names from invoices
 export class VendorDetectionService {
-  private pool: Pool;
-
-  constructor() {
-    this.pool = new Pool({
-      user: 'postgres',
-      password: 'gtacpr',
-      host: '127.0.0.1',
-      port: 5432,
-      database: 'cpr_jun21'
-    });
-  }
 
   /**
    * Get all vendors with their aliases for matching
    */
   private async getVendorAliases(): Promise<VendorAlias[]> {
     try {
-      const result = await this.pool.query(`
+      const result = await query(`
         SELECT id, name, contact_email 
         FROM vendors 
         WHERE is_active = true
       `);
 
-      const vendorAliases: VendorAlias[] = result.rows.map(vendor => {
+      const vendorAliases: VendorAlias[] = result.rows.map((vendor: any) => {
         const aliases = this.generateAliases(vendor.name);
         return {
           vendorId: vendor.id,
@@ -236,25 +226,20 @@ export class VendorDetectionService {
    */
   async getVendorById(vendorId: number): Promise<{id: number, name: string, contact_email: string} | null> {
     try {
-      const result = await this.pool.query(
+      const result = await query(
         'SELECT id, name, contact_email FROM vendors WHERE id = $1 AND is_active = true',
         [vendorId]
       );
 
-      return result.rows.length > 0 ? result.rows[0] : null;
+      return result.rows.length > 0 ? (result.rows[0] as any) : null;
     } catch (error) {
       console.error('❌ [VENDOR DETECTION] Error getting vendor by ID:', error);
       return null;
     }
   }
 
-  /**
-   * Close database connection
-   */
-  async close(): Promise<void> {
-    await this.pool.end();
-  }
 }
+
 
 // Export singleton instance
 export const vendorDetectionService = new VendorDetectionService(); 

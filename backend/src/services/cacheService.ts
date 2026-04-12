@@ -1,4 +1,4 @@
-import { pool } from '../config/database.js';
+import { query, getClient } from '../config/database.js';
 import { redisManager } from '../config/redis.js';
 import { devLog } from '../utils/devLog.js';
 
@@ -117,7 +117,7 @@ class CacheService {
     return this.cache(
       'course_types',
       async () => {
-        const result = await pool.query(
+        const result = await query(
           'SELECT id, name, description, duration_minutes FROM class_types WHERE COALESCE(is_active, true) = true ORDER BY name'
         );
         return result.rows;
@@ -133,7 +133,7 @@ class CacheService {
     return this.cache(
       'organizations',
       async () => {
-        const result = await pool.query(
+        const result = await query(
           'SELECT id, name, contact_email, contact_phone, address FROM organizations ORDER BY name'
         );
         return result.rows;
@@ -149,11 +149,11 @@ class CacheService {
     return this.cache(
       `user:${userId}`,
       async () => {
-        const result = await pool.query(
+        const result = await query(
           'SELECT id, username, email, role, organization_id, full_name, first_name, last_name FROM users WHERE id = $1',
           [userId]
         );
-        return result.rows[0] || null;
+        return (result.rows[0] as any) || null;
       },
       { ttl: 900, forceRefresh } // 15 minutes TTL
     );
@@ -169,11 +169,11 @@ class CacheService {
     return this.cache(
       `user:username:${username}`,
       async () => {
-        const result = await pool.query(
+        const result = await query(
           'SELECT id, username, email, role, organization_id, full_name, first_name, last_name, password_hash FROM users WHERE username = $1',
           [username]
         );
-        return result.rows[0] || null;
+        return (result.rows[0] as any) || null;
       },
       { ttl: 900, forceRefresh } // 15 minutes TTL
     );
@@ -189,11 +189,11 @@ class CacheService {
     return this.cache(
       `organization:${orgId}`,
       async () => {
-        const result = await pool.query(
+        const result = await query(
           'SELECT * FROM organizations WHERE id = $1',
           [orgId]
         );
-        return result.rows[0] || null;
+        return (result.rows[0] as any) || null;
       },
       { ttl: 1800, forceRefresh } // 30 minutes TTL
     );
@@ -206,7 +206,7 @@ class CacheService {
     return this.cache(
       'certifications',
       async () => {
-        const result = await pool.query('SELECT * FROM certifications');
+        const result = await query('SELECT * FROM certifications');
         return result.rows;
       },
       { ttl: 3600, forceRefresh } // 1 hour TTL
@@ -223,7 +223,7 @@ class CacheService {
     return this.cache(
       `course_pricing:${orgId}`,
       async () => {
-        const result = await pool.query(
+        const result = await query(
           `
           SELECT 
             cp.id,
@@ -256,7 +256,7 @@ class CacheService {
     return this.cache(
       'course_pricing:all',
       async () => {
-        const result = await pool.query(
+        const result = await query(
           `
           SELECT 
             cp.id,
@@ -299,19 +299,19 @@ class CacheService {
         devLog(`[CACHE] getDashboardStats role=${role} userId=${userId}`);
 
         if (role === 'instructor' && userId) {
-          const totalRes = await pool.query(
+          const totalRes = await query(
             `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1`,
             [userId]
           );
-          const scheduledRes = await pool.query(
+          const scheduledRes = await query(
             `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1 AND status = 'scheduled'`,
             [userId]
           );
-          const completedRes = await pool.query(
+          const completedRes = await query(
             `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1 AND status = 'completed'`,
             [userId]
           );
-          const cancelledRes = await pool.query(
+          const cancelledRes = await query(
             `SELECT COUNT(*) as count FROM course_requests WHERE instructor_id = $1 AND status = 'cancelled'`,
             [userId]
           );
@@ -325,15 +325,15 @@ class CacheService {
           };
         } else {
           // Default/fallback (admin, org, etc)
-          const pendingCourses = await pool.query(
+          const pendingCourses = await query(
             'SELECT COUNT(*) as count FROM course_requests WHERE status = $1',
             ['pending']
           );
-          const completedThisMonth = await pool.query(`
+          const completedThisMonth = await query(`
             SELECT COUNT(*) as count FROM course_requests
             WHERE status = 'completed'
-            AND EXTRACT(MONTH FROM completed_at) = EXTRACT(MONTH FROM CURRENT_DATE)
-            AND EXTRACT(YEAR FROM completed_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+            AND MONTH(completed_at) = MONTH(CURRENT_DATE)
+            AND YEAR(completed_at) = YEAR(CURRENT_DATE)
           `);
           return {
             pendingCourses: parseInt(pendingCourses.rows[0]?.count || 0),

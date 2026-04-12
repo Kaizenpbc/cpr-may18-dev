@@ -1,4 +1,4 @@
-import { pool } from '../config/database.js';
+import { query } from '../config/database.js';
 import { logSecurityEvent, AuditEventSeverity } from '../middleware/auditLogger.js';
 import { encryptionService } from '../config/encryptionConfig.js';
 import { mfaService } from './mfaService.js';
@@ -130,7 +130,7 @@ export class SecurityMonitoringService {
   // Get recent security events
   async getRecentSecurityEvents(limit: number = 50): Promise<SecurityEvent[]> {
     try {
-      const result = await pool.query(`
+      const result = await query(`
         SELECT 
           id,
           event_type,
@@ -171,7 +171,7 @@ export class SecurityMonitoringService {
   // Get active security alerts
   async getActiveSecurityAlerts(): Promise<SecurityAlert[]> {
     try {
-      const result = await pool.query(`
+      const result = await query(`
         SELECT 
           id,
           alert_type,
@@ -231,7 +231,7 @@ export class SecurityMonitoringService {
         timeLabels.push(hourStart.toISOString().substring(11, 16)); // HH:MM format
 
         // Get login attempts for this hour
-        const loginResult = await pool.query(`
+        const loginResult = await query(`
           SELECT COUNT(*) as count
           FROM security_audit_log
           WHERE event_type LIKE '%LOGIN%'
@@ -240,7 +240,7 @@ export class SecurityMonitoringService {
         loginAttempts.push(parseInt(loginResult.rows[0].count));
 
         // Get encryption operations for this hour
-        const encryptionResult = await pool.query(`
+        const encryptionResult = await query(`
           SELECT COUNT(*) as count
           FROM encryption_audit_log
           WHERE created_at >= $1 AND created_at < $2
@@ -248,7 +248,7 @@ export class SecurityMonitoringService {
         encryptionOperations.push(parseInt(encryptionResult.rows[0].count));
 
         // Get security events for this hour
-        const eventsResult = await pool.query(`
+        const eventsResult = await query(`
           SELECT COUNT(*) as count
           FROM security_audit_log
           WHERE severity IN ('HIGH', 'CRITICAL')
@@ -311,7 +311,7 @@ export class SecurityMonitoringService {
     try {
       const alertId = crypto.randomUUID();
       
-      await pool.query(`
+      await query(`
         INSERT INTO security_alerts (id, alert_type, title, description, source, metadata)
         VALUES ($1, $2, $3, $4, $5, $6)
       `, [alertId, type, title, description, source, JSON.stringify(metadata)]);
@@ -349,7 +349,7 @@ export class SecurityMonitoringService {
   // Acknowledge security alert
   async acknowledgeSecurityAlert(alertId: string): Promise<boolean> {
     try {
-      await pool.query(`
+      await query(`
         UPDATE security_alerts 
         SET acknowledged = true 
         WHERE id = $1
@@ -371,7 +371,7 @@ export class SecurityMonitoringService {
   // Resolve security alert
   async resolveSecurityAlert(alertId: string): Promise<boolean> {
     try {
-      await pool.query(`
+      await query(`
         UPDATE security_alerts 
         SET resolved = true 
         WHERE id = $1
@@ -400,7 +400,7 @@ export class SecurityMonitoringService {
   }> {
     try {
       // Get login metrics
-      const loginResult = await pool.query(`
+      const loginResult = await query(`
         SELECT 
           COUNT(CASE WHEN event_type = 'LOGIN_SUCCESS' THEN 1 END) as total_logins,
           COUNT(CASE WHEN event_type = 'LOGIN_FAILED' THEN 1 END) as failed_logins
@@ -409,7 +409,7 @@ export class SecurityMonitoringService {
       `, [startTime, endTime]);
 
       // Get MFA metrics
-      const mfaResult = await pool.query(`
+      const mfaResult = await query(`
         SELECT 
           COUNT(CASE WHEN event_type LIKE '%MFA%' THEN 1 END) as mfa_attempts,
           COUNT(CASE WHEN event_type = 'MFA_VERIFICATION_FAILED' THEN 1 END) as mfa_failures
@@ -418,7 +418,7 @@ export class SecurityMonitoringService {
       `, [startTime, endTime]);
 
       // Get active sessions
-      const sessionResult = await pool.query(`
+      const sessionResult = await query(`
         SELECT COUNT(*) as active_sessions
         FROM mfa_sessions
         WHERE expires_at > NOW()
@@ -454,11 +454,11 @@ export class SecurityMonitoringService {
       const stats = encryptionService.getEncryptionStats();
       
       // Get key rotations from audit log
-      const rotationResult = await pool.query(`
+      const rotationResult = await query(`
         SELECT COUNT(*) as count
         FROM encryption_audit_log
         WHERE operation = 'ENCRYPTION_KEYS_ROTATED'
-        AND created_at >= NOW() - INTERVAL '24 hours'
+        AND created_at >= NOW() - INTERVAL 24 HOUR
       `);
 
       return {
@@ -487,7 +487,7 @@ export class SecurityMonitoringService {
     rateLimitedRequests: number;
   }> {
     try {
-      const result = await pool.query(`
+      const result = await query(`
         SELECT 
           COUNT(CASE WHEN event_type = 'API_REQUEST' THEN 1 END) as total_requests,
           COUNT(CASE WHEN event_type = 'SUSPICIOUS_REQUEST' THEN 1 END) as suspicious_requests,
@@ -524,10 +524,10 @@ export class SecurityMonitoringService {
       const memoryUsage = process.memoryUsage();
       
       // Get database connections
-      const dbResult = await pool.query(`
+      const dbResult = await query(`
         SELECT COUNT(*) as connections
-        FROM pg_stat_activity
-        WHERE state = 'active'
+        FROM information_schema.processlist
+        WHERE command != 'Sleep'
       `);
 
       return {

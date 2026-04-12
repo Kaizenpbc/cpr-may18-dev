@@ -1,5 +1,4 @@
-import { Pool } from 'pg';
-import { pool } from '../config/database.js';
+import { query } from '../config/database.js';
 
 export interface OrganizationPricing {
   id: number;
@@ -28,17 +27,11 @@ export interface UpdateOrganizationPricingData {
 }
 
 export class OrganizationPricingService {
-  private pool: Pool;
-
-  constructor() {
-    this.pool = pool;
-  }
-
   /**
    * Get pricing for a specific organization and class type
    */
   async getOrganizationPricing(organizationId: number, classTypeId: number): Promise<OrganizationPricing | null> {
-    const query = `
+    const sql = `
       SELECT 
         id,
         organization_id as "organizationId",
@@ -57,15 +50,15 @@ export class OrganizationPricingService {
         AND deleted_at IS NULL
     `;
 
-    const result = await this.pool.query(query, [organizationId, classTypeId]);
-    return result.rows[0] || null;
+    const result = await query(sql, [organizationId, classTypeId]);
+    return (result.rows[0] as any) || null;
   }
 
   /**
    * Get all pricing for an organization
    */
   async getOrganizationPricingList(organizationId: number): Promise<OrganizationPricing[]> {
-    const query = `
+    const sql = `
       SELECT 
         cp.id,
         cp.organization_id as "organizationId",
@@ -85,15 +78,15 @@ export class OrganizationPricingService {
       ORDER BY ct.name
     `;
 
-    const result = await this.pool.query(query, [organizationId]);
-    return result.rows;
+    const result = await query(sql, [organizationId]);
+    return result.rows as any;
   }
 
   /**
    * Get organization pricing by ID
    */
   async getOrganizationPricingById(id: number): Promise<OrganizationPricing | null> {
-    const query = `
+    const sql = `
       SELECT 
         op.id,
         op.organization_id as "organizationId",
@@ -113,8 +106,8 @@ export class OrganizationPricingService {
       WHERE op.id = $1 AND op.deleted_at IS NULL
     `;
 
-    const result = await this.pool.query(query, [id]);
-    return result.rows[0] || null;
+    const result = await query(sql, [id]);
+    return (result.rows[0] as any) || null;
   }
 
   /**
@@ -125,7 +118,7 @@ export class OrganizationPricingService {
     classTypeId?: number;
     isActive?: boolean;
   }): Promise<OrganizationPricing[]> {
-    let query = `
+    let sql = `
       SELECT 
         op.id,
         op.organization_id as "organizationId",
@@ -149,34 +142,34 @@ export class OrganizationPricingService {
     let paramIndex = 1;
 
     if (filters?.organizationId) {
-      query += ` AND op.organization_id = $${paramIndex}`;
+      sql += ` AND op.organization_id = $${paramIndex}`;
       params.push(filters.organizationId);
       paramIndex++;
     }
 
     if (filters?.classTypeId) {
-      query += ` AND op.class_type_id = $${paramIndex}`;
+      sql += ` AND op.class_type_id = $${paramIndex}`;
       params.push(filters.classTypeId);
       paramIndex++;
     }
 
     if (filters?.isActive !== undefined) {
-      query += ` AND op.is_active = $${paramIndex}`;
+      sql += ` AND op.is_active = $${paramIndex}`;
       params.push(filters.isActive);
       paramIndex++;
     }
 
-    query += ` ORDER BY o.name, ct.name`;
+    sql += ` ORDER BY o.name, ct.name`;
 
-    const result = await this.pool.query(query, params);
-    return result.rows;
+    const result = await query(sql, params);
+    return result.rows as any;
   }
 
   /**
    * Create new organization pricing
    */
   async createOrganizationPricing(data: CreateOrganizationPricingData): Promise<OrganizationPricing> {
-    const query = `
+    const sql = `
       INSERT INTO organization_pricing (
         organization_id, 
         class_type_id, 
@@ -196,14 +189,14 @@ export class OrganizationPricingService {
         deleted_at as "deletedAt"
     `;
 
-    const result = await this.pool.query(query, [
+    const result = await query(sql, [
       data.organizationId,
       data.classTypeId,
       data.pricePerStudent,
       data.createdBy
     ]);
 
-    return result.rows[0];
+    return result.rows[0] as any;
   }
 
   /**
@@ -240,7 +233,7 @@ export class OrganizationPricingService {
     }
 
     params.push(id);
-    const query = `
+    const sql = `
       UPDATE organization_pricing 
       SET ${updateFields.join(', ')}
       WHERE id = $${paramIndex} AND deleted_at IS NULL
@@ -257,21 +250,21 @@ export class OrganizationPricingService {
         deleted_at as "deletedAt"
     `;
 
-    const result = await this.pool.query(query, params);
-    return result.rows[0] || null;
+    const result = await query(sql, params);
+    return (result.rows[0] as any) || null;
   }
 
   /**
    * Soft delete organization pricing
    */
   async deleteOrganizationPricing(id: number): Promise<boolean> {
-    const query = `
+    const sql = `
       UPDATE organization_pricing 
       SET deleted_at = CURRENT_TIMESTAMP
       WHERE id = $1 AND deleted_at IS NULL
     `;
 
-    const result = await this.pool.query(query, [id]);
+    const result = await query(sql, [id]);
     return (result.rowCount || 0) > 0;
   }
 
@@ -299,7 +292,7 @@ export class OrganizationPricingService {
       WHERE id = $1 AND deleted_at IS NULL
     `;
 
-    const result = await this.pool.query(classTypeQuery, [classTypeId]);
+    const result = await query(classTypeQuery, [classTypeId]);
     const classTypePricing = result.rows[0];
 
     if (!classTypePricing) {

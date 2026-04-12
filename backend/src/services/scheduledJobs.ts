@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { pool } from '../config/database.js';
+import { query, getClient } from '../config/database.js';
 import { emailService } from './emailService.js';
 
 export class ScheduledJobsService {
@@ -45,7 +45,7 @@ export class ScheduledJobsService {
   }
 
   private async updateOverdueInvoices(): Promise<void> {
-    const client = await pool.connect();
+    const client = await getClient();
 
     try {
       await client.query('BEGIN');
@@ -68,7 +68,7 @@ export class ScheduledJobsService {
           `📊 [OVERDUE UPDATE] Updated ${result.rows.length} invoices to overdue status`
         );
 
-        await this.sendOverdueNotifications(result.rows);
+        await this.sendOverdueNotifications((result.rows as any[]));
       } else {
         console.log('📊 [OVERDUE UPDATE] No invoices to update');
       }
@@ -87,17 +87,19 @@ export class ScheduledJobsService {
   ): Promise<void> {
     try {
       const orgIds = [...new Set(invoices.map(i => i.organization_id))];
-      const orgResult = await pool.query<{ id: number; email: string; name: string }>(
-        'SELECT id, email, name FROM organizations WHERE id = ANY($1)',
-        [orgIds]
+      const orgPlaceholders = orgIds.map((_: any, i: number) => `$${i + 1}`).join(', ');
+      const orgResult = await query<{ id: number; email: string; name: string }>(
+        `SELECT id, email, name FROM organizations WHERE id IN (${orgPlaceholders})`,
+        orgIds
       );
       const orgMap = new Map(orgResult.rows.map(o => [o.id, o]));
 
       // Fetch amounts for overdue invoices
       const invoiceIds = invoices.map(i => i.id);
-      const amountResult = await pool.query<{ id: number; amount: string }>(
-        'SELECT id, amount FROM invoices WHERE id = ANY($1)',
-        [invoiceIds]
+      const invPlaceholders = invoiceIds.map((_: any, i: number) => `$${i + 1}`).join(', ');
+      const amountResult = await query<{ id: number; amount: string }>(
+        `SELECT id, amount FROM invoices WHERE id IN (${invPlaceholders})`,
+        invoiceIds
       );
       const amountMap = new Map(amountResult.rows.map(r => [r.id, parseFloat(r.amount)]));
 
@@ -162,7 +164,7 @@ export class ScheduledJobsService {
       const reminderDays = [7, 3];
 
       for (const days of reminderDays) {
-        const result = await pool.query(`
+        const result = await query(`
           SELECT 
             i.id as invoice_id,
             i.invoice_number,
@@ -174,14 +176,14 @@ export class ScheduledJobsService {
           JOIN organizations o ON i.organization_id = o.id
           WHERE i.status = 'pending'
           AND i.posted_to_org = TRUE
-          AND i.due_date = CURRENT_DATE + INTERVAL '${days} days'
+          AND i.due_date = CURRENT_DATE + INTERVAL ${days} DAY
         `);
 
         console.log(
           `📧 [EMAIL REMINDERS] Found ${result.rows.length} invoices due in ${days} days`
         );
 
-        for (const invoice of result.rows) {
+        for (const invoice of (result.rows as any[])) {
           // Check if reminder has already been sent
           const alreadySent = await emailService.hasReminderBeenSent(
             invoice.invoice_id,

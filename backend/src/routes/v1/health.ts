@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { pool } from '../../config/database.js';
+import { query, getClient } from '../../config/database.js';
 import { devLog } from '../../utils/devLog.js';
 import { getSafeErrorMessage } from '../../utils/errorHandler.js';
 
@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
 
     try {
         // Check database connection
-        const client = await pool.connect();
+        const client = await getClient();
         await client.query('SELECT NOW()');
         client.release();
 

@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { pool } from '../../config/database.js';
+import { query } from '../../config/database.js';
 import {
   generateTokens,
   verifyAccessToken,
@@ -60,7 +60,7 @@ router.post(
 
     try {
       // Combined query: fetch user, organization, and location in a single JOIN query
-      const result = await pool.query(
+      const result = await query(
         `SELECT u.id, u.username, u.password_hash, u.role, u.organization_id, u.location_id,
                 u.failed_login_attempts, u.locked_until,
                 o.name as organization_name, ol.location_name
@@ -110,12 +110,12 @@ router.post(
         const newAttempts = (user.failed_login_attempts || 0) + 1;
         if (newAttempts >= MAX_FAILED_ATTEMPTS) {
           const lockedUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
-          await pool.query(
+          await query(
             'UPDATE users SET failed_login_attempts = $1, locked_until = $2 WHERE id = $3',
             [newAttempts, lockedUntil, user.id]
           );
         } else {
-          await pool.query(
+          await query(
             'UPDATE users SET failed_login_attempts = $1 WHERE id = $2',
             [newAttempts, user.id]
           );
@@ -124,7 +124,7 @@ router.post(
       }
 
       // Successful login — reset lockout counters
-      await pool.query(
+      await query(
         'UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1',
         [user.id]
       );
@@ -234,16 +234,16 @@ router.post('/forgot-password', asyncHandler(async (req: Request, res: Response)
     });
   }
 
-  let query, params;
+  let userSql, params;
   if (email) {
-    query = 'SELECT * FROM users WHERE email = $1';
+    userSql = 'SELECT * FROM users WHERE email = $1';
     params = [email];
   } else {
-    query = 'SELECT * FROM users WHERE username = $1';
+    userSql = 'SELECT * FROM users WHERE username = $1';
     params = [username];
   }
 
-  const result = await pool.query(query, params);
+  const result = await query(userSql, params);
   const user = result.rows[0];
 
   if (user) {
@@ -255,7 +255,7 @@ router.post('/forgot-password', asyncHandler(async (req: Request, res: Response)
     );
 
     // Store reset token in database
-    await pool.query(
+    await query(
       'UPDATE users SET reset_token = $1, reset_token_expires = NOW() + INTERVAL \'1 hour\' WHERE id = $2',
       [resetToken, user.id]
     );
@@ -305,7 +305,7 @@ router.post('/reset-password', asyncHandler(async (req: Request, res: Response) 
   }
 
   // Check if token exists and is not expired
-  const result = await pool.query(
+  const result = await query(
     'SELECT * FROM users WHERE id = $1 AND reset_token = $2 AND reset_token_expires > NOW()',
     [decoded.userId, token]
   );
@@ -321,7 +321,7 @@ router.post('/reset-password', asyncHandler(async (req: Request, res: Response) 
   const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
 
   // Update password and clear reset token
-  await pool.query(
+  await query(
     'UPDATE users SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL WHERE id = $2',
     [hashedPassword, decoded.userId]
   );
@@ -349,7 +349,7 @@ router.post('/change-password', authenticateToken, asyncHandler(async (req: Requ
   }
 
   // Get current user
-  const userResult = await pool.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+  const userResult = await query('SELECT password_hash FROM users WHERE id = $1', [userId]);
   const user = userResult.rows[0];
 
   if (!user) {
@@ -377,7 +377,7 @@ router.post('/change-password', authenticateToken, asyncHandler(async (req: Requ
   const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
 
   // Update password
-  await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedPassword, userId]);
+  await query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedPassword, userId]);
 
   res.json({
     message: 'Password changed successfully',
@@ -512,7 +512,7 @@ router.post(
       const payload = verifyRefreshToken(refreshToken);
 
       // Fetch fresh user data from database with organization name in a single query
-      const result = await pool.query(
+      const result = await query(
         `SELECT u.id, u.username, u.role, u.organization_id, o.name as organization_name
          FROM users u
          LEFT JOIN organizations o ON u.organization_id = o.id
@@ -694,7 +694,7 @@ router.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Resp
   }
 
   // Join with organizations table to get organization name
-  const result = await pool.query(
+  const result = await query(
     `SELECT u.id, u.username, u.email, u.role, u.organization_id, o.name as organization_name
      FROM users u
      LEFT JOIN organizations o ON u.organization_id = o.id
@@ -727,7 +727,7 @@ router.post(
     const { email } = req.body;
 
     try {
-      const result = await pool.query(
+      const result = await query(
         'SELECT id, username, email FROM users WHERE email = $1',
         [email]
       );
@@ -752,7 +752,7 @@ router.post(
       );
 
       // Persist token and expiry in DB
-      await pool.query(
+      await query(
         'UPDATE users SET reset_token = $1, reset_token_expires = NOW() + INTERVAL \'1 hour\' WHERE id = $2',
         [resetToken, user.id]
       );

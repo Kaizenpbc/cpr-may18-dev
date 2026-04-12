@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { pool } from '../../config/database.js';
+import { query, getClient } from '../../config/database.js';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
@@ -9,7 +9,7 @@ const router = Router();
 
 // Get all pay rate tiers
 router.get('/tiers', authenticateToken, requireRole(['hr']), asyncHandler(async (req: Request, res: Response) => {
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const result = await client.query(`
@@ -35,7 +35,7 @@ router.post('/tiers', authenticateToken, requireRole(['hr']), asyncHandler(async
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Name and base hourly rate are required.');
   }
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const result = await client.query(`
@@ -59,7 +59,7 @@ router.put('/tiers/:id', authenticateToken, requireRole(['hr']), asyncHandler(as
   const { id } = req.params;
   const { name, description, base_hourly_rate, course_bonus, is_active } = req.body;
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const result = await client.query(`
@@ -93,7 +93,7 @@ router.get('/instructors', authenticateToken, requireRole(['hr']), asyncHandler(
   const { page = 1, limit = 10, search = '', has_rate = '' } = req.query;
   const offset = (Number(page) - 1) * Number(limit);
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     let whereClause = "WHERE u.role = 'instructor'";
@@ -101,7 +101,7 @@ router.get('/instructors', authenticateToken, requireRole(['hr']), asyncHandler(
     let paramIndex = 1;
     
     if (search) {
-      whereClause += ` AND (u.username ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex})`;
+      whereClause += ` AND (u.username LIKE $${paramIndex} OR u.email LIKE $${paramIndex})`;
       params.push(`%${search}%`);
       paramIndex++;
     }
@@ -170,7 +170,7 @@ router.get('/instructors', authenticateToken, requireRole(['hr']), asyncHandler(
 router.get('/instructors/:instructorId', authenticateToken, requireRole(['hr']), asyncHandler(async (req: Request, res: Response) => {
   const { instructorId } = req.params;
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // Get current pay rate
@@ -239,7 +239,7 @@ router.post('/instructors/:instructorId', authenticateToken, requireRole(['hr'])
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Hourly rate is required.');
   }
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     await client.query('BEGIN');
@@ -332,7 +332,7 @@ router.put('/instructors/:instructorId', authenticateToken, requireRole(['hr']),
   const { hourly_rate, course_bonus, tier_id, notes, change_reason } = req.body;
   const userId = (req as any).user.userId;
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     await client.query('BEGIN');
@@ -408,7 +408,7 @@ router.get('/instructors/:instructorId/current', authenticateToken, requireRole(
   const { instructorId } = req.params;
   const { date = new Date().toISOString().split('T')[0] } = req.query;
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const result = await client.query(`
@@ -464,7 +464,7 @@ router.post('/bulk-update', authenticateToken, requireRole(['hr']), asyncHandler
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Hourly rate is required.');
   }
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     await client.query('BEGIN');
@@ -472,60 +472,73 @@ router.post('/bulk-update', authenticateToken, requireRole(['hr']), asyncHandler
     const effectiveDateVal = effective_date || new Date().toISOString().split('T')[0];
     const courseBonusVal = course_bonus || 50.00;
 
-    // 1. Fetch current active rates for all instructors before deactivating
-    const oldRatesResult = await client.query<{instructor_id: number; hourly_rate: number; course_bonus: number; tier_id: number}>(
-      `SELECT DISTINCT ON (instructor_id) instructor_id, hourly_rate, course_bonus, tier_id
-       FROM instructor_pay_rates
-       WHERE instructor_id = ANY($1) AND is_active = true
-       ORDER BY instructor_id, effective_date DESC`,
-      [instructor_ids]
-    );
-    const oldRateMap = new Map(oldRatesResult.rows.map(r => [r.instructor_id, r]));
+    const idPlaceholders = instructor_ids.map((_: any, i: number) => `$${i + 1}`).join(', ');
 
-    // 2. Batch deactivate current rates (1 query instead of N)
+    // 1. Fetch current active rates for all instructors before deactivating
+    // MySQL equivalent of DISTINCT ON: subquery with MAX(effective_date) per instructor
+    const oldRatesResult = await client.query(
+      `SELECT ipr.instructor_id, ipr.hourly_rate, ipr.course_bonus, ipr.tier_id
+       FROM instructor_pay_rates ipr
+       INNER JOIN (
+         SELECT instructor_id, MAX(effective_date) as max_date
+         FROM instructor_pay_rates
+         WHERE instructor_id IN (${idPlaceholders}) AND is_active = true
+         GROUP BY instructor_id
+       ) latest ON ipr.instructor_id = latest.instructor_id
+         AND ipr.effective_date = latest.max_date
+         AND ipr.is_active = true`,
+      instructor_ids
+    );
+    const oldRateMap = new Map(oldRatesResult.rows.map((r: any) => [r.instructor_id, r]));
+
+    // 2. Batch deactivate current rates
     await client.query(
       `UPDATE instructor_pay_rates
-       SET end_date = $1, is_active = false, updated_at = CURRENT_TIMESTAMP
-       WHERE instructor_id = ANY($2)
+       SET end_date = $${instructor_ids.length + 1}, is_active = false, updated_at = CURRENT_TIMESTAMP
+       WHERE instructor_id IN (${idPlaceholders})
          AND is_active = true
          AND (end_date IS NULL OR end_date >= CURRENT_DATE)`,
-      [effectiveDateVal, instructor_ids]
+      [...instructor_ids, effectiveDateVal]
     );
 
-    // 3. Batch insert new rates with unnest (1 query instead of N)
+    // 3. Insert new rates per instructor (loop replaces unnest)
+    for (const instructor_id of instructor_ids) {
+      await client.query(
+        `INSERT INTO instructor_pay_rates
+           (instructor_id, tier_id, hourly_rate, course_bonus, effective_date, notes, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [instructor_id, tier_id, hourly_rate, courseBonusVal, effectiveDateVal, notes, userId]
+      );
+    }
+
+    // 4. Insert history records per instructor
+    for (const instructor_id of instructor_ids) {
+      const old = oldRateMap.get(instructor_id);
+      await client.query(
+        `INSERT INTO pay_rate_history
+           (instructor_id, old_hourly_rate, new_hourly_rate,
+            old_course_bonus, new_course_bonus, old_tier_id, new_tier_id,
+            change_reason, changed_by, effective_date)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          instructor_id,
+          old?.hourly_rate ?? null,
+          hourly_rate,
+          old?.course_bonus ?? null,
+          courseBonusVal,
+          old?.tier_id ?? null,
+          tier_id, change_reason, userId, effectiveDateVal,
+        ]
+      );
+    }
+
+    // Fetch newly inserted rates
     const newRatesResult = await client.query(
-      `INSERT INTO instructor_pay_rates
-         (instructor_id, tier_id, hourly_rate, course_bonus, effective_date, notes, created_by)
-       SELECT unnest($1::int[]), $2, $3, $4, $5, $6, $7
-       RETURNING *`,
-      [instructor_ids, tier_id, hourly_rate, courseBonusVal, effectiveDateVal, notes, userId]
+      `SELECT * FROM instructor_pay_rates
+       WHERE instructor_id IN (${idPlaceholders})
+         AND is_active = true AND effective_date = $${instructor_ids.length + 1}`,
+      [...instructor_ids, effectiveDateVal]
     );
-
-    // 4. Batch insert history records with unnest (1 query instead of N)
-    await client.query(
-      `INSERT INTO pay_rate_history
-         (instructor_id, old_hourly_rate, new_hourly_rate,
-          old_course_bonus, new_course_bonus, old_tier_id, new_tier_id,
-          change_reason, changed_by, effective_date)
-       SELECT
-         unnest($1::int[]),
-         unnest($2::numeric[]),
-         $3,
-         unnest($4::numeric[]),
-         $5,
-         unnest($6::int[]),
-         $7, $8, $9, $10`,
-      [
-        instructor_ids,
-        instructor_ids.map((id: number) => oldRateMap.get(id)?.hourly_rate ?? null),
-        hourly_rate,
-        instructor_ids.map((id: number) => oldRateMap.get(id)?.course_bonus ?? null),
-        courseBonusVal,
-        instructor_ids.map((id: number) => oldRateMap.get(id)?.tier_id ?? null),
-        tier_id, change_reason, userId, effectiveDateVal,
-      ]
-    );
-
     const results = newRatesResult.rows;
     
     await client.query('COMMIT');

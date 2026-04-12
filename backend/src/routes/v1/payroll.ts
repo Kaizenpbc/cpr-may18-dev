@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { authenticateToken } from '../../middleware/authMiddleware.js';
 import { asyncHandler, AppError, errorCodes } from '../../utils/errorHandler.js';
-import { pool } from '../../config/database.js';
+import { query, getClient } from '../../config/database.js';
 
 const router = express.Router();
 
@@ -15,14 +15,14 @@ const requireHRRole = (req: Request, res: Response, next: NextFunction) => {
 
 // Get Payroll Statistics
 router.get('/stats', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // Get total payroll this month
     const totalPayrollResult = await client.query(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payroll_payments 
-      WHERE EXTRACT(MONTH FROM payment_date) = EXTRACT(MONTH FROM CURRENT_DATE)
-      AND EXTRACT(YEAR FROM payment_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+      WHERE MONTH(payment_date) = MONTH(CURRENT_DATE)
+      AND YEAR(payment_date) = YEAR(CURRENT_DATE)
     `);
     
     // Get pending payments count
@@ -58,7 +58,7 @@ router.get('/stats', authenticateToken, requireHRRole, asyncHandler(async (req: 
 
 // Get Payroll Payments (with filtering)
 router.get('/payments', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const { page = 1, limit = 10, status = '', instructor_id = '', month = '' } = req.query;
@@ -81,7 +81,7 @@ router.get('/payments', authenticateToken, requireHRRole, asyncHandler(async (re
     }
     
     if (month) {
-      whereClause += ` AND EXTRACT(MONTH FROM p.payment_date) = $${paramIndex}`;
+      whereClause += ` AND MONTH(p.payment_date) = $${paramIndex}`;
       params.push(month);
       paramIndex++;
     }
@@ -126,7 +126,7 @@ router.get('/payments', authenticateToken, requireHRRole, asyncHandler(async (re
 // Get Payment Details
 router.get('/payments/:paymentId', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const { paymentId } = req.params;
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const paymentResult = await client.query(`
@@ -161,7 +161,7 @@ router.post('/calculate/:instructorId', authenticateToken, requireHRRole, asyncH
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Start date and end date are required.');
   }
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // Get approved timesheets for the period
@@ -265,7 +265,7 @@ router.post('/payments', authenticateToken, requireHRRole, asyncHandler(async (r
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor ID, amount, and payment date are required.');
   }
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // Check if instructor exists
@@ -305,7 +305,7 @@ router.post('/payments/:paymentId/process', authenticateToken, requireHRRole, as
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid action. Must be "approve" or "reject".');
   }
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     await client.query('BEGIN');
@@ -345,7 +345,7 @@ router.post('/payments/:paymentId/process', authenticateToken, requireHRRole, as
 // Get Payroll Report
 router.get('/report', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const { start_date, end_date, instructor_id } = req.query;
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     let whereClause = "WHERE 1=1";
@@ -401,13 +401,13 @@ router.get('/report', authenticateToken, requireHRRole, asyncHandler(async (req:
     // Get payments by month
     const byMonthResult = await client.query(`
       SELECT 
-        EXTRACT(YEAR FROM payment_date) as year,
-        EXTRACT(MONTH FROM payment_date) as month,
+        YEAR(payment_date) as year,
+        MONTH(payment_date) as month,
         COUNT(*) as payment_count,
         COALESCE(SUM(CASE WHEN status = 'completed' THEN amount END), 0) as total_paid
       FROM payroll_payments p
       ${whereClause}
-      GROUP BY EXTRACT(YEAR FROM payment_date), EXTRACT(MONTH FROM payment_date)
+      GROUP BY YEAR(payment_date), MONTH(payment_date)
       ORDER BY year DESC, month DESC
     `, params);
     
@@ -427,7 +427,7 @@ router.get('/report', authenticateToken, requireHRRole, asyncHandler(async (req:
 // Get Instructor Payroll Summary
 router.get('/instructor/:instructorId/summary', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const { instructorId } = req.params;
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // Get instructor info

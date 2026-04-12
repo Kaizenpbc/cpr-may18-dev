@@ -1,5 +1,4 @@
 import express, { Request, Response } from 'express';
-import pg from 'pg';
 import { asyncHandler } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
@@ -9,7 +8,7 @@ import {
   requireRole,
 } from '../../middleware/authMiddleware.js';
 import { queryOptimizer } from '../../services/queryOptimizer.js';
-import { pool } from '../../config/database.js';
+import { query, pool } from '../../config/database.js';
 import { cacheService } from '../../services/cacheService.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -60,17 +59,17 @@ router.post(
       try {
         if (statement.toUpperCase().includes('CREATE INDEX CONCURRENTLY')) {
           // Handle concurrent index creation separately
-          await pool.query(statement);
+          await query(statement);
           successful++;
           results.push(`✅ ${statement.substring(0, 100)}...`);
         } else if (statement.toUpperCase().includes('ANALYZE')) {
           // Handle ANALYZE statements
-          await pool.query(statement);
+          await query(statement);
           successful++;
           results.push(`📊 ${statement}`);
         } else if (statement.trim().length > 0) {
           // Handle other statements
-          await pool.query(statement);
+          await query(statement);
           successful++;
           results.push(`✅ ${statement.substring(0, 100)}...`);
         }
@@ -134,21 +133,20 @@ router.get(
     const stats = await queryOptimizer.getDatabaseStats();
 
     // Get additional connection and size information
-    const connectionStats = await pool.query(`
+    const connectionStats = await query(`
       SELECT
-        count(*) as total_connections,
-        count(*) FILTER (WHERE state = 'active') as active_connections,
-        count(*) FILTER (WHERE state = 'idle') as idle_connections
-      FROM pg_stat_activity
-      WHERE datname = current_database()
+        COUNT(*) as total_connections,
+        SUM(CASE WHEN command != 'Sleep' THEN 1 ELSE 0 END) as active_connections,
+        SUM(CASE WHEN command = 'Sleep' THEN 1 ELSE 0 END) as idle_connections
+      FROM information_schema.processlist
     `);
 
-    const sizeStats = await pool.query(`
+    const sizeStats = await query(`
       SELECT
-        pg_size_pretty(pg_database_size(current_database())) as database_size,
-        pg_size_pretty(SUM(pg_total_relation_size(oid))) as total_table_size
-      FROM pg_class
-      WHERE relkind = 'r'
+        CONCAT(ROUND(SUM(data_length + index_length) / 1024 / 1024, 2), ' MB') as database_size,
+        CONCAT(ROUND(SUM(data_length + index_length) / 1024 / 1024, 2), ' MB') as total_table_size
+      FROM information_schema.tables
+      WHERE table_schema = DATABASE()
     `);
 
     res.json(
@@ -171,7 +169,7 @@ router.get(
 
     // Test 1: Optimized course requests query
     try {
-      const orgResult = await pool.query(
+      const orgResult = await query(
         'SELECT id FROM organizations LIMIT 1'
       );
       if (orgResult.rows.length > 0) {
@@ -300,7 +298,7 @@ router.post(
       for (const recommendation of recommendations) {
         if (recommendation && typeof recommendation === 'string') {
           try {
-            await pool.query(recommendation);
+            await query(recommendation);
             results.push(`✅ ${recommendation}`);
           } catch (error) {
             results.push(`❌ ${recommendation} - ${error instanceof Error ? error.message : String(error)}`);
@@ -310,36 +308,37 @@ router.post(
     } else {
       // Get tables that need maintenance
       const tablesQuery = `
-        SELECT tablename
-        FROM pg_stat_user_tables
-        WHERE schemaname = 'public'
-        ORDER BY n_live_tup DESC
+        SELECT table_name as tablename
+        FROM information_schema.tables
+        WHERE table_schema = DATABASE()
+        AND table_type = 'BASE TABLE'
+        ORDER BY table_name
         LIMIT 10
       `;
 
-      const tablesResult = await pool.query(tablesQuery);
+      const tablesResult = await query(tablesQuery);
 
       for (const table of tablesResult.rows) {
         if (table.tablename && typeof table.tablename === 'string') {
           try {
             // Use safe identifier escaping to prevent SQL injection
             const safeTableName = escapeIdentifier(table.tablename);
-            let query: string | null = null;
+            let maintenanceSql: string | null = null;
             switch (operation) {
               case 'vacuum':
-                query = `VACUUM ANALYZE ${safeTableName}`;
+                maintenanceSql = `OPTIMIZE TABLE ${safeTableName}`;
                 break;
               case 'analyze':
-                query = `ANALYZE ${safeTableName}`;
+                maintenanceSql = `ANALYZE TABLE ${safeTableName}`;
                 break;
               case 'reindex':
-                query = `REINDEX TABLE ${safeTableName}`;
+                maintenanceSql = `ANALYZE TABLE ${safeTableName}`;
                 break;
             }
 
-            if (query) {
-              await pool.query(query);
-              results.push(`✅ ${query}`);
+            if (maintenanceSql) {
+              await query(maintenanceSql);
+              results.push(`✅ ${maintenanceSql}`);
             }
           } catch (error) {
             results.push(`❌ ${table.tablename} - ${error instanceof Error ? error.message : String(error)}`);
@@ -362,9 +361,9 @@ router.post(
 router.post(
   '/explain-query',
   asyncHandler(async (req: Request, res: Response) => {
-    const { query, analyze = false } = req.body;
+    const { query: userQuery, analyze = false } = req.body;
 
-    if (!query || typeof query !== 'string') {
+    if (!userQuery || typeof userQuery !== 'string') {
       throw new AppError(
         400,
         errorCodes.VALIDATION_ERROR,
@@ -373,7 +372,7 @@ router.post(
     }
 
     // Normalize query for security checks
-    const normalizedQuery = query
+    const normalizedQuery = userQuery
       .replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
       .replace(/--.*$/gm, '')           // Remove line comments
       .replace(/\s+/g, ' ')             // Normalize whitespace
@@ -405,7 +404,7 @@ router.post(
       /;\s*\w/i,          // Prevent multiple statements
     ];
 
-    if (dangerousPatterns.some(pattern => pattern.test(query))) {
+    if (dangerousPatterns.some(pattern => pattern.test(userQuery))) {
       throw new AppError(
         400,
         errorCodes.VALIDATION_ERROR,
@@ -413,17 +412,14 @@ router.post(
       );
     }
 
-    const explainQuery = analyze
-      ? `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${query}`
-      : `EXPLAIN (FORMAT JSON) ${query}`;
-
-    const result = await pool.query(explainQuery);
-    const plan = result.rows[0]['QUERY PLAN'][0];
+    // MySQL EXPLAIN: returns tabular rows, not JSON plan
+    const explainQuery = `EXPLAIN ${userQuery}`;
+    const result = await query(explainQuery);
 
     res.json(
       ApiResponseBuilder.success(keysToCamel({
-        query,
-        execution_plan: plan,
+        query: userQuery,
+        execution_plan: result.rows,
         analyzed: analyze,
         timestamp: new Date().toISOString(),
       }))
@@ -435,36 +431,18 @@ router.post(
 router.get(
   '/slow-queries',
   asyncHandler(async (req: Request, res: Response) => {
-    // Check if pg_stat_statements is available
-    const extensionCheck = await pool.query(`
-      SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements'
-    `);
-
-    if (extensionCheck.rows.length === 0) {
-      return res.json(
-        ApiResponseBuilder.success(keysToCamel({
-          message: 'pg_stat_statements extension not available',
-          recommendations: [
-            'Enable pg_stat_statements extension for detailed query analysis',
-            "Add shared_preload_libraries = 'pg_stat_statements' to postgresql.conf",
-            'CREATE EXTENSION pg_stat_statements;',
-          ],
-        }))
-      );
-    }
-
-    // Get slow queries
-    const slowQueriesResult = await pool.query(`
+    // MySQL does not have pg_stat_statements; return process list as approximate
+    const slowQueriesResult = await query(`
       SELECT
-        query,
-        calls,
-        total_time,
-        mean_time,
-        rows,
-        100.0 * shared_blks_hit / nullif(shared_blks_hit + shared_blks_read, 0) AS hit_percent
-      FROM pg_stat_statements
-      WHERE query NOT LIKE '%pg_stat_statements%'
-      ORDER BY mean_time DESC
+        info as query,
+        time as total_time,
+        time as mean_time,
+        0 as calls,
+        0 as rows,
+        NULL as hit_percent
+      FROM information_schema.processlist
+      WHERE command != 'Sleep' AND time > 1
+      ORDER BY time DESC
       LIMIT 10
     `);
 
@@ -517,24 +495,22 @@ router.get(
         cacheService.getStats(),
       ]);
 
-    // Get connection info
-    const connectionInfo = await pool.query(`
+    // Get connection info (MySQL)
+    const connectionInfo = await query(`
       SELECT
-        setting as max_connections,
-        (SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()) as current_connections
-      FROM pg_settings
-      WHERE name = 'max_connections'
+        @@max_connections as max_connections,
+        COUNT(*) as current_connections
+      FROM information_schema.processlist
     `);
 
-    // Get database size
-    const sizeInfo = await pool.query(`
+    // Get database size (MySQL)
+    const sizeInfo = await query(`
       SELECT
-        pg_size_pretty(pg_database_size(current_database())) as database_size,
-        pg_size_pretty(SUM(pg_total_relation_size(c.oid))) as tables_size,
-        pg_size_pretty(SUM(pg_indexes_size(c.oid))) as indexes_size
-      FROM pg_class c
-      LEFT JOIN pg_namespace n ON (n.oid = c.relnamespace)
-      WHERE n.nspname = 'public' AND c.relkind = 'r'
+        CONCAT(ROUND(SUM(data_length + index_length) / 1024 / 1024, 2), ' MB') as database_size,
+        CONCAT(ROUND(SUM(data_length) / 1024 / 1024, 2), ' MB') as tables_size,
+        CONCAT(ROUND(SUM(index_length) / 1024 / 1024, 2), ' MB') as indexes_size
+      FROM information_schema.tables
+      WHERE table_schema = DATABASE()
     `);
 
     const report = {

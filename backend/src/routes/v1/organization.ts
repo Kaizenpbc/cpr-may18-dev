@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
-import { pool } from '../../config/database.js';
+import { query } from '../../config/database.js';
 import { asyncHandler, AppError } from '../../utils/errorHandler.js';
 import { errorCodes } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
@@ -10,7 +10,7 @@ const router = express.Router();
 
 // Get organization details
 router.get('/', authenticateToken, requireRole(['admin', 'organization']), asyncHandler(async (req: Request, res: Response) => {
-  const result = await pool.query(
+  const result = await query(
     'SELECT * FROM organizations WHERE id = $1',
     [req.user?.organizationId]
   );
@@ -28,7 +28,7 @@ router.put('/', authenticateToken, requireRole(['admin']), asyncHandler(async (r
   const { name, address, contact_phone, contactPhone, contact_email, contactEmail } = req.body;
   const phoneValue = contactPhone !== undefined ? contactPhone : contact_phone;
   const emailValue = contactEmail !== undefined ? contactEmail : contact_email;
-  const result = await pool.query(
+  const result = await query(
     `UPDATE organizations
      SET name = $1, address = $2, contact_phone = $3, contact_email = $4, updated_at = NOW()
      WHERE id = $5
@@ -48,7 +48,7 @@ router.get('/profile', authenticateToken, requireRole(['organization']), asyncHa
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
-  const result = await pool.query(
+  const result = await query(
     'SELECT id, name, address, contact_email, contact_phone FROM organizations WHERE id = $1',
     [req.user?.organizationId]
   );
@@ -63,7 +63,7 @@ router.put('/profile', authenticateToken, requireRole(['organization']), asyncHa
   const { name, address, contact_phone, contactPhone, contact_email, contactEmail } = req.body;
   const phoneValue = contactPhone !== undefined ? contactPhone : contact_phone;
   const emailValue = contactEmail !== undefined ? contactEmail : contact_email;
-  const result = await pool.query(
+  const result = await query(
     'UPDATE organizations SET name = $1, address = $2, contact_phone = $3, contact_email = $4 WHERE id = $5 RETURNING *',
     [name, address, phoneValue, emailValue, req.user?.organizationId]
   );
@@ -80,7 +80,7 @@ router.get('/courses', authenticateToken, requireRole(['organization']), asyncHa
   const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
   const offset = (page - 1) * limit;
 
-  const query = `
+  const sql = `
     SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor,
     (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended
     FROM course_requests cr
@@ -91,10 +91,10 @@ router.get('/courses', authenticateToken, requireRole(['organization']), asyncHa
     LIMIT $2 OFFSET $3
   `;
 
-  const result = await pool.query(query, [req.user?.organizationId, limit, offset]);
+  const result = await query(sql, [req.user?.organizationId, limit, offset]);
 
   // Get total count for pagination
-  const countResult = await pool.query(
+  const countResult = await query(
     'SELECT COUNT(*) FROM course_requests WHERE organization_id = $1 AND archived = false',
     [req.user?.organizationId]
   );
@@ -131,7 +131,7 @@ router.get('/archive', authenticateToken, requireRole(['organization']), asyncHa
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
 
-  const query = `
+  const sql = `
     SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, u.username as instructor,
     (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended
     FROM course_requests cr
@@ -141,7 +141,7 @@ router.get('/archive', authenticateToken, requireRole(['organization']), asyncHa
     ORDER BY cr.archived_at DESC
   `;
 
-  const result = await pool.query(query, [req.user?.organizationId]);
+  const result = await query(sql, [req.user?.organizationId]);
 
   // Format date fields to YYYY-MM-DD (handles invalid dates safely)
   const formatDateOnly = (dt: Date | string | null | undefined): string | null => {

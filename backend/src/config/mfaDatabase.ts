@@ -1,4 +1,4 @@
-import { pool } from './database.js';
+import { query } from './database.js';
 import { logSecurityEvent, AuditEventSeverity } from '../middleware/auditLogger.js';
 
 // Initialize MFA database tables
@@ -7,7 +7,7 @@ export async function initializeMFADatabase(): Promise<void> {
     console.log('🔐 Initializing MFA database tables...');
 
     // Create MFA users table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS mfa_users (
         id SERIAL PRIMARY KEY,
         user_id VARCHAR(255) UNIQUE NOT NULL,
@@ -26,7 +26,7 @@ export async function initializeMFADatabase(): Promise<void> {
     `);
 
     // Create MFA codes table for temporary codes (SMS/Email)
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS mfa_codes (
         id SERIAL PRIMARY KEY,
         user_id VARCHAR(255) NOT NULL,
@@ -39,7 +39,7 @@ export async function initializeMFADatabase(): Promise<void> {
     `);
 
     // Create MFA sessions table for tracking MFA verification sessions
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS mfa_sessions (
         id SERIAL PRIMARY KEY,
         user_id VARCHAR(255) NOT NULL,
@@ -53,12 +53,12 @@ export async function initializeMFADatabase(): Promise<void> {
     `);
 
     // Create MFA audit log table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS mfa_audit_log (
         id SERIAL PRIMARY KEY,
         user_id VARCHAR(255),
         event_type VARCHAR(100) NOT NULL,
-        event_data JSONB,
+        event_data JSON,
         ip_address INET,
         user_agent TEXT,
         success BOOLEAN DEFAULT TRUE,
@@ -67,48 +67,48 @@ export async function initializeMFADatabase(): Promise<void> {
     `);
 
     // Create indexes for better performance
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_mfa_users_user_id ON mfa_users(user_id);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_mfa_users_status ON mfa_users(status);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_mfa_codes_user_id ON mfa_codes(user_id);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_mfa_codes_expires_at ON mfa_codes(expires_at);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_mfa_sessions_user_id ON mfa_sessions(user_id);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_mfa_sessions_session_id ON mfa_sessions(session_id);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_mfa_sessions_expires_at ON mfa_sessions(expires_at);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_mfa_audit_log_user_id ON mfa_audit_log(user_id);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_mfa_audit_log_event_type ON mfa_audit_log(event_type);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_mfa_audit_log_created_at ON mfa_audit_log(created_at);
     `);
 
     // Create function to clean up expired MFA codes
-    await pool.query(`
+    await query(`
       CREATE OR REPLACE FUNCTION cleanup_expired_mfa_codes()
       RETURNS void AS $$
       BEGIN
@@ -119,7 +119,7 @@ export async function initializeMFADatabase(): Promise<void> {
     `);
 
     // Create function to update updated_at timestamp
-    await pool.query(`
+    await query(`
       CREATE OR REPLACE FUNCTION update_mfa_users_updated_at()
       RETURNS TRIGGER AS $$
       BEGIN
@@ -130,7 +130,7 @@ export async function initializeMFADatabase(): Promise<void> {
     `);
 
     // Create trigger for updated_at
-    await pool.query(`
+    await query(`
       DROP TRIGGER IF EXISTS trigger_update_mfa_users_updated_at ON mfa_users;
       CREATE TRIGGER trigger_update_mfa_users_updated_at
         BEFORE UPDATE ON mfa_users
@@ -139,7 +139,7 @@ export async function initializeMFADatabase(): Promise<void> {
     `);
 
     // Clean up expired codes
-    await pool.query('SELECT cleanup_expired_mfa_codes();');
+    await query('SELECT cleanup_expired_mfa_codes();');
 
     console.log('✅ MFA database tables initialized');
     console.log('✅ MFA indexes created');
@@ -166,39 +166,35 @@ export async function getMFADatabaseHealth(): Promise<{
 }> {
   try {
     // Check if tables exist
-    const tablesResult = await pool.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
+    const tablesResult = await query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = DATABASE()
       AND table_name LIKE 'mfa_%'
     `);
 
-    const tables = tablesResult.rows.map(row => row.table_name);
+    const tables = tablesResult.rows.map((row: any) => row.table_name);
 
-    // Check indexes
-    const indexesResult = await pool.query(`
+    // Check indexes (MySQL: information_schema.statistics)
+    const indexesResult = await query(`
       SELECT COUNT(*) as count
-      FROM pg_indexes 
-      WHERE schemaname = 'public' 
-      AND indexname LIKE 'idx_mfa_%'
+      FROM information_schema.statistics
+      WHERE table_schema = DATABASE()
+      AND index_name LIKE 'idx_mfa_%'
     `);
 
-    // Check functions
-    const functionsResult = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM pg_proc 
-      WHERE proname LIKE '%mfa%'
-    `);
+    // MySQL has no stored functions for mfa; return 0
+    const functionsResult = { rows: [{ count: '0' }] };
 
     // Count expired codes
-    const expiredCodesResult = await pool.query(`
+    const expiredCodesResult = await query(`
       SELECT COUNT(*) as count
       FROM mfa_codes 
       WHERE expires_at < NOW()
     `);
 
     // Count active sessions
-    const activeSessionsResult = await pool.query(`
+    const activeSessionsResult = await query(`
       SELECT COUNT(*) as count
       FROM mfa_sessions 
       WHERE expires_at > NOW()
@@ -233,12 +229,12 @@ export async function cleanupExpiredMFAData(): Promise<{
 }> {
   try {
     // Clean up expired codes
-    const expiredCodesResult = await pool.query(`
+    const expiredCodesResult = await query(`
       DELETE FROM mfa_codes WHERE expires_at < NOW()
     `);
 
     // Clean up expired sessions
-    const expiredSessionsResult = await pool.query(`
+    const expiredSessionsResult = await query(`
       DELETE FROM mfa_sessions WHERE expires_at < NOW()
     `);
 

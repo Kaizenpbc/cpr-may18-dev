@@ -1,4 +1,4 @@
-import { pool } from '../config/database.js';
+import { query, getClient } from '../config/database.js';
 import { ApiResponseBuilder } from '../utils/apiResponse.js';
 import { AppError } from '../utils/errorHandler.js';
 
@@ -47,11 +47,11 @@ export class EmailTemplateService {
       const safeOffset = (Math.max(1, page) - 1) * safeLimit;
 
       const params: (string | number | boolean | string[])[] = [];
-      let query = `
-        SELECT 
+      let templateSql = `
+        SELECT
           id,
           name,
-          key,
+          \`key\`,
           category,
           sub_category as "subCategory",
           subject,
@@ -69,47 +69,49 @@ export class EmailTemplateService {
 
       if (category) {
         if (Array.isArray(category)) {
-          params.push(category);
-          query += ` AND category = ANY($${params.length})`;
+          const startIdx = params.length + 1;
+          category.forEach((c: string) => params.push(c));
+          const placeholders = category.map((_: string, i: number) => `$${startIdx + i}`).join(', ');
+          templateSql += ` AND category IN (${placeholders})`;
         } else {
           params.push(category);
-          query += ` AND category = $${params.length}`;
+          templateSql += ` AND category = $${params.length}`;
         }
       }
 
       if (isActive !== undefined) {
         params.push(isActive);
-        query += ` AND is_active = $${params.length}`;
+        templateSql += ` AND is_active = $${params.length}`;
       }
 
       if (search) {
         params.push(`%${search}%`);
-        query += `
+        templateSql += `
           AND (
-            name ILIKE $${params.length} 
-            OR subject ILIKE $${params.length}
-            OR body ILIKE $${params.length}
+            name LIKE $${params.length}
+            OR subject LIKE $${params.length}
+            OR body LIKE $${params.length}
           )
         `;
       }
 
-      query += ' ORDER BY category, sub_category, name ASC';
+      templateSql += ' ORDER BY category, sub_category, name ASC';
 
       // Count total matching rows for pagination metadata
-      const countResult = await pool.query(
-        `SELECT COUNT(*) FROM (${query}) AS _count`,
+      const countResult = await query(
+        `SELECT COUNT(*) FROM (${templateSql}) AS _count`,
         params
       );
       const total = parseInt(countResult.rows[0].count, 10);
 
       // Apply pagination
       params.push(safeLimit);
-      query += ` LIMIT $${params.length}`;
+      templateSql += ` LIMIT $${params.length}`;
       params.push(safeOffset);
-      query += ` OFFSET $${params.length}`;
+      templateSql += ` OFFSET $${params.length}`;
 
-      const result = await pool.query(query, params);
-      return { rows: result.rows, total };
+      const result = await query(templateSql, params);
+      return { rows: result.rows as unknown as EmailTemplate[], total };
     } catch (error) {
       console.error('[EmailTemplateService.getAll] Error:', error);
       if (error instanceof Error) {
@@ -125,7 +127,7 @@ export class EmailTemplateService {
 
   static async getById(id: number): Promise<EmailTemplate | null> {
     try {
-      const result = await pool.query(
+      const result = await query(
         `
           SELECT 
             id,
@@ -147,7 +149,7 @@ export class EmailTemplateService {
         `,
         [id]
       );
-      return result.rows[0] || null;
+      return (result.rows[0] as unknown as EmailTemplate) || null;
     } catch (error) {
       throw new AppError(
         500,
@@ -158,7 +160,7 @@ export class EmailTemplateService {
   }
 
   static async create(template: EmailTemplateInput): Promise<EmailTemplate> {
-    const client = await pool.connect();
+    const client = await getClient();
 
     try {
       await client.query('BEGIN');
@@ -209,7 +211,7 @@ export class EmailTemplateService {
       );
 
       await client.query('COMMIT');
-      return result.rows[0];
+      return result.rows[0] as unknown as EmailTemplate;
     } catch (error) {
       await client.query('ROLLBACK');
       console.error('Database error in EmailTemplate.create:', error);
@@ -234,7 +236,7 @@ export class EmailTemplateService {
     id: number,
     template: EmailTemplatePartialInput
   ): Promise<EmailTemplate> {
-    const client = await pool.connect();
+    const client = await getClient();
 
     try {
       await client.query('BEGIN');
@@ -316,7 +318,7 @@ export class EmailTemplateService {
       }
 
       await client.query('COMMIT');
-      return result.rows[0];
+      return result.rows[0] as unknown as EmailTemplate;
     } catch (error) {
       await client.query('ROLLBACK');
       console.error('Error updating email template:', error);
@@ -332,7 +334,7 @@ export class EmailTemplateService {
 
   static async delete(id: number): Promise<void> {
     try {
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -366,7 +368,7 @@ export class EmailTemplateService {
     eventTrigger: string
   ): Promise<EmailTemplate | null> {
     try {
-      const result = await pool.query(
+      const result = await query(
         `
           SELECT 
             id,
@@ -388,7 +390,7 @@ export class EmailTemplateService {
         `,
         [eventTrigger]
       );
-      return result.rows[0] || null;
+      return (result.rows[0] as unknown as EmailTemplate) || null;
     } catch (error) {
       throw new AppError(
         500,

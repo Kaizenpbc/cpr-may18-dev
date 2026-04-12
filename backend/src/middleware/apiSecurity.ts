@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import { pool } from '../config/database.js';
+import { query, getClient } from '../config/database.js';
 import { logSecurityEvent, AuditEventSeverity } from './auditLogger.js';
 
 // API Key Management
@@ -80,7 +80,7 @@ const requestTracker = new Map<string, {
 // API Key validation
 export async function validateApiKey(apiKey: string): Promise<ApiKey | null> {
   try {
-    const result = await pool.query(
+    const result = await query(
       `SELECT * FROM api_keys WHERE key = $1 AND is_active = TRUE 
        AND (expires_at IS NULL OR expires_at > NOW())`,
       [apiKey]
@@ -93,7 +93,7 @@ export async function validateApiKey(apiKey: string): Promise<ApiKey | null> {
     const key = result.rows[0];
 
     // Update last used timestamp
-    await pool.query(
+    await query(
       'UPDATE api_keys SET last_used = NOW() WHERE id = $1',
       [key.id]
     );
@@ -371,7 +371,7 @@ export async function createApiKey(
 ): Promise<ApiKey> {
   const key = crypto.randomBytes(32).toString('hex');
 
-  const result = await pool.query(
+  const result = await query(
     `INSERT INTO api_keys (key, name, organization_id, permissions, rate_limit, expires_at)
      VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
@@ -394,7 +394,7 @@ export async function createApiKey(
 
 export async function revokeApiKey(keyId: string): Promise<boolean> {
   try {
-    await pool.query(
+    await query(
       'UPDATE api_keys SET is_active = FALSE WHERE id = $1',
       [keyId]
     );
@@ -409,14 +409,14 @@ export async function revokeApiKey(keyId: string): Promise<boolean> {
 export async function initializeApiSecurity(): Promise<void> {
   try {
     // Create API keys table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS api_keys (
         id SERIAL PRIMARY KEY,
         key VARCHAR(64) UNIQUE NOT NULL,
         name VARCHAR(255) NOT NULL,
         organization_id INTEGER REFERENCES organizations(id),
         permissions TEXT[] DEFAULT '{}',
-        rate_limit JSONB DEFAULT '{"requests": 100, "window": 60}',
+        rate_limit JSON DEFAULT '{"requests": 100, "window": 60}',
         is_active BOOLEAN DEFAULT TRUE,
         expires_at TIMESTAMP,
         last_used TIMESTAMP,
@@ -425,7 +425,7 @@ export async function initializeApiSecurity(): Promise<void> {
     `);
 
     // Create index for faster lookups
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key) WHERE is_active = TRUE
     `);
 

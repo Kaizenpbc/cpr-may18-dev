@@ -317,7 +317,7 @@ app.use(cookieParser());
 // Sentry request handler — must come before routes and most other middleware
 app.use(getSentryRequestHandler());
 
-// Rate limiting middleware — temporarily disabled for testing
+// Rate limiting middleware — uncomment before going to production (RATELIMIT-1)
 // app.use('/api/v1/auth/login', authLimiter);
 // app.use('/api/v1/auth/register', registerLimiter);
 // app.use('/api/v1/auth/forgot-password', authLimiter);

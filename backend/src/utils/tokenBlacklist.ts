@@ -1,4 +1,4 @@
-import { pool } from '../config/database.js';
+import { query } from '../config/database.js';
 import { createHash } from 'crypto';
 
 /**
@@ -12,7 +12,7 @@ export class TokenBlacklist {
    */
   static async addToBlacklist(token: string, expiresAt: Date): Promise<void> {
     try {
-      const query = `
+      const sql = `
         INSERT INTO token_blacklist (token_hash, expires_at, created_at)
         VALUES ($1, $2, NOW())
         ON CONFLICT (token_hash) DO NOTHING
@@ -21,7 +21,7 @@ export class TokenBlacklist {
       // Hash the token for storage (don't store the actual token)
       const tokenHash = this.hashToken(token);
       
-      await pool.query(query, [tokenHash, expiresAt]);
+      await query(sql, [tokenHash, expiresAt]);
     } catch (error) {
       throw error;
     }
@@ -34,14 +34,14 @@ export class TokenBlacklist {
    */
   static async isBlacklisted(token: string): Promise<boolean> {
     try {
-      const query = `
+      const sql = `
         SELECT COUNT(*) as count
         FROM token_blacklist
         WHERE token_hash = $1
       `;
       
       const tokenHash = this.hashToken(token);
-      const result = await pool.query(query, [tokenHash]);
+      const result = await query(sql, [tokenHash]);
       
       return parseInt(result.rows[0].count) > 0;
     } catch (error) {
@@ -55,12 +55,12 @@ export class TokenBlacklist {
    */
   static async cleanupExpiredTokens(): Promise<void> {
     try {
-      const query = `
+      const sql = `
         DELETE FROM token_blacklist
         WHERE expires_at < NOW()
       `;
       
-      await pool.query(query);
+      await query(sql);
     } catch (error) {
       // Cleanup failure is non-critical, continue silently
     }
@@ -90,12 +90,12 @@ export async function initializeTokenBlacklist(): Promise<void> {
       )
     `;
     
-    await pool.query(createTableQuery);
+    await query(createTableQuery);
 
     // Create indexes separately to avoid PostgreSQL syntax issues
     try {
-      await pool.query('CREATE INDEX IF NOT EXISTS idx_token_blacklist_hash ON token_blacklist (token_hash)');
-      await pool.query('CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires ON token_blacklist (expires_at)');
+      await query('CREATE INDEX IF NOT EXISTS idx_token_blacklist_hash ON token_blacklist (token_hash)');
+      await query('CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires ON token_blacklist (expires_at)');
     } catch {
       // Index creation failure is non-critical
     }

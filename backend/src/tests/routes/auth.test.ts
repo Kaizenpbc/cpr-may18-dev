@@ -72,11 +72,11 @@ import request from 'supertest';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import authRouter from '../../routes/v1/auth.js';
-import { pool } from '../../config/database.js';
+import { query } from '../../config/database.js';
 
 // ─── Typed mock helpers ───────────────────────────────────────────────────────
 
-const mockPool = pool as unknown as { query: jest.Mock };
+const mockPool = query as unknown as { query: jest.Mock };
 const mockBcryptCompare = bcrypt.compare as jest.Mock;
 const mockBcryptHash = bcrypt.hash as jest.Mock;
 const mockJwtVerify = jwt.verify as jest.Mock;

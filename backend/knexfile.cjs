@@ -5,10 +5,10 @@ dotenv.config();
 
 module.exports = {
   development: {
-    client: 'postgresql',
+    client: 'mysql2',
     connection: {
       host: process.env.DB_HOST || '127.0.0.1',
-      port: parseInt(process.env.DB_PORT || '5432'),
+      port: parseInt(process.env.DB_PORT || '3306'),
       user: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD || 'gtacpr',
       database: process.env.DB_NAME || 'cpr_jun21',
@@ -27,10 +27,10 @@ module.exports = {
   },
 
   production: {
-    client: 'postgresql',
+    client: 'mysql2',
     connection: {
       host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT || '5432'),
+      port: parseInt(process.env.DB_PORT || '3306'),
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
@@ -49,10 +49,10 @@ module.exports = {
   },
 
   test: {
-    client: 'postgresql',
+    client: 'mysql2',
     connection: {
       host: process.env.DB_HOST || '127.0.0.1',
-      port: parseInt(process.env.DB_PORT || '5432'),
+      port: parseInt(process.env.DB_PORT || '3306'),
       user: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD || 'gtacpr',
       database: process.env.DB_NAME_TEST || 'cpr_jun21_test',

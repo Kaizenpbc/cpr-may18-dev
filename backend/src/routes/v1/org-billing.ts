@@ -3,7 +3,7 @@ import { asyncHandler } from '../../utils/errorHandler.js';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
 import { PDFService } from '../../services/pdfService.js';
 import { notificationService } from '../../services/NotificationService.js';
-import { pool } from '../../config/database.js';
+import { query, getClient } from '../../config/database.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
 import { devLog } from '../../utils/devLog.js';
 
@@ -64,7 +64,7 @@ router.get(
       devLog(`[DEBUG] Organization invoices query params:`, queryParams);
       devLog(`[DEBUG] Organization invoices whereClause:`, whereClause);
 
-      const result = await pool.query(
+      const result = await query(
         `
       SELECT
         i.id,
@@ -121,7 +121,7 @@ router.get(
       }));
 
       // Get total count for pagination
-      const countResult = await pool.query(
+      const countResult = await query(
         `
       SELECT COUNT(DISTINCT i.id) as total
       FROM invoice_with_breakdown i
@@ -170,7 +170,7 @@ router.get(
         );
       }
 
-      const result = await pool.query(
+      const result = await query(
         `
       SELECT
         i.id,
@@ -220,7 +220,7 @@ router.get(
       }
 
       // Get payment history
-      const paymentsResult = await pool.query(
+      const paymentsResult = await query(
         `
       SELECT
         p.id,
@@ -280,7 +280,7 @@ router.get(
       devLog(`[PDF] Organization ${user.organizationId} requesting PDF for invoice ${id}`);
 
       // Get invoice details - verify it belongs to this organization
-      const result = await pool.query(
+      const result = await query(
         `
         SELECT
           i.id as invoice_id,
@@ -336,7 +336,7 @@ router.get(
       devLog(`[PDF] Generating PDF for invoice ${invoice.invoice_number}`);
 
       // Generate PDF using PDFService
-      const pdfBuffer = await PDFService.generateInvoicePDF(invoice);
+      const pdfBuffer = await PDFService.generateInvoicePDF(invoice as any);
 
       // Set response headers
       res.setHeader('Content-Type', 'application/pdf');
@@ -372,7 +372,7 @@ router.get(
       }
 
       // Verify invoice belongs to organization
-      const invoiceCheck = await pool.query(
+      const invoiceCheck = await query(
         `
       SELECT id FROM invoices
       WHERE id = $1 AND organization_id = $2
@@ -388,7 +388,7 @@ router.get(
         );
       }
 
-      const result = await pool.query(
+      const result = await query(
         `
       SELECT
         p.id,
@@ -434,7 +434,7 @@ router.get(
 
       // Get invoice with payment totals — scope by org for organization role
       const isOrgUser = user.role === 'organization';
-      const invoiceResult = await pool.query(
+      const invoiceResult = await query(
         `
         SELECT
           i.id,
@@ -446,7 +446,7 @@ router.get(
         FROM invoices i
         LEFT JOIN payments p ON i.id = p.invoice_id
         WHERE i.id = $1
-          AND ($2::int IS NULL OR i.organization_id = $2)
+          AND ($2 IS NULL OR i.organization_id = $2)
         GROUP BY i.id, i.amount, i.status, i.organization_id
         `,
         [id, isOrgUser ? user.organizationId : null]
@@ -544,7 +544,7 @@ router.post(
       }
 
       // Verify invoice belongs to organization and get current balance
-      const invoiceResult = await pool.query(
+      const invoiceResult = await query(
         `
         SELECT
           i.id,
@@ -597,14 +597,14 @@ router.post(
       }
 
       // IDEMPOTENCY CHECK: Prevent duplicate submissions within 60 seconds
-      const duplicateCheck = await pool.query(
+      const duplicateCheck = await query(
         `
         SELECT id, amount, created_at
         FROM payments
         WHERE invoice_id = $1
           AND amount = $2
           AND status = 'pending_verification'
-          AND created_at > NOW() - INTERVAL '60 seconds'
+          AND created_at > NOW() - INTERVAL 60 SECOND
         LIMIT 1
         `,
         [id, amount]
@@ -619,7 +619,7 @@ router.post(
         );
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -671,14 +671,14 @@ router.post(
         const remainingBalance = Math.max(0, totalInvoiceAmount - totalPaymentsAfterSubmission);
 
         // Get organization name for notification
-        const orgResult = await pool.query(
+        const orgResult = await query(
           'SELECT name FROM organizations WHERE id = $1',
           [user.organizationId]
         );
         const organizationName = orgResult.rows[0]?.name || 'Unknown Organization';
 
         // Get invoice number for notification
-        const invoiceNumberResult = await pool.query(
+        const invoiceNumberResult = await query(
           'SELECT invoice_number FROM invoices WHERE id = $1',
           [id]
         );
@@ -734,7 +734,7 @@ router.get(
         );
       }
 
-      const result = await pool.query(
+      const result = await query(
         `
       SELECT
         COUNT(*) as total_invoices,
@@ -785,7 +785,7 @@ router.get(
       );
 
       // Get recent invoices
-      const recentResult = await pool.query(
+      const recentResult = await query(
         `
       SELECT
         i.id as invoice_id,
@@ -836,7 +836,7 @@ router.get(
         );
       }
 
-      const result = await pool.query(`
+      const result = await query(`
           SELECT
             p.id as "paymentId",
             p.amount,
@@ -898,7 +898,7 @@ router.get(
         whereClause = "WHERE p.status IN ('verified', 'reversed')";
       }
 
-      const result = await pool.query(`
+      const result = await query(`
           SELECT
             p.id as payment_id,
             p.amount,
@@ -982,7 +982,7 @@ router.post(
         );
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -1204,7 +1204,7 @@ router.get(
 
       const orderClause = `ORDER BY i.${sort_by} ${sort_order.toString().toUpperCase()}`;
 
-      const result = await pool.query(
+      const result = await query(
         `
       SELECT
         i.id as invoice_id,
@@ -1249,7 +1249,7 @@ router.get(
       );
 
       // Get total count for pagination
-      const countResult = await pool.query(
+      const countResult = await query(
         `
       SELECT COUNT(*) as total
       FROM invoice_with_breakdown i
@@ -1313,7 +1313,7 @@ router.post(
         );
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -1409,14 +1409,14 @@ router.get(
         );
       }
 
-      const result = await pool.query(
+      const result = await query(
         `
       SELECT
         COUNT(*) as total_paid_invoices,
         COALESCE(SUM(i.amount), 0) as total_paid_amount,
         COALESCE(AVG(i.amount), 0) as average_paid_amount,
-        COUNT(CASE WHEN i.paid_date >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as paid_last_30_days,
-        COALESCE(SUM(CASE WHEN i.paid_date >= CURRENT_DATE - INTERVAL '30 days' THEN i.amount ELSE 0 END), 0) as amount_paid_last_30_days
+        COUNT(CASE WHEN i.paid_date >= CURRENT_DATE - INTERVAL 30 DAY THEN 1 END) as paid_last_30_days,
+        COALESCE(SUM(CASE WHEN i.paid_date >= CURRENT_DATE - INTERVAL 30 DAY THEN i.amount ELSE 0 END), 0) as amount_paid_last_30_days
       FROM invoice_with_breakdown i
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
@@ -1463,7 +1463,7 @@ router.get(
       devLog(`[PDF] Generating payment receipt for payment ${id}`);
 
       // Get payment details with invoice and organization info
-      const result = await pool.query(
+      const result = await query(
         `
       SELECT
         p.id as payment_id,
@@ -1505,7 +1505,7 @@ router.get(
         );
       }
 
-      const payment = result.rows[0];
+      const payment = result.rows[0] as any;
       devLog(`[PDF] Generating receipt for payment ${payment.payment_id}`);
 
       const pdfBuffer = await PDFService.generatePaymentReceipt(payment);
@@ -1544,7 +1544,7 @@ router.get(
       }
 
       // Get payment summary statistics
-      const summaryResult = await pool.query(
+      const summaryResult = await query(
         `
       SELECT
         COUNT(*) as total_payments,
@@ -1559,7 +1559,7 @@ router.get(
       );
 
       // Get recent payments
-      const recentPaymentsResult = await pool.query(
+      const recentPaymentsResult = await query(
         `
       SELECT
         p.id,
@@ -1622,7 +1622,7 @@ router.post(
         );
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -1766,7 +1766,7 @@ router.get(
       }
 
       // Get invoice details with current balance
-      const invoiceResult = await pool.query(
+      const invoiceResult = await query(
         `
         SELECT
           i.id,

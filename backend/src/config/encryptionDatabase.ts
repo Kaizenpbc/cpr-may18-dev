@@ -1,4 +1,4 @@
-import { pool } from './database.js';
+import { query } from './database.js';
 import { encryptionService } from './encryptionConfig.js';
 
 // Initialize encryption database tables
@@ -7,7 +7,7 @@ export async function initializeEncryptionDatabase(): Promise<void> {
     console.log('🔐 Initializing encryption database tables...');
 
     // Create encryption keys table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS encryption_keys (
         id VARCHAR(255) PRIMARY KEY,
         key_data BYTEA NOT NULL,
@@ -17,13 +17,13 @@ export async function initializeEncryptionDatabase(): Promise<void> {
         expires_at TIMESTAMP,
         last_used TIMESTAMP,
         usage_count INTEGER DEFAULT 0,
-        metadata JSONB,
+        metadata JSON,
         created_by VARCHAR(255) DEFAULT 'system'
       )
     `);
 
     // Create encryption audit log table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS encryption_audit_log (
         id SERIAL PRIMARY KEY,
         operation VARCHAR(100) NOT NULL,
@@ -42,7 +42,7 @@ export async function initializeEncryptionDatabase(): Promise<void> {
     `);
 
     // Create encryption statistics table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS encryption_statistics (
         id SERIAL PRIMARY KEY,
         date DATE NOT NULL,
@@ -58,36 +58,36 @@ export async function initializeEncryptionDatabase(): Promise<void> {
     `);
 
     // Create indexes for better performance
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_encryption_keys_status ON encryption_keys(status);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_encryption_keys_created_at ON encryption_keys(created_at);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_encryption_keys_expires_at ON encryption_keys(expires_at);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_encryption_audit_log_operation ON encryption_audit_log(operation);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_encryption_audit_log_table_name ON encryption_audit_log(table_name);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_encryption_audit_log_created_at ON encryption_audit_log(created_at);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_encryption_statistics_date ON encryption_statistics(date);
     `);
 
     // Create function to clean up expired keys
-    await pool.query(`
+    await query(`
       CREATE OR REPLACE FUNCTION cleanup_expired_encryption_keys()
       RETURNS void AS $$
       BEGIN
@@ -100,7 +100,7 @@ export async function initializeEncryptionDatabase(): Promise<void> {
     `);
 
     // Create function to update encryption statistics
-    await pool.query(`
+    await query(`
       CREATE OR REPLACE FUNCTION update_encryption_statistics()
       RETURNS void AS $$
       BEGIN
@@ -116,7 +116,7 @@ export async function initializeEncryptionDatabase(): Promise<void> {
     `);
 
     // Create function to update updated_at timestamp
-    await pool.query(`
+    await query(`
       CREATE OR REPLACE FUNCTION update_encryption_statistics_updated_at()
       RETURNS TRIGGER AS $$
       BEGIN
@@ -127,7 +127,7 @@ export async function initializeEncryptionDatabase(): Promise<void> {
     `);
 
     // Create trigger for updated_at
-    await pool.query(`
+    await query(`
       DROP TRIGGER IF EXISTS trigger_update_encryption_statistics_updated_at ON encryption_statistics;
       CREATE TRIGGER trigger_update_encryption_statistics_updated_at
         BEFORE UPDATE ON encryption_statistics
@@ -136,10 +136,10 @@ export async function initializeEncryptionDatabase(): Promise<void> {
     `);
 
     // Clean up expired keys
-    await pool.query('SELECT cleanup_expired_encryption_keys();');
+    await query('SELECT cleanup_expired_encryption_keys();');
 
     // Update statistics
-    await pool.query('SELECT update_encryption_statistics();');
+    await query('SELECT update_encryption_statistics();');
 
     console.log('✅ Encryption database tables initialized');
     console.log('✅ Encryption indexes created');
@@ -167,32 +167,28 @@ export async function getEncryptionDatabaseHealth(): Promise<{
 }> {
   try {
     // Check if tables exist
-    const tablesResult = await pool.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
+    const tablesResult = await query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = DATABASE()
       AND table_name LIKE 'encryption_%'
     `);
 
-    const tables = tablesResult.rows.map(row => row.table_name);
+    const tables = tablesResult.rows.map((row: any) => row.table_name);
 
-    // Check indexes
-    const indexesResult = await pool.query(`
+    // Check indexes (MySQL: information_schema.statistics)
+    const indexesResult = await query(`
       SELECT COUNT(*) as count
-      FROM pg_indexes 
-      WHERE schemaname = 'public' 
-      AND indexname LIKE 'idx_encryption_%'
+      FROM information_schema.statistics
+      WHERE table_schema = DATABASE()
+      AND index_name LIKE 'idx_encryption_%'
     `);
 
-    // Check functions
-    const functionsResult = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM pg_proc 
-      WHERE proname LIKE '%encryption%'
-    `);
+    // MySQL has no stored functions for encryption; return 0
+    const functionsResult = { rows: [{ count: '0' }] };
 
     // Count keys
-    const keysResult = await pool.query(`
+    const keysResult = await query<any>(`
       SELECT 
         COUNT(*) as total,
         COUNT(CASE WHEN status = 'active' THEN 1 END) as active,
@@ -231,7 +227,7 @@ export async function cleanupExpiredEncryptionData(): Promise<{
 }> {
   try {
     // Clean up expired keys
-    const expiredKeysResult = await pool.query(`
+    const expiredKeysResult = await query(`
       UPDATE encryption_keys 
       SET status = 'archived' 
       WHERE expires_at < NOW() 
@@ -239,9 +235,9 @@ export async function cleanupExpiredEncryptionData(): Promise<{
     `);
 
     // Clean up old audit logs (older than 1 year)
-    const oldAuditLogsResult = await pool.query(`
+    const oldAuditLogsResult = await query(`
       DELETE FROM encryption_audit_log 
-      WHERE created_at < NOW() - INTERVAL '1 year'
+      WHERE created_at < NOW() - INTERVAL 1 YEAR
     `);
 
     return {
@@ -261,7 +257,7 @@ export async function cleanupExpiredEncryptionData(): Promise<{
 // Store encryption key in database
 export async function storeEncryptionKey(keyId: string, keyData: Buffer, algorithm: string, metadata: any): Promise<void> {
   try {
-    await pool.query(`
+    await query(`
       INSERT INTO encryption_keys (id, key_data, algorithm, status, metadata, created_by)
       VALUES ($1, $2, $3, 'active', $4, 'system')
       ON CONFLICT (id) DO UPDATE SET
@@ -288,7 +284,7 @@ export async function getEncryptionKey(keyId: string): Promise<{
   metadata: any;
 } | null> {
   try {
-    const result = await pool.query(`
+    const result = await query(`
       SELECT id, key_data, algorithm, status, created_at, expires_at, last_used, usage_count, metadata
       FROM encryption_keys
       WHERE id = $1
@@ -319,7 +315,7 @@ export async function getEncryptionKey(keyId: string): Promise<{
 // Update encryption key usage
 export async function updateEncryptionKeyUsage(keyId: string): Promise<void> {
   try {
-    await pool.query(`
+    await query(`
       UPDATE encryption_keys 
       SET usage_count = usage_count + 1, last_used = NOW()
       WHERE id = $1

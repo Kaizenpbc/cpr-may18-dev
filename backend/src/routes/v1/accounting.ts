@@ -3,7 +3,7 @@ import { asyncHandler } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { keysToCamel } from '../../utils/caseConverter.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
-import { pool } from '../../config/database.js';
+import { query, getClient } from '../../config/database.js';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
 import { PDFService } from '../../services/pdfService.js';
 import { cacheService } from '../../services/cacheService.js';
@@ -19,21 +19,21 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       // Total Billed (Total Invoiced Amount)
-      const totalBilled = await pool.query(`
+      const totalBilled = await query(`
         SELECT COALESCE(SUM(i.base_cost + i.tax_amount), 0) as total_billed
         FROM invoice_with_breakdown i
         WHERE i.posted_to_org = TRUE
       `);
 
       // Total Paid (Verified Payments)
-      const totalPaid = await pool.query(`
+      const totalPaid = await query(`
         SELECT COALESCE(SUM(p.amount), 0) as total_paid
         FROM payments p
         WHERE p.status = 'verified'
       `);
 
       // Outstanding Amount (Total Billed - Total Paid)
-      const outstandingAmount = await pool.query(`
+      const outstandingAmount = await query(`
         SELECT
           COUNT(*) as count,
           COALESCE(SUM(i.base_cost + i.tax_amount - COALESCE(payments.total_paid, 0)), 0) as total_outstanding
@@ -49,21 +49,21 @@ router.get(
       `);
 
       // Payments This Month
-      const paymentsThisMonth = await pool.query(`
+      const paymentsThisMonth = await query(`
         SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total_amount
         FROM payments
         WHERE status = 'verified'
-        AND EXTRACT(MONTH FROM payment_date) = EXTRACT(MONTH FROM CURRENT_DATE)
-        AND EXTRACT(YEAR FROM payment_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+        AND MONTH(payment_date) = MONTH(CURRENT_DATE)
+        AND YEAR(payment_date) = YEAR(CURRENT_DATE)
       `);
 
       // Completed Courses This Month (for instructor payments)
-      const completedCoursesThisMonth = await pool.query(`
+      const completedCoursesThisMonth = await query(`
         SELECT COUNT(*) as completed_courses
         FROM course_requests
         WHERE status = 'completed'
-        AND EXTRACT(MONTH FROM completed_at) = EXTRACT(MONTH FROM CURRENT_DATE)
-        AND EXTRACT(YEAR FROM completed_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+        AND MONTH(completed_at) = MONTH(CURRENT_DATE)
+        AND YEAR(completed_at) = YEAR(CURRENT_DATE)
       `);
 
       const dashboardData = {
@@ -165,7 +165,7 @@ router.put(
         );
       }
 
-      const result = await pool.query(
+      const result = await query(
         `
       UPDATE course_pricing
       SET price_per_student = $1, updated_at = CURRENT_TIMESTAMP
@@ -228,7 +228,7 @@ router.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const result = await pool.query(`
+      const result = await query(`
       SELECT id, name, description, duration_minutes
       FROM class_types
       ORDER BY name
@@ -280,7 +280,7 @@ router.post(
       }
 
       // Check if pricing already exists for this combination
-      const existingResult = await pool.query(
+      const existingResult = await query(
         `
       SELECT id FROM course_pricing
       WHERE organization_id = $1 AND course_type_id = $2 AND is_active = true
@@ -291,7 +291,7 @@ router.post(
       let result;
       if (existingResult.rows.length > 0) {
         // Update existing pricing
-        result = await pool.query(
+        result = await query(
           `
         UPDATE course_pricing
         SET price_per_student = $3, effective_date = CURRENT_DATE
@@ -302,7 +302,7 @@ router.post(
         );
       } else {
         // Create new pricing
-        result = await pool.query(
+        result = await query(
           `
         INSERT INTO course_pricing (organization_id, course_type_id, price_per_student, effective_date, is_active)
         VALUES ($1, $2, $3, CURRENT_DATE, true)
@@ -335,7 +335,7 @@ router.delete(
     try {
       const { id } = req.params;
 
-      const result = await pool.query(
+      const result = await query(
         `
       DELETE FROM course_pricing
       WHERE id = $1
@@ -371,7 +371,7 @@ router.get(
   requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const result = await pool.query(`
+      const result = await query(`
       SELECT
         cr.id as course_id,
         cr.organization_id,
@@ -379,7 +379,7 @@ router.get(
         o.contact_email,
         ct.name as course_type_name,
         cr.location,
-        cr.completed_at::date as date_completed,
+        DATE(cr.completed_at) as date_completed,
         cr.registered_students,
         (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) as students_attended,
         cp.price_per_student as rate_per_student,
@@ -438,7 +438,7 @@ router.post(
         );
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -525,7 +525,7 @@ router.post(
           rate_per_student,
           approval_status
         )
-        VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7, 'pending', CURRENT_DATE + INTERVAL '30 days', FALSE, NULL, $8, $9, $10, $11, 'pending')
+        VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7, 'pending', CURRENT_DATE + INTERVAL 30 DAY, FALSE, NULL, $8, $9, $10, $11, 'pending')
         RETURNING *
       `,
           [
@@ -582,7 +582,7 @@ router.get(
     try {
       devLog('[DEBUG] Fetching invoices pending approval');
 
-      const result = await pool.query(`
+      const result = await query(`
         SELECT
           i.id,
           i.invoice_number,
@@ -651,7 +651,7 @@ router.put(
         );
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -685,12 +685,10 @@ router.put(
         let updateParams;
 
         if (approval_status === 'approved') {
-          // When approved, also post to org
+          // Approval only marks approval_status — posting to org (PDF/email) is done via /post-to-org
           updateQuery = `
             UPDATE invoices
-            SET approval_status = 'approved',
-                posted_to_org = TRUE,
-                posted_to_org_at = CURRENT_TIMESTAMP
+            SET approval_status = 'approved'
             WHERE id = $1
             RETURNING *
           `;
@@ -721,7 +719,7 @@ router.put(
         await client.query('COMMIT');
 
         const statusMessage = approval_status === 'approved'
-          ? 'Invoice approved and posted to organization.'
+          ? 'Invoice approved. Use post-to-org to send PDF/email to the organization.'
           : 'Invoice rejected.';
 
         res.json({
@@ -749,7 +747,7 @@ router.get(
   requireRole(['accountant', 'admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const result = await pool.query(
+      const result = await query(
         `SELECT
           i.*,
           o.name as organization_name,
@@ -785,7 +783,7 @@ router.put(
       const { id } = req.params;
 
       // Verify invoice exists and is rejected
-      const invoiceResult = await pool.query(
+      const invoiceResult = await query(
         'SELECT * FROM invoices WHERE id = $1',
         [id]
       );
@@ -805,7 +803,7 @@ router.put(
       }
 
       // Update invoice to pending approval
-      const result = await pool.query(
+      const result = await query(
         `UPDATE invoices
         SET approval_status = 'pending',
             rejection_reason = NULL,
@@ -839,7 +837,7 @@ router.put(
       const { id } = req.params;
       devLog(`[DEBUG] Fixing calculations for invoice ID: ${id}`);
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -941,7 +939,7 @@ router.put(
     try {
       const { id } = req.params;
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -1013,7 +1011,7 @@ router.put(
           (async () => {
             try {
               // Get attendance data for the invoice
-              const attendanceResult = await pool.query(
+              const attendanceResult = await query(
                 `
               SELECT
                 cs.first_name,
@@ -1081,7 +1079,7 @@ router.put(
               );
 
               // Log email sent
-              await pool.query(
+              await query(
                 `
               UPDATE invoices
               SET email_sent_at = CURRENT_TIMESTAMP
@@ -1141,7 +1139,7 @@ router.get(
 
       devLog(`[DEBUG] Fetching all invoices list for accounting user: ${user.username}`);
 
-      const result = await pool.query(`
+      const result = await query(`
       SELECT
         i.id as invoiceid,
         i.invoice_number as invoicenumber,
@@ -1174,9 +1172,9 @@ router.get(
         END as paymentstatus,
         CASE
           WHEN CURRENT_DATE <= i.due_date THEN 'current'
-          WHEN CURRENT_DATE <= i.due_date + INTERVAL '30 days' THEN '1-30 days'
-          WHEN CURRENT_DATE <= i.due_date + INTERVAL '60 days' THEN '31-60 days'
-          WHEN CURRENT_DATE <= i.due_date + INTERVAL '90 days' THEN '61-90 days'
+          WHEN CURRENT_DATE <= i.due_date + INTERVAL 30 DAY THEN '1-30 days'
+          WHEN CURRENT_DATE <= i.due_date + INTERVAL 60 DAY THEN '31-60 days'
+          WHEN CURRENT_DATE <= i.due_date + INTERVAL 90 DAY THEN '61-90 days'
           ELSE '90+ days'
         END as agingbucket
       FROM invoice_with_breakdown i
@@ -1227,7 +1225,7 @@ router.get(
 
       devLog(`[DEBUG] Fetching invoice details for ID: ${id}`);
 
-      const result = await pool.query(
+      const result = await query(
         `
       SELECT
         i.id,
@@ -1350,7 +1348,7 @@ router.put(
         enhancedNotes = notes ? `${notes}${userAttribution}` : `Invoice approved by accounting${userAttribution}`;
       }
 
-      const result = await pool.query(
+      const result = await query(
         `
       UPDATE invoices
       SET amount = COALESCE($1, amount),
@@ -1397,7 +1395,7 @@ router.post(
       const { id } = req.params;
 
       // Check if invoice is posted to organization first
-      const invoiceCheck = await pool.query(
+      const invoiceCheck = await query(
         `SELECT id, posted_to_org, contact_email, organization_name, invoice_number, amount, due_date
          FROM invoices i
          JOIN organizations o ON i.organization_id = o.id
@@ -1454,7 +1452,7 @@ router.post(
 
       if (emailSent) {
         // Update email sent timestamp
-        await pool.query(
+        await query(
           `UPDATE invoices
            SET email_sent_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
@@ -1495,7 +1493,7 @@ router.get(
     try {
       const { id } = req.params;
 
-      const result = await pool.query(
+      const result = await query(
         `
       SELECT
         p.id,
@@ -1553,7 +1551,7 @@ router.post(
         );
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -1637,7 +1635,7 @@ router.get(
       devLog(`[PDF] Generating PDF for invoice ${id}`);
 
       // Get invoice details
-      const result = await pool.query(
+      const result = await query(
         `
       SELECT
         i.id as invoice_id,
@@ -1688,7 +1686,7 @@ router.get(
         );
       }
 
-      const invoice = result.rows[0];
+      const invoice = result.rows[0] as any;
       devLog(`[PDF] Generating PDF for invoice ${invoice.invoice_number}`);
 
       const pdfBuffer = await PDFService.generateInvoicePDF(invoice);
@@ -1720,7 +1718,7 @@ router.get(
       const { id } = req.params;
 
       // Get invoice details
-      const result = await pool.query(
+      const result = await query(
         `
       SELECT
         i.id as invoice_id,
@@ -1770,7 +1768,7 @@ router.get(
         );
       }
 
-      const invoice = result.rows[0];
+      const invoice = result.rows[0] as any;
       const html = PDFService.getInvoicePreviewHTML(invoice);
 
       res.setHeader('Content-Type', 'text/html');
@@ -1800,38 +1798,38 @@ router.get(
       }
 
       const yearDate = `${year}-01-01`;
-      const result = await pool.query(
+      // MySQL: use WITH RECURSIVE to generate 12 months, DATE_FORMAT instead of TO_CHAR/DATE_TRUNC
+      const result = await query(
         `
-      WITH monthly_data AS (
-        SELECT
-          TO_CHAR(DATE_TRUNC('month', generate_series(
-            DATE_TRUNC('year', $1::date),
-            DATE_TRUNC('year', $1::date) + INTERVAL '11 months',
-            '1 month'
-          )), 'YYYY-MM') as month,
-          0 as default_value
+      WITH RECURSIVE monthly_data AS (
+        SELECT DATE_FORMAT($1, '%Y-%m') AS month, DATE_FORMAT($1, '%Y-01-01') AS month_start
+        UNION ALL
+        SELECT DATE_FORMAT(DATE_ADD(month_start, INTERVAL 1 MONTH), '%Y-%m'),
+               DATE_ADD(month_start, INTERVAL 1 MONTH)
+        FROM monthly_data
+        WHERE month_start < DATE_FORMAT($1, '%Y-12-01')
       ),
       invoices_by_month AS (
         SELECT
-          TO_CHAR(DATE_TRUNC('month', COALESCE(invoice_date, created_at)), 'YYYY-MM') as month,
-          COALESCE(SUM(amount), 0) as total_invoiced
+          DATE_FORMAT(COALESCE(invoice_date, created_at), '%Y-%m') AS month,
+          COALESCE(SUM(amount), 0) AS total_invoiced
         FROM invoices
-        WHERE EXTRACT(YEAR FROM COALESCE(invoice_date, created_at)) = EXTRACT(YEAR FROM $1::date)
-        GROUP BY TO_CHAR(DATE_TRUNC('month', COALESCE(invoice_date, created_at)), 'YYYY-MM')
+        WHERE YEAR(COALESCE(invoice_date, created_at)) = YEAR($1)
+        GROUP BY DATE_FORMAT(COALESCE(invoice_date, created_at), '%Y-%m')
       ),
       payments_by_month AS (
         SELECT
-          TO_CHAR(DATE_TRUNC('month', payment_date), 'YYYY-MM') as month,
-          COALESCE(SUM(amount), 0) as total_paid_in_month
+          DATE_FORMAT(payment_date, '%Y-%m') AS month,
+          COALESCE(SUM(amount), 0) AS total_paid_in_month
         FROM payments
-        WHERE EXTRACT(YEAR FROM payment_date) = EXTRACT(YEAR FROM $1::date)
-        GROUP BY TO_CHAR(DATE_TRUNC('month', payment_date), 'YYYY-MM')
+        WHERE YEAR(payment_date) = YEAR($1)
+        GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
       )
       SELECT
         md.month,
-        COALESCE(ibm.total_invoiced, 0) as total_invoiced,
-        COALESCE(pbm.total_paid_in_month, 0) as total_paid_in_month,
-        0 as balance_brought_forward -- Simplified for now
+        COALESCE(ibm.total_invoiced, 0) AS total_invoiced,
+        COALESCE(pbm.total_paid_in_month, 0) AS total_paid_in_month,
+        0 AS balance_brought_forward
       FROM monthly_data md
       LEFT JOIN invoices_by_month ibm ON md.month = ibm.month
       LEFT JOIN payments_by_month pbm ON md.month = pbm.month
@@ -1871,7 +1869,7 @@ router.get(
         params.push(parseInt(organization_id as string));
       }
 
-      const query = `
+      const agingSql = `
         WITH invoice_aging AS (
           SELECT
             i.id as invoice_id,
@@ -1885,7 +1883,7 @@ router.get(
             i.due_date,
             CASE
               WHEN i.due_date IS NULL THEN 0
-              ELSE ($1::date - i.due_date::date)
+              ELSE ($1 - DATE(i.due_date))
             END as days_overdue,
             i.status
           FROM invoices i
@@ -1917,7 +1915,7 @@ router.get(
         ORDER BY days_overdue DESC, organization_name, invoice_date
       `;
 
-      const result = await pool.query(query, params);
+      const result = await query(agingSql, params);
 
       // Calculate summary by aging bucket
       const summary = {
@@ -1929,7 +1927,7 @@ router.get(
         total: 0,
       };
 
-      result.rows.forEach((row: { aging_bucket: string; balance: string | number }) => {
+      result.rows.forEach((row: any) => {
         const balance = parseFloat(row.balance as string) || 0;
         summary[row.aging_bucket as keyof typeof summary] =
           (summary[row.aging_bucket as keyof typeof summary] || 0) + balance;
@@ -1982,7 +1980,7 @@ router.get(
             i.due_date,
             CASE
               WHEN i.due_date IS NULL THEN 0
-              ELSE GREATEST(0, ($1::date - i.due_date::date))
+              ELSE GREATEST(0, ($1 - DATE(i.due_date)))
             END as days_outstanding,
             i.status
           FROM invoices i
@@ -2005,7 +2003,7 @@ router.get(
           days_outstanding,
           status,
           CASE
-            WHEN due_date IS NULL OR due_date >= $1::date THEN 'Current'
+            WHEN due_date IS NULL OR due_date >= $1 THEN 'Current'
             WHEN days_outstanding BETWEEN 1 AND 30 THEN '1-30 Days'
             WHEN days_outstanding BETWEEN 31 AND 60 THEN '31-60 Days'
             WHEN days_outstanding BETWEEN 61 AND 90 THEN '61-90 Days'
@@ -2015,7 +2013,7 @@ router.get(
         ORDER BY days_outstanding DESC, organization_name, invoice_date
       `;
 
-      const invoiceResult = await pool.query(invoiceQuery, params);
+      const invoiceResult = await query(invoiceQuery, params);
       const invoices = invoiceResult.rows;
 
       // Calculate totals
@@ -2040,13 +2038,7 @@ router.get(
         days_90_plus: number;
       }> = {};
 
-      invoices.forEach((inv: {
-        organization_id: number;
-        organization_name: string;
-        balance_due: string | number;
-        days_outstanding: number;
-        aging_bucket: string;
-      }) => {
+      invoices.forEach((inv: any) => {
         const balance = parseFloat(inv.balance_due as string) || 0;
         const days = inv.days_outstanding || 0;
         const bucket = inv.aging_bucket;
@@ -2099,13 +2091,13 @@ router.get(
             SELECT SUM(p.amount)
             FROM payments p
             JOIN invoices i2 ON p.invoice_id = i2.id
-            WHERE i2.invoice_date >= ($1::date - INTERVAL '90 days')
+            WHERE i2.invoice_date >= ($1 - INTERVAL 90 DAY)
           ), 0) as total_collected
         FROM invoices i
-        WHERE i.invoice_date >= ($1::date - INTERVAL '90 days')
+        WHERE i.invoice_date >= ($1 - INTERVAL 90 DAY)
           AND i.posted_to_org = TRUE
       `;
-      const efficiencyResult = await pool.query(efficiencyQuery, [asOfDateStr]);
+      const efficiencyResult = await query(efficiencyQuery, [asOfDateStr]);
       const totalInvoiced = parseFloat(efficiencyResult.rows[0]?.total_invoiced) || 0;
       const totalCollected = parseFloat(efficiencyResult.rows[0]?.total_collected) || 0;
       const collectionEfficiency = totalInvoiced > 0
@@ -2142,16 +2134,7 @@ router.get(
       })).sort((a, b) => b.total_balance - a.total_balance);
 
       // Format invoice details
-      const invoiceDetails = invoices.map((inv: {
-        id: number;
-        invoice_number: string;
-        organization_name: string;
-        amount: string | number;
-        balance_due: string | number;
-        due_date: string;
-        days_outstanding: number;
-        aging_bucket: string;
-      }) => ({
+      const invoiceDetails = invoices.map((inv: any) => ({
         id: inv.id,
         invoice_number: inv.invoice_number,
         organization_name: inv.organization_name,
@@ -2163,7 +2146,7 @@ router.get(
       }));
 
       const totalInvoices = invoices.length;
-      const overdueInvoices = invoices.filter((i: { aging_bucket: string }) => i.aging_bucket !== 'Current').length;
+      const overdueInvoices = invoices.filter((i: any) => i.aging_bucket !== 'Current').length;
 
       res.json(ApiResponseBuilder.success({
         report_metadata: {
@@ -2215,11 +2198,11 @@ router.get(
           COUNT(p.id) as count
         FROM payments p
         JOIN invoices i ON p.invoice_id = i.id
-        WHERE p.payment_date >= $1::date
-          AND p.payment_date <= $2::date
+        WHERE p.payment_date >= $1
+          AND p.payment_date <= $2
           AND p.status != 'reversed'
       `;
-      const moneyInResult = await pool.query(moneyInQuery, [startDate, endDate]);
+      const moneyInResult = await query(moneyInQuery, [startDate, endDate]);
       const organizationPayments = parseFloat(moneyInResult.rows[0]?.total) || 0;
       const organizationPaymentCount = parseInt(moneyInResult.rows[0]?.count) || 0;
 
@@ -2230,10 +2213,10 @@ router.get(
           COUNT(id) as count
         FROM vendor_invoices
         WHERE status = 'paid'
-          AND paid_at >= $1::date
-          AND paid_at <= $2::date
+          AND paid_at >= $1
+          AND paid_at <= $2
       `;
-      const vendorResult = await pool.query(vendorPaymentsQuery, [startDate, endDate]);
+      const vendorResult = await query(vendorPaymentsQuery, [startDate, endDate]);
       const vendorPayments = parseFloat(vendorResult.rows[0]?.total) || 0;
       const vendorPaymentCount = parseInt(vendorResult.rows[0]?.count) || 0;
 
@@ -2244,60 +2227,60 @@ router.get(
           COUNT(id) as count
         FROM payment_requests
         WHERE status = 'paid'
-          AND paid_at >= $1::date
-          AND paid_at <= $2::date
+          AND paid_at >= $1
+          AND paid_at <= $2
       `;
       let instructorPayments = 0;
       let instructorPaymentCount = 0;
       try {
-        const instructorResult = await pool.query(instructorPaymentsQuery, [startDate, endDate]);
+        const instructorResult = await query(instructorPaymentsQuery, [startDate, endDate]);
         instructorPayments = parseFloat(instructorResult.rows[0]?.total) || 0;
         instructorPaymentCount = parseInt(instructorResult.rows[0]?.count) || 0;
       } catch (e) {
         // Table might not exist, continue with 0
       }
 
-      // Monthly breakdown for chart
+      // Monthly breakdown for chart — MySQL: WITH RECURSIVE replaces generate_series
       const monthlyQuery = `
-        WITH months AS (
-          SELECT generate_series(
-            date_trunc('month', $1::date),
-            date_trunc('month', $2::date),
-            '1 month'::interval
-          )::date as month
+        WITH RECURSIVE months AS (
+          SELECT DATE_FORMAT($1, '%Y-%m-01') AS month_start
+          UNION ALL
+          SELECT DATE_ADD(month_start, INTERVAL 1 MONTH)
+          FROM months
+          WHERE month_start < DATE_FORMAT($2, '%Y-%m-01')
         ),
         monthly_in AS (
           SELECT
-            date_trunc('month', p.payment_date)::date as month,
-            COALESCE(SUM(p.amount), 0) as total
+            DATE_FORMAT(p.payment_date, '%Y-%m-01') AS month_start,
+            COALESCE(SUM(p.amount), 0) AS total
           FROM payments p
           JOIN invoices i ON p.invoice_id = i.id
-          WHERE p.payment_date >= $1::date
-            AND p.payment_date <= $2::date
+          WHERE p.payment_date >= $1
+            AND p.payment_date <= $2
             AND p.status != 'reversed'
-          GROUP BY date_trunc('month', p.payment_date)
+          GROUP BY DATE_FORMAT(p.payment_date, '%Y-%m-01')
         ),
         monthly_vendor AS (
           SELECT
-            date_trunc('month', paid_at)::date as month,
-            COALESCE(SUM(amount), 0) as total
+            DATE_FORMAT(paid_at, '%Y-%m-01') AS month_start,
+            COALESCE(SUM(amount), 0) AS total
           FROM vendor_invoices
           WHERE status = 'paid'
-            AND paid_at >= $1::date
-            AND paid_at <= $2::date
-          GROUP BY date_trunc('month', paid_at)
+            AND paid_at >= $1
+            AND paid_at <= $2
+          GROUP BY DATE_FORMAT(paid_at, '%Y-%m-01')
         )
         SELECT
-          TO_CHAR(m.month, 'YYYY-MM') as month,
-          TO_CHAR(m.month, 'Mon YYYY') as month_label,
-          COALESCE(mi.total, 0) as money_in,
-          COALESCE(mv.total, 0) as money_out
+          DATE_FORMAT(m.month_start, '%Y-%m') AS month,
+          DATE_FORMAT(m.month_start, '%b %Y') AS month_label,
+          COALESCE(mi.total, 0) AS money_in,
+          COALESCE(mv.total, 0) AS money_out
         FROM months m
-        LEFT JOIN monthly_in mi ON m.month = mi.month
-        LEFT JOIN monthly_vendor mv ON m.month = mv.month
-        ORDER BY m.month
+        LEFT JOIN monthly_in mi ON m.month_start = mi.month_start
+        LEFT JOIN monthly_vendor mv ON m.month_start = mv.month_start
+        ORDER BY m.month_start
       `;
-      const monthlyResult = await pool.query(monthlyQuery, [startDate, endDate]);
+      const monthlyResult = await query(monthlyQuery, [startDate, endDate]);
 
       // Fetch individual Money In transactions (organization payments)
       const moneyInTransactionsQuery = `
@@ -2313,12 +2296,12 @@ router.get(
         FROM payments p
         JOIN invoices i ON p.invoice_id = i.id
         JOIN organizations o ON i.organization_id = o.id
-        WHERE p.payment_date >= $1::date
-          AND p.payment_date <= $2::date
+        WHERE p.payment_date >= $1
+          AND p.payment_date <= $2
           AND p.status != 'reversed'
         ORDER BY p.payment_date DESC
       `;
-      const moneyInTransactionsResult = await pool.query(moneyInTransactionsQuery, [startDate, endDate]);
+      const moneyInTransactionsResult = await query(moneyInTransactionsQuery, [startDate, endDate]);
 
       // Fetch individual Money Out transactions - Vendor payments
       const vendorTransactionsQuery = `
@@ -2333,11 +2316,11 @@ router.get(
         FROM vendor_invoices vi
         JOIN vendors v ON vi.vendor_id = v.id
         WHERE vi.status = 'paid'
-          AND vi.paid_at >= $1::date
-          AND vi.paid_at <= $2::date
+          AND vi.paid_at >= $1
+          AND vi.paid_at <= $2
         ORDER BY vi.paid_at DESC
       `;
-      const vendorTransactionsResult = await pool.query(vendorTransactionsQuery, [startDate, endDate]);
+      const vendorTransactionsResult = await query(vendorTransactionsQuery, [startDate, endDate]);
 
       // Fetch individual Money Out transactions - Instructor payments
       let instructorTransactions: any[] = [];
@@ -2354,11 +2337,11 @@ router.get(
           FROM payment_requests pr
           JOIN users u ON pr.instructor_id = u.id
           WHERE pr.status = 'paid'
-            AND pr.paid_at >= $1::date
-            AND pr.paid_at <= $2::date
+            AND pr.paid_at >= $1
+            AND pr.paid_at <= $2
           ORDER BY pr.paid_at DESC
         `;
-        const instructorTransactionsResult = await pool.query(instructorTransactionsQuery, [startDate, endDate]);
+        const instructorTransactionsResult = await query(instructorTransactionsQuery, [startDate, endDate]);
         instructorTransactions = instructorTransactionsResult.rows;
       } catch (e) {
         // Table might not exist, continue with empty array

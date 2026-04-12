@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { pool } from '../config/database.js';
+import { query, getClient } from '../config/database.js';
 import { AppError, errorCodes } from '../utils/errorHandler.js';
 import { logSecurityEvent, AuditEventSeverity } from './auditLogger.js';
 import jwt from 'jsonwebtoken';
@@ -77,7 +77,7 @@ export interface SessionInfo {
 // Create session table if it doesn't exist
 export async function initializeSessionTable(): Promise<void> {
   try {
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS user_sessions (
         id SERIAL PRIMARY KEY,
         session_id VARCHAR(255) UNIQUE NOT NULL,
@@ -95,16 +95,16 @@ export async function initializeSessionTable(): Promise<void> {
     `);
 
     // Create indexes for performance
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_user_sessions_session_id ON user_sessions(session_id);
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_user_sessions_is_active ON user_sessions(is_active);
     `);
 
@@ -130,7 +130,7 @@ export async function createSession(
 
   try {
     // Check concurrent session limit
-    const activeSessions = await pool.query(
+    const activeSessions = await query(
       `SELECT COUNT(*) as count FROM user_sessions 
        WHERE user_id = $1 AND is_active = TRUE AND expires_at > NOW()`,
       [userId]
@@ -139,7 +139,7 @@ export async function createSession(
     const activeCount = parseInt(activeSessions.rows[0].count);
     if (activeCount >= config.maxConcurrentSessions) {
       // Deactivate oldest sessions to make room
-      await pool.query(
+      await query(
         `UPDATE user_sessions 
          SET is_active = FALSE 
          WHERE user_id = $1 AND is_active = TRUE 
@@ -150,7 +150,7 @@ export async function createSession(
     }
 
     // Create new session
-    const result = await pool.query(
+    const result = await query(
       `INSERT INTO user_sessions 
        (session_id, user_id, role, ip_address, user_agent, expires_at, login_location)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -184,7 +184,7 @@ export async function validateSession(
   userAgent: string
 ): Promise<SessionInfo | null> {
   try {
-    const result = await pool.query(
+    const result = await query(
       `SELECT * FROM user_sessions 
        WHERE session_id = $1 AND is_active = TRUE AND expires_at > NOW()`,
       [sessionId]
@@ -217,7 +217,7 @@ export async function validateSession(
           }
         );
 
-        await pool.query(
+        await query(
           'UPDATE user_sessions SET is_active = FALSE WHERE session_id = $1',
           [sessionId]
         );
@@ -227,7 +227,7 @@ export async function validateSession(
 
     // Check idle timeout
     if (idleTime > config.idleTimeoutMinutes) {
-      await pool.query(
+      await query(
         'UPDATE user_sessions SET is_active = FALSE WHERE session_id = $1',
         [sessionId]
       );
@@ -237,7 +237,7 @@ export async function validateSession(
     // Update last activity if session is still valid
     if (config.extendOnActivity) {
       const newExpiresAt = new Date(now.getTime() + config.sessionTimeoutMinutes * 60 * 1000);
-      await pool.query(
+      await query(
         `UPDATE user_sessions 
          SET last_activity = NOW(), expires_at = $1 
          WHERE session_id = $2`,
@@ -266,7 +266,7 @@ export async function validateSession(
 // Deactivate session
 export async function deactivateSession(sessionId: string): Promise<void> {
   try {
-    await pool.query(
+    await query(
       'UPDATE user_sessions SET is_active = FALSE WHERE session_id = $1',
       [sessionId]
     );
@@ -278,7 +278,7 @@ export async function deactivateSession(sessionId: string): Promise<void> {
 // Deactivate all sessions for a user
 export async function deactivateAllUserSessions(userId: string): Promise<void> {
   try {
-    await pool.query(
+    await query(
       'UPDATE user_sessions SET is_active = FALSE WHERE user_id = $1',
       [userId]
     );
@@ -290,7 +290,7 @@ export async function deactivateAllUserSessions(userId: string): Promise<void> {
 // Clean up expired sessions
 export async function cleanupExpiredSessions(): Promise<void> {
   try {
-    const result = await pool.query(
+    const result = await query(
       'UPDATE user_sessions SET is_active = FALSE WHERE expires_at < NOW() AND is_active = TRUE'
     );
     console.log(`🧹 Cleaned up ${result.rowCount} expired sessions`);
@@ -302,7 +302,7 @@ export async function cleanupExpiredSessions(): Promise<void> {
 // Get active sessions for a user
 export async function getUserActiveSessions(userId: string): Promise<SessionInfo[]> {
   try {
-    const result = await pool.query(
+    const result = await query(
       `SELECT * FROM user_sessions 
        WHERE user_id = $1 AND is_active = TRUE AND expires_at > NOW()
        ORDER BY last_activity DESC`,

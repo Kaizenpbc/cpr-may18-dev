@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../../utils/errorHandler.js';
 import { authenticateToken } from '../../middleware/authMiddleware.js';
-import { pool } from '../../config/database.js';
+import { query, getClient } from '../../config/database.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
 import path from 'path';
 import fs from 'fs';
@@ -24,7 +24,7 @@ router.get(
         throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin, sysadmin, or courseadmin role required.');
       }
 
-      const result = await pool.query(`
+      const result = await query(`
         SELECT
           vi.*,
           v.name as vendor_name,
@@ -63,7 +63,7 @@ router.put(
         throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin, sysadmin, or courseadmin role required.');
       }
 
-      const result = await pool.query(`
+      const result = await query(`
         UPDATE vendor_invoices
         SET admin_notes = $1, updated_at = NOW()
         WHERE id = $2
@@ -118,7 +118,7 @@ router.post(
         throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Notes are required when rejecting an invoice.');
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -214,7 +214,7 @@ router.get(
         throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin, sysadmin, or courseadmin role required.');
       }
 
-      const result = await pool.query(`
+      const result = await query(`
         SELECT
           vi.*,
           v.name as vendor_name,
@@ -254,7 +254,7 @@ router.get(
         throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Admin, sysadmin, or courseadmin role required.');
       }
 
-      const result = await pool.query(
+      const result = await query(
         'SELECT * FROM vendor_invoices WHERE id = $1',
         [id]
       );
@@ -299,7 +299,7 @@ router.get(
         throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Accountant or admin role required.');
       }
 
-      const result = await pool.query(`
+      const result = await query(`
         SELECT
           vi.*,
           v.name as vendor_name,
@@ -351,7 +351,7 @@ router.get(
       }
 
       // Get invoice details
-      const invoiceResult = await pool.query(`
+      const invoiceResult = await query(`
         SELECT
           vi.*,
           v.name as vendor_name,
@@ -389,7 +389,7 @@ router.get(
       }
 
       // Get payment history
-      const paymentsResult = await pool.query(`
+      const paymentsResult = await query(`
         SELECT
           vp.*,
           u_processed.username as processed_by_name
@@ -443,7 +443,7 @@ router.post(
         throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Valid payment amount is required.');
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -564,7 +564,7 @@ router.post(
         throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Notes are required when rejecting an invoice.');
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -631,7 +631,7 @@ router.get(
         throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. Accountant or admin role required.');
       }
 
-      const result = await pool.query(`
+      const result = await query(`
         SELECT
           vp.*,
           vi.invoice_number,

@@ -1,4 +1,4 @@
-import { pool } from '../config/database.js';
+import { query as dbQuery } from '../config/database.js';
 
 interface QueryPerformance {
   query: string;
@@ -93,7 +93,7 @@ class QueryOptimizer {
       INNER JOIN instructor_availability ia ON u.id = ia.instructor_id 
       WHERE u.role = 'instructor' 
         AND u.status = 'active'
-        AND ia.date = $1::date
+        AND ia.date = $1
         AND ia.status = 'available'
       ORDER BY u.username
     `;
@@ -113,19 +113,19 @@ class QueryOptimizer {
       query = `
         SELECT 
           COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_courses,
-          COUNT(CASE WHEN status = 'completed' 
-                     AND completed_at >= date_trunc('month', CURRENT_DATE) THEN 1 END) as completed_this_month,
-          COUNT(CASE WHEN status = 'confirmed' 
+          COUNT(CASE WHEN status = 'completed'
+                     AND completed_at >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01') THEN 1 END) as completed_this_month,
+          COUNT(CASE WHEN status = 'confirmed'
                      AND confirmed_date >= CURRENT_DATE THEN 1 END) as upcoming_courses
         FROM course_requests
       `;
       params = [];
     } else {
       query = `
-        SELECT 
+        SELECT
           COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_courses,
-          COUNT(CASE WHEN status = 'completed' 
-                     AND completed_at >= date_trunc('month', CURRENT_DATE) THEN 1 END) as completed_this_month,
+          COUNT(CASE WHEN status = 'completed'
+                     AND completed_at >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01') THEN 1 END) as completed_this_month,
           COUNT(CASE WHEN status = 'confirmed' 
                      AND confirmed_date >= CURRENT_DATE THEN 1 END) as upcoming_courses
         FROM course_requests
@@ -162,9 +162,9 @@ class QueryOptimizer {
           CASE 
             WHEN i.status = 'paid' THEN 'Paid'
             WHEN CURRENT_DATE <= i.due_date THEN 'Current'
-            WHEN CURRENT_DATE <= i.due_date + INTERVAL '30 days' THEN '1-30 Days'
-            WHEN CURRENT_DATE <= i.due_date + INTERVAL '60 days' THEN '31-60 Days'
-            WHEN CURRENT_DATE <= i.due_date + INTERVAL '90 days' THEN '61-90 Days'
+            WHEN CURRENT_DATE <= i.due_date + INTERVAL 30 DAY THEN '1-30 Days'
+            WHEN CURRENT_DATE <= i.due_date + INTERVAL 60 DAY THEN '31-60 Days'
+            WHEN CURRENT_DATE <= i.due_date + INTERVAL 90 DAY THEN '61-90 Days'
             ELSE '90+ Days'
           END as aging_bucket
         FROM invoices i
@@ -207,36 +207,42 @@ class QueryOptimizer {
   async getOptimizedRevenueAnalytics(year: number) {
     const query = `
       WITH monthly_revenue AS (
-        SELECT 
-          date_trunc('month', COALESCE(invoice_date, created_at)) as month,
+        SELECT
+          DATE_FORMAT(COALESCE(invoice_date, created_at), '%Y-%m-01') as month,
           SUM(amount) as total_invoiced,
           COUNT(*) as invoice_count
         FROM invoices
-        WHERE EXTRACT(YEAR FROM COALESCE(invoice_date, created_at)) = $1
-        GROUP BY date_trunc('month', COALESCE(invoice_date, created_at))
+        WHERE YEAR(COALESCE(invoice_date, created_at)) = ?
+        GROUP BY DATE_FORMAT(COALESCE(invoice_date, created_at), '%Y-%m-01')
       ),
       monthly_payments AS (
-        SELECT 
-          date_trunc('month', payment_date) as month,
+        SELECT
+          DATE_FORMAT(payment_date, '%Y-%m-01') as month,
           SUM(amount) as total_paid,
           COUNT(*) as payment_count
         FROM payments
-        WHERE EXTRACT(YEAR FROM payment_date) = $1
+        WHERE YEAR(payment_date) = ?
           AND status = 'verified'
-        GROUP BY date_trunc('month', payment_date)
+        GROUP BY DATE_FORMAT(payment_date, '%Y-%m-01')
+      ),
+      all_months AS (
+        SELECT month FROM monthly_revenue
+        UNION
+        SELECT month FROM monthly_payments
       )
-      SELECT 
-        to_char(mr.month, 'YYYY-MM') as month,
+      SELECT
+        DATE_FORMAT(am.month, '%Y-%m') as month,
         COALESCE(mr.total_invoiced, 0) as total_invoiced,
         COALESCE(mr.invoice_count, 0) as invoice_count,
         COALESCE(mp.total_paid, 0) as total_paid,
         COALESCE(mp.payment_count, 0) as payment_count
-      FROM monthly_revenue mr
-      FULL OUTER JOIN monthly_payments mp ON mr.month = mp.month
-      ORDER BY mr.month
+      FROM all_months am
+      LEFT JOIN monthly_revenue mr ON am.month = mr.month
+      LEFT JOIN monthly_payments mp ON am.month = mp.month
+      ORDER BY am.month
     `;
 
-    return this.executeWithTiming(query, [year]);
+    return this.executeWithTiming(query, [year, year]);
   }
 
   /**
@@ -249,7 +255,7 @@ class QueryOptimizer {
     const startTime = process.hrtime.bigint();
 
     try {
-      const result = await pool.query(query, params);
+      const result = await dbQuery(query, params);
       const endTime = process.hrtime.bigint();
       const executionTime = Number(endTime - startTime) / 1000000; // Convert to milliseconds
 
@@ -269,14 +275,13 @@ class QueryOptimizer {
    */
   private async getIndexesUsed(query: string): Promise<string[]> {
     try {
-      const explainQuery = `EXPLAIN (FORMAT JSON) ${query}`;
-      const result = await pool.query(explainQuery);
-      const plan = result.rows[0]['QUERY PLAN'][0];
-
-      const indexes: string[] = [];
-      this.extractIndexesFromPlan(plan, indexes);
-
-      return [...new Set(indexes)]; // Remove duplicates
+      const explainQuery = `EXPLAIN ${query}`;
+      const result = await dbQuery(explainQuery);
+      // MySQL EXPLAIN returns rows with a 'key' column for the index used
+      const indexes = result.rows
+        .map((row: any) => row.key)
+        .filter((k: any) => k != null);
+      return [...new Set(indexes)] as string[];
     } catch (error) {
       return ['Unable to analyze'];
     }
@@ -333,22 +338,24 @@ class QueryOptimizer {
     OptimizationRecommendation[]
   > {
     const query = `
-      SELECT 
+      SELECT
         tc.table_name,
         kcu.column_name
       FROM information_schema.table_constraints tc
-      JOIN information_schema.key_column_usage kcu 
+      JOIN information_schema.key_column_usage kcu
         ON tc.constraint_name = kcu.constraint_name
+        AND tc.table_schema = kcu.table_schema
       WHERE tc.constraint_type = 'FOREIGN KEY'
-        AND tc.table_schema = 'public'
+        AND tc.table_schema = DATABASE()
         AND NOT EXISTS (
-          SELECT 1 FROM pg_indexes pi
-          WHERE pi.tablename = tc.table_name
-            AND pi.indexdef LIKE '%' || kcu.column_name || '%'
+          SELECT 1 FROM information_schema.statistics s
+          WHERE s.table_schema = DATABASE()
+            AND s.table_name = tc.table_name
+            AND s.column_name = kcu.column_name
         )
     `;
 
-    const result = await pool.query(query);
+    const result = await dbQuery(query);
 
     return result.rows.map(row => ({
       table: row.table_name,
@@ -363,18 +370,20 @@ class QueryOptimizer {
    */
   private async findUnusedIndexes(): Promise<OptimizationRecommendation[]> {
     const query = `
-      SELECT 
-        schemaname,
-        tablename,
-        indexname,
-        idx_scan
-      FROM pg_stat_user_indexes 
-      WHERE idx_scan = 0 
-        AND indexname NOT LIKE '%pkey'
-      ORDER BY pg_total_relation_size(indexrelid) DESC
+      SELECT
+        table_schema as schemaname,
+        table_name as tablename,
+        index_name as indexname,
+        0 as idx_scan
+      FROM information_schema.statistics
+      WHERE table_schema = DATABASE()
+        AND index_name NOT LIKE '%PRIMARY%'
+        AND non_unique = 1
+      GROUP BY table_schema, table_name, index_name
+      LIMIT 20
     `;
 
-    const result = await pool.query(query);
+    const result = await dbQuery(query);
 
     return result.rows.slice(0, 5).map(row => ({
       table: row.tablename,
@@ -388,21 +397,8 @@ class QueryOptimizer {
    * Find queries doing table scans on large tables
    */
   private async findTableScans(): Promise<OptimizationRecommendation[]> {
-    const query = `
-      SELECT 
-        schemaname,
-        tablename,
-        seq_scan,
-        seq_tup_read,
-        n_tup_ins + n_tup_upd + n_tup_del as modifications
-      FROM pg_stat_user_tables
-      WHERE seq_scan > 1000 
-        AND seq_tup_read > 100000
-      ORDER BY seq_tup_read DESC
-      LIMIT 5
-    `;
-
-    const result = await pool.query(query);
+    // MySQL doesn't expose seq_scan stats like PostgreSQL; return empty
+    const result = { rows: [] as any[] };
 
     return result.rows.map(row => ({
       table: row.tablename,
@@ -440,36 +436,39 @@ class QueryOptimizer {
    */
   async getDatabaseStats() {
     const tableStatsQuery = `
-      SELECT 
-        schemaname,
-        tablename,
-        n_tup_ins as inserts,
-        n_tup_upd as updates,
-        n_tup_del as deletes,
-        n_live_tup as live_tuples,
-        n_dead_tup as dead_tuples,
-        last_analyze,
-        last_autoanalyze
-      FROM pg_stat_user_tables
-      ORDER BY n_live_tup DESC
+      SELECT
+        table_schema as schemaname,
+        table_name as tablename,
+        0 as inserts,
+        0 as updates,
+        0 as deletes,
+        table_rows as live_tuples,
+        0 as dead_tuples,
+        NULL as last_analyze,
+        NULL as last_autoanalyze
+      FROM information_schema.tables
+      WHERE table_schema = DATABASE()
+      ORDER BY table_rows DESC
     `;
 
     const indexStatsQuery = `
-      SELECT 
-        schemaname,
-        tablename,
-        indexname,
-        idx_scan,
-        idx_tup_read,
-        idx_tup_fetch
-      FROM pg_stat_user_indexes
-      ORDER BY idx_scan DESC
+      SELECT
+        table_schema as schemaname,
+        table_name as tablename,
+        index_name as indexname,
+        0 as idx_scan,
+        0 as idx_tup_read,
+        0 as idx_tup_fetch
+      FROM information_schema.statistics
+      WHERE table_schema = DATABASE()
+      GROUP BY table_schema, table_name, index_name
+      ORDER BY table_name
       LIMIT 20
     `;
 
     const [tableStats, indexStats] = await Promise.all([
-      pool.query(tableStatsQuery),
-      pool.query(indexStatsQuery),
+      dbQuery(tableStatsQuery),
+      dbQuery(indexStatsQuery),
     ]);
 
     return {
@@ -483,19 +482,20 @@ class QueryOptimizer {
    * Suggest maintenance operations
    */
   async getMaintenanceRecommendations() {
+    // MySQL doesn't expose dead tuple stats; return empty (no VACUUM needed)
     const deadTuplesQuery = `
-      SELECT 
-        schemaname,
-        tablename,
-        n_dead_tup,
-        n_live_tup,
-        ROUND((n_dead_tup::float / NULLIF(n_live_tup, 0)) * 100, 2) as dead_tuple_percentage
-      FROM pg_stat_user_tables
-      WHERE n_dead_tup > 1000
-      ORDER BY dead_tuple_percentage DESC
+      SELECT
+        table_schema as schemaname,
+        table_name as tablename,
+        0 as n_dead_tup,
+        table_rows as n_live_tup,
+        0.0 as dead_tuple_percentage
+      FROM information_schema.tables
+      WHERE table_schema = DATABASE()
+        AND 1 = 0
     `;
 
-    const result = await pool.query(deadTuplesQuery);
+    const result = await dbQuery(deadTuplesQuery);
 
     const recommendations = result.rows
       .map(row => {

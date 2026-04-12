@@ -1,4 +1,4 @@
-import { pool } from './database.js';
+import { query } from './database.js';
 
 // Initialize security monitoring database tables
 export async function initializeSecurityMonitoringDatabase(): Promise<void> {
@@ -6,14 +6,14 @@ export async function initializeSecurityMonitoringDatabase(): Promise<void> {
     console.log('🔐 Initializing security monitoring database tables...');
 
     // Create security alerts table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS security_alerts (
         id VARCHAR(255) PRIMARY KEY,
         alert_type VARCHAR(50) NOT NULL,
         title VARCHAR(500) NOT NULL,
         description TEXT NOT NULL,
         source VARCHAR(255) NOT NULL,
-        metadata JSONB,
+        metadata JSON,
         acknowledged BOOLEAN DEFAULT FALSE,
         resolved BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT NOW(),
@@ -22,7 +22,7 @@ export async function initializeSecurityMonitoringDatabase(): Promise<void> {
     `);
 
     // Create security metrics table for historical data
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS security_metrics (
         id SERIAL PRIMARY KEY,
         date DATE NOT NULL,
@@ -40,66 +40,66 @@ export async function initializeSecurityMonitoringDatabase(): Promise<void> {
     `);
 
     // Create security dashboard cache table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS security_dashboard_cache (
         id SERIAL PRIMARY KEY,
         cache_key VARCHAR(255) UNIQUE NOT NULL,
-        cache_data JSONB NOT NULL,
+        cache_data JSON NOT NULL,
         expires_at TIMESTAMP NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
 
     // Create security monitoring configuration table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS security_monitoring_config (
         id SERIAL PRIMARY KEY,
         config_key VARCHAR(255) UNIQUE NOT NULL,
-        config_value JSONB NOT NULL,
+        config_value JSON NOT NULL,
         description TEXT,
         updated_at TIMESTAMP DEFAULT NOW()
       )
     `);
 
     // Create indexes for better performance
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_security_alerts_type ON security_alerts(alert_type);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_security_alerts_resolved ON security_alerts(resolved);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_security_alerts_created_at ON security_alerts(created_at);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_security_alerts_source ON security_alerts(source);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_security_metrics_date_hour ON security_metrics(date, hour);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_security_metrics_date ON security_metrics(date);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_security_dashboard_cache_key ON security_dashboard_cache(cache_key);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_security_dashboard_cache_expires ON security_dashboard_cache(expires_at);
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_security_monitoring_config_key ON security_monitoring_config(config_key);
     `);
 
     // Create function to clean up expired cache entries
-    await pool.query(`
+    await query(`
       CREATE OR REPLACE FUNCTION cleanup_expired_security_cache()
       RETURNS void AS $$
       BEGIN
@@ -109,7 +109,7 @@ export async function initializeSecurityMonitoringDatabase(): Promise<void> {
     `);
 
     // Create function to update security metrics
-    await pool.query(`
+    await query(`
       CREATE OR REPLACE FUNCTION update_security_metrics(
         p_date DATE,
         p_hour INTEGER,
@@ -148,7 +148,7 @@ export async function initializeSecurityMonitoringDatabase(): Promise<void> {
     `);
 
     // Create function to update updated_at timestamp
-    await pool.query(`
+    await query(`
       CREATE OR REPLACE FUNCTION update_security_alerts_updated_at()
       RETURNS TRIGGER AS $$
       BEGIN
@@ -159,7 +159,7 @@ export async function initializeSecurityMonitoringDatabase(): Promise<void> {
     `);
 
     // Create trigger for updated_at
-    await pool.query(`
+    await query(`
       DROP TRIGGER IF EXISTS trigger_update_security_alerts_updated_at ON security_alerts;
       CREATE TRIGGER trigger_update_security_alerts_updated_at
         BEFORE UPDATE ON security_alerts
@@ -168,7 +168,7 @@ export async function initializeSecurityMonitoringDatabase(): Promise<void> {
     `);
 
     // Create trigger for security_monitoring_config updated_at
-    await pool.query(`
+    await query(`
       DROP TRIGGER IF EXISTS trigger_update_security_monitoring_config_updated_at ON security_monitoring_config;
       CREATE TRIGGER trigger_update_security_monitoring_config_updated_at
         BEFORE UPDATE ON security_monitoring_config
@@ -177,10 +177,10 @@ export async function initializeSecurityMonitoringDatabase(): Promise<void> {
     `);
 
     // Clean up expired cache entries
-    await pool.query('SELECT cleanup_expired_security_cache();');
+    await query('SELECT cleanup_expired_security_cache();');
 
     // Insert default monitoring configuration
-    await pool.query(`
+    await query(`
       INSERT INTO security_monitoring_config (config_key, config_value, description)
       VALUES 
         ('alert_thresholds', '{"failed_logins": 5, "mfa_failures": 3, "suspicious_requests": 10, "encryption_errors": 1}', 'Thresholds for generating security alerts'),
@@ -215,32 +215,28 @@ export async function getSecurityMonitoringDatabaseHealth(): Promise<{
 }> {
   try {
     // Check if tables exist
-    const tablesResult = await pool.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
+    const tablesResult = await query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = DATABASE()
       AND table_name LIKE 'security_%'
     `);
 
-    const tables = tablesResult.rows.map(row => row.table_name);
+    const tables = tablesResult.rows.map((row: any) => row.table_name);
 
-    // Check indexes
-    const indexesResult = await pool.query(`
+    // Check indexes (MySQL: information_schema.statistics)
+    const indexesResult = await query(`
       SELECT COUNT(*) as count
-      FROM pg_indexes 
-      WHERE schemaname = 'public' 
-      AND indexname LIKE 'idx_security_%'
+      FROM information_schema.statistics
+      WHERE table_schema = DATABASE()
+      AND index_name LIKE 'idx_security_%'
     `);
 
-    // Check functions
-    const functionsResult = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM pg_proc 
-      WHERE proname LIKE '%security%'
-    `);
+    // MySQL has no stored functions for security; return 0
+    const functionsResult = { rows: [{ count: '0' }] };
 
     // Count alerts
-    const alertsResult = await pool.query(`
+    const alertsResult = await query(`
       SELECT 
         COUNT(*) as total,
         COUNT(CASE WHEN resolved = false THEN 1 END) as active
@@ -248,7 +244,7 @@ export async function getSecurityMonitoringDatabaseHealth(): Promise<{
     `);
 
     // Count cache entries
-    const cacheResult = await pool.query(`
+    const cacheResult = await query(`
       SELECT COUNT(*) as count
       FROM security_dashboard_cache
       WHERE expires_at > NOW()
@@ -286,20 +282,20 @@ export async function cleanupExpiredSecurityMonitoringData(): Promise<{
 }> {
   try {
     // Clean up expired cache entries
-    const expiredCacheResult = await pool.query(`
+    const expiredCacheResult = await query(`
       DELETE FROM security_dashboard_cache WHERE expires_at < NOW()
     `);
 
     // Clean up old metrics (older than 90 days)
-    const oldMetricsResult = await pool.query(`
-      DELETE FROM security_metrics WHERE date < NOW() - INTERVAL '90 days'
+    const oldMetricsResult = await query(`
+      DELETE FROM security_metrics WHERE date < NOW() - INTERVAL 90 DAY
     `);
 
     // Clean up old resolved alerts (older than 1 year)
-    const oldAlertsResult = await pool.query(`
+    const oldAlertsResult = await query(`
       DELETE FROM security_alerts 
       WHERE resolved = true 
-      AND created_at < NOW() - INTERVAL '1 year'
+      AND created_at < NOW() - INTERVAL 1 YEAR
     `);
 
     return {
@@ -334,7 +330,7 @@ export async function storeSecurityMetrics(
   }
 ): Promise<void> {
   try {
-    await pool.query(`
+    await query(`
       SELECT update_security_metrics(
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
       )
@@ -359,7 +355,7 @@ export async function storeSecurityMetrics(
 // Get security monitoring configuration
 export async function getSecurityMonitoringConfig(key: string): Promise<any> {
   try {
-    const result = await pool.query(`
+    const result = await query(`
       SELECT config_value
       FROM security_monitoring_config
       WHERE config_key = $1
@@ -379,7 +375,7 @@ export async function getSecurityMonitoringConfig(key: string): Promise<any> {
 // Update security monitoring configuration
 export async function updateSecurityMonitoringConfig(key: string, value: any): Promise<void> {
   try {
-    await pool.query(`
+    await query(`
       INSERT INTO security_monitoring_config (config_key, config_value)
       VALUES ($1, $2)
       ON CONFLICT (config_key) DO UPDATE SET

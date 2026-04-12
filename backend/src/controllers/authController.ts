@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { pool } from '../config/database.js';
+import { query, getClient } from '../config/database.js';
 import { devLog } from '../utils/logger.js';
 
 const router = express.Router();
@@ -47,7 +47,7 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     // Join with organizations and organization_locations tables
-    const result = await pool.query(
+    const result = await query(
               `SELECT u.*, o.name as organization_name, ol.location_name
          FROM users u
          LEFT JOIN organizations o ON u.organization_id = o.id
@@ -170,16 +170,16 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       });
     }
 
-    let query, params;
+    let userSql, params;
     if (email) {
-      query = 'SELECT * FROM users WHERE email = $1';
+      userSql = 'SELECT * FROM users WHERE email = $1';
       params = [email];
     } else {
-      query = 'SELECT * FROM users WHERE username = $1';
+      userSql = 'SELECT * FROM users WHERE username = $1';
       params = [username];
     }
 
-    const result = await pool.query(query, params);
+    const result = await query(userSql, params);
     const user = result.rows[0];
 
     if (user) {
@@ -191,7 +191,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       );
 
       // Store reset token in database
-      await pool.query(
+      await query(
         'UPDATE users SET reset_token = $1, reset_token_expires = NOW() + INTERVAL \'1 hour\' WHERE id = $2',
         [resetToken, user.id]
       );
@@ -240,7 +240,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     }
 
     // Check if token exists and is not expired
-    const result = await pool.query(
+    const result = await query(
       'SELECT * FROM users WHERE id = $1 AND reset_token = $2 AND reset_token_expires > NOW()',
       [decoded.userId, token]
     );
@@ -256,7 +256,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update password and clear reset token
-    await pool.query(
+    await query(
       'UPDATE users SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL WHERE id = $2',
       [hashedPassword, decoded.userId]
     );
@@ -292,7 +292,7 @@ router.post('/change-password', async (req: Request, res: Response) => {
     }
 
     // Get current user
-    const userResult = await pool.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+    const userResult = await query('SELECT password_hash FROM users WHERE id = $1', [userId]);
     const user = userResult.rows[0];
 
     if (!user) {
@@ -315,7 +315,7 @@ router.post('/change-password', async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update password
-    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedPassword, userId]);
+    await query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedPassword, userId]);
 
     res.json({ 
       message: 'Password changed successfully',

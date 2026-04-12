@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
-import { pool } from '../../config/database.js';
+import { query } from '../../config/database.js';
 import { asyncHandler, AppError, errorCodes } from '../../utils/errorHandler.js';
 import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { keysToCamel } from '../../utils/caseConverter.js';
@@ -10,7 +10,7 @@ const router = express.Router();
 // Get student's classes
 router.get('/classes', authenticateToken, requireRole(['student']), asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?.id;
-  const result = await pool.query(
+  const result = await query(
     `SELECT c.*, ct.name as type, ct.description,
             ct.duration_minutes
      FROM classes c
@@ -24,7 +24,7 @@ router.get('/classes', authenticateToken, requireRole(['student']), asyncHandler
 // Get student's upcoming classes
 router.get('/upcoming-classes', authenticateToken, requireRole(['student']), asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?.id;
-  const result = await pool.query(
+  const result = await query(
     `SELECT c.*, ct.name as type, ct.description,
             ct.duration_minutes
      FROM classes c
@@ -39,7 +39,7 @@ router.get('/upcoming-classes', authenticateToken, requireRole(['student']), asy
 // Get student's completed classes
 router.get('/completed-classes', authenticateToken, requireRole(['student']), asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?.id;
-  const result = await pool.query(
+  const result = await query(
     `SELECT c.*, ct.name as type, ct.description,
             ct.duration_minutes
      FROM classes c
@@ -56,7 +56,7 @@ router.get('/profile', authenticateToken, requireRole(['student']), asyncHandler
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user?.id;
-  const result = await pool.query(
+  const result = await query(
     'SELECT id, username, email, full_name, phone FROM users WHERE id = $1',
     [userId]
   );
@@ -71,7 +71,7 @@ router.put('/profile', authenticateToken, requireRole(['student']), asyncHandler
   // Accept both camelCase and snake_case for backwards compatibility
   const { username, email, full_name, fullName, phone } = req.body;
   const nameValue = fullName !== undefined ? fullName : full_name;
-  const result = await pool.query(
+  const result = await query(
     'UPDATE users SET username = $1, email = $2, full_name = $3, phone = $4 WHERE id = $5 RETURNING *',
     [username, email, nameValue, phone, userId]
   );
@@ -83,7 +83,7 @@ router.get('/enrollments', authenticateToken, requireRole(['student']), asyncHan
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user?.id;
-  const result = await pool.query(
+  const result = await query(
     'SELECT * FROM enrollments WHERE student_id = $1 ORDER BY created_at DESC',
     [userId]
   );

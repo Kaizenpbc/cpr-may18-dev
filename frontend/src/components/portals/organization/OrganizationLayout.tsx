@@ -11,16 +11,13 @@ import {
   ListItemText,
   Divider,
   IconButton,
-  Avatar,
-  Menu,
-  MenuItem,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
   Logout as LogoutIcon,
-  AccountCircle as AccountIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { NavLink } from 'react-router-dom';
 import ThemeToggle from '../../common/ThemeToggle';
@@ -50,6 +47,7 @@ export interface OrganizationLayoutProps {
   currentView?: string;
   onViewChange?: (view: string) => void;
   onLogout: () => void;
+  onRefresh?: () => void;
   navigationItems: NavigationItem[];
   drawerWidth: number;
 }
@@ -60,29 +58,16 @@ const OrganizationLayout: React.FC<OrganizationLayoutProps> = ({
   currentView,
   onViewChange,
   onLogout,
+  onRefresh,
   navigationItems,
   drawerWidth,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
-  };
-
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleLogout = () => {
-    handleMenuClose();
-    onLogout();
   };
 
   // Drawer content
@@ -145,62 +130,55 @@ const OrganizationLayout: React.FC<OrganizationLayoutProps> = ({
         sx={{
           width: { md: `calc(100% - ${drawerWidth}px)` },
           ml: { md: `${drawerWidth}px` },
+          color: 'primary.contrastText',
+          borderBottom: 1,
+          borderColor: 'divider',
+          boxShadow: 'none',
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ minHeight: { xs: '56px', sm: '64px' } }}>
+          {isMobile && (
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
+            {isMobile && currentView
+              ? (navigationItems.find(item => item.id === currentView)?.label || 'Organization Portal')
+              : 'Organization Portal'}
+          </Typography>
+
+          {!isMobile && (
+            <Typography variant="body1" sx={{ mr: 2, color: 'white', fontWeight: 500 }}>
+              Welcome, {user?.username || 'User'}
+            </Typography>
+          )}
+          <ThemeToggle size="small" />
+          <NotificationBell size="small" color="inherit" />
+          {onRefresh && (
+            <IconButton
+              color="inherit"
+              onClick={onRefresh}
+              size="small"
+              sx={{ mr: 1, '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' } }}
+            >
+              <RefreshIcon />
+            </IconButton>
+          )}
           <IconButton
             color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: 'none' } }}
+            onClick={onLogout}
+            sx={{ ml: 1, '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' } }}
+            aria-label="logout"
           >
-            <MenuIcon />
+            <LogoutIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {navigationItems.find(item => item.id === currentView)?.label || 'Organization Portal'}
-          </Typography>
-          
-          {/* Theme toggle, Notifications, and User menu */}
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <ThemeToggle size="small" />
-            <NotificationBell size="small" color="inherit" />
-            <Typography variant="body2" sx={{ mr: 1, ml: 1 }}>
-              {user?.username}
-            </Typography>
-            <IconButton
-              size="large"
-              aria-label="account of current user"
-              aria-controls="user-menu"
-              aria-haspopup="true"
-              onClick={handleMenuOpen}
-              color="inherit"
-            >
-              <AccountIcon />
-            </IconButton>
-            <Menu
-              id="user-menu"
-              anchorEl={anchorEl}
-              anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'right',
-              }}
-              keepMounted
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              open={Boolean(anchorEl)}
-              onClose={handleMenuClose}
-            >
-              <MenuItem onClick={handleLogout}>
-                <ListItemIcon>
-                  <LogoutIcon fontSize="small" />
-                </ListItemIcon>
-                Logout
-              </MenuItem>
-            </Menu>
-          </Box>
         </Toolbar>
       </AppBar>
 

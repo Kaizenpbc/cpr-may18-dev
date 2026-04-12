@@ -1,4 +1,4 @@
-import { pool } from '../config/database.js';
+import { query } from '../config/database.js';
 
 interface SystemConfig {
   id: number;
@@ -36,7 +36,7 @@ class ConfigService {
    */
   async getAllConfigurations(): Promise<Record<string, SystemConfig[]>> {
     try {
-      const result = await pool.query(`
+      const result = await query(`
         SELECT 
           id,
           config_key,
@@ -52,7 +52,7 @@ class ConfigService {
 
       // Group by category
       const grouped: Record<string, SystemConfig[]> = {};
-      result.rows.forEach((row: SystemConfig) => {
+      result.rows.forEach((row: any) => {
         if (!grouped[row.category]) {
           grouped[row.category] = [];
         }
@@ -71,7 +71,7 @@ class ConfigService {
    */
   async getConfigurationsByCategory(category: string): Promise<SystemConfig[]> {
     try {
-      const result = await pool.query(`
+      const result = await query(`
         SELECT 
           id,
           config_key,
@@ -86,7 +86,7 @@ class ConfigService {
         ORDER BY config_key
       `, [category]);
 
-      return result.rows;
+      return result.rows as any;
     } catch (error) {
       console.error(`Error getting configurations for category ${category}:`, error);
       throw error;
@@ -120,7 +120,7 @@ class ConfigService {
         return this.cache.get(key) || null;
       }
 
-      const result = await pool.query(`
+      const result = await query(`
         SELECT config_value
         FROM system_configurations
         WHERE config_key = $1
@@ -147,7 +147,7 @@ class ConfigService {
    */
   async updateConfig(key: string, update: ConfigUpdate): Promise<SystemConfig> {
     try {
-      const result = await pool.query(`
+      const result = await query(`
         UPDATE system_configurations 
         SET 
           config_value = $1,
@@ -167,7 +167,7 @@ class ConfigService {
 
       console.log(`✅ [CONFIG] Updated ${key} = ${update.config_value}`);
 
-      return result.rows[0];
+      return result.rows[0] as any;
     } catch (error) {
       console.error(`Error updating config ${key}:`, error);
       throw error;
@@ -179,7 +179,7 @@ class ConfigService {
    */
   async getCategories(): Promise<string[]> {
     try {
-      const result = await pool.query(`
+      const result = await query(`
         SELECT DISTINCT category 
         FROM system_configurations 
         ORDER BY category

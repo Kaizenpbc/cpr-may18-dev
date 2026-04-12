@@ -1,4 +1,4 @@
-import { pool } from '../config/database.js';
+import { query } from '../config/database.js';
 import bcrypt from 'bcryptjs';
 
 // Bump this string whenever you make schema changes that require re-running init-db.
@@ -10,8 +10,8 @@ export async function initializeDatabase() {
   if (!process.env.FORCE_DB_INIT) {
     try {
       // Check if schema_info table exists and version matches
-      const versionCheck = await pool.query(`
-        SELECT value FROM schema_info WHERE key = 'version' LIMIT 1
+      const versionCheck = await query(`
+        SELECT value FROM schema_info WHERE \`key\` = 'version' LIMIT 1
       `);
       if (versionCheck.rows.length > 0 && versionCheck.rows[0].value === SCHEMA_VERSION) {
         console.log(`✅ Database schema is current (v${SCHEMA_VERSION}) — skipping init`);
@@ -19,6 +19,23 @@ export async function initializeDatabase() {
       }
     } catch {
       // schema_info table doesn't exist yet — fall through to full init
+    }
+
+    // If core tables already exist (e.g. deployed via mysql-schema.sql), just stamp
+    // the current version and skip DDL to avoid syntax conflicts on existing data.
+    try {
+      const tableCheck = await query(`SHOW TABLES LIKE 'users'`);
+      if (tableCheck.rows.length > 0) {
+        await query(
+          `INSERT INTO schema_info (\`key\`, value) VALUES ('version', $1)
+           ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = CURRENT_TIMESTAMP`,
+          [SCHEMA_VERSION]
+        );
+        console.log(`✅ Tables already exist — stamped schema version ${SCHEMA_VERSION}, skipping DDL`);
+        return;
+      }
+    } catch {
+      // Can't check — fall through to full init
     }
   }
 
@@ -28,15 +45,15 @@ export async function initializeDatabase() {
     // Drop legacy views so they can be recreated with updated column definitions.
     // No CASCADE — dependent objects must be handled explicitly, not silently destroyed.
     console.log('🧹 Cleaning up legacy views...');
-    try { await pool.query(`DROP VIEW IF EXISTS course_request_details`); } catch { /* ignore if has deps */ }
-    try { await pool.query(`DROP VIEW IF EXISTS invoice_with_breakdown`); } catch { /* ignore if has deps */ }
-    try { await pool.query(`DROP VIEW IF EXISTS course_student_counts`); } catch { /* ignore if has deps */ }
+    try { await query(`DROP VIEW IF EXISTS course_request_details`); } catch { /* ignore if has deps */ }
+    try { await query(`DROP VIEW IF EXISTS invoice_with_breakdown`); } catch { /* ignore if has deps */ }
+    try { await query(`DROP VIEW IF EXISTS course_student_counts`); } catch { /* ignore if has deps */ }
     console.log('✅ Legacy views cleaned up');
 
     // Create organizations table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS organizations (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL UNIQUE,
         contact_name VARCHAR(255),
         contact_email VARCHAR(255),
@@ -58,64 +75,37 @@ export async function initializeDatabase() {
     `);
 
     // Add missing columns to organizations table (migration for existing tables)
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'organizations' AND column_name = 'contact_name') THEN
-          ALTER TABLE organizations ADD COLUMN contact_name VARCHAR(255);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'organizations' AND column_name = 'contact_position') THEN
-          ALTER TABLE organizations ADD COLUMN contact_position VARCHAR(100);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'organizations' AND column_name = 'address_street') THEN
-          ALTER TABLE organizations ADD COLUMN address_street VARCHAR(255);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'organizations' AND column_name = 'address_city') THEN
-          ALTER TABLE organizations ADD COLUMN address_city VARCHAR(100);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'organizations' AND column_name = 'address_province') THEN
-          ALTER TABLE organizations ADD COLUMN address_province VARCHAR(100);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'organizations' AND column_name = 'address_postal_code') THEN
-          ALTER TABLE organizations ADD COLUMN address_postal_code VARCHAR(20);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'organizations' AND column_name = 'country') THEN
-          ALTER TABLE organizations ADD COLUMN country VARCHAR(100) DEFAULT 'Canada';
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'organizations' AND column_name = 'ceo_name') THEN
-          ALTER TABLE organizations ADD COLUMN ceo_name VARCHAR(255);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'organizations' AND column_name = 'ceo_email') THEN
-          ALTER TABLE organizations ADD COLUMN ceo_email VARCHAR(255);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'organizations' AND column_name = 'ceo_phone') THEN
-          ALTER TABLE organizations ADD COLUMN ceo_phone VARCHAR(50);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'organizations' AND column_name = 'organization_comments') THEN
-          ALTER TABLE organizations ADD COLUMN organization_comments TEXT;
-        END IF;
-      END $$;
-    `);
+    await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS contact_name VARCHAR(255)`);
+    await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS contact_position VARCHAR(100)`);
+    await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS address_street VARCHAR(255)`);
+    await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS address_city VARCHAR(100)`);
+    await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS address_province VARCHAR(100)`);
+    await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS address_postal_code VARCHAR(20)`);
+    await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'Canada'`);
+    await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS ceo_name VARCHAR(255)`);
+    await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS ceo_email VARCHAR(255)`);
+    await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS ceo_phone VARCHAR(50)`);
+    await query(`ALTER TABLE organizations ADD COLUMN IF NOT EXISTS organization_comments TEXT`);
 
     // Create vendors table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS vendors (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         contact_email VARCHAR(255),
         contact_phone VARCHAR(20),
         address TEXT,
         vendor_type VARCHAR(100),
-        is_active BOOLEAN DEFAULT true,
+        is_active TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Create users table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(255) NOT NULL UNIQUE,
         email VARCHAR(255) NOT NULL UNIQUE,
         password_hash VARCHAR(255) NOT NULL,
@@ -137,86 +127,52 @@ export async function initializeDatabase() {
     `);
 
     // Add missing columns to users table
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'phone') THEN
-          ALTER TABLE users ADD COLUMN phone VARCHAR(20);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'mobile') THEN
-          ALTER TABLE users ADD COLUMN mobile VARCHAR(20);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'full_name') THEN
-          ALTER TABLE users ADD COLUMN full_name VARCHAR(255);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'first_name') THEN
-          ALTER TABLE users ADD COLUMN first_name VARCHAR(100);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'last_name') THEN
-          ALTER TABLE users ADD COLUMN last_name VARCHAR(100);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'date_onboarded') THEN
-          ALTER TABLE users ADD COLUMN date_onboarded DATE;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'date_offboarded') THEN
-          ALTER TABLE users ADD COLUMN date_offboarded DATE;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'user_comments') THEN
-          ALTER TABLE users ADD COLUMN user_comments TEXT;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'status') THEN
-          ALTER TABLE users ADD COLUMN status VARCHAR(20) DEFAULT 'active';
-        END IF;
-      END $$;
-    `);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS mobile VARCHAR(20)`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255)`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(100)`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS date_onboarded DATE`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS date_offboarded DATE`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS user_comments TEXT`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`);
 
     // Create class_types table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS class_types (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL UNIQUE,
         description TEXT,
         duration_minutes INTEGER NOT NULL,
         course_code VARCHAR(50),
         max_students INTEGER,
-        is_active BOOLEAN DEFAULT true,
+        is_active TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Add missing columns to class_types if they don't exist
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'class_types' AND column_name = 'course_code') THEN
-          ALTER TABLE class_types ADD COLUMN course_code VARCHAR(50);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'class_types' AND column_name = 'is_active') THEN
-          ALTER TABLE class_types ADD COLUMN is_active BOOLEAN DEFAULT true;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'class_types' AND column_name = 'max_students') THEN
-          ALTER TABLE class_types ADD COLUMN max_students INTEGER;
-        END IF;
-      END $$;
-    `);
+    await query(`ALTER TABLE class_types ADD COLUMN IF NOT EXISTS course_code VARCHAR(50)`);
+    await query(`ALTER TABLE class_types ADD COLUMN IF NOT EXISTS is_active TINYINT(1) DEFAULT 1`);
+    await query(`ALTER TABLE class_types ADD COLUMN IF NOT EXISTS max_students INTEGER`);
 
     // Create sessions table for session management
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS sessions (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         session_id VARCHAR(255) UNIQUE NOT NULL,
         user_id INTEGER REFERENCES users(id),
-        data JSONB,
+        data JSON,
         expires_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Create other essential tables
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS instructor_availability (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         instructor_id INTEGER NOT NULL REFERENCES users(id),
         date DATE NOT NULL,
         status VARCHAR(50) NOT NULL DEFAULT 'available',
@@ -226,9 +182,9 @@ export async function initializeDatabase() {
       )
     `);
 
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS course_requests (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         organization_id INTEGER NOT NULL REFERENCES organizations(id),
         course_type_id INTEGER NOT NULL REFERENCES class_types(id),
         date_requested DATE NOT NULL,
@@ -242,15 +198,15 @@ export async function initializeDatabase() {
         confirmed_start_time TIME,
         confirmed_end_time TIME,
         completed_at TIMESTAMP,
-        ready_for_billing BOOLEAN DEFAULT false,
+        ready_for_billing TINYINT(1) DEFAULT 0,
         ready_for_billing_at TIMESTAMP,
-        invoiced BOOLEAN DEFAULT false,
+        invoiced TINYINT(1) DEFAULT 0,
         invoiced_at TIMESTAMP,
         last_reminder_at TIMESTAMP,
-        is_cancelled BOOLEAN DEFAULT false,
+        is_cancelled TINYINT(1) DEFAULT 0,
         cancelled_at TIMESTAMP,
         cancellation_reason TEXT,
-        archived BOOLEAN DEFAULT false,
+        archived TINYINT(1) DEFAULT 0,
         archived_at TIMESTAMP,
         instructor_comments TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -264,22 +220,22 @@ export async function initializeDatabase() {
       { name: 'confirmed_start_time', type: 'TIME' },
       { name: 'confirmed_end_time', type: 'TIME' },
       { name: 'completed_at', type: 'TIMESTAMP' },
-      { name: 'ready_for_billing', type: 'BOOLEAN DEFAULT false' },
+      { name: 'ready_for_billing', type: 'TINYINT(1) DEFAULT 0' },
       { name: 'ready_for_billing_at', type: 'TIMESTAMP' },
-      { name: 'invoiced', type: 'BOOLEAN DEFAULT false' },
+      { name: 'invoiced', type: 'TINYINT(1) DEFAULT 0' },
       { name: 'invoiced_at', type: 'TIMESTAMP' },
       { name: 'last_reminder_at', type: 'TIMESTAMP' },
-      { name: 'is_cancelled', type: 'BOOLEAN DEFAULT false' },
+      { name: 'is_cancelled', type: 'TINYINT(1) DEFAULT 0' },
       { name: 'cancelled_at', type: 'TIMESTAMP' },
       { name: 'cancellation_reason', type: 'TEXT' },
-      { name: 'archived', type: 'BOOLEAN DEFAULT false' },
+      { name: 'archived', type: 'TINYINT(1) DEFAULT 0' },
       { name: 'archived_at', type: 'TIMESTAMP' },
       { name: 'instructor_comments', type: 'TEXT' }
     ];
 
     for (const col of columnsToAdd) {
       try {
-        await pool.query(`ALTER TABLE course_requests ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`);
+        await query(`ALTER TABLE course_requests ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`);
       } catch (e: any) {
         // Column might already exist, ignore error
         if (!e.message.includes('already exists')) {
@@ -289,50 +245,41 @@ export async function initializeDatabase() {
     }
 
     // Create course_students table (for tracking students in course requests)
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS course_students (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         course_request_id INTEGER NOT NULL REFERENCES course_requests(id),
         first_name VARCHAR(255) NOT NULL,
         last_name VARCHAR(255) NOT NULL,
         email VARCHAR(255),
         phone VARCHAR(50),
         college VARCHAR(255),
-        attendance_marked BOOLEAN DEFAULT false,
-        attended BOOLEAN DEFAULT false,
+        attendance_marked TINYINT(1) DEFAULT 0,
+        attended TINYINT(1) DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Add phone and college columns if they don't exist (migration for existing tables)
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'course_students' AND column_name = 'phone') THEN
-          ALTER TABLE course_students ADD COLUMN phone VARCHAR(50);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'course_students' AND column_name = 'college') THEN
-          ALTER TABLE course_students ADD COLUMN college VARCHAR(255);
-        END IF;
-      END $$;
-    `);
+    await query(`ALTER TABLE course_students ADD COLUMN IF NOT EXISTS phone VARCHAR(50)`);
+    await query(`ALTER TABLE course_students ADD COLUMN IF NOT EXISTS college VARCHAR(255)`);
 
     // Create colleges table (for external institutions)
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS colleges (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL UNIQUE,
-        is_active BOOLEAN DEFAULT true,
+        is_active TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Create classes table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS classes (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         class_type_id INTEGER REFERENCES class_types(id),
         instructor_id INTEGER REFERENCES users(id),
         organization_id INTEGER REFERENCES organizations(id),
@@ -347,9 +294,9 @@ export async function initializeDatabase() {
     `);
 
     // Create class_students table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS class_students (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         class_id INTEGER REFERENCES classes(id),
         student_id INTEGER REFERENCES users(id),
         attendance VARCHAR(50) DEFAULT 'registered',
@@ -360,9 +307,9 @@ export async function initializeDatabase() {
     `);
 
     // Create certifications table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS certifications (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         user_id INTEGER NOT NULL,
         course_id INTEGER NOT NULL,
         course_name VARCHAR(255) NOT NULL,
@@ -376,9 +323,9 @@ export async function initializeDatabase() {
       )
     `);
 
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS invoices (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         invoice_number VARCHAR(50) NOT NULL UNIQUE,
         organization_id INTEGER NOT NULL REFERENCES organizations(id),
         course_request_id INTEGER REFERENCES course_requests(id),
@@ -395,7 +342,7 @@ export async function initializeDatabase() {
         rate_per_student DECIMAL(10,2),
         notes TEXT,
         email_sent_at TIMESTAMP,
-        posted_to_org BOOLEAN DEFAULT false,
+        posted_to_org TINYINT(1) DEFAULT 0,
         posted_to_org_at TIMESTAMP,
         paid_date DATE,
         approved_by INTEGER REFERENCES users(id),
@@ -407,68 +354,31 @@ export async function initializeDatabase() {
     `);
 
     // Add columns to invoices table if they don't exist (migration for existing tables)
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'posted_to_org') THEN
-          ALTER TABLE invoices ADD COLUMN posted_to_org BOOLEAN DEFAULT false;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'posted_to_org_at') THEN
-          ALTER TABLE invoices ADD COLUMN posted_to_org_at TIMESTAMP;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'paid_date') THEN
-          ALTER TABLE invoices ADD COLUMN paid_date DATE;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'base_cost') THEN
-          ALTER TABLE invoices ADD COLUMN base_cost DECIMAL(10,2);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'tax_amount') THEN
-          ALTER TABLE invoices ADD COLUMN tax_amount DECIMAL(10,2);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'approved_by') THEN
-          ALTER TABLE invoices ADD COLUMN approved_by INTEGER REFERENCES users(id);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'approved_at') THEN
-          ALTER TABLE invoices ADD COLUMN approved_at TIMESTAMP;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'students_billed') THEN
-          ALTER TABLE invoices ADD COLUMN students_billed INTEGER;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'rate_per_student') THEN
-          ALTER TABLE invoices ADD COLUMN rate_per_student DECIMAL(10,2);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'course_type_name') THEN
-          ALTER TABLE invoices ADD COLUMN course_type_name VARCHAR(255);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'location') THEN
-          ALTER TABLE invoices ADD COLUMN location VARCHAR(255);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'date_completed') THEN
-          ALTER TABLE invoices ADD COLUMN date_completed DATE;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'notes') THEN
-          ALTER TABLE invoices ADD COLUMN notes TEXT;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'email_sent_at') THEN
-          ALTER TABLE invoices ADD COLUMN email_sent_at TIMESTAMP;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'deleted_at') THEN
-          ALTER TABLE invoices ADD COLUMN deleted_at TIMESTAMP;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'approval_status') THEN
-          ALTER TABLE invoices ADD COLUMN approval_status VARCHAR(20) DEFAULT 'pending';
-        END IF;
-      END $$;
-    `);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS posted_to_org TINYINT(1) DEFAULT 0`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS posted_to_org_at TIMESTAMP NULL`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS paid_date DATE`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS base_cost DECIMAL(10,2)`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(10,2)`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS approved_by INTEGER`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP NULL`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS students_billed INTEGER`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS rate_per_student DECIMAL(10,2)`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS course_type_name VARCHAR(255)`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS location VARCHAR(255)`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS date_completed DATE`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS notes TEXT`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMP NULL`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS approval_status VARCHAR(20) DEFAULT 'pending'`);
 
     // Migrate existing invoices: set approval_status based on posted_to_org
-    await pool.query(`
+    await query(`
       UPDATE invoices
       SET approval_status = 'approved'
       WHERE posted_to_org = TRUE
         AND (approval_status IS NULL OR approval_status = '');
     `);
-    await pool.query(`
+    await query(`
       UPDATE invoices
       SET approval_status = 'pending'
       WHERE posted_to_org = FALSE
@@ -476,9 +386,9 @@ export async function initializeDatabase() {
     `);
 
     // Create payments table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS payments (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         invoice_id INTEGER NOT NULL REFERENCES invoices(id),
         amount DECIMAL(10,2) NOT NULL,
         payment_date DATE NOT NULL,
@@ -497,30 +407,19 @@ export async function initializeDatabase() {
     `);
 
     // Add columns to payments table if they don't exist (migration for existing tables)
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'reversed_at') THEN
-          ALTER TABLE payments ADD COLUMN reversed_at TIMESTAMP;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'reversed_by') THEN
-          ALTER TABLE payments ADD COLUMN reversed_by INTEGER REFERENCES users(id);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'reversal_reason') THEN
-          ALTER TABLE payments ADD COLUMN reversal_reason TEXT;
-        END IF;
-      END $$;
-    `);
+    await query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS reversed_at TIMESTAMP NULL`);
+    await query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS reversed_by INTEGER`);
+    await query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS reversal_reason TEXT`);
 
     // Create course_pricing table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS course_pricing (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         organization_id INTEGER NOT NULL REFERENCES organizations(id),
         course_type_id INTEGER NOT NULL REFERENCES class_types(id),
         price_per_student DECIMAL(10,2) NOT NULL,
         effective_date DATE NOT NULL,
-        is_active BOOLEAN DEFAULT true,
+        is_active TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(organization_id, course_type_id, is_active)
@@ -528,17 +427,17 @@ export async function initializeDatabase() {
     `);
 
     // Create email_templates table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS email_templates (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL UNIQUE,
-        key VARCHAR(50) NOT NULL UNIQUE,
+        \`key\` VARCHAR(50) NOT NULL UNIQUE,
         category VARCHAR(50) NOT NULL,
         sub_category VARCHAR(50),
         subject TEXT NOT NULL,
         body TEXT NOT NULL,
-        is_active BOOLEAN DEFAULT true,
-        is_system BOOLEAN DEFAULT false,
+        is_active TINYINT(1) DEFAULT 1,
+        is_system TINYINT(1) DEFAULT 0,
         created_by INTEGER REFERENCES users(id),
         last_modified_by INTEGER REFERENCES users(id),
         deleted_at TIMESTAMP,
@@ -549,7 +448,7 @@ export async function initializeDatabase() {
 
     // Add sub_category column if it doesn't exist (for existing databases)
     try {
-      await pool.query(`ALTER TABLE email_templates ADD COLUMN IF NOT EXISTS sub_category VARCHAR(50)`);
+      await query(`ALTER TABLE email_templates ADD COLUMN IF NOT EXISTS sub_category VARCHAR(50)`);
     } catch (e: any) {
       if (!e.message.includes('already exists')) {
         console.log(`Note: Could not add sub_category column: ${e.message}`);
@@ -557,47 +456,47 @@ export async function initializeDatabase() {
     }
 
     // Create notifications table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS notifications (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         title VARCHAR(255) NOT NULL,
         message TEXT NOT NULL,
         type VARCHAR(20) NOT NULL DEFAULT 'info',
         category VARCHAR(50) NOT NULL DEFAULT 'system',
         link VARCHAR(500),
-        is_read BOOLEAN DEFAULT false,
+        is_read TINYINT(1) DEFAULT 0,
         read_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Create index for faster notification queries
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)
     `);
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read) WHERE is_read = false
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read)
     `);
 
     // Create notification_settings table for user preferences
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS notification_settings (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
-        course_notifications BOOLEAN DEFAULT true,
-        billing_notifications BOOLEAN DEFAULT true,
-        reminder_notifications BOOLEAN DEFAULT true,
-        system_notifications BOOLEAN DEFAULT true,
+        course_notifications TINYINT(1) DEFAULT 1,
+        billing_notifications TINYINT(1) DEFAULT 1,
+        reminder_notifications TINYINT(1) DEFAULT 1,
+        system_notifications TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Create system_configurations table for sysadmin settings
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS system_configurations (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         config_key VARCHAR(100) NOT NULL UNIQUE,
         config_value TEXT NOT NULL,
         description TEXT,
@@ -609,9 +508,9 @@ export async function initializeDatabase() {
     `);
 
     // Create profile_changes table for HR workflow
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS profile_changes (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         change_type VARCHAR(50) NOT NULL,
         field_name VARCHAR(100) NOT NULL,
@@ -625,17 +524,17 @@ export async function initializeDatabase() {
     `);
 
     // Create index for profile_changes
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_profile_changes_status ON profile_changes(status)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_profile_changes_user_id ON profile_changes(user_id)
     `);
 
     // Create instructor_certifications table for tracking instructor credentials
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS instructor_certifications (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         certification_type VARCHAR(100) NOT NULL,
         certification_number VARCHAR(100),
@@ -650,17 +549,17 @@ export async function initializeDatabase() {
     `);
 
     // Create index for instructor_certifications
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_instructor_certifications_instructor ON instructor_certifications(instructor_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_instructor_certifications_expiration ON instructor_certifications(expiration_date)
     `);
 
     // Create vendor_invoices table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS vendor_invoices (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         vendor_id INTEGER NOT NULL REFERENCES vendors(id),
         invoice_number VARCHAR(255) NOT NULL,
         amount DECIMAL(10,2) NOT NULL,
@@ -688,45 +587,26 @@ export async function initializeDatabase() {
     `);
 
     // Add columns to vendor_invoices if they don't exist (migration for existing tables)
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'approved_by') THEN
-          ALTER TABLE vendor_invoices ADD COLUMN approved_by INTEGER REFERENCES users(id);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'approved_at') THEN
-          ALTER TABLE vendor_invoices ADD COLUMN approved_at TIMESTAMP;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'rejection_reason') THEN
-          ALTER TABLE vendor_invoices ADD COLUMN rejection_reason TEXT;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'rate') THEN
-          ALTER TABLE vendor_invoices ADD COLUMN rate DECIMAL(10,2);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'hst') THEN
-          ALTER TABLE vendor_invoices ADD COLUMN hst DECIMAL(10,2);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'total') THEN
-          ALTER TABLE vendor_invoices ADD COLUMN total DECIMAL(10,2);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendor_invoices' AND column_name = 'admin_notes') THEN
-          ALTER TABLE vendor_invoices ADD COLUMN admin_notes TEXT;
-        END IF;
-      END $$;
-    `);
+    await query(`ALTER TABLE vendor_invoices ADD COLUMN IF NOT EXISTS approved_by INTEGER`);
+    await query(`ALTER TABLE vendor_invoices ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP NULL`);
+    await query(`ALTER TABLE vendor_invoices ADD COLUMN IF NOT EXISTS rejection_reason TEXT`);
+    await query(`ALTER TABLE vendor_invoices ADD COLUMN IF NOT EXISTS rate DECIMAL(10,2)`);
+    await query(`ALTER TABLE vendor_invoices ADD COLUMN IF NOT EXISTS hst DECIMAL(10,2)`);
+    await query(`ALTER TABLE vendor_invoices ADD COLUMN IF NOT EXISTS total DECIMAL(10,2)`);
+    await query(`ALTER TABLE vendor_invoices ADD COLUMN IF NOT EXISTS admin_notes TEXT`);
 
     // Create indexes for vendor_invoices
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_vendor_invoices_vendor_id ON vendor_invoices(vendor_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_vendor_invoices_status ON vendor_invoices(status)
     `);
 
     // Create vendor_payments table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS vendor_payments (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         vendor_invoice_id INTEGER NOT NULL REFERENCES vendor_invoices(id) ON DELETE CASCADE,
         amount DECIMAL(10,2) NOT NULL,
         payment_date DATE NOT NULL,
@@ -742,10 +622,10 @@ export async function initializeDatabase() {
     `);
 
     // Create indexes for vendor_payments
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_vendor_payments_invoice ON vendor_payments(vendor_invoice_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_vendor_payments_status ON vendor_payments(status)
     `);
 
@@ -754,29 +634,29 @@ export async function initializeDatabase() {
     // ============================================
 
     // Create pay_rate_tiers table for instructor pay tiers
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS pay_rate_tiers (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
         description TEXT,
         base_hourly_rate DECIMAL(10,2) NOT NULL,
         course_bonus DECIMAL(10,2) DEFAULT 0,
-        is_active BOOLEAN DEFAULT true,
+        is_active TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Create instructor_pay_rates table for individual instructor rates
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS instructor_pay_rates (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         tier_id INTEGER REFERENCES pay_rate_tiers(id),
         hourly_rate DECIMAL(10,2) NOT NULL,
         course_bonus DECIMAL(10,2) DEFAULT 0,
         effective_date DATE DEFAULT CURRENT_DATE,
-        is_active BOOLEAN DEFAULT true,
+        is_active TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(instructor_id, is_active)
@@ -784,14 +664,14 @@ export async function initializeDatabase() {
     `);
 
     // Create index for instructor_pay_rates
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_instructor_pay_rates_instructor ON instructor_pay_rates(instructor_id)
     `);
 
     // Create pay_rate_history table for tracking rate changes
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS pay_rate_history (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         old_hourly_rate DECIMAL(10,2),
         new_hourly_rate DECIMAL(10,2) NOT NULL,
@@ -806,14 +686,14 @@ export async function initializeDatabase() {
     `);
 
     // Create index for pay_rate_history
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_pay_rate_history_instructor ON pay_rate_history(instructor_id)
     `);
 
     // Create timesheets table for instructor time tracking
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS timesheets (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         week_start_date DATE NOT NULL,
         week_end_date DATE,
@@ -832,20 +712,20 @@ export async function initializeDatabase() {
     `);
 
     // Create indexes for timesheets
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_timesheets_instructor ON timesheets(instructor_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_timesheets_status ON timesheets(status)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_timesheets_week ON timesheets(week_start_date)
     `);
 
     // Create timesheet_notes table for comments/notes on timesheets
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS timesheet_notes (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         timesheet_id INTEGER NOT NULL REFERENCES timesheets(id) ON DELETE CASCADE,
         user_id INTEGER NOT NULL REFERENCES users(id),
         user_role VARCHAR(50),
@@ -856,14 +736,14 @@ export async function initializeDatabase() {
     `);
 
     // Create index for timesheet_notes
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_timesheet_notes_timesheet ON timesheet_notes(timesheet_id)
     `);
 
     // Create payment_requests table for instructor payment requests
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS payment_requests (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         timesheet_id INTEGER REFERENCES timesheets(id),
         amount DECIMAL(10,2) NOT NULL,
@@ -882,20 +762,20 @@ export async function initializeDatabase() {
     `);
 
     // Create indexes for payment_requests
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_payment_requests_instructor ON payment_requests(instructor_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_payment_requests_status ON payment_requests(status)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_payment_requests_timesheet ON payment_requests(timesheet_id)
     `);
 
     // Create payroll_payments table for actual payments made
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS payroll_payments (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         payment_request_id INTEGER REFERENCES payment_requests(id),
         amount DECIMAL(10,2) NOT NULL,
@@ -912,24 +792,24 @@ export async function initializeDatabase() {
     `);
 
     // Create indexes for payroll_payments
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_payroll_payments_instructor ON payroll_payments(instructor_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_payroll_payments_status ON payroll_payments(status)
     `);
 
     // Create enrollments table for student class enrollments
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS enrollments (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         student_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
         course_request_id INTEGER REFERENCES course_requests(id) ON DELETE CASCADE,
         enrollment_date DATE DEFAULT CURRENT_DATE,
         status VARCHAR(20) DEFAULT 'enrolled' CHECK (status IN ('enrolled', 'completed', 'cancelled', 'no_show')),
         completion_date DATE,
-        certificate_issued BOOLEAN DEFAULT false,
+        certificate_issued TINYINT(1) DEFAULT 0,
         certificate_number VARCHAR(100),
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -938,93 +818,93 @@ export async function initializeDatabase() {
     `);
 
     // Create indexes for enrollments
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_enrollments_class ON enrollments(class_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_enrollments_course_request ON enrollments(course_request_id)
     `);
 
     // Create indexes for improved query performance on frequently queried columns
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_course_requests_instructor_id ON course_requests(instructor_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_course_requests_organization_id ON course_requests(organization_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_course_requests_status ON course_requests(status)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_course_students_course_request_id ON course_students(course_request_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_course_students_attended ON course_students(course_request_id, attended)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_classes_instructor_id ON classes(instructor_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_classes_organization_id ON classes(organization_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_invoices_organization_id ON invoices(organization_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_payments_invoice_id ON payments(invoice_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_users_organization_id ON users(organization_id)
     `);
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)
     `);
 
     // ============================================
     // HOLIDAYS TABLE
     // ============================================
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS holidays (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         date DATE NOT NULL,
         description TEXT,
-        is_recurring BOOLEAN DEFAULT false,
+        is_recurring TINYINT(1) DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(name, date)
       )
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date)
     `);
 
     // ============================================
     // PAY RATES TABLE (legacy compatibility)
     // ============================================
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS pay_rates (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         course_type_id INTEGER REFERENCES class_types(id),
         rate_per_hour DECIMAL(10,2),
         rate_per_class DECIMAL(10,2),
         effective_date DATE DEFAULT CURRENT_DATE,
         end_date DATE,
-        is_active BOOLEAN DEFAULT true,
+        is_active TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    await pool.query(`
+    await query(`
       CREATE INDEX IF NOT EXISTS idx_pay_rates_instructor ON pay_rates(instructor_id)
     `);
 
@@ -1033,120 +913,40 @@ export async function initializeDatabase() {
     // ============================================
 
     // Add missing columns to users table (MFA, security, etc.)
-    await pool.query(`
-      DO $$
-      BEGIN
-        -- MFA columns
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'mfa_enabled') THEN
-          ALTER TABLE users ADD COLUMN mfa_enabled BOOLEAN DEFAULT false;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'mfa_secret') THEN
-          ALTER TABLE users ADD COLUMN mfa_secret VARCHAR(255);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'mfa_backup_codes') THEN
-          ALTER TABLE users ADD COLUMN mfa_backup_codes TEXT[];
-        END IF;
-        -- Security columns
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'failed_login_attempts') THEN
-          ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'locked_until') THEN
-          ALTER TABLE users ADD COLUMN locked_until TIMESTAMP;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'password_changed_at') THEN
-          ALTER TABLE users ADD COLUMN password_changed_at TIMESTAMP;
-        END IF;
-        -- Contact/profile columns
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'address') THEN
-          ALTER TABLE users ADD COLUMN address TEXT;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'emergency_contact_name') THEN
-          ALTER TABLE users ADD COLUMN emergency_contact_name VARCHAR(255);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'emergency_contact_phone') THEN
-          ALTER TABLE users ADD COLUMN emergency_contact_phone VARCHAR(50);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'certifications') THEN
-          ALTER TABLE users ADD COLUMN certifications TEXT;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'pay_rate') THEN
-          ALTER TABLE users ADD COLUMN pay_rate DECIMAL(10,2);
-        END IF;
-      END $$;
-    `);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_enabled TINYINT(1) DEFAULT 0`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_secret VARCHAR(255)`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_backup_codes JSON`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP NULL`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP NULL`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS emergency_contact_name VARCHAR(255)`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS emergency_contact_phone VARCHAR(50)`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS certifications TEXT`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pay_rate DECIMAL(10,2)`);
 
     // Add missing columns to instructor_availability table
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'instructor_availability' AND column_name = 'available_date') THEN
-          ALTER TABLE instructor_availability ADD COLUMN available_date DATE;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'instructor_availability' AND column_name = 'start_time') THEN
-          ALTER TABLE instructor_availability ADD COLUMN start_time TIME;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'instructor_availability' AND column_name = 'end_time') THEN
-          ALTER TABLE instructor_availability ADD COLUMN end_time TIME;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'instructor_availability' AND column_name = 'is_available') THEN
-          ALTER TABLE instructor_availability ADD COLUMN is_available BOOLEAN DEFAULT true;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'instructor_availability' AND column_name = 'notes') THEN
-          ALTER TABLE instructor_availability ADD COLUMN notes TEXT;
-        END IF;
-      END $$;
-    `);
+    await query(`ALTER TABLE instructor_availability ADD COLUMN IF NOT EXISTS available_date DATE`);
+    await query(`ALTER TABLE instructor_availability ADD COLUMN IF NOT EXISTS start_time TIME`);
+    await query(`ALTER TABLE instructor_availability ADD COLUMN IF NOT EXISTS end_time TIME`);
+    await query(`ALTER TABLE instructor_availability ADD COLUMN IF NOT EXISTS is_available TINYINT(1) DEFAULT 1`);
+    await query(`ALTER TABLE instructor_availability ADD COLUMN IF NOT EXISTS notes TEXT`);
 
     // Add missing columns to email_templates table
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'email_templates' AND column_name = 'template_type') THEN
-          ALTER TABLE email_templates ADD COLUMN template_type VARCHAR(50);
-        END IF;
-      END $$;
-    `);
+    await query(`ALTER TABLE email_templates ADD COLUMN IF NOT EXISTS template_type VARCHAR(50)`);
 
     // Add missing columns to vendors table
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'user_id') THEN
-          ALTER TABLE vendors ADD COLUMN user_id INTEGER REFERENCES users(id);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'company_name') THEN
-          ALTER TABLE vendors ADD COLUMN company_name VARCHAR(255);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'contact_name') THEN
-          ALTER TABLE vendors ADD COLUMN contact_name VARCHAR(255);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'tax_id') THEN
-          ALTER TABLE vendors ADD COLUMN tax_id VARCHAR(100);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'payment_terms') THEN
-          ALTER TABLE vendors ADD COLUMN payment_terms VARCHAR(100);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'status') THEN
-          ALTER TABLE vendors ADD COLUMN status VARCHAR(50) DEFAULT 'active';
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'notes') THEN
-          ALTER TABLE vendors ADD COLUMN notes TEXT;
-        END IF;
-      END $$;
-    `);
+    await query(`ALTER TABLE vendors ADD COLUMN IF NOT EXISTS user_id INTEGER`);
+    await query(`ALTER TABLE vendors ADD COLUMN IF NOT EXISTS company_name VARCHAR(255)`);
+    await query(`ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_name VARCHAR(255)`);
+    await query(`ALTER TABLE vendors ADD COLUMN IF NOT EXISTS tax_id VARCHAR(100)`);
+    await query(`ALTER TABLE vendors ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(100)`);
+    await query(`ALTER TABLE vendors ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'`);
+    await query(`ALTER TABLE vendors ADD COLUMN IF NOT EXISTS notes TEXT`);
 
     // Add missing columns to audit_log table
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_log' AND column_name = 'user_id') THEN
-          ALTER TABLE audit_log ADD COLUMN user_id INTEGER REFERENCES users(id);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_log' AND column_name = 'created_at') THEN
-          ALTER TABLE audit_log ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-        END IF;
-      END $$;
-    `);
+    await query(`ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS user_id INTEGER`);
+    await query(`ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
 
     console.log('✅ Tables created');
 
@@ -1179,13 +979,11 @@ export async function initializeDatabase() {
 
     for (const fk of foreignKeyConstraints) {
       try {
-        await pool.query(`ALTER TABLE ${fk.table} DROP CONSTRAINT IF EXISTS ${fk.constraint}`);
-        await pool.query(`ALTER TABLE ${fk.table} ADD CONSTRAINT ${fk.constraint} ${fk.sql}`);
+        // MySQL: drop FK by name (ignore error if it doesn't exist)
+        try { await query(`ALTER TABLE ${fk.table} DROP FOREIGN KEY ${fk.constraint}`); } catch { /* ignore */ }
+        await query(`ALTER TABLE ${fk.table} ADD CONSTRAINT ${fk.constraint} ${fk.sql}`);
       } catch (e: any) {
-        // Constraint might fail if data violates it - log but continue
-        if (!e.message.includes('already exists')) {
-          console.log(`Note: Could not add constraint ${fk.constraint}: ${e.message}`);
-        }
+        console.log(`Note: Could not add constraint ${fk.constraint}: ${e.message}`);
       }
     }
 
@@ -1202,46 +1000,45 @@ export async function initializeDatabase() {
 
     for (const chk of checkConstraints) {
       try {
-        await pool.query(`ALTER TABLE ${chk.table} DROP CONSTRAINT IF EXISTS ${chk.constraint}`);
-        await pool.query(`ALTER TABLE ${chk.table} ADD CONSTRAINT ${chk.constraint} ${chk.sql}`);
+        // MySQL 8.0.19+ / MariaDB 10.2.1+: drop then re-add CHECK constraint
+        try { await query(`ALTER TABLE ${chk.table} DROP CONSTRAINT ${chk.constraint}`); } catch { /* ignore if not exists */ }
+        await query(`ALTER TABLE ${chk.table} ADD CONSTRAINT ${chk.constraint} ${chk.sql}`);
       } catch (e: any) {
-        if (!e.message.includes('already exists')) {
-          console.log(`Note: Could not add constraint ${chk.constraint}: ${e.message}`);
-        }
+        console.log(`Note: Could not add constraint ${chk.constraint}: ${e.message}`);
       }
     }
 
     // Create audit_log table
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS audit_log (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         table_name VARCHAR(100) NOT NULL,
         record_id INTEGER NOT NULL,
         action VARCHAR(20) NOT NULL CHECK (action IN ('INSERT', 'UPDATE', 'DELETE')),
-        old_values JSONB,
-        new_values JSONB,
+        old_values JSON,
+        new_values JSON,
         changed_by INTEGER REFERENCES users(id),
         changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         ip_address VARCHAR(45),
         user_agent TEXT
       )
     `);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_table_record ON audit_log(table_name, record_id)`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_changed_at ON audit_log(changed_at)`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_changed_by ON audit_log(changed_by)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_audit_log_table_record ON audit_log(table_name, record_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_audit_log_changed_at ON audit_log(changed_at)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_audit_log_changed_by ON audit_log(changed_by)`);
 
     // Add soft delete columns
-    await pool.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL`);
-    await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL`);
-    await pool.query(`ALTER TABLE course_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL`);
+    await query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL`);
+    await query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL`);
+    await query(`ALTER TABLE course_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL`);
 
     // Soft delete indexes
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_invoices_not_deleted ON invoices(id) WHERE deleted_at IS NULL`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_not_deleted ON payments(id) WHERE deleted_at IS NULL`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_course_requests_not_deleted ON course_requests(id) WHERE deleted_at IS NULL`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_invoices_deleted_at ON invoices(deleted_at)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_payments_deleted_at ON payments(deleted_at)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_course_requests_deleted_at ON course_requests(deleted_at)`);
 
     // Clear sensitive credentials from system_configurations (move to env vars)
-    await pool.query(`
+    await query(`
       UPDATE system_configurations
       SET config_value = '[MOVED_TO_ENV_VARS]',
           description = 'Value moved to environment variables for security'
@@ -1257,17 +1054,17 @@ export async function initializeDatabase() {
 
     // Drop existing views so they can be recreated with current column definitions.
     // No CASCADE — dependent objects must be handled explicitly.
-    try { await pool.query(`DROP VIEW IF EXISTS invoice_with_breakdown`); } catch { /* ignore if has deps */ }
-    try { await pool.query(`DROP VIEW IF EXISTS course_request_details`); } catch { /* ignore if has deps */ }
+    try { await query(`DROP VIEW IF EXISTS invoice_with_breakdown`); } catch { /* ignore if has deps */ }
+    try { await query(`DROP VIEW IF EXISTS course_request_details`); } catch { /* ignore if has deps */ }
 
     // Invoice breakdown view - now just a pass-through since base_cost and tax_amount are stored columns
-    await pool.query(`
+    await query(`
       CREATE VIEW invoice_with_breakdown AS
       SELECT * FROM invoices
     `);
 
     // Course request details view
-    await pool.query(`
+    await query(`
       CREATE VIEW course_request_details AS
       SELECT
         cr.id,
@@ -1300,20 +1097,19 @@ export async function initializeDatabase() {
     console.log('✅ Views created');
 
     // Check if admin user exists
-    const adminCheck = await pool.query("SELECT id FROM users WHERE username = 'admin'");
+    const adminCheck = await query("SELECT id FROM users WHERE username = 'admin'");
     if (adminCheck.rows.length === 0) {
       console.log('👤 Creating default users...');
       const passwordHash = await bcrypt.hash('test123', 12);
 
       // Create test organization first
-      await pool.query(`
-        INSERT INTO organizations (name, contact_email)
+      await query(`
+        INSERT IGNORE INTO organizations (name, contact_email)
         VALUES ('Test Organization', 'test@org.com')
-        ON CONFLICT (name) DO NOTHING
       `);
 
       // Get the test organization ID
-      const orgResult = await pool.query(`SELECT id FROM organizations WHERE name = 'Test Organization'`);
+      const orgResult = await query(`SELECT id FROM organizations WHERE name = 'Test Organization'`);
       const testOrgId = orgResult.rows[0]?.id || 1;
 
       // Create default users (without organization) - use INSERT...SELECT to handle both username and email uniqueness
@@ -1324,7 +1120,7 @@ export async function initializeDatabase() {
         { username: 'accountant', email: 'accountant@cpr.com', role: 'accountant' }
       ];
       for (const user of defaultUsers) {
-        await pool.query(`
+        await query(`
           INSERT INTO users (username, email, password_hash, role)
           SELECT $1, $2, $3, $4
           WHERE NOT EXISTS (
@@ -1334,7 +1130,7 @@ export async function initializeDatabase() {
       }
 
       // Create organization user linked to Test Organization
-      await pool.query(`
+      await query(`
         INSERT INTO users (username, email, password_hash, role, organization_id)
         SELECT 'orguser', 'orguser@cpr.com', $1, 'organization', $2
         WHERE NOT EXISTS (
@@ -1343,12 +1139,11 @@ export async function initializeDatabase() {
       `, [passwordHash, testOrgId]);
 
       // Create class types
-      await pool.query(`
-        INSERT INTO class_types (name, description, duration_minutes) VALUES
+      await query(`
+        INSERT IGNORE INTO class_types (name, description, duration_minutes) VALUES
         ('CPR Basic', 'Basic CPR certification course', 180),
         ('CPR Advanced', 'Advanced CPR certification course', 240),
         ('First Aid', 'First Aid certification course', 120)
-        ON CONFLICT (name) DO NOTHING
       `);
 
       console.log('✅ Default data created');
@@ -1357,23 +1152,22 @@ export async function initializeDatabase() {
     }
 
     // Always ensure orguser exists (even if database already has data)
-    const orgUserCheck = await pool.query("SELECT id FROM users WHERE username = 'orguser' OR email = 'orguser@cpr.com'");
+    const orgUserCheck = await query("SELECT id FROM users WHERE username = 'orguser' OR email = 'orguser@cpr.com'");
     if (orgUserCheck.rows.length === 0) {
       console.log('👤 Creating orguser account...');
       const passwordHash = await bcrypt.hash('test123', 12);
 
       // Ensure test organization exists
-      await pool.query(`
-        INSERT INTO organizations (name, contact_email)
+      await query(`
+        INSERT IGNORE INTO organizations (name, contact_email)
         VALUES ('Test Organization', 'test@org.com')
-        ON CONFLICT (name) DO NOTHING
       `);
 
-      const orgResult = await pool.query(`SELECT id FROM organizations WHERE name = 'Test Organization'`);
+      const orgResult = await query(`SELECT id FROM organizations WHERE name = 'Test Organization'`);
       const testOrgId = orgResult.rows[0]?.id || 1;
 
       // Use INSERT...SELECT with NOT EXISTS to handle both username and email uniqueness
-      await pool.query(`
+      await query(`
         INSERT INTO users (username, email, password_hash, role, organization_id)
         SELECT 'orguser', 'orguser@cpr.com', $1, 'organization', $2
         WHERE NOT EXISTS (
@@ -1385,19 +1179,19 @@ export async function initializeDatabase() {
     }
 
     // List all users in database (temporary debug)
-    const allUsers = await pool.query('SELECT id, username, email, role, organization_id FROM users ORDER BY id');
+    const allUsers = await query('SELECT id, username, email, role, organization_id FROM users ORDER BY id');
     console.log('📋 All users in database:');
-    allUsers.rows.forEach((u: { id: number; username: string; email: string; role: string; organization_id: number | null }) => {
+    allUsers.rows.forEach((u: any) => {
       console.log(`   - ID: ${u.id}, Username: ${u.username}, Email: ${u.email}, Role: ${u.role}, OrgID: ${u.organization_id || 'none'}`);
     });
 
     // List all organizations
-    const allOrgs = await pool.query('SELECT id, name, contact_email FROM organizations ORDER BY id');
+    const allOrgs = await query('SELECT id, name, contact_email FROM organizations ORDER BY id');
     console.log('🏢 All organizations in database:');
     if (allOrgs.rows.length === 0) {
       console.log('   ⚠️ NO ORGANIZATIONS DEFINED!');
     } else {
-      allOrgs.rows.forEach((o: { id: number; name: string; contact_email: string }) => {
+      allOrgs.rows.forEach((o: any) => {
         console.log(`   - ID: ${o.id}, Name: ${o.name}, Email: ${o.contact_email}`);
       });
     }
@@ -1407,20 +1201,20 @@ export async function initializeDatabase() {
     const fixPasswordHash = await bcrypt.hash('test1234', 10);
     console.log('🔧 Attempting to reset passwords for:', usersToFix.join(', '));
     for (const username of usersToFix) {
-      const result = await pool.query(
-        'UPDATE users SET password_hash = $1 WHERE LOWER(username) = LOWER($2) RETURNING id, username',
+      const updateResult = await query(
+        'UPDATE users SET password_hash = $1 WHERE username = $2',
         [fixPasswordHash, username]
       );
-      if (result.rows.length > 0) {
-        console.log(`✅ Password reset for user: ${result.rows[0].username}`);
+      if (updateResult.rowCount > 0) {
+        console.log(`✅ Password reset for user: ${username}`);
       } else {
         console.log(`⚠️ User not found: ${username}`);
       }
     }
 
     // Insert default system configurations
-    await pool.query(`
-      INSERT INTO system_configurations (config_key, config_value, description, category) VALUES
+    await query(`
+      INSERT IGNORE INTO system_configurations (config_key, config_value, description, category) VALUES
       ('invoice_due_days', '30', 'Number of days until invoice is due', 'billing'),
       ('invoice_late_fee_percent', '1.5', 'Late fee percentage for overdue invoices', 'billing'),
       ('email_smtp_host', '', 'SMTP server host', 'email'),
@@ -1431,29 +1225,27 @@ export async function initializeDatabase() {
       ('company_name', 'CPR Training System', 'Company name', 'general'),
       ('support_email', 'support@cprtraining.com', 'Support email address', 'general'),
       ('session_timeout_minutes', '60', 'Session timeout in minutes', 'security')
-      ON CONFLICT (config_key) DO NOTHING
     `);
 
     // Insert default pay rate tiers
-    await pool.query(`
-      INSERT INTO pay_rate_tiers (name, description, base_hourly_rate, course_bonus) VALUES
+    await query(`
+      INSERT IGNORE INTO pay_rate_tiers (name, description, base_hourly_rate, course_bonus) VALUES
       ('Standard', 'Standard instructor rate', 25.00, 50.00),
       ('Senior', 'Senior instructor rate', 35.00, 75.00),
       ('Lead', 'Lead instructor rate', 45.00, 100.00)
-      ON CONFLICT DO NOTHING
     `);
 
     // Record schema version so subsequent startups skip full init
-    await pool.query(`
+    await query(`
       CREATE TABLE IF NOT EXISTS schema_info (
-        key VARCHAR(100) PRIMARY KEY,
+        \`key\` VARCHAR(100) PRIMARY KEY,
         value TEXT NOT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    await pool.query(`
-      INSERT INTO schema_info (key, value) VALUES ('version', $1)
-      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP
+    await query(`
+      INSERT INTO schema_info (\`key\`, value) VALUES ('version', $1)
+      ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = CURRENT_TIMESTAMP
     `, [SCHEMA_VERSION]);
 
     console.log('✅ Database initialization complete');

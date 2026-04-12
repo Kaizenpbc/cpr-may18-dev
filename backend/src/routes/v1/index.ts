@@ -5,7 +5,7 @@ import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { keysToCamel } from '../../utils/caseConverter.js';
 import { AuthenticatedRequest, isDatabaseError, getErrorMessage } from '../../types/index.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
-import { pool } from '../../config/database.js';
+import { query, getClient } from '../../config/database.js';
 import { generateTokens } from '../../utils/jwtUtils.js';
 import { authenticateToken, requireRole, authorizeRoles } from '../../middleware/authMiddleware.js';
 import { authenticateSession } from '../../middleware/sessionAuth.js';
@@ -117,7 +117,7 @@ router.get(
       devLog('[Available Instructors] Checking for date:', date);
 
       // Simple query: Get all instructors who have marked themselves available for this date
-      const result = await pool.query(
+      const result = await query(
         `SELECT DISTINCT
         u.id, 
         u.username as instructor_name, 
@@ -125,7 +125,7 @@ router.get(
         'Available' as availability_status
        FROM users u
        INNER JOIN instructor_availability ia ON u.id = ia.instructor_id 
-         AND ia.date::date = $1::date
+         AND DATE(ia.date) = $1
          AND ia.status = 'available'
        WHERE u.role = 'instructor' 
        ORDER BY u.username`,
@@ -209,17 +209,17 @@ router.get(
   '/instructors',
   asyncHandler(async (_req: Request, res: Response) => {
     try {
-      const result = await pool.query(
+      const result = await query(
         `SELECT 
         u.id, 
         u.username as instructor_name, 
         u.email,
-        COALESCE(ia.date::text, 'No availability set') as availability_date,
+        COALESCE(ia.date, 'No availability set') as availability_date,
         COALESCE(ia.status, 'no_availability') as availability_status,
         COALESCE(cr.notes, '') as notes,
         CASE 
-          WHEN cr.id IS NOT NULL AND cr.confirmed_date::date = ia.date::date AND cr.status = 'confirmed' THEN 'Confirmed'
-          WHEN cr.id IS NOT NULL AND cr.confirmed_date::date = ia.date::date AND cr.status = 'completed' THEN 'Completed'
+          WHEN cr.id IS NOT NULL AND DATE(cr.confirmed_date) = DATE(ia.date) AND cr.status = 'confirmed' THEN 'Confirmed'
+          WHEN cr.id IS NOT NULL AND DATE(cr.confirmed_date) = DATE(ia.date) AND cr.status = 'completed' THEN 'Completed'
           WHEN ia.status = 'completed' THEN 'Completed'
           WHEN ia.status = 'available' THEN 'Available'
           WHEN ia.date IS NOT NULL THEN 'Available'
@@ -232,7 +232,7 @@ router.get(
        LEFT JOIN instructor_availability ia ON u.id = ia.instructor_id 
          AND ia.date >= CURRENT_DATE
        LEFT JOIN course_requests cr ON u.id = cr.instructor_id 
-         AND cr.confirmed_date::date = ia.date::date
+         AND DATE(cr.confirmed_date) = DATE(ia.date)
          AND cr.status IN ('confirmed', 'completed')
        LEFT JOIN organizations o ON cr.organization_id = o.id
        LEFT JOIN class_types ct ON cr.course_type_id = ct.id
@@ -259,8 +259,8 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const result = await pool.query(
-        `SELECT c.id, c.date::text, c.start_time::text, c.end_time::text, c.status, c.location, 
+      const result = await query(
+        `SELECT c.id, c.date, c.start_time, c.end_time, c.status, c.location, 
               ct.name as type, c.max_students, c.current_students 
        FROM classes c 
        LEFT JOIN class_types ct ON c.type_id = ct.id 
@@ -297,8 +297,8 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const result = await pool.query(
-        `SELECT id, instructor_id, date::text, status, created_at, updated_at 
+      const result = await query(
+        `SELECT id, instructor_id, date, status, created_at, updated_at 
          FROM instructor_availability 
          WHERE instructor_id = $1 
          ORDER BY date`,
@@ -353,7 +353,7 @@ router.get(
       const endDateStr = endDate.toISOString().slice(0, 10);
 
       devLog('[Instructor Stats] Executing query with params:', [instructorId, startDate, endDateStr]);
-      const result = await pool.query(`
+      const result = await query(`
         SELECT 
           COUNT(DISTINCT cr.id) as total_courses,
           COUNT(DISTINCT CASE WHEN cr.status = 'completed' THEN cr.id END) as completed_courses,
@@ -419,7 +419,7 @@ router.get(
         }
 
         devLog('[Dashboard Summary] Executing instructor query with params:', [user.userId, startDate, endDateStr]);
-        result = await pool.query(`
+        result = await query(`
           SELECT 
             COUNT(DISTINCT cr.id) as total_courses,
             COUNT(DISTINCT CASE WHEN cr.status = 'completed' THEN cr.id END) as completed_courses,
@@ -455,7 +455,7 @@ router.get(
       } else if (user?.role === 'admin') {
         // Admin overview stats
         devLog('[Dashboard Summary] Executing admin query with params:', [startDate, endDateStr]);
-        result = await pool.query(`
+        result = await query(`
           SELECT 
             COUNT(DISTINCT u.id) as total_instructors,
             COUNT(cr.id) as total_courses_this_month,
@@ -518,7 +518,7 @@ router.get(
     try {
       devLog('[Instructor Workload Report] Executing query with params:', [startDate, endDate]);
       
-      const result = await pool.query(`
+      const result = await query(`
         SELECT 
           u.id as instructorId,
           u.username as name,
@@ -593,12 +593,12 @@ router.post(
       }
 
       // Fetch instructor's classes for the week
-      const classesResult = await pool.query(
+      const classesResult = await query(
         `SELECT 
         cr.id,
-        cr.confirmed_date::text as date,
-        cr.confirmed_start_time::text as start_time,
-        cr.confirmed_end_time::text as end_time,
+        cr.confirmed_date as date,
+        cr.confirmed_start_time as start_time,
+        cr.confirmed_end_time as end_time,
         cr.location,
         cr.registered_students,
         ct.name as course_type,
@@ -608,15 +608,15 @@ router.post(
       JOIN class_types ct ON cr.course_type_id = ct.id
       JOIN organizations o ON cr.organization_id = o.id
       WHERE cr.instructor_id = $1
-      AND cr.confirmed_date >= $2::date
-      AND cr.confirmed_date <= $3::date
+      AND cr.confirmed_date >= $2
+      AND cr.confirmed_date <= $3
       AND cr.status IN ('confirmed', 'completed')
       ORDER BY cr.confirmed_date, cr.confirmed_start_time`,
         [instructorId, startDate, endDate]
       );
 
       // Get instructor details
-      const instructorResult = await pool.query(
+      const instructorResult = await query(
         'SELECT username, email FROM users WHERE id = $1',
         [instructorId]
       );
@@ -811,7 +811,7 @@ router.delete(
         );
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
       try {
         await client.query('BEGIN');
 
@@ -819,7 +819,7 @@ router.delete(
         const confirmedCoursesCheck = await client.query(
           `SELECT id FROM course_requests 
          WHERE instructor_id = $1 
-         AND confirmed_date::date = $2::date 
+         AND DATE(confirmed_date) = $2 
          AND status = 'confirmed'`,
           [instructorId, date]
         );
@@ -834,7 +834,7 @@ router.delete(
 
         // Delete from instructor_availability
         const deleteAvailabilityResult = await client.query(
-          'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date::date = $2::date RETURNING *',
+          'DELETE FROM instructor_availability WHERE instructor_id = $1 AND DATE(date) = $2 RETURNING *',
           [instructorId, date]
         );
 
@@ -842,7 +842,7 @@ router.delete(
         const deleteClassesResult = await client.query(
           `DELETE FROM classes 
          WHERE instructor_id = $1 
-         AND date::date = $2::date 
+         AND DATE(date) = $2 
          AND status = 'scheduled'
          RETURNING *`,
           [instructorId, date]

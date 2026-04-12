@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { authenticateToken } from '../../middleware/authMiddleware.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
-import { pool } from '../../config/database.js';
+import { query, getClient } from '../../config/database.js';
 
 const router = express.Router();
 
@@ -16,7 +16,7 @@ const requireHRRole = (req: Request, res: Response, next: NextFunction) => {
 
 // Get HR Dashboard Statistics
 router.get('/stats', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // Get pending profile changes count
@@ -29,7 +29,7 @@ router.get('/stats', authenticateToken, requireHRRole, asyncHandler(async (req: 
       SELECT COUNT(*) as count FROM users WHERE role = 'instructor' AND id IN (
         SELECT DISTINCT instructor_id FROM course_requests 
         WHERE status IN ('confirmed', 'completed') 
-        AND created_at >= NOW() - INTERVAL '30 days'
+        AND created_at >= NOW() - INTERVAL 30 DAY
       )
     `);
     
@@ -41,7 +41,7 @@ router.get('/stats', authenticateToken, requireHRRole, asyncHandler(async (req: 
     // Get expiring certifications (mock data for now)
     const expiringCertificationsResult = await client.query(`
       SELECT COUNT(*) as count FROM certifications 
-      WHERE expiration_date BETWEEN NOW() AND NOW() + INTERVAL '30 days'
+      WHERE expiration_date BETWEEN NOW() AND NOW() + INTERVAL 30 DAY
     `);
     
     // Get recent profile changes
@@ -82,7 +82,7 @@ router.get('/stats', authenticateToken, requireHRRole, asyncHandler(async (req: 
 
 // Get Instructor Profiles
 router.get('/instructors', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
@@ -92,7 +92,7 @@ router.get('/instructors', authenticateToken, requireHRRole, asyncHandler(async 
     let params: unknown[] = [];
     
     if (search) {
-      whereClause += " AND (u.username ILIKE $1 OR u.email ILIKE $1)";
+      whereClause += " AND (u.username LIKE $1 OR u.email LIKE $1)";
       params.push(`%${search}%`);
     }
     
@@ -143,7 +143,7 @@ router.get('/instructors', authenticateToken, requireHRRole, asyncHandler(async 
 
 // Get Organization Profiles
 router.get('/organizations', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
@@ -153,7 +153,7 @@ router.get('/organizations', authenticateToken, requireHRRole, asyncHandler(asyn
     let params: unknown[] = [];
     
     if (search) {
-      whereClause += " AND (o.name ILIKE $1 OR o.contact_email ILIKE $1)";
+      whereClause += " AND (o.name LIKE $1 OR o.contact_email LIKE $1)";
       params.push(`%${search}%`);
     }
     
@@ -207,7 +207,7 @@ router.get('/organizations', authenticateToken, requireHRRole, asyncHandler(asyn
 
 // Get Pending Profile Changes
 router.get('/pending-changes', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const { page = 1, limit = 10 } = req.query;
@@ -261,7 +261,7 @@ router.post('/approve-change/:changeId', authenticateToken, requireHRRole, async
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid action. Must be "approve" or "reject".');
   }
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     await client.query('BEGIN');
@@ -311,7 +311,7 @@ router.post('/approve-change/:changeId', authenticateToken, requireHRRole, async
 // Get User Profile Details
 router.get('/user/:userId', authenticateToken, requireHRRole, asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // Get user details
@@ -338,7 +338,7 @@ router.get('/user/:userId', authenticateToken, requireHRRole, asyncHandler(async
     `, [userId]);
     
     // Get user's course history (if instructor)
-    let courseHistory = [];
+    let courseHistory: any[] = [];
     if (user.role === 'instructor') {
       const courseResult = await client.query(`
         SELECT 
@@ -373,7 +373,7 @@ router.get('/returned-payment-requests', authenticateToken, requireHRRole, async
   const { page = 1, limit = 10 } = req.query;
   const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // Get returned payment requests with details
@@ -447,7 +447,7 @@ router.post('/returned-payment-requests/:requestId/process', authenticateToken, 
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Notes are required when processing returned payment request.');
   }
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     await client.query('BEGIN');

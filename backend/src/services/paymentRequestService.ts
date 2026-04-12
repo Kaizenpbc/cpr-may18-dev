@@ -1,4 +1,4 @@
-import { pool } from '../config/database.js';
+import { query, getClient } from '../config/database.js';
 import { AppError, errorCodes } from '../utils/errorHandler.js';
 
 export interface PaymentRequest {
@@ -54,7 +54,7 @@ export class PaymentRequestService {
    * Calculate payment amount for an approved timesheet
    */
   static async calculateTimesheetPayment(timesheetId: number): Promise<TimesheetPaymentCalculation> {
-    const client = await pool.connect();
+    const client = await getClient();
     
     try {
       // Get the timesheet with instructor info
@@ -131,7 +131,7 @@ export class PaymentRequestService {
    * Create a payment request for an approved timesheet
    */
   static async createPaymentRequest(timesheetId: number): Promise<PaymentRequest> {
-    const client = await pool.connect();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -181,7 +181,7 @@ export class PaymentRequestService {
       
       await client.query('COMMIT');
       
-      return paymentRequestResult.rows[0];
+      return paymentRequestResult.rows[0] as any;
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -199,7 +199,7 @@ export class PaymentRequestService {
     page?: number;
     limit?: number;
   } = {}): Promise<{ requests: PaymentRequestDetail[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> {
-    const client = await pool.connect();
+    const client = await getClient();
 
     try {
       const { status, instructor_id, page = 1, limit = 10 } = filters;
@@ -270,11 +270,8 @@ export class PaymentRequestService {
             courseDetails = [];
           }
         }
-        return {
-          ...request,
-          course_details: courseDetails
-        };
-      }) as PaymentRequestDetail[];
+        return { ...(request as any), course_details: courseDetails } as any;
+      }) as unknown as PaymentRequestDetail[];
       
       // Get total count for pagination
       const countResult = await client.query(`
@@ -301,7 +298,7 @@ export class PaymentRequestService {
    * Get detailed payment request information including class details
    */
   static async getPaymentRequestDetail(requestId: number): Promise<PaymentRequestDetail> {
-    const client = await pool.connect();
+    const client = await getClient();
     
     try {
       // Get payment request with all details including course details
@@ -358,9 +355,9 @@ export class PaymentRequestService {
       }
       
       return {
-        ...request,
+        ...(request as any),
         course_details: courseDetails
-      };
+      } as any;
     } finally {
       client.release();
     }
@@ -375,7 +372,7 @@ export class PaymentRequestService {
     paymentMethod?: string,
     notes?: string
   ): Promise<void> {
-    const client = await pool.connect();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -435,7 +432,7 @@ export class PaymentRequestService {
     page?: number;
     limit?: number;
   } = {}): Promise<{ requests: PaymentRequestDetail[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> {
-    const client = await pool.connect();
+    const client = await getClient();
 
     try {
       const { page = 1, limit = 10 } = filters;
@@ -484,7 +481,7 @@ export class PaymentRequestService {
       `);
       
       return {
-        requests: requestsResult.rows,
+        requests: requestsResult.rows as any[],
         pagination: {
           page,
           limit,
@@ -501,7 +498,7 @@ export class PaymentRequestService {
    * Get payment request statistics for dashboard
    */
   static async getPaymentRequestStats(): Promise<any> {
-    const client = await pool.connect();
+    const client = await getClient();
     
     try {
       // Total pending payment requests
@@ -515,8 +512,8 @@ export class PaymentRequestService {
         SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total_amount
         FROM payment_requests 
         WHERE status = 'approved'
-        AND EXTRACT(MONTH FROM updated_at) = EXTRACT(MONTH FROM CURRENT_DATE)
-        AND EXTRACT(YEAR FROM updated_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+        AND MONTH(updated_at) = MONTH(CURRENT_DATE)
+        AND YEAR(updated_at) = YEAR(CURRENT_DATE)
       `);
       
       // Total rejected this month
@@ -524,8 +521,8 @@ export class PaymentRequestService {
         SELECT COUNT(*) as count
         FROM payment_requests 
         WHERE status = 'rejected'
-        AND EXTRACT(MONTH FROM updated_at) = EXTRACT(MONTH FROM CURRENT_DATE)
-        AND EXTRACT(YEAR FROM updated_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+        AND MONTH(updated_at) = MONTH(CURRENT_DATE)
+        AND YEAR(updated_at) = YEAR(CURRENT_DATE)
       `);
       
       return {

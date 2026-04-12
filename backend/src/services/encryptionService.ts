@@ -1,4 +1,4 @@
-import { pool } from '../config/database.js';
+import { query } from '../config/database.js';
 import { encryptionService, EncryptionResult, DecryptionResult } from '../config/encryptionConfig.js';
 import { logSecurityEvent, AuditEventSeverity } from '../middleware/auditLogger.js';
 import { Request } from 'express';

@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { authenticateToken } from '../../middleware/authMiddleware.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
-import { pool } from '../../config/database.js';
+import { query, getClient } from '../../config/database.js';
 import { devLog } from '../../utils/devLog.js';
 
 const router = express.Router();
@@ -21,7 +21,7 @@ router.get('/stats', authenticateToken, asyncHandler(async (req: Request, res: R
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. HR role required.');
   }
 
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // Get pending timesheets count
@@ -33,16 +33,16 @@ router.get('/stats', authenticateToken, asyncHandler(async (req: Request, res: R
     const approvedThisMonthResult = await client.query(`
       SELECT COUNT(*) as count FROM timesheets 
       WHERE status = 'approved' 
-      AND EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE)
-      AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+      AND MONTH(created_at) = MONTH(CURRENT_DATE)
+      AND YEAR(created_at) = YEAR(CURRENT_DATE)
     `);
     
     // Get total hours this month
     const totalHoursResult = await client.query(`
       SELECT COALESCE(SUM(total_hours), 0) as total FROM timesheets 
       WHERE status = 'approved' 
-      AND EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE)
-      AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+      AND MONTH(created_at) = MONTH(CURRENT_DATE)
+      AND YEAR(created_at) = YEAR(CURRENT_DATE)
     `);
     
     // Get instructors with pending timesheets
@@ -68,7 +68,7 @@ router.get('/stats', authenticateToken, asyncHandler(async (req: Request, res: R
 
 // Get Timesheets (with filtering)
 router.get('/', authenticateToken, requireTimesheetAccess, asyncHandler(async (req: Request, res: Response) => {
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const { page = 1, limit = 10, status = '', instructor_id = '', month = '' } = req.query;
@@ -98,7 +98,7 @@ router.get('/', authenticateToken, requireTimesheetAccess, asyncHandler(async (r
     }
     
     if (month) {
-      whereClause += ` AND EXTRACT(MONTH FROM t.week_start_date) = $${paramIndex}`;
+      whereClause += ` AND MONTH(t.week_start_date) = $${paramIndex}`;
       params.push(month);
       paramIndex++;
     }
@@ -143,7 +143,7 @@ router.get('/', authenticateToken, requireTimesheetAccess, asyncHandler(async (r
 // Get Timesheet Details
 router.get('/:timesheetId', authenticateToken, requireTimesheetAccess, asyncHandler(async (req: Request, res: Response) => {
   const { timesheetId } = req.params;
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     let whereClause = "WHERE t.id = $1";
@@ -233,7 +233,7 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Cannot submit timesheet until the week has ended.');
   }
 
-  const client = await pool.connect();
+  const client = await getClient();
 
   try {
     // Check if timesheet already exists for this week
@@ -253,9 +253,9 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
     const coursesResult = await client.query(`
       SELECT
         cr.id,
-        cr.confirmed_date::text as date,
-        cr.confirmed_start_time::text as start_time,
-        cr.confirmed_end_time::text as end_time,
+        cr.confirmed_date as date,
+        cr.confirmed_start_time as start_time,
+        cr.confirmed_end_time as end_time,
         cr.status,
         cr.location,
         ct.name as course_type,
@@ -265,8 +265,8 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
       JOIN class_types ct ON cr.course_type_id = ct.id
       LEFT JOIN organizations o ON cr.organization_id = o.id
       WHERE cr.instructor_id = $1
-      AND cr.confirmed_date >= $2::date
-      AND cr.confirmed_date <= $3::date
+      AND cr.confirmed_date >= $2
+      AND cr.confirmed_date <= $3
       AND cr.status IN ('confirmed', 'completed')
       ORDER BY cr.confirmed_date, cr.confirmed_start_time
     `, [req.user!.id, weekStart, endDate.toISOString().split('T')[0]]);
@@ -317,7 +317,7 @@ router.put('/:timesheetId', authenticateToken, asyncHandler(async (req: Request,
   const { timesheetId } = req.params;
   const { total_hours, courses_taught, notes } = req.body;
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // Check if timesheet exists and belongs to instructor
@@ -365,7 +365,7 @@ router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req:
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid action. Must be "approve" or "reject".');
   }
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     await client.query('BEGIN');
@@ -437,7 +437,7 @@ router.post('/:timesheetId/approve', authenticateToken, asyncHandler(async (req:
 // Get Instructor Timesheet Summary
 router.get('/instructor/:instructorId/summary', authenticateToken, requireTimesheetAccess, asyncHandler(async (req: Request, res: Response) => {
   const { instructorId } = req.params;
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // Get timesheet summary for the instructor
@@ -494,16 +494,16 @@ router.get('/week/:weekStartDate/courses', authenticateToken, asyncHandler(async
   const endDate = new Date(startDate);
   endDate.setDate(startDate.getDate() + 6); // Add 6 days to get to Sunday
 
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // Get courses for the week (Monday to Sunday)
     const coursesResult = await client.query(`
       SELECT
         cr.id,
-        cr.confirmed_date::text as date,
-        cr.confirmed_start_time::text as "startTime",
-        cr.confirmed_end_time::text as "endTime",
+        cr.confirmed_date as date,
+        cr.confirmed_start_time as "startTime",
+        cr.confirmed_end_time as "endTime",
         cr.status,
         cr.location,
         ct.name as "courseType",
@@ -513,8 +513,8 @@ router.get('/week/:weekStartDate/courses', authenticateToken, asyncHandler(async
       JOIN class_types ct ON cr.course_type_id = ct.id
       LEFT JOIN organizations o ON cr.organization_id = o.id
       WHERE cr.instructor_id = $1
-      AND cr.confirmed_date >= $2::date
-      AND cr.confirmed_date <= $3::date
+      AND cr.confirmed_date >= $2
+      AND cr.confirmed_date <= $3
       AND cr.status IN ('confirmed', 'completed')
       ORDER BY cr.confirmed_date, cr.confirmed_start_time
     `, [req.user!.id, weekStartDate, endDate.toISOString().split('T')[0]]);
@@ -559,7 +559,7 @@ router.post('/:timesheetId/notes', authenticateToken, asyncHandler(async (req: R
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Only accountants can add accounting notes.');
   }
 
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // Check if timesheet exists and user has access
@@ -611,7 +611,7 @@ router.post('/:timesheetId/notes', authenticateToken, asyncHandler(async (req: R
 // Get Timesheet Notes
 router.get('/:timesheetId/notes', authenticateToken, requireTimesheetAccess, asyncHandler(async (req: Request, res: Response) => {
   const { timesheetId } = req.params;
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const notesResult = await client.query(`
@@ -637,7 +637,7 @@ router.get('/:timesheetId/notes', authenticateToken, requireTimesheetAccess, asy
 // Delete Note (only by the user who created it or HR/Admin)
 router.delete('/:timesheetId/notes/:noteId', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const { timesheetId, noteId } = req.params;
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // Get the note to check permissions
@@ -678,7 +678,7 @@ router.get('/reminders/pending', authenticateToken, asyncHandler(async (req: Req
     throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied. HR role required.');
   }
 
-  const client = await pool.connect();
+  const client = await getClient();
 
   try {
     // Calculate previous week's Monday
@@ -699,14 +699,14 @@ router.get('/reminders/pending', authenticateToken, asyncHandler(async (req: Req
         u.email,
         (SELECT COUNT(*) FROM course_requests cr
          WHERE cr.instructor_id = u.id
-         AND cr.confirmed_date >= $1::date
-         AND cr.confirmed_date <= ($1::date + INTERVAL '6 days')
+         AND cr.confirmed_date >= $1
+         AND cr.confirmed_date <= ($1 + INTERVAL 6 DAY)
          AND cr.status = 'completed') as completed_courses
       FROM users u
       WHERE u.role = 'instructor'
       AND u.id NOT IN (
         SELECT instructor_id FROM timesheets
-        WHERE week_start_date = $1::date
+        WHERE week_start_date = $1
       )
       ORDER BY u.username
     `, [previousMondayStr]);
@@ -735,7 +735,7 @@ router.post('/reminders/send', authenticateToken, asyncHandler(async (req: Reque
     throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Instructor IDs are required.');
   }
 
-  const client = await pool.connect();
+  const client = await getClient();
 
   try {
     // Calculate previous week's Monday

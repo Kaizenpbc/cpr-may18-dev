@@ -1,5 +1,4 @@
-import { Pool } from 'pg';
-import { pool } from '../config/database.js';
+import { query } from '../config/database.js';
 
 export interface Notification {
   id: number;
@@ -24,11 +23,6 @@ export interface CreateNotificationData {
 }
 
 export class NotificationService {
-  private pool: Pool;
-
-  constructor() {
-    this.pool = pool;
-  }
 
   /**
    * Create a new notification
@@ -43,13 +37,13 @@ export class NotificationService {
       link = null
     } = data;
 
-    const query = `
+    const sql = `
       INSERT INTO notifications (user_id, title, message, type, category, link)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
 
-    const result = await this.pool.query(query, [
+    const result = await query(sql, [
       user_id,
       title,
       message,
@@ -59,7 +53,7 @@ export class NotificationService {
     ]);
 
     console.log(`📬 [NOTIFICATION] Created for user ${user_id}: ${title}`);
-    return result.rows[0];
+    return result.rows[0] as any;
   }
 
   /**
@@ -71,7 +65,7 @@ export class NotificationService {
     offset: number = 0,
     unreadOnly: boolean = false
   ): Promise<Notification[]> {
-    let query = `
+    let sql = `
       SELECT * FROM notifications
       WHERE user_id = $1
     `;
@@ -79,27 +73,27 @@ export class NotificationService {
     const params: any[] = [userId];
 
     if (unreadOnly) {
-      query += ' AND is_read = false';
+      sql += ' AND is_read = false';
     }
 
-    query += ' ORDER BY created_at DESC LIMIT $2 OFFSET $3';
+    sql += ' ORDER BY created_at DESC LIMIT $2 OFFSET $3';
     params.push(limit, offset);
 
-    const result = await this.pool.query(query, params);
-    return result.rows;
+    const result = await query(sql, params);
+    return result.rows as any;
   }
 
   /**
    * Get unread notification count for a user
    */
   async getUnreadCount(userId: number): Promise<number> {
-    const query = `
+    const sql = `
       SELECT COUNT(*) as count
       FROM notifications
       WHERE user_id = $1 AND is_read = false
     `;
 
-    const result = await this.pool.query(query, [userId]);
+    const result = await query(sql, [userId]);
     return parseInt(result.rows[0].count);
   }
 
@@ -107,13 +101,13 @@ export class NotificationService {
    * Mark notification as read
    */
   async markAsRead(notificationId: number, userId: number): Promise<boolean> {
-    const query = `
+    const sql = `
       UPDATE notifications
       SET is_read = true, read_at = NOW()
       WHERE id = $1 AND user_id = $2
     `;
 
-    const result = await this.pool.query(query, [notificationId, userId]);
+    const result = await query(sql, [notificationId, userId]);
     return (result.rowCount ?? 0) > 0;
   }
 
@@ -121,13 +115,13 @@ export class NotificationService {
    * Mark all notifications as read for a user
    */
   async markAllAsRead(userId: number): Promise<number> {
-    const query = `
+    const sql = `
       UPDATE notifications
       SET is_read = true, read_at = NOW()
       WHERE user_id = $1 AND is_read = false
     `;
 
-    const result = await this.pool.query(query, [userId]);
+    const result = await query(sql, [userId]);
     return result.rowCount ?? 0;
   }
 
@@ -135,12 +129,12 @@ export class NotificationService {
    * Delete a notification
    */
   async deleteNotification(notificationId: number, userId: number): Promise<boolean> {
-    const query = `
+    const sql = `
       DELETE FROM notifications
       WHERE id = $1 AND user_id = $2
     `;
 
-    const result = await this.pool.query(query, [notificationId, userId]);
+    const result = await query(sql, [notificationId, userId]);
     return (result.rowCount ?? 0) > 0;
   }
 
@@ -180,7 +174,7 @@ export class NotificationService {
     courseId: number
   ): Promise<Notification[]> {
     // Get all users belonging to this organization
-    const usersResult = await this.pool.query(
+    const usersResult = await query(
       `SELECT id FROM users WHERE organization_id = $1`,
       [organizationId]
     );
@@ -228,7 +222,7 @@ export class NotificationService {
     courseDate: string,
     courseId: number
   ): Promise<Notification[]> {
-    const usersResult = await this.pool.query(
+    const usersResult = await query(
       `SELECT id FROM users WHERE organization_id = $1`,
       [organizationId]
     );
@@ -278,7 +272,7 @@ export class NotificationService {
     reason: string,
     courseId: number
   ): Promise<Notification[]> {
-    const usersResult = await this.pool.query(
+    const usersResult = await query(
       `SELECT id FROM users WHERE organization_id = $1`,
       [organizationId]
     );
@@ -308,7 +302,7 @@ export class NotificationService {
     courseId: number
   ): Promise<Notification[]> {
     // Get all admin and courseadmin users
-    const adminsResult = await this.pool.query(
+    const adminsResult = await query(
       `SELECT id FROM users WHERE role IN ('admin', 'courseadmin', 'sysadmin')`
     );
 
@@ -339,7 +333,7 @@ export class NotificationService {
     invoiceNumber: string,
     amount: number
   ): Promise<Notification[]> {
-    const usersResult = await this.pool.query(
+    const usersResult = await query(
       `SELECT id FROM users WHERE organization_id = $1`,
       [organizationId]
     );
@@ -369,7 +363,7 @@ export class NotificationService {
     amount: number
   ): Promise<Notification[]> {
     // Get all accountant users
-    const accountantsResult = await this.pool.query(
+    const accountantsResult = await query(
       `SELECT id FROM users WHERE role IN ('accounting', 'accountant', 'admin', 'sysadmin')`
     );
 
@@ -397,7 +391,7 @@ export class NotificationService {
     amount: number,
     dueDate: string
   ): Promise<Notification[]> {
-    const usersResult = await this.pool.query(
+    const usersResult = await query(
       `SELECT id FROM users WHERE organization_id = $1`,
       [organizationId]
     );
@@ -425,13 +419,13 @@ export class NotificationService {
    * Get notification preferences for a user
    */
   async getPreferences(userId: number): Promise<NotificationPreferences> {
-    const query = `
+    const sql = `
       SELECT type, email_enabled, push_enabled, sound_enabled
       FROM notification_preferences
       WHERE user_id = $1
     `;
 
-    const result = await this.pool.query(query, [userId]);
+    const result = await query(sql, [userId]);
     const preferences: NotificationPreferences = {};
 
     for (const row of result.rows) {
@@ -454,7 +448,7 @@ export class NotificationService {
     type: string,
     settings: { email_enabled?: boolean; push_enabled?: boolean; sound_enabled?: boolean }
   ): Promise<NotificationPreference> {
-    const query = `
+    const sql = `
       INSERT INTO notification_preferences (user_id, type, email_enabled, push_enabled, sound_enabled)
       VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (user_id, type) DO UPDATE SET
@@ -465,7 +459,7 @@ export class NotificationService {
       RETURNING type, email_enabled, push_enabled, sound_enabled
     `;
 
-    const result = await this.pool.query(query, [
+    const result = await query(sql, [
       userId,
       type,
       settings.email_enabled ?? true,
@@ -473,7 +467,7 @@ export class NotificationService {
       settings.sound_enabled ?? true
     ]);
 
-    return result.rows[0];
+    return result.rows[0] as any;
   }
 }
 

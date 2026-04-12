@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
-import { pool } from '../../config/database.js';
+import { query, getClient } from '../../config/database.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { AppError } from '../../utils/errorHandler.js';
 import { errorCodes } from '../../utils/errorHandler.js';
@@ -35,7 +35,7 @@ router.get('/dashboard/stats', authenticateToken, requireRole(['instructor', 'ad
   const userId = req.user.id;
 
   // Consolidated query - get all stats in one query (fixes N+1 pattern)
-  const statsResult = await pool.query(
+  const statsResult = await query(
     `SELECT
       COUNT(*) as total_courses,
       COUNT(*) FILTER (WHERE status = 'confirmed') as scheduled_courses,
@@ -53,7 +53,7 @@ router.get('/dashboard/stats', authenticateToken, requireRole(['instructor', 'ad
   );
 
   // Get recent classes (last 5 completed or confirmed)
-  const recentClassesResult = await pool.query(
+  const recentClassesResult = await query(
     `SELECT
       cr.id,
       cr.confirmed_date as date,
@@ -99,7 +99,7 @@ router.get('/availability', authenticateToken, requireRole(['instructor', 'admin
   }
   const userId = req.user.id;
 
-  const result = await pool.query(
+  const result = await query(
     `SELECT id, instructor_id, date, status, created_at, updated_at
      FROM instructor_availability
      WHERE instructor_id = $1
@@ -133,7 +133,7 @@ router.post('/availability', authenticateToken, requireRole(['instructor', 'admi
   }
 
   // Check if availability already exists
-  const existingResult = await pool.query(
+  const existingResult = await query(
     'SELECT id FROM instructor_availability WHERE instructor_id = $1 AND date = $2',
     [userId, date]
   );
@@ -143,7 +143,7 @@ router.post('/availability', authenticateToken, requireRole(['instructor', 'admi
   }
 
   // Insert new availability
-  const result = await pool.query(
+  const result = await query(
     `INSERT INTO instructor_availability (instructor_id, date, status)
      VALUES ($1, $2, 'available')
      RETURNING id, instructor_id, date, status, created_at, updated_at`,
@@ -168,7 +168,7 @@ router.delete('/availability/:date', authenticateToken, requireRole(['instructor
   }
 
   // Delete availability
-  const result = await pool.query(
+  const result = await query(
     'DELETE FROM instructor_availability WHERE instructor_id = $1 AND date = $2 RETURNING id',
     [userId, date]
   );
@@ -189,7 +189,7 @@ router.get('/classes', authenticateToken, requireRole(['instructor', 'admin', 's
 
   // Get confirmed course requests from course_requests table
   // Uses LEFT JOIN with pre-aggregated counts for better performance
-  const courseRequestsDbResult = await pool.query(
+  const courseRequestsDbResult = await query(
     `SELECT
       cr.id,
       cr.id as course_id,
@@ -241,7 +241,7 @@ router.get('/classes/active', authenticateToken, requireRole(['instructor', 'adm
   }
   const userId = req.user.id;
 
-  const dbResult = await pool.query(
+  const dbResult = await query(
     `SELECT
       cr.id,
       cr.id as course_id,
@@ -292,7 +292,7 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor', '
   }
   const userId = req.user.id;
 
-  const dbResult2 = await pool.query(
+  const dbResult2 = await query(
     `SELECT
       cr.id,
       cr.id as course_id,
@@ -353,14 +353,14 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor', 'admi
     todayStr = clientDate;
   } else {
     // Fallback to database current date
-    const currentDateResult = await pool.query('SELECT CURRENT_DATE as current_date');
+    const currentDateResult = await query('SELECT CURRENT_DATE as current_date');
     todayStr = currentDateResult.rows[0].current_date.toISOString().split('T')[0];
   }
 
   devLog('[TRACE] /classes/today - Using date:', todayStr, 'Client provided:', clientDate || 'none');
 
   // Get confirmed course requests from course_requests table for today with actual student counts
-  const courseRequestsDbResult = await pool.query(
+  const courseRequestsDbResult = await query(
     `SELECT
       cr.id,
       cr.id as course_id,
@@ -389,7 +389,7 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor', 'admi
        FROM course_students
        GROUP BY course_request_id
      ) cs_counts ON cs_counts.course_request_id = cr.id
-     WHERE cr.instructor_id = $1 AND cr.status = 'confirmed' AND cr.confirmed_date::date = $2::date
+     WHERE cr.instructor_id = $1 AND cr.status = 'confirmed' AND DATE(cr.confirmed_date) = $2
      ORDER BY cr.confirmed_date ASC`,
     [userId, todayStr]
   );
@@ -416,7 +416,7 @@ router.get('/schedule', authenticateToken, requireRole(['instructor', 'admin', '
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user.id;
-  const courseRequestsDbResult = await pool.query(
+  const courseRequestsDbResult = await query(
     `SELECT
       cr.id,
       cr.id as course_id,
@@ -472,7 +472,7 @@ router.get('/classes/:classId/students', authenticateToken, requireRole(['instru
   const courseRequestId = classId;
 
   // Verify this course request belongs to the instructor
-  const courseRequestCheck = await pool.query(
+  const courseRequestCheck = await query(
     `SELECT id FROM course_requests
      WHERE id = $1 AND instructor_id = $2`,
     [courseRequestId, userId]
@@ -483,7 +483,7 @@ router.get('/classes/:classId/students', authenticateToken, requireRole(['instru
   }
 
   // Now get students from course_students table
-  const result = await pool.query(
+  const result = await query(
     `SELECT
        cs.id,
        cs.first_name,
@@ -519,7 +519,7 @@ router.get('/classes/:classId', authenticateToken, requireRole(['instructor', 'a
   const userId = req.user.id;
   const { classId } = req.params;
 
-  const result = await pool.query(
+  const result = await query(
     `SELECT 
       c.id,
       c.class_type_id,
@@ -570,7 +570,7 @@ router.put('/classes/:classId/students/:studentId/attendance', authenticateToken
   devLog('[Debug] Updating attendance for student ID:', studentId, 'course_request ID:', classId, 'attended:', attended);
 
   // The frontend is sending course_request_id as classId, so verify it belongs to this instructor
-  const courseRequestCheck = await pool.query(
+  const courseRequestCheck = await query(
     'SELECT id FROM course_requests WHERE id = $1 AND instructor_id = $2',
     [classId, instructorId]
   );
@@ -580,7 +580,7 @@ router.put('/classes/:classId/students/:studentId/attendance', authenticateToken
   }
 
   // Update student attendance directly in course_students table
-  const result = await pool.query(
+  const result = await query(
     `UPDATE course_students 
          SET attended = $1, attendance_marked = true, updated_at = CURRENT_TIMESTAMP
          WHERE id = $2 AND course_request_id = $3
@@ -593,7 +593,7 @@ router.put('/classes/:classId/students/:studentId/attendance', authenticateToken
   }
 
   // Count the number of students who attended for this course request
-  const attendanceCountResult = await pool.query(
+  const attendanceCountResult = await query(
     `SELECT COUNT(*) as attended_count
          FROM course_students
          WHERE course_request_id = $1 AND attended = true`,
@@ -632,7 +632,7 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
   const courseRequestId = classId;
 
   // Verify this course request belongs to the instructor
-  const courseRequestCheck = await pool.query(
+  const courseRequestCheck = await query(
     'SELECT id FROM course_requests WHERE id = $1 AND instructor_id = $2',
     [courseRequestId, userId]
   );
@@ -642,7 +642,7 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
   }
 
   // Check if student already exists for this course_request
-  const exists = await pool.query(
+  const exists = await query(
     'SELECT id FROM course_students WHERE course_request_id = $1 AND email = $2',
     [courseRequestId, email]
   );
@@ -652,7 +652,7 @@ router.post('/classes/:classId/students', authenticateToken, requireRole(['instr
   }
 
   // Insert student
-  const insertResult = await pool.query(
+  const insertResult = await query(
     `INSERT INTO course_students (course_request_id, first_name, last_name, email, phone, college)
      VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING id, first_name, last_name, email, phone, college, attended, attendance_marked, created_at`,
@@ -688,7 +688,7 @@ router.put('/availability', authenticateToken, requireRole(['instructor', 'admin
   }
 
   // Start a transaction
-  const client = await pool.connect();
+  const client = await getClient();
   try {
     await client.query('BEGIN');
 
@@ -715,7 +715,7 @@ router.put('/availability', authenticateToken, requireRole(['instructor', 'admin
     await client.query('COMMIT');
 
     // Return updated availability
-    const result = await pool.query(
+    const result = await query(
       `SELECT id, instructor_id, date, status, created_at, updated_at
        FROM instructor_availability
        WHERE instructor_id = $1
@@ -740,7 +740,7 @@ router.get('/profile', authenticateToken, requireRole(['instructor', 'admin', 's
   const userId = req.user.id;
 
   // Get user profile with calculated totalClasses and totalStudents
-  const result = await pool.query(
+  const result = await query(
     `SELECT
        u.id,
        u.username,
@@ -787,7 +787,7 @@ router.put('/profile', authenticateToken, requireRole(['instructor', 'admin', 's
   const userId = req.user.id;
   const { username, email, phone } = req.body;
 
-  const result = await pool.query(
+  const result = await query(
     `UPDATE users 
      SET username = COALESCE($1, username), 
          email = COALESCE($2, email),
@@ -818,7 +818,7 @@ router.post('/classes/:classId/complete', authenticateToken, requireRole(['instr
   const courseRequestId = classId;
 
   // Verify this course request belongs to the instructor
-  const courseRequestCheck = await pool.query(
+  const courseRequestCheck = await query(
     'SELECT id, status FROM course_requests WHERE id = $1 AND instructor_id = $2',
     [courseRequestId, userId]
   );
@@ -832,7 +832,7 @@ router.post('/classes/:classId/complete', authenticateToken, requireRole(['instr
   }
 
   // Update course request status to completed
-  const result = await pool.query(
+  const result = await query(
     `UPDATE course_requests 
      SET status = 'completed', 
          instructor_comments = COALESCE($1, instructor_comments), 
@@ -844,7 +844,7 @@ router.post('/classes/:classId/complete', authenticateToken, requireRole(['instr
   );
 
   // Also update the corresponding class if it exists
-  await pool.query(
+  await query(
     `UPDATE classes 
      SET status = 'completed', updated_at = CURRENT_TIMESTAMP
      WHERE instructor_id = $1 AND DATE(start_time) = (SELECT DATE(confirmed_date) FROM course_requests WHERE id = $2)`,
@@ -868,7 +868,7 @@ router.post('/classes/:classId/complete', authenticateToken, requireRole(['instr
   (async () => {
     try {
       // Get course details for notification
-      const courseDetails = await pool.query(
+      const courseDetails = await query(
         `SELECT cr.*, ct.name as course_type_name, o.id as org_id
          FROM course_requests cr
          JOIN class_types ct ON cr.course_type_id = ct.id
@@ -926,7 +926,7 @@ router.post('/classes/:classId/attendance', authenticateToken, requireRole(['ins
   }
 
   // Verify the class belongs to this instructor
-  const classCheck = await pool.query(
+  const classCheck = await query(
     'SELECT id FROM classes WHERE id = $1 AND instructor_id = $2',
     [classId, userId]
   );
@@ -936,8 +936,8 @@ router.post('/classes/:classId/attendance', authenticateToken, requireRole(['ins
   }
 
   // Get course request ID
-  const courseRequestResult = await pool.query(
-    'SELECT id FROM course_requests WHERE instructor_id = $1 AND confirmed_date::date = (SELECT DATE(start_time) FROM classes WHERE id = $2)',
+  const courseRequestResult = await query(
+    'SELECT id FROM course_requests WHERE instructor_id = $1 AND DATE(confirmed_date) = (SELECT DATE(start_time) FROM classes WHERE id = $2)',
     [userId, classId]
   );
 
@@ -946,7 +946,7 @@ router.post('/classes/:classId/attendance', authenticateToken, requireRole(['ins
   }
 
   const courseRequestId = courseRequestResult.rows[0].id;
-  const updatedStudents: StudentRecord[] = [];
+  const updatedStudents: any[] = [];
 
   // Batch update attendance - separate attended and not attended IDs
   const typedStudents = students as StudentAttendance[];
@@ -959,26 +959,36 @@ router.post('/classes/:classId/attendance', authenticateToken, requireRole(['ins
 
   // Update attended students in batch
   if (attendedIds.length > 0) {
-    const attendedResult = await pool.query(
+    const attPlaceholders = attendedIds.map((_: any, i: number) => `$${i + 1}`).join(', ');
+    await query(
       `UPDATE course_students
        SET attended = true, attendance_marked = true, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ANY($1) AND course_request_id = $2
-       RETURNING id, first_name, last_name, email, attended, attendance_marked`,
-      [attendedIds, courseRequestId]
+       WHERE id IN (${attPlaceholders}) AND course_request_id = $${attendedIds.length + 1}`,
+      [...attendedIds, courseRequestId]
     );
-    updatedStudents.push(...attendedResult.rows);
+    const attRows = await query(
+      `SELECT id, first_name, last_name, email, attended, attendance_marked FROM course_students
+       WHERE id IN (${attPlaceholders})`,
+      attendedIds
+    );
+    updatedStudents.push(...attRows.rows);
   }
 
   // Update not attended students in batch
   if (notAttendedIds.length > 0) {
-    const notAttendedResult = await pool.query(
+    const notAttPlaceholders = notAttendedIds.map((_: any, i: number) => `$${i + 1}`).join(', ');
+    await query(
       `UPDATE course_students
        SET attended = false, attendance_marked = true, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ANY($1) AND course_request_id = $2
-       RETURNING id, first_name, last_name, email, attended, attendance_marked`,
-      [notAttendedIds, courseRequestId]
+       WHERE id IN (${notAttPlaceholders}) AND course_request_id = $${notAttendedIds.length + 1}`,
+      [...notAttendedIds, courseRequestId]
     );
-    updatedStudents.push(...notAttendedResult.rows);
+    const notAttRows = await query(
+      `SELECT id, first_name, last_name, email, attended, attendance_marked FROM course_students
+       WHERE id IN (${notAttPlaceholders})`,
+      notAttendedIds
+    );
+    updatedStudents.push(...notAttRows.rows);
   }
 
   res.json(ApiResponseBuilder.success(keysToCamel(updatedStudents)));
@@ -990,7 +1000,7 @@ router.get('/attendance', authenticateToken, requireRole(['instructor', 'admin',
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
   const userId = req.user.id;
-  const result = await pool.query(
+  const result = await query(
     `SELECT 
       c.id as class_id,
       c.start_time,
@@ -1027,7 +1037,7 @@ router.post('/classes/notes', authenticateToken, requireRole(['instructor', 'adm
   }
 
   // Verify the class belongs to this instructor
-  const classCheck = await pool.query(
+  const classCheck = await query(
     'SELECT id FROM classes WHERE id = $1 AND instructor_id = $2',
     [classId, userId]
   );
@@ -1037,7 +1047,7 @@ router.post('/classes/notes', authenticateToken, requireRole(['instructor', 'adm
   }
 
   // Update class with notes
-  const result = await pool.query(
+  const result = await query(
     `UPDATE classes 
      SET location = COALESCE(location, '') || ' | Notes: ' || $1, updated_at = CURRENT_TIMESTAMP
      WHERE id = $2 AND instructor_id = $3

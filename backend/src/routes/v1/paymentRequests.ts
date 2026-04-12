@@ -3,7 +3,7 @@ import { authenticateToken } from '../../middleware/authMiddleware.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
 import { PaymentRequestService } from '../../services/paymentRequestService.js';
-import { pool } from '../../config/database.js';
+import { query, getClient } from '../../config/database.js';
 
 const router = express.Router();
 
@@ -47,7 +47,7 @@ router.get('/', authenticateToken, requireAccountantRole, asyncHandler(async (re
 // Get Payment Request Details
 router.get('/:requestId', authenticateToken, requireAccountantRole, asyncHandler(async (req: Request, res: Response) => {
   const { requestId } = req.params;
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const requestResult = await client.query(`
@@ -156,7 +156,7 @@ router.get('/my-payments', authenticateToken, asyncHandler(async (req: Request, 
   }
 
   const { page = 1, limit = 10 } = req.query;
-  const client = await pool.connect();
+  const client = await getClient();
 
   try {
     const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -213,7 +213,7 @@ router.get('/instructor/:instructorId/history', authenticateToken, requireAccoun
   const { instructorId } = req.params;
   const { page = 1, limit = 10 } = req.query;
   
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const offset = (parseInt(page as string) - 1) * parseInt(limit as string);

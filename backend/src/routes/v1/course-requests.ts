@@ -4,7 +4,7 @@ import { ApiResponseBuilder } from '../../utils/apiResponse.js';
 import { keysToCamel } from '../../utils/caseConverter.js';
 import { isDatabaseError, getErrorMessage } from '../../types/index.js';
 import { AppError, errorCodes } from '../../utils/errorHandler.js';
-import { pool } from '../../config/database.js';
+import { query, getClient } from '../../config/database.js';
 import { authenticateToken, requireRole } from '../../middleware/authMiddleware.js';
 import { cacheService } from '../../services/cacheService.js';
 import { devLog } from '../../utils/devLog.js';
@@ -76,7 +76,7 @@ router.get(
   authenticateToken,
   asyncHandler(async (_req: Request, res: Response) => {
     try {
-      const result = await pool.query(`
+      const result = await query(`
       SELECT
         c.id,
         DATE(c.start_time) as date,
@@ -194,7 +194,7 @@ router.post(
       }
 
       // Check for duplicate: same organization, same location, same date (non-cancelled)
-      const duplicateCheck = await pool.query(
+      const duplicateCheck = await query(
         `SELECT id, status FROM course_requests
          WHERE organization_id = $1
          AND location = $2
@@ -212,11 +212,10 @@ router.post(
         );
       }
 
-      const result = await pool.query(
+      const result = await query(
         `INSERT INTO course_requests
        (organization_id, course_type_id, date_requested, scheduled_date, location, registered_students, notes, status, location_id)
-       VALUES ($1, $2, (NOW() AT TIME ZONE 'America/Toronto')::date, $3, $4, $5, $6, 'pending', $7)
-       RETURNING *, date_requested as request_submitted_date`,
+       VALUES ($1, $2, CURDATE(), $3, $4, $5, $6, 'pending', $7)`,
         [
           organizationId,
           courseTypeId,
@@ -243,7 +242,7 @@ router.post(
       (async () => {
         try {
           // Get course type name and organization name
-          const detailsResult = await pool.query(
+          const detailsResult = await query(
             `SELECT ct.name as course_type_name, o.name as organization_name
              FROM class_types ct, organizations o
              WHERE ct.id = $1 AND o.id = $2`,
@@ -314,7 +313,7 @@ router.get(
       }
 
       // Simplified analytics that work with any data
-      const basicStats = await pool.query(
+      const basicStats = await query(
         `
         SELECT
           COUNT(*) as total_requests,
@@ -323,12 +322,12 @@ router.get(
           COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_requests
         FROM course_requests
         WHERE organization_id = $1
-          AND created_at >= CURRENT_DATE - INTERVAL '${timeframe} months'
+          AND created_at >= CURRENT_DATE - INTERVAL ${timeframe} MONTH
       `,
         [organizationId]
       );
 
-      const courseTypeStats = await pool.query(
+      const courseTypeStats = await query(
         `
         SELECT
           ct.name as course_type,
@@ -336,7 +335,7 @@ router.get(
         FROM course_requests cr
         JOIN class_types ct ON cr.course_type_id = ct.id
         WHERE cr.organization_id = $1
-          AND cr.created_at >= CURRENT_DATE - INTERVAL '${timeframe} months'
+          AND cr.created_at >= CURRENT_DATE - INTERVAL ${timeframe} MONTH
         GROUP BY ct.name
         ORDER BY request_count DESC
       `,
@@ -386,7 +385,7 @@ router.get(
       }
 
       // Simplified student participation analytics
-      const studentStats = await pool.query(
+      const studentStats = await query(
         `
         SELECT
           COUNT(DISTINCT cr.id) as total_courses,
@@ -400,7 +399,7 @@ router.get(
         FROM course_requests cr
         LEFT JOIN course_students cs ON cr.id = cs.course_request_id
         WHERE cr.organization_id = $1
-          AND cr.created_at >= CURRENT_DATE - INTERVAL '${timeframe} months'
+          AND cr.created_at >= CURRENT_DATE - INTERVAL ${timeframe} MONTH
       `,
         [organizationId]
       );
@@ -447,7 +446,7 @@ router.get(
       }
 
       // Simplified billing analytics
-      const billingStats = await pool.query(
+      const billingStats = await query(
         `
         SELECT
           COUNT(*) as total_invoices,
@@ -457,7 +456,7 @@ router.get(
           COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as paid_amount
         FROM invoices
         WHERE organization_id = $1
-          AND invoice_date >= CURRENT_DATE - INTERVAL '${timeframe} months'
+          AND invoice_date >= CURRENT_DATE - INTERVAL ${timeframe} MONTH
       `,
         [organizationId]
       );
@@ -486,7 +485,7 @@ router.get(
   requireRole(['admin', 'sysadmin', 'superadmin']),
   asyncHandler(async (_req: Request, res: Response) => {
     try {
-      const result = await pool.query(`
+      const result = await query(`
         SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, o.name as organization_name, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended
         FROM course_requests cr
         LEFT JOIN class_types ct ON cr.course_type_id = ct.id
@@ -520,7 +519,7 @@ router.post(
     try {
       const { id } = req.params;
 
-      const result = await pool.query(
+      const result = await query(
         `UPDATE course_requests
          SET last_reminder_at = CURRENT_TIMESTAMP
          WHERE id = $1
@@ -555,7 +554,7 @@ router.get(
   requireRole(['admin', 'sysadmin', 'superadmin']),
   asyncHandler(async (_req: Request, res: Response) => {
     try {
-      const result = await pool.query(
+      const result = await query(
         `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, o.name as organization_name, u.username as instructor_name, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended
          FROM course_requests cr
          LEFT JOIN class_types ct ON cr.course_type_id = ct.id
@@ -584,7 +583,7 @@ router.get(
   requireRole(['admin', 'sysadmin', 'superadmin']),
   asyncHandler(async (_req: Request, res: Response) => {
     try {
-      const result = await pool.query(
+      const result = await query(
         `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, o.name as organization_name, u.username as instructor_name, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended
          FROM course_requests cr
          LEFT JOIN class_types ct ON cr.course_type_id = ct.id
@@ -613,7 +612,7 @@ router.get(
   requireRole(['admin', 'sysadmin', 'superadmin']),
   asyncHandler(async (_req: Request, res: Response) => {
     try {
-      const result = await pool.query(
+      const result = await query(
         `SELECT cr.*, cr.date_requested as request_submitted_date, ct.name as course_type_name, o.name as organization_name, u.username as instructor_name, (SELECT COUNT(*) FROM course_students cs WHERE cs.course_request_id = cr.id AND cs.attended = true) AS students_attended
          FROM course_requests cr
          LEFT JOIN class_types ct ON cr.course_type_id = ct.id
@@ -653,7 +652,7 @@ router.put(
         );
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -725,7 +724,7 @@ router.put(
         (async () => {
           try {
             // Get course details for notification
-            const courseDetails = await pool.query(
+            const courseDetails = await query(
               `SELECT cr.*, ct.name as course_type_name, o.name as organization_name
                FROM course_requests cr
                JOIN class_types ct ON cr.course_type_id = ct.id
@@ -812,7 +811,7 @@ router.put(
         );
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -991,7 +990,7 @@ router.put(
       }
 
       // Start a transaction to ensure both operations succeed or fail together
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -1148,7 +1147,7 @@ router.put(
         (async () => {
           try {
             // Get organization contact email
-            const orgResult = await pool.query(
+            const orgResult = await query(
               'SELECT contact_email FROM organizations WHERE id = $1',
               [courseRequest.organization_id]
             );
@@ -1294,7 +1293,7 @@ router.get(
       }
 
       // Verify the course belongs to this organization
-      const courseCheck = await pool.query(
+      const courseCheck = await query(
         'SELECT id, organization_id FROM course_requests WHERE id = $1',
         [courseId]
       );
@@ -1323,7 +1322,7 @@ router.get(
       }
 
       // Get students for this course with attendance information
-      const result = await pool.query(
+      const result = await query(
         `SELECT
         s.id,
         s.course_request_id,
@@ -1379,7 +1378,7 @@ router.post(
       }
 
       // Verify the course belongs to this organization
-      const courseCheck = await pool.query(
+      const courseCheck = await query(
         'SELECT id FROM course_requests WHERE id = $1 AND organization_id = $2',
         [courseId, organizationId]
       );
@@ -1392,7 +1391,7 @@ router.post(
         );
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -1478,7 +1477,7 @@ router.post(
       }
 
       // Verify the course belongs to this organization
-      const courseCheck = await pool.query(
+      const courseCheck = await query(
         'SELECT id FROM course_requests WHERE id = $1 AND organization_id = $2',
         [courseRequestId, organizationId]
       );
@@ -1491,7 +1490,7 @@ router.post(
         );
       }
 
-      const client = await pool.connect();
+      const client = await getClient();
 
       try {
         await client.query('BEGIN');
@@ -1570,11 +1569,11 @@ router.get(
       // Verify the course exists — courseadmin is org-scoped, admin/sysadmin can see all orgs
       const isSuperAdmin = userRole === 'admin' || userRole === 'sysadmin';
       const courseCheck = isSuperAdmin
-        ? await pool.query(
+        ? await query(
             'SELECT id, organization_id FROM course_requests WHERE id = $1',
             [courseId]
           )
-        : await pool.query(
+        : await query(
             'SELECT id, organization_id FROM course_requests WHERE id = $1 AND organization_id = $2',
             [courseId, req.user?.organizationId]
           );
@@ -1588,7 +1587,7 @@ router.get(
       }
 
       // Get students for this course with attendance information
-      const result = await pool.query(
+      const result = await query(
         `SELECT
         s.id,
         s.course_request_id,
@@ -1632,7 +1631,7 @@ router.get(
       devLog(`[VALIDATION] Checking billing readiness for course ${courseId}`);
 
       // Get course details with all required information
-      const courseResult = await pool.query(
+      const courseResult = await query(
         `
         SELECT
           cr.id,
@@ -1763,7 +1762,7 @@ router.put(
       devLog(`[BILLING] Attempting to mark course ${courseId} as ready for billing`);
 
       // Step 1: Run validation check first
-      const validationResult = await pool.query(
+      const validationResult = await query(
         `
         SELECT
           cr.id,
@@ -1836,7 +1835,7 @@ router.put(
       // Step 2: If validation passes, proceed with marking as ready for billing
       devLog(`[BILLING] Validation passed for course ${courseId}, marking as ready for billing`);
 
-      const result = await pool.query(
+      const result = await query(
         `
         UPDATE course_requests
         SET ready_for_billing = true,
@@ -1896,7 +1895,7 @@ router.get(
       }
 
       // Verify the course exists and is ready for billing
-      const courseCheck = await pool.query(
+      const courseCheck = await query(
         `SELECT id, status, ready_for_billing_at
          FROM course_requests
          WHERE id = $1 AND status = 'completed' AND ready_for_billing_at IS NOT NULL`,
@@ -1912,7 +1911,7 @@ router.get(
       }
 
       // Get students for this course with attendance information
-      const result = await pool.query(
+      const result = await query(
         `SELECT
         s.id,
         s.course_request_id,
@@ -1958,7 +1957,7 @@ router.post(
     }
 
     // Verify the course exists and is in a schedulable state
-    const courseCheck = await pool.query(
+    const courseCheck = await query(
       'SELECT id, status FROM course_requests WHERE id = $1',
       [id]
     );
@@ -1973,7 +1972,7 @@ router.post(
     }
 
     // Verify the instructor exists
-    const instructorCheck = await pool.query(
+    const instructorCheck = await query(
       "SELECT id FROM users WHERE id = $1 AND role = 'instructor'",
       [instructorId]
     );
@@ -1983,7 +1982,7 @@ router.post(
     }
 
     // Update the course request
-    const result = await pool.query(
+    const result = await query(
       `UPDATE course_requests
        SET instructor_id = $1,
            confirmed_date = $2,
@@ -2010,7 +2009,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     devLog('[Debug] Getting all instructors for course admin');
 
-    const query = `
+    const instructorsSql = `
       SELECT
         u.id as instructorid,
         u.first_name as firstname,
@@ -2024,7 +2023,7 @@ router.get(
       ORDER BY u.last_name, u.first_name
     `;
 
-    const result = await pool.query(query);
+    const result = await query(instructorsSql);
 
     res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
   })

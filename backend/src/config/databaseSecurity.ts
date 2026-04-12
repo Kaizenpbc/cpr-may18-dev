@@ -1,4 +1,3 @@
-import { Pool, PoolConfig } from 'pg';
 import { logSecurityEvent, AuditEventSeverity } from '../middleware/auditLogger.js';
 import crypto from 'crypto';
 
@@ -34,60 +33,6 @@ export const DEFAULT_DB_SECURITY_CONFIG: DatabaseSecurityConfig = {
   requireSSL: process.env.NODE_ENV === 'production',
   connectionPooling: true,
   auditDatabaseAccess: true
-};
-
-// Get database password securely - require in production
-const getSecureDbPassword = (): string => {
-  const password = process.env.DB_PASSWORD;
-  if (!password) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('SECURITY ERROR: DB_PASSWORD environment variable is required in production');
-    }
-    console.warn('⚠️  WARNING: DB_PASSWORD not set. Using empty password - ONLY for development!');
-    return '';
-  }
-  return password;
-};
-
-// Enhanced database configuration with security
-export const createSecureDatabaseConfig = (): PoolConfig => {
-  const config: PoolConfig = {
-    user: process.env.DB_USER || 'postgres',
-    password: getSecureDbPassword(),
-    host: process.env.DB_HOST || '127.0.0.1',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    database: process.env.DB_NAME || 'cpr_jun21',
-    
-    // Security settings
-    ssl: DEFAULT_DB_SECURITY_CONFIG.ssl ? {
-      rejectUnauthorized: true,
-      // In production, you would specify certificate paths
-      // ca: fs.readFileSync('path/to/ca-cert.pem'),
-      // cert: fs.readFileSync('path/to/client-cert.pem'),
-      // key: fs.readFileSync('path/to/client-key.pem')
-    } : false,
-    
-    // Connection pool settings
-    max: DEFAULT_DB_SECURITY_CONFIG.maxConnections,
-    min: DEFAULT_DB_SECURITY_CONFIG.minConnections,
-    idleTimeoutMillis: DEFAULT_DB_SECURITY_CONFIG.idleTimeout,
-    connectionTimeoutMillis: DEFAULT_DB_SECURITY_CONFIG.connectionTimeout,
-    
-    // Application name for monitoring
-    application_name: 'cpr-training-app',
-    
-    // Statement timeout (30 seconds)
-    statement_timeout: 30000,
-    
-    // Query timeout (60 seconds)
-    query_timeout: 60000,
-    
-    // Keep alive settings
-    keepAlive: true,
-    keepAliveInitialDelayMillis: 10000,
-  };
-
-  return config;
 };
 
 // Database access logging

@@ -37,6 +37,9 @@
 - [ ] **🟡 Switch to dedicated noreply mailbox (EMAIL-2)**: Currently using `michaela@kpbc.ca` as SMTP sender (temporary). Create a dedicated `noreply@kpbc.ca` mailbox in cPanel, update `.htaccess` `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` to use it, and restart Passenger.
 - [ ] **🟡 Confirm email delivery (EMAIL-1)** *(deferred)*: SMTP updated to `mail.kpbc.ca:587` using `michaela@kpbc.ca` (deployed 2026-03-18). API returns `RESET_SENT` but delivery to `kpbcma@gmail.com` unconfirmed. **Next step**: check inbox/spam for the test reset email; if not received, investigate TMD mail logs via cPanel → Email → Track Delivery, or try an alternate recipient. May need SPF/DKIM records checked for `kpbc.ca`.
 - [ ] **🟡 Re-enable rate limiting (RATELIMIT-1)** *(deferred — SOP item, not blocking launch)*: All rate limiters are commented out in `backend/src/index.ts` lines 321–326. Uncomment `apiLimiter`, `authLimiter`, and `registerLimiter` before scaling / public exposure. Test locally first to confirm limits don't block legitimate usage patterns.
+- [x] **🟡 Fix billing lifecycle inconsistency (BUG-2)**: `PUT /accounting/invoices/:id/approval` auto-sets `posted_to_org=TRUE`, but `PUT /accounting/invoices/:id/post-to-org` requires `posted_to_org=FALSE` to run. These two paths are mutually exclusive. The PDF/email is only sent via post-to-org — approval silently skips it. Accountant must manually call `POST /accounting/invoices/:id/email` after approving. Fix: approval should NOT set `posted_to_org=TRUE`; that should remain the post-to-org endpoint's responsibility.
+- [x] **🟡 Fix vendor dashboard non-standard response (BUG-3)**: `GET /vendor/dashboard` returns a raw object `{pendingInvoices, totalInvoices, ...}` instead of the standard `{success: true, data: {...}}` wrapper used by every other endpoint. Frontend may handle this inconsistently.
+- [x] **🟡 Fix sysadmin POST /vendors ignoring contactEmail (BUG-4)**: `POST /sysadmin/vendors` only maps `email` or `contact_email` from request body — camelCase `contactEmail` is silently ignored. Created vendors have null contact_email, breaking vendor portal profile/dashboard lookup (which queries `WHERE contact_email = $1`).
 - [x] **Input validation** — inputSanitizer with Zod schemas
 - [x] **Security headers** — Helmet with full CSP, HSTS, X-Frame-Options
 - [x] **Audit logging** — auditLogger.ts active
@@ -152,7 +155,7 @@
 7. **BIZ-2** — Define offboarding / cancellation policy *(deferred — ToS already covers 30-day notice, 30-day data export window, then anonymization; formalize as internal process when first customer churns)*
 
 ### **🟡 Medium Priority**
-- **RATELIMIT-1** — Re-enable rate limiting (`index.ts` lines 321–326 commented out) before scaling
+- **RATELIMIT-1** — Uncomment rate limiters in `index.ts` lines 321–326 before going to production
 - **HOSTING-1** — Plan VPS upgrade before multiple concurrent paying customers
 - **ONBOARD-1** — Customer onboarding flow (self-serve or documented manual process)
 - Mobile responsiveness

@@ -1,19 +1,17 @@
-import { pool } from '../config/database.js';
+import { getClient, query } from '../config/database.js';
 
 export async function migrateOrganizationLocations(): Promise<void> {
-  const client = await pool.connect();
+  const client = await getClient();
 
   try {
     // Check if table already exists
     const tableCheck = await client.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables
-        WHERE table_schema = 'public'
-        AND table_name = 'organization_locations'
-      );
+      SELECT COUNT(*) as cnt FROM information_schema.tables
+      WHERE table_schema = DATABASE()
+      AND table_name = 'organization_locations'
     `);
 
-    if (tableCheck.rows[0].exists) {
+    if ((tableCheck.rows[0] as any).cnt > 0) {
       console.log('ℹ️ organization_locations table already exists, skipping migration');
       return;
     }
@@ -23,7 +21,7 @@ export async function migrateOrganizationLocations(): Promise<void> {
     // Create organization_locations table
     await client.query(`
       CREATE TABLE IF NOT EXISTS organization_locations (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
         location_name VARCHAR(255) NOT NULL,
         address TEXT,
@@ -34,57 +32,57 @@ export async function migrateOrganizationLocations(): Promise<void> {
         contact_last_name VARCHAR(100),
         contact_email VARCHAR(255),
         contact_phone VARCHAR(32),
-        is_active BOOLEAN DEFAULT TRUE,
+        is_active TINYINT(1) DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
     console.log('✅ Created organization_locations table');
 
     // Create indexes
     await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_org_locations_org_id ON organization_locations(organization_id);
+      CREATE INDEX idx_org_locations_org_id ON organization_locations(organization_id)
     `);
     await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_org_locations_active ON organization_locations(organization_id, is_active);
+      CREATE INDEX idx_org_locations_active ON organization_locations(organization_id, is_active)
     `);
 
     // Add location_id to users table
     const usersColCheck = await client.query(`
       SELECT column_name FROM information_schema.columns
-      WHERE table_name = 'users' AND column_name = 'location_id';
+      WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'location_id'
     `);
     if (usersColCheck.rows.length === 0) {
       await client.query(`
-        ALTER TABLE users ADD COLUMN location_id INTEGER REFERENCES organization_locations(id);
+        ALTER TABLE users ADD COLUMN location_id INTEGER REFERENCES organization_locations(id)
       `);
-      await client.query(`CREATE INDEX IF NOT EXISTS idx_users_location_id ON users(location_id);`);
+      await client.query(`CREATE INDEX idx_users_location_id ON users(location_id)`);
       console.log('✅ Added location_id to users table');
     }
 
     // Add location_id to course_requests table
     const crColCheck = await client.query(`
       SELECT column_name FROM information_schema.columns
-      WHERE table_name = 'course_requests' AND column_name = 'location_id';
+      WHERE table_schema = DATABASE() AND table_name = 'course_requests' AND column_name = 'location_id'
     `);
     if (crColCheck.rows.length === 0) {
       await client.query(`
-        ALTER TABLE course_requests ADD COLUMN location_id INTEGER REFERENCES organization_locations(id);
+        ALTER TABLE course_requests ADD COLUMN location_id INTEGER REFERENCES organization_locations(id)
       `);
-      await client.query(`CREATE INDEX IF NOT EXISTS idx_course_requests_location_id ON course_requests(location_id);`);
+      await client.query(`CREATE INDEX idx_course_requests_location_id ON course_requests(location_id)`);
       console.log('✅ Added location_id to course_requests table');
     }
 
     // Add location_id to invoices table
     const invColCheck = await client.query(`
       SELECT column_name FROM information_schema.columns
-      WHERE table_name = 'invoices' AND column_name = 'location_id';
+      WHERE table_schema = DATABASE() AND table_name = 'invoices' AND column_name = 'location_id'
     `);
     if (invColCheck.rows.length === 0) {
       await client.query(`
-        ALTER TABLE invoices ADD COLUMN location_id INTEGER REFERENCES organization_locations(id);
+        ALTER TABLE invoices ADD COLUMN location_id INTEGER REFERENCES organization_locations(id)
       `);
-      await client.query(`CREATE INDEX IF NOT EXISTS idx_invoices_location_id ON invoices(location_id);`);
+      await client.query(`CREATE INDEX idx_invoices_location_id ON invoices(location_id)`);
       console.log('✅ Added location_id to invoices table');
     }
 
@@ -106,7 +104,7 @@ export async function migrateOrganizationLocations(): Promise<void> {
       FROM organizations
     `);
 
-    for (const org of orgsResult.rows) {
+    for (const org of orgsResult.rows as any[]) {
       // Check if org already has a location
       const existingLoc = await client.query(
         'SELECT id FROM organization_locations WHERE organization_id = $1',
@@ -129,7 +127,7 @@ export async function migrateOrganizationLocations(): Promise<void> {
             organization_id, location_name, address, city, province, postal_code,
             contact_first_name, contact_last_name, contact_email, contact_phone,
             is_active
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1)
           RETURNING id
         `, [
           org.id,
@@ -144,7 +142,7 @@ export async function migrateOrganizationLocations(): Promise<void> {
           org.contact_phone || null,
         ]);
 
-        const locationId = locResult.rows[0].id;
+        const locationId = (locResult.rows[0] as any).id;
 
         // Update related records
         await client.query(

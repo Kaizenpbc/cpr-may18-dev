@@ -3,7 +3,7 @@ import { authenticateToken } from '../../middleware/authMiddleware.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { AppError } from '../../utils/errorHandler.js';
 import { errorCodes } from '../../utils/errorHandler.js';
-import { pool } from '../../config/database.js';
+import { query } from '../../config/database.js';
 
 const router = Router();
 
@@ -41,7 +41,7 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
     let currentValue = null;
 
     // Check if there's already a pending change for this field
-    const existingChange = await pool.query(
+    const existingChange = await query(
       `SELECT id FROM profile_changes 
        WHERE user_id = $1 AND field_name = $2 AND status = 'pending'`,
       [targetUserId, field_name]
@@ -52,7 +52,7 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
     }
 
     // Create the profile change request
-    const result = await pool.query(
+    const result = await query(
       `INSERT INTO profile_changes (user_id, change_type, field_name, old_value, new_value, status)
        VALUES ($1, $2, $3, $4, $5, 'pending')
        RETURNING id, created_at`,
@@ -89,7 +89,7 @@ router.get('/', authenticateToken, asyncHandler(async (req: Request, res: Respon
   }
 
   try {
-    const result = await pool.query(
+    const result = await query(
       `SELECT id, change_type, field_name, old_value, new_value, status, hr_comment, created_at, updated_at
        FROM profile_changes 
        WHERE user_id = $1

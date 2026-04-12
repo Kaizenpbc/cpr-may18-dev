@@ -228,6 +228,17 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
     console.log('[TRACE] OrganizationPortal - Upload process completed');
   };
 
+  // Handle header refresh — invalidate all org queries
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['organization-data', user?.organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['organization-courses', user?.organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['organization-archived-courses', user?.organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['organization-billing-summary', user?.organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['organization-invoices', user?.organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['organization-paid-invoices', user?.organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['organization-paid-invoices-summary', user?.organizationId] });
+  };
+
   // Handle payment success - refresh all invoice-related data
   const handlePaymentSuccess = () => {
     // Refresh all invoice-related queries
@@ -325,9 +336,8 @@ const OrganizationPortal: React.FC<OrganizationPortalProps> = ({
     <>
       <OrganizationLayout
         user={user}
-        // currentView={currentView}
-        // onViewChange={onViewChange}
         onLogout={onLogout}
+        onRefresh={handleRefresh}
         navigationItems={navigationItems}
         drawerWidth={drawerWidth}
       >

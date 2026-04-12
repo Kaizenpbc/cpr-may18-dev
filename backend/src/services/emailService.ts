@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { pool } from '../config/database.js';
+import { query } from '../config/database.js';
 
 interface InvoiceReminderData {
   organizationName: string;
@@ -418,7 +418,7 @@ class EmailService {
     daysBeforeDue: number
   ): Promise<void> {
     try {
-      await pool.query(`
+      await query(`
         CREATE TABLE IF NOT EXISTS email_reminders (
           id SERIAL PRIMARY KEY,
           invoice_id INTEGER REFERENCES invoices(id),
@@ -430,7 +430,7 @@ class EmailService {
         )
       `);
 
-      await pool.query(
+      await query(
         `INSERT INTO email_reminders (invoice_id, recipient_email, reminder_type, days_before_due)
          VALUES ($1, $2, 'invoice_due', $3)
          ON CONFLICT (invoice_id, days_before_due) DO UPDATE SET sent_at = CURRENT_TIMESTAMP`,
@@ -443,10 +443,10 @@ class EmailService {
 
   public async hasReminderBeenSent(invoiceId: number, daysBeforeDue: number): Promise<boolean> {
     try {
-      const result = await pool.query(
+      const result = await query(
         `SELECT COUNT(*) as count FROM email_reminders
          WHERE invoice_id = $1 AND days_before_due = $2
-         AND sent_at > CURRENT_TIMESTAMP - INTERVAL '24 hours'`,
+         AND sent_at > CURRENT_TIMESTAMP - INTERVAL 24 HOUR`,
         [invoiceId, daysBeforeDue]
       );
       return parseInt(result.rows[0].count) > 0;
