@@ -14,17 +14,17 @@ export async function initializeSecurityMonitoringDatabase(): Promise<void> {
         description TEXT NOT NULL,
         source VARCHAR(255) NOT NULL,
         metadata JSON,
-        acknowledged BOOLEAN DEFAULT FALSE,
-        resolved BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
+        acknowledged TINYINT(1) DEFAULT 0,
+        resolved TINYINT(1) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
 
     // Create security metrics table for historical data
     await query(`
       CREATE TABLE IF NOT EXISTS security_metrics (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         date DATE NOT NULL,
         hour INTEGER NOT NULL,
         authentication_logins INTEGER DEFAULT 0,
@@ -35,29 +35,33 @@ export async function initializeSecurityMonitoringDatabase(): Promise<void> {
         api_requests INTEGER DEFAULT 0,
         api_blocked INTEGER DEFAULT 0,
         security_events INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_date_hour (date, hour)
       )
     `);
+
+    // Add unique key for existing deployments (no-op if already exists)
+    await query(`ALTER TABLE security_metrics ADD UNIQUE KEY unique_date_hour (date, hour)`).catch(() => {});
 
     // Create security dashboard cache table
     await query(`
       CREATE TABLE IF NOT EXISTS security_dashboard_cache (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         cache_key VARCHAR(255) UNIQUE NOT NULL,
         cache_data JSON NOT NULL,
         expires_at TIMESTAMP NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Create security monitoring configuration table
     await query(`
       CREATE TABLE IF NOT EXISTS security_monitoring_config (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         config_key VARCHAR(255) UNIQUE NOT NULL,
         config_value JSON NOT NULL,
         description TEXT,
-        updated_at TIMESTAMP DEFAULT NOW()
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
 
@@ -98,86 +102,8 @@ export async function initializeSecurityMonitoringDatabase(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_security_monitoring_config_key ON security_monitoring_config(config_key);
     `);
 
-    // Create function to clean up expired cache entries
-    await query(`
-      CREATE OR REPLACE FUNCTION cleanup_expired_security_cache()
-      RETURNS void AS $$
-      BEGIN
-        DELETE FROM security_dashboard_cache WHERE expires_at < NOW();
-      END;
-      $$ LANGUAGE plpgsql;
-    `);
-
-    // Create function to update security metrics
-    await query(`
-      CREATE OR REPLACE FUNCTION update_security_metrics(
-        p_date DATE,
-        p_hour INTEGER,
-        p_logins INTEGER DEFAULT 0,
-        p_failures INTEGER DEFAULT 0,
-        p_mfa_attempts INTEGER DEFAULT 0,
-        p_mfa_failures INTEGER DEFAULT 0,
-        p_encryption_ops INTEGER DEFAULT 0,
-        p_api_requests INTEGER DEFAULT 0,
-        p_api_blocked INTEGER DEFAULT 0,
-        p_security_events INTEGER DEFAULT 0
-      )
-      RETURNS void AS $$
-      BEGIN
-        INSERT INTO security_metrics (
-          date, hour, authentication_logins, authentication_failures,
-          mfa_attempts, mfa_failures, encryption_operations,
-          api_requests, api_blocked, security_events
-        )
-        VALUES (
-          p_date, p_hour, p_logins, p_failures,
-          p_mfa_attempts, p_mfa_failures, p_encryption_ops,
-          p_api_requests, p_api_blocked, p_security_events
-        )
-        ON CONFLICT (date, hour) DO UPDATE SET
-          authentication_logins = security_metrics.authentication_logins + p_logins,
-          authentication_failures = security_metrics.authentication_failures + p_failures,
-          mfa_attempts = security_metrics.mfa_attempts + p_mfa_attempts,
-          mfa_failures = security_metrics.mfa_failures + p_mfa_failures,
-          encryption_operations = security_metrics.encryption_operations + p_encryption_ops,
-          api_requests = security_metrics.api_requests + p_api_requests,
-          api_blocked = security_metrics.api_blocked + p_api_blocked,
-          security_events = security_metrics.security_events + p_security_events;
-      END;
-      $$ LANGUAGE plpgsql;
-    `);
-
-    // Create function to update updated_at timestamp
-    await query(`
-      CREATE OR REPLACE FUNCTION update_security_alerts_updated_at()
-      RETURNS TRIGGER AS $$
-      BEGIN
-        NEW.updated_at = NOW();
-        RETURN NEW;
-      END;
-      $$ LANGUAGE plpgsql;
-    `);
-
-    // Create trigger for updated_at
-    await query(`
-      DROP TRIGGER IF EXISTS trigger_update_security_alerts_updated_at ON security_alerts;
-      CREATE TRIGGER trigger_update_security_alerts_updated_at
-        BEFORE UPDATE ON security_alerts
-        FOR EACH ROW
-        EXECUTE FUNCTION update_security_alerts_updated_at();
-    `);
-
-    // Create trigger for security_monitoring_config updated_at
-    await query(`
-      DROP TRIGGER IF EXISTS trigger_update_security_monitoring_config_updated_at ON security_monitoring_config;
-      CREATE TRIGGER trigger_update_security_monitoring_config_updated_at
-        BEFORE UPDATE ON security_monitoring_config
-        FOR EACH ROW
-        EXECUTE FUNCTION update_security_alerts_updated_at();
-    `);
-
-    // Clean up expired cache entries
-    await query('SELECT cleanup_expired_security_cache();');
+    // Clean up expired cache entries directly (no stored procedures in MySQL)
+    await query('DELETE FROM security_dashboard_cache WHERE expires_at < NOW()').catch(() => {/* table may not exist yet */});
 
     // Insert default monitoring configuration
     await query(`
@@ -186,7 +112,7 @@ export async function initializeSecurityMonitoringDatabase(): Promise<void> {
         ('alert_thresholds', '{"failed_logins": 5, "mfa_failures": 3, "suspicious_requests": 10, "encryption_errors": 1}', 'Thresholds for generating security alerts'),
         ('monitoring_intervals', '{"metrics_collection": 300, "cache_refresh": 60, "health_check": 30}', 'Intervals for various monitoring operations'),
         ('retention_periods', '{"metrics": 90, "events": 30, "alerts": 365, "cache": 1}', 'Data retention periods in days')
-      ON CONFLICT (config_key) DO NOTHING;
+      ON DUPLICATE KEY UPDATE config_key = config_key;
     `);
 
     console.log('✅ Security monitoring database tables initialized');
@@ -331,9 +257,19 @@ export async function storeSecurityMetrics(
 ): Promise<void> {
   try {
     await query(`
-      SELECT update_security_metrics(
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
-      )
+      INSERT INTO security_metrics
+        (date, hour, authentication_logins, authentication_failures, mfa_attempts, mfa_failures,
+         encryption_operations, api_requests, api_blocked, security_events)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ON DUPLICATE KEY UPDATE
+        authentication_logins = authentication_logins + VALUES(authentication_logins),
+        authentication_failures = authentication_failures + VALUES(authentication_failures),
+        mfa_attempts = mfa_attempts + VALUES(mfa_attempts),
+        mfa_failures = mfa_failures + VALUES(mfa_failures),
+        encryption_operations = encryption_operations + VALUES(encryption_operations),
+        api_requests = api_requests + VALUES(api_requests),
+        api_blocked = api_blocked + VALUES(api_blocked),
+        security_events = security_events + VALUES(security_events)
     `, [
       date,
       hour,
@@ -378,8 +314,8 @@ export async function updateSecurityMonitoringConfig(key: string, value: any): P
     await query(`
       INSERT INTO security_monitoring_config (config_key, config_value)
       VALUES ($1, $2)
-      ON CONFLICT (config_key) DO UPDATE SET
-      config_value = $2,
+      ON DUPLICATE KEY UPDATE
+      config_value = VALUES(config_value),
       updated_at = NOW()
     `, [key, JSON.stringify(value)]);
   } catch (error) {

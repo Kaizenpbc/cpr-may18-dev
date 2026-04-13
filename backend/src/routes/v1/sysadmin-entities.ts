@@ -13,6 +13,9 @@ const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS || '12', 10);
 
 const router = Router();
 
+// All routes in this file require authentication — role checked per route below
+router.use(authenticateToken);
+
 // ===========================
 // SYSTEM ADMINISTRATION ENDPOINTS
 // ===========================
@@ -20,6 +23,7 @@ const router = Router();
 // Course Definition Management
 router.get(
   '/courses',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const result = await query(`
@@ -49,6 +53,7 @@ router.get(
 
 router.post(
   '/courses',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const {
@@ -112,6 +117,7 @@ router.post(
 
 router.put(
   '/courses/:id',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -185,6 +191,7 @@ router.put(
 // Toggle course active/inactive status
 router.put(
   '/courses/:id/toggle-active',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -227,6 +234,7 @@ router.put(
 // Soft delete course (set is_active to false)
 router.delete(
   '/courses/:id',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -297,6 +305,7 @@ router.delete(
 // User Management
 router.get(
   '/users',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const result = await query(`
@@ -339,6 +348,7 @@ router.get(
 
 router.post(
   '/users',
+  requireRole(['admin', 'sysadmin']),
   [
     body('username')
       .isLength({ min: 3, max: 50 })
@@ -549,6 +559,7 @@ router.post(
 
 router.put(
   '/users/:id',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -707,6 +718,7 @@ router.put(
 
 router.delete(
   '/users/:id',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -743,6 +755,7 @@ router.delete(
 // Vendor Management
 router.get(
   '/vendors',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const result = await query(`
@@ -811,6 +824,7 @@ router.get(
 
 router.post(
   '/vendors',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const {
@@ -898,6 +912,7 @@ router.post(
 
 router.put(
   '/vendors/:id',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -993,6 +1008,7 @@ router.put(
 
 router.delete(
   '/vendors/:id',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -1030,6 +1046,7 @@ router.delete(
 // System Administration Dashboard
 router.get(
   '/dashboard',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       // Get total counts
@@ -1089,6 +1106,7 @@ router.get(
 // Organization Management
 router.get(
   '/organizations',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     devLog('[Debug] Getting all organizations for sysadmin');
 
@@ -1132,6 +1150,7 @@ router.get(
 
 router.post(
   '/organizations',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     devLog('[Debug] Creating new organization:', req.body);
 
@@ -1205,6 +1224,7 @@ router.post(
 
 router.put(
   '/organizations/:id',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     devLog('[Debug] Updating organization:', id, req.body);
@@ -1301,6 +1321,7 @@ router.put(
 
 router.delete(
   '/organizations/:id',
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     devLog('[Debug] Deleting organization:', id);
@@ -1476,16 +1497,24 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { orgId } = req.params;
     const {
-      locationName,
+      locationName, location_name,
       address,
       city,
       province,
-      postalCode,
-      contactFirstName,
-      contactLastName,
-      contactEmail,
-      contactPhone,
+      postalCode, postal_code,
+      contactFirstName, contact_first_name,
+      contactLastName, contact_last_name,
+      contactEmail, contact_email,
+      contactPhone, contact_phone,
     } = req.body;
+
+    // Accept both camelCase and snake_case field names
+    const resolvedLocationName = locationName ?? location_name;
+    const resolvedPostalCode = postalCode ?? postal_code;
+    const resolvedContactFirstName = contactFirstName ?? contact_first_name;
+    const resolvedContactLastName = contactLastName ?? contact_last_name;
+    const resolvedContactEmail = contactEmail ?? contact_email;
+    const resolvedContactPhone = contactPhone ?? contact_phone;
 
     devLog('[Debug] Creating location for org:', orgId, req.body);
 
@@ -1528,15 +1557,15 @@ router.post(
 
     const result = await query(sql, [
       orgId,
-      locationName,
+      resolvedLocationName,
       address || null,
       city || null,
       province || null,
-      postalCode || null,
-      contactFirstName || null,
-      contactLastName || null,
-      contactEmail || null,
-      contactPhone || null,
+      resolvedPostalCode || null,
+      resolvedContactFirstName || null,
+      resolvedContactLastName || null,
+      resolvedContactEmail || null,
+      resolvedContactPhone || null,
     ]);
 
     res.json({
