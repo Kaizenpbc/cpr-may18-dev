@@ -38,9 +38,9 @@ router.get('/dashboard/stats', authenticateToken, requireRole(['instructor', 'ad
   const statsResult = await query(
     `SELECT
       COUNT(*) as total_courses,
-      COUNT(*) FILTER (WHERE status = 'confirmed') as scheduled_courses,
-      COUNT(*) FILTER (WHERE status = 'completed') as completed_courses,
-      COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_courses,
+      SUM(CASE WHEN cr.status = 'confirmed' THEN 1 ELSE 0 END) as scheduled_courses,
+      SUM(CASE WHEN cr.status = 'completed' THEN 1 ELSE 0 END) as completed_courses,
+      SUM(CASE WHEN cr.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_courses,
       COALESCE(SUM(student_counts.student_count), 0) as total_students
      FROM course_requests cr
      LEFT JOIN (
@@ -181,7 +181,7 @@ router.delete('/availability/:date', authenticateToken, requireRole(['instructor
 }));
 
 // Get instructor's classes (all confirmed course_requests)
-router.get('/classes', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.get('/classes', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -214,7 +214,7 @@ router.get('/classes', authenticateToken, requireRole(['instructor', 'admin', 's
      LEFT JOIN (
        SELECT course_request_id,
               COUNT(*) as studentcount,
-              COUNT(*) FILTER (WHERE attended = true) as studentsattendance
+              SUM(CASE WHEN attended = 1 OR attended = true THEN 1 ELSE 0 END) as studentsattendance
        FROM course_students
        GROUP BY course_request_id
      ) cs_counts ON cs_counts.course_request_id = cr.id
@@ -232,10 +232,10 @@ router.get('/classes', authenticateToken, requireRole(['instructor', 'admin', 's
     };
   });
   res.json(ApiResponseBuilder.success(keysToCamel(result)));
-});
+}));
 
 // Get instructor's active classes (confirmed course_requests)
-router.get('/classes/active', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.get('/classes/active', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -266,7 +266,7 @@ router.get('/classes/active', authenticateToken, requireRole(['instructor', 'adm
      LEFT JOIN (
        SELECT course_request_id,
               COUNT(*) as studentcount,
-              COUNT(*) FILTER (WHERE attended = true) as studentsattendance
+              SUM(CASE WHEN attended = 1 OR attended = true THEN 1 ELSE 0 END) as studentsattendance
        FROM course_students
        GROUP BY course_request_id
      ) cs_counts ON cs_counts.course_request_id = cr.id
@@ -283,10 +283,10 @@ router.get('/classes/active', authenticateToken, requireRole(['instructor', 'adm
     };
   });
   res.json(ApiResponseBuilder.success(keysToCamel(result)));
-});
+}));
 
 // Get instructor's completed classes (completed course_requests)
-router.get('/classes/completed', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.get('/classes/completed', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -317,7 +317,7 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor', '
      LEFT JOIN (
        SELECT course_request_id,
               COUNT(*) as studentcount,
-              COUNT(*) FILTER (WHERE attended = true) as studentsattendance
+              SUM(CASE WHEN attended = 1 OR attended = true THEN 1 ELSE 0 END) as studentsattendance
        FROM course_students
        GROUP BY course_request_id
      ) cs_counts ON cs_counts.course_request_id = cr.id
@@ -334,10 +334,10 @@ router.get('/classes/completed', authenticateToken, requireRole(['instructor', '
     };
   });
   res.json(ApiResponseBuilder.success(keysToCamel(result2)));
-});
+}));
 
 // Get instructor's classes for today (use only course_requests)
-router.get('/classes/today', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.get('/classes/today', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -385,7 +385,7 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor', 'admi
      LEFT JOIN (
        SELECT course_request_id,
               COUNT(*) as studentcount,
-              COUNT(*) FILTER (WHERE attended = true) as studentsattendance
+              SUM(CASE WHEN attended = 1 OR attended = true THEN 1 ELSE 0 END) as studentsattendance
        FROM course_students
        GROUP BY course_request_id
      ) cs_counts ON cs_counts.course_request_id = cr.id
@@ -408,10 +408,10 @@ router.get('/classes/today', authenticateToken, requireRole(['instructor', 'admi
   });
   devLog('[TRACE] API response data (today):', JSON.stringify(result3, null, 2));
   res.json(ApiResponseBuilder.success(keysToCamel(result3)));
-});
+}));
 
 // Get instructor's schedule (all confirmed course_requests)
-router.get('/schedule', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.get('/schedule', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -441,7 +441,7 @@ router.get('/schedule', authenticateToken, requireRole(['instructor', 'admin', '
      LEFT JOIN (
        SELECT course_request_id,
               COUNT(*) as studentcount,
-              COUNT(*) FILTER (WHERE attended = true) as studentsattendance
+              SUM(CASE WHEN attended = 1 OR attended = true THEN 1 ELSE 0 END) as studentsattendance
        FROM course_students
        GROUP BY course_request_id
      ) cs_counts ON cs_counts.course_request_id = cr.id
@@ -458,7 +458,7 @@ router.get('/schedule', authenticateToken, requireRole(['instructor', 'admin', '
     };
   });
   res.json(ApiResponseBuilder.success(keysToCamel(formattedData)));
-});
+}));
 
 // Get students for a specific class
 router.get('/classes/:classId/students', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
@@ -512,7 +512,7 @@ router.get('/classes/:classId/students', authenticateToken, requireRole(['instru
 }));
 
 // Get specific class details
-router.get('/classes/:classId', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.get('/classes/:classId', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -548,10 +548,10 @@ router.get('/classes/:classId', authenticateToken, requireRole(['instructor', 'a
   }
 
   res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
-});
+}));
 
 // Update student attendance
-router.put('/classes/:classId/students/:studentId/attendance', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.put('/classes/:classId/students/:studentId/attendance', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -613,7 +613,7 @@ router.put('/classes/:classId/students/:studentId/attendance', authenticateToken
   };
 
   res.json(ApiResponseBuilder.success(keysToCamel(updatedStudent)));
-});
+}));
 
 // Add students to a class
 router.post('/classes/:classId/students', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
@@ -780,7 +780,7 @@ router.get('/profile', authenticateToken, requireRole(['instructor', 'admin', 's
 }));
 
 // Update instructor profile
-router.put('/profile', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.put('/profile', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -803,10 +803,10 @@ router.put('/profile', authenticateToken, requireRole(['instructor', 'admin', 's
   }
 
   res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
-});
+}));
 
 // Mark class as completed
-router.post('/classes/:classId/complete', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.post('/classes/:classId/complete', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -910,10 +910,10 @@ router.post('/classes/:classId/complete', authenticateToken, requireRole(['instr
   })();
 
   res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
-});
+}));
 
 // Submit attendance for a class
-router.post('/classes/:classId/attendance', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.post('/classes/:classId/attendance', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -992,10 +992,10 @@ router.post('/classes/:classId/attendance', authenticateToken, requireRole(['ins
   }
 
   res.json(ApiResponseBuilder.success(keysToCamel(updatedStudents)));
-});
+}));
 
 // Get attendance data
-router.get('/attendance', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.get('/attendance', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -1022,10 +1022,10 @@ router.get('/attendance', authenticateToken, requireRole(['instructor', 'admin',
   );
 
   res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
-});
+}));
 
 // Add notes to classes
-router.post('/classes/notes', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), async (req, res) => {
+router.post('/classes/notes', authenticateToken, requireRole(['instructor', 'admin', 'sysadmin']), asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'User not authenticated');
   }
@@ -1056,7 +1056,7 @@ router.post('/classes/notes', authenticateToken, requireRole(['instructor', 'adm
   );
 
   res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
-});
+}));
 
 // Serve the instructor manual (restricted to instructors)
 // Special handling for token in query parameter (needed for opening in new browser tab)

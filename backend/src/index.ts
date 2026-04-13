@@ -252,17 +252,13 @@ const io = new Server(httpServer, {
   upgradeTimeout: 30000
 });
 
-// Basic CORS
-app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://192.168.2.105:5173',
-    'http://192.168.2.105:5174',
-    'https://cpr.kpbc.ca'
-  ],
-  credentials: true
-}));
+// Basic CORS — production origin from env, dev origins only in non-production
+const productionOrigin = process.env.FRONTEND_URL || 'https://cpr.kpbc.ca';
+const corsOrigins: string[] = [productionOrigin];
+if (process.env.NODE_ENV !== 'production') {
+  corsOrigins.push('http://localhost:5173', 'http://localhost:5174', 'http://192.168.2.105:5173', 'http://192.168.2.105:5174');
+}
+app.use(cors({ origin: corsOrigins, credentials: true }));
 
 // Security Headers Middleware
 try {
@@ -317,13 +313,13 @@ app.use(cookieParser());
 // Sentry request handler — must come before routes and most other middleware
 app.use(getSentryRequestHandler());
 
-// Rate limiting middleware — uncomment before going to production (RATELIMIT-1)
-// app.use('/api/v1/auth/login', authLimiter);
-// app.use('/api/v1/auth/register', registerLimiter);
-// app.use('/api/v1/auth/forgot-password', authLimiter);
-// app.use('/api/v1/auth/recover-password', authLimiter);
-// app.use('/api/v1/auth/reset-password', authLimiter);
-// app.use('/api/v1', apiLimiter);
+// Rate limiting middleware
+app.use('/api/v1/auth/login', authLimiter);
+app.use('/api/v1/auth/register', registerLimiter);
+app.use('/api/v1/auth/forgot-password', authLimiter);
+app.use('/api/v1/auth/recover-password', authLimiter);
+app.use('/api/v1/auth/reset-password', authLimiter);
+app.use('/api/v1', apiLimiter);
 
 // Input sanitization middleware
 app.use('/api/v1', sanitizeInput);
@@ -636,6 +632,10 @@ const startServer = async () => {
 
     await killProcessOnPort(port);
 
+    // Guarantee organization_locations table exists before accepting requests
+    const { migrateOrganizationLocations } = await import('./scripts/migrate-locations.js');
+    await migrateOrganizationLocations().catch(e => console.warn('Locations migration skipped:', e.message));
+
     httpServer.listen(port, '0.0.0.0', () => {
       console.log(`Server started on port ${port} — http://localhost:${port}/api/v1/health`);
 
@@ -650,8 +650,6 @@ const startServer = async () => {
           await initializeEncryptionDatabase().catch(e => console.warn('Encryption database init skipped:', e.message));
           await initializeSecurityMonitoringDatabase().catch(e => console.warn('Security monitoring init skipped:', e.message));
           await initializeSSL().catch(e => console.warn('SSL/TLS init skipped:', e.message));
-          const { migrateOrganizationLocations } = await import('./scripts/migrate-locations.js');
-          await migrateOrganizationLocations().catch(e => console.warn('Locations migration skipped:', e.message));
         } catch (bgError) {
           console.error('Background initialization error:', bgError);
           // Don't exit - server is already running and can handle requests

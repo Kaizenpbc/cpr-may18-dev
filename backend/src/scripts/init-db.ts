@@ -4,6 +4,23 @@ import bcrypt from 'bcryptjs';
 // Bump this string whenever you make schema changes that require re-running init-db.
 const SCHEMA_VERSION = '2026-03-29';
 
+/** Idempotent — creates missing indexes on high-query columns; safe to run on every startup. */
+async function ensurePerformanceIndexes(): Promise<void> {
+  const indexes: [string, string][] = [
+    ['idx_course_requests_status', 'CREATE INDEX IF NOT EXISTS idx_course_requests_status ON course_requests(status)'],
+    ['idx_course_requests_org_id', 'CREATE INDEX IF NOT EXISTS idx_course_requests_org_id ON course_requests(organization_id)'],
+    ['idx_course_requests_org_status', 'CREATE INDEX IF NOT EXISTS idx_course_requests_org_status ON course_requests(organization_id, status)'],
+    ['idx_invoices_status', 'CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status)'],
+    ['idx_invoices_org_id', 'CREATE INDEX IF NOT EXISTS idx_invoices_org_id ON invoices(organization_id)'],
+    ['idx_users_role', 'CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)'],
+    ['idx_users_status', 'CREATE INDEX IF NOT EXISTS idx_users_status ON users(status)'],
+  ];
+  for (const [name, sql] of indexes) {
+    try { await query(sql); } catch { /* already exists or table not yet created */ }
+  }
+  console.log('✅ Performance indexes verified');
+}
+
 export async function initializeDatabase() {
   console.log('🔧 Checking database schema...');
 
@@ -15,6 +32,31 @@ export async function initializeDatabase() {
       `);
       if (versionCheck.rows.length > 0 && versionCheck.rows[0].value === SCHEMA_VERSION) {
         console.log(`✅ Database schema is current (v${SCHEMA_VERSION}) — skipping init`);
+        // Always refresh views — idempotent, fast, and safe
+        try {
+          await query(`CREATE OR REPLACE VIEW invoice_with_breakdown AS SELECT * FROM invoices`);
+          await query(`CREATE OR REPLACE VIEW course_request_details AS
+            SELECT
+              cr.id, cr.organization_id, cr.course_type_id, cr.date_requested,
+              cr.scheduled_date, cr.location, cr.registered_students as students_registered,
+              cr.notes, cr.status, cr.instructor_id, cr.confirmed_date,
+              cr.confirmed_start_time, cr.confirmed_end_time, cr.completed_at,
+              cr.created_at, cr.updated_at,
+              o.name AS organization_name,
+              ct.name AS course_type_name,
+              u.username AS instructor_username,
+              u.first_name AS instructor_first_name,
+              u.last_name AS instructor_last_name
+            FROM course_requests cr
+            LEFT JOIN organizations o ON cr.organization_id = o.id
+            LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+            LEFT JOIN users u ON cr.instructor_id = u.id`);
+          console.log('✅ Views refreshed');
+        } catch (viewErr) {
+          console.error('❌ View refresh failed — queries using these views will fail:', viewErr instanceof Error ? viewErr.message : viewErr);
+        }
+        // Ensure high-frequency indexes exist on every startup (idempotent)
+        await ensurePerformanceIndexes();
         return;
       }
     } catch {
@@ -23,6 +65,7 @@ export async function initializeDatabase() {
 
     // If core tables already exist (e.g. deployed via mysql-schema.sql), just stamp
     // the current version and skip DDL to avoid syntax conflicts on existing data.
+    // BUT always recreate views — they are cheap, safe (CREATE OR REPLACE), and may be missing.
     try {
       const tableCheck = await query(`SHOW TABLES LIKE 'users'`);
       if (tableCheck.rows.length > 0) {
@@ -32,6 +75,31 @@ export async function initializeDatabase() {
           [SCHEMA_VERSION]
         );
         console.log(`✅ Tables already exist — stamped schema version ${SCHEMA_VERSION}, skipping DDL`);
+        // Always recreate views — idempotent, cheap, and may be missing after first deploy
+        try {
+          await query(`CREATE OR REPLACE VIEW invoice_with_breakdown AS SELECT * FROM invoices`);
+          await query(`CREATE OR REPLACE VIEW course_request_details AS
+            SELECT
+              cr.id, cr.organization_id, cr.course_type_id, cr.date_requested,
+              cr.scheduled_date, cr.location, cr.registered_students as students_registered,
+              cr.notes, cr.status, cr.instructor_id, cr.confirmed_date,
+              cr.confirmed_start_time, cr.confirmed_end_time, cr.completed_at,
+              cr.created_at, cr.updated_at,
+              o.name AS organization_name,
+              ct.name AS course_type_name,
+              u.username AS instructor_username,
+              u.first_name AS instructor_first_name,
+              u.last_name AS instructor_last_name
+            FROM course_requests cr
+            LEFT JOIN organizations o ON cr.organization_id = o.id
+            LEFT JOIN class_types ct ON cr.course_type_id = ct.id
+            LEFT JOIN users u ON cr.instructor_id = u.id`);
+          console.log('✅ Views refreshed');
+        } catch (viewErr) {
+          console.error('❌ View refresh failed — queries using these views will fail:', viewErr instanceof Error ? viewErr.message : viewErr);
+        }
+        // Ensure high-frequency indexes exist on every startup (idempotent)
+        await ensurePerformanceIndexes();
         return;
       }
     } catch {

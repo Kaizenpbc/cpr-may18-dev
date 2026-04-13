@@ -207,6 +207,8 @@ router.get(
 // Get all instructors for assignment
 router.get(
   '/instructors',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (_req: Request, res: Response) => {
     try {
       const result = await query(
@@ -236,8 +238,9 @@ router.get(
          AND cr.status IN ('confirmed', 'completed')
        LEFT JOIN organizations o ON cr.organization_id = o.id
        LEFT JOIN class_types ct ON cr.course_type_id = ct.id
-       WHERE u.role = 'instructor' 
-       ORDER BY u.username, ia.date`
+       WHERE u.role = 'instructor'
+       ORDER BY u.username, ia.date
+       LIMIT 500`
       );
       return res.json(ApiResponseBuilder.success(keysToCamel(result.rows)));
     } catch (error) {
@@ -256,6 +259,8 @@ router.get(
 // Admin endpoints to view specific instructor data
 router.get(
   '/instructors/:id/schedule',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -294,6 +299,8 @@ router.get(
 
 router.get(
   '/instructors/:id/availability',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;

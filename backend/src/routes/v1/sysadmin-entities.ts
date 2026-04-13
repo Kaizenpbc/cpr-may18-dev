@@ -333,6 +333,7 @@ router.get(
       LEFT JOIN organizations o ON u.organization_id = o.id
       LEFT JOIN organization_locations ol ON u.location_id = ol.id
       ORDER BY u.created_at DESC
+      LIMIT 500
     `);
 
       res.json({
