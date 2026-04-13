@@ -50,10 +50,13 @@ export function captureException(err: unknown, context?: Record<string, unknown>
 
 /**
  * Sentry request handler — must come before routes.
- * No-op pass-through when Sentry is disabled or not installed.
+ * Checks sentryEnabled at request time so async init has a chance to complete.
  */
 export function getSentryRequestHandler(): (req: Request, res: Response, next: NextFunction) => void {
-  return (_req: Request, _res: Response, next: NextFunction) => next();
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!sentryEnabled || !Sentry) return next();
+    return Sentry.expressRequestHandler()(req, res, next);
+  };
 }
 
 /**

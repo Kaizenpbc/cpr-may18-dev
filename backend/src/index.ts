@@ -27,6 +27,7 @@ import { initializeDatabaseEncryption } from './utils/databaseEncryption.js';
 import { apiSecurity, initializeApiSecurity } from './middleware/apiSecurity.js';
 import { requestValidator } from './middleware/requestValidator.js';
 import { getSafeErrorMessage } from './utils/errorHandler.js';
+import { keysToCamel } from './utils/caseConverter.js';
 import { initializeSSL, checkSSLHealth } from './config/sslConfig.js';
 import { initializeEnvironmentConfig, checkConfigurationHealth } from './config/environmentConfig.js';
 import { initializeMFADatabase } from './config/mfaDatabase.js';
@@ -35,36 +36,6 @@ import { initializeSecurityMonitoringDatabase } from './config/securityMonitorin
 
 const execAsync = promisify(exec);
 
-// Utility: Convert snake_case to camelCase
-function snakeToCamel(str: string): string {
-  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
-
-// Utility: Recursively convert all object keys from snake_case to camelCase
-function convertKeysToCamelCase(obj: unknown): unknown {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map(item => convertKeysToCamelCase(item));
-  }
-
-  if (obj instanceof Date) {
-    return obj;
-  }
-
-  if (typeof obj === 'object') {
-    const converted: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-      const camelKey = snakeToCamel(key);
-      converted[camelKey] = convertKeysToCamelCase(value);
-    }
-    return converted;
-  }
-
-  return obj;
-}
 
 // Logging setup
 const logDir = path.join(process.cwd(), 'logs');
@@ -123,7 +94,7 @@ const requestLogger = (req: Request, res: Response, next: NextFunction) => {
     }
 
     // Convert all snake_case keys to camelCase before sending response
-    const transformedData = convertKeysToCamelCase(data);
+    const transformedData = keysToCamel(data);
 
     return originalJson.call(this, transformedData);
   };

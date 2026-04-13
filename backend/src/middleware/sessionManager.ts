@@ -79,18 +79,18 @@ export async function initializeSessionTable(): Promise<void> {
   try {
     await query(`
       CREATE TABLE IF NOT EXISTS user_sessions (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         session_id VARCHAR(255) UNIQUE NOT NULL,
         user_id INTEGER NOT NULL,
         role VARCHAR(50) NOT NULL,
-        ip_address INET NOT NULL,
+        ip_address VARCHAR(45) NOT NULL,
         user_agent TEXT NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        last_activity TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NOT NULL,
+        is_active TINYINT(1) DEFAULT 1,
         login_location VARCHAR(255),
-        created_at_utc TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        created_at_utc TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -129,33 +129,32 @@ export async function createSession(
   const expiresAt = new Date(now.getTime() + config.sessionTimeoutMinutes * 60 * 1000);
 
   try {
-    // Check concurrent session limit
-    const activeSessions = await query(
-      `SELECT COUNT(*) as count FROM user_sessions 
-       WHERE user_id = $1 AND is_active = TRUE AND expires_at > NOW()`,
-      [userId]
+    // Atomically deactivate excess sessions (keeps the N-1 most recently active ones)
+    await query(
+      `UPDATE user_sessions
+       SET is_active = FALSE
+       WHERE user_id = ? AND is_active = TRUE AND expires_at > NOW()
+         AND id NOT IN (
+           SELECT id FROM (
+             SELECT id FROM user_sessions
+             WHERE user_id = ? AND is_active = TRUE AND expires_at > NOW()
+             ORDER BY last_activity DESC
+             LIMIT ?
+           ) AS kept
+         )`,
+      [userId, userId, config.maxConcurrentSessions - 1]
     );
 
-    const activeCount = parseInt(activeSessions.rows[0].count);
-    if (activeCount >= config.maxConcurrentSessions) {
-      // Deactivate oldest sessions to make room
-      await query(
-        `UPDATE user_sessions 
-         SET is_active = FALSE 
-         WHERE user_id = $1 AND is_active = TRUE 
-         ORDER BY last_activity ASC 
-         LIMIT $2`,
-        [userId, activeCount - config.maxConcurrentSessions + 1]
-      );
-    }
-
     // Create new session
-    const result = await query(
-      `INSERT INTO user_sessions 
+    await query(
+      `INSERT INTO user_sessions
        (session_id, user_id, role, ip_address, user_agent, expires_at, login_location)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING *`,
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [sessionId, userId, role, ipAddress, userAgent, expiresAt, loginLocation]
+    );
+    const result = await query(
+      `SELECT * FROM user_sessions WHERE session_id = ?`,
+      [sessionId]
     );
 
     const session = result.rows[0];

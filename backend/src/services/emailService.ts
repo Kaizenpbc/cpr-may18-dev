@@ -261,7 +261,7 @@ class EmailService {
       console.log('📧 [EMAIL SERVICE] MOCK — From:', this.fromAddress);
       console.log('📧 [EMAIL SERVICE] MOCK — To:', to);
       console.log('📧 [EMAIL SERVICE] MOCK — Subject:', subject);
-      return true;
+      return false;
     }
 
     try {
@@ -420,7 +420,7 @@ class EmailService {
     try {
       await query(`
         CREATE TABLE IF NOT EXISTS email_reminders (
-          id SERIAL PRIMARY KEY,
+          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
           invoice_id INTEGER REFERENCES invoices(id),
           recipient_email VARCHAR(255),
           reminder_type VARCHAR(50),
@@ -433,7 +433,7 @@ class EmailService {
       await query(
         `INSERT INTO email_reminders (invoice_id, recipient_email, reminder_type, days_before_due)
          VALUES ($1, $2, 'invoice_due', $3)
-         ON CONFLICT (invoice_id, days_before_due) DO UPDATE SET sent_at = CURRENT_TIMESTAMP`,
+         ON DUPLICATE KEY UPDATE sent_at = CURRENT_TIMESTAMP`,
         [invoiceId, recipientEmail, daysBeforeDue]
       );
     } catch (error) {
