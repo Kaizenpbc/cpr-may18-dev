@@ -6,6 +6,13 @@ import { query, getClient } from '../../config/database.js';
 
 const router = express.Router();
 
+// Allowlist of user fields that HR is permitted to update via profile change approval
+const PROFILE_CHANGE_ALLOWED_FIELDS = new Set([
+  'first_name', 'last_name', 'full_name', 'email', 'phone', 'mobile',
+  'address', 'date_onboarded', 'date_offboarded', 'emergency_contact_name',
+  'emergency_contact_phone', 'user_comments',
+]);
+
 // Middleware to ensure HR role
 const requireHRRole = (req: Request, res: Response, next: NextFunction) => {
   if (!req.user || req.user.role !== 'hr') {
@@ -287,9 +294,13 @@ router.post('/approve-change/:changeId', authenticateToken, requireHRRole, async
     
     // If approved, update the user's profile
     if (action === 'approve') {
+      if (!PROFILE_CHANGE_ALLOWED_FIELDS.has(change.field_name)) {
+        throw new AppError(400, errorCodes.VALIDATION_ERROR,
+          `Field '${change.field_name}' is not permitted for profile changes.`);
+      }
       await client.query(`
-        UPDATE users 
-        SET ${change.field_name} = $1, updated_at = NOW()
+        UPDATE users
+        SET \`${change.field_name}\` = $1, updated_at = NOW()
         WHERE id = $2
       `, [change.new_value, change.user_id]);
     }

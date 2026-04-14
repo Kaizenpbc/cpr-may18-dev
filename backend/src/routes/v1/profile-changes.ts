@@ -7,6 +7,13 @@ import { query } from '../../config/database.js';
 
 const router = Router();
 
+// Only these fields may be requested or approved via profile changes
+const ALLOWED_PROFILE_FIELDS = new Set([
+  'first_name', 'last_name', 'full_name', 'email', 'phone', 'mobile',
+  'address', 'date_onboarded', 'date_offboarded', 'emergency_contact_name',
+  'emergency_contact_phone', 'user_comments',
+]);
+
 // Submit a profile change request
 router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const { field_name, new_value, change_type, target_user_id } = req.body;
@@ -19,6 +26,10 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
 
   if (!field_name || !new_value || !change_type) {
     throw new AppError(400, errorCodes.INVALID_INPUT, 'Missing required fields: field_name, new_value, change_type');
+  }
+
+  if (!ALLOWED_PROFILE_FIELDS.has(field_name)) {
+    throw new AppError(400, errorCodes.INVALID_INPUT, `Field '${field_name}' is not permitted for profile changes.`);
   }
 
   if (!['instructor', 'organization'].includes(change_type)) {

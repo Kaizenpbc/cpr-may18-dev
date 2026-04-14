@@ -2,6 +2,8 @@ import PDFDocument from 'pdfkit';
 import type { CertData } from './certificationService.js';
 import { HST_RATE, HST_LABEL } from '../utils/taxConfig.js';
 
+const APP_URL = process.env.FRONTEND_URL || 'https://cpr.kpbc.ca';
+
 interface InvoiceData {
   invoice_id: number;
   invoice_number: string;
@@ -447,7 +449,7 @@ export class PDFService {
         // Footer
         doc.fontSize(8).fillColor(GRAY).font('Helvetica')
           .text(
-            'Verify this certificate at cpr.kpbc.ca/verify',
+            `Verify this certificate at ${APP_URL.replace('https://', '').replace('http://', '')}/verify`,
             margin, pageH - 48, { align: 'center', width: innerW }
           );
 

@@ -1,6 +1,8 @@
 import { format } from 'date-fns';
 import { query } from '../config/database.js';
 
+const APP_URL = process.env.FRONTEND_URL || 'https://cpr.kpbc.ca';
+
 interface InvoiceReminderData {
   organizationName: string;
   invoiceNumber: string;
@@ -565,13 +567,13 @@ class EmailService {
             </table>
           </div>
           <p style="font-size: 13px; color: #666;">
-            You can verify this certificate at any time at <strong>cpr.kpbc.ca/verify</strong>
+            You can verify this certificate at any time at <strong>${APP_URL}/verify</strong>
             using certificate number <strong>${cert.certificationNumber}</strong>.
           </p>
           <p>Thank you for training with us!</p>
         </div>
         <div style="text-align: center; padding: 15px; color: #999; font-size: 12px;">
-          GTA CPR Training Services &mdash; cpr.kpbc.ca
+          GTA CPR Training Services &mdash; ${APP_URL.replace('https://', '').replace('http://', '')}
         </div>
       </div>
     `;
