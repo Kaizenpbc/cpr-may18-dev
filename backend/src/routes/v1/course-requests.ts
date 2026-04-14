@@ -215,7 +215,8 @@ router.post(
       const result = await query(
         `INSERT INTO course_requests
        (organization_id, course_type_id, date_requested, scheduled_date, location, registered_students, notes, status, location_id)
-       VALUES ($1, $2, CURDATE(), $3, $4, $5, $6, 'pending', $7)`,
+       VALUES ($1, $2, CURDATE(), $3, $4, $5, $6, 'pending', $7)
+       RETURNING id, organization_id, course_type_id, scheduled_date, location, registered_students, notes, status`,
         [
           organizationId,
           courseTypeId,
@@ -664,9 +665,12 @@ router.put(
            WHEN scheduled_date < CURRENT_DATE THEN 'past_due'
            ELSE 'cancelled'
          END,
+         is_cancelled = 1,
+         cancelled_at = CURRENT_TIMESTAMP,
+         cancellation_reason = $2,
          notes = CASE
            WHEN notes IS NULL OR notes = '' THEN $2
-           ELSE notes || E'\n\n[CANCELLED] ' || $2
+           ELSE CONCAT(notes, '\n\n[CANCELLED] ', $2)
          END,
          updated_at = CURRENT_TIMESTAMP
          WHERE id = $1
@@ -700,7 +704,7 @@ router.put(
           await client.query(
             `INSERT INTO instructor_availability (instructor_id, date, status)
              VALUES ($1, $2, 'available')
-             ON CONFLICT (instructor_id, date) DO UPDATE SET status = 'available'`,
+             ON DUPLICATE KEY UPDATE status = 'available'`,
             [courseRequest.instructor_id, confirmedDateStr]
           );
         }
@@ -884,7 +888,7 @@ router.put(
           await client.query(
             `INSERT INTO instructor_availability (instructor_id, date, status)
              VALUES ($1, $2, 'available')
-             ON CONFLICT (instructor_id, date) DO UPDATE SET status = 'available'`,
+             ON DUPLICATE KEY UPDATE status = 'available'`,
             [currentCourse.instructor_id, oldConfirmedDateStr]
           );
         }
