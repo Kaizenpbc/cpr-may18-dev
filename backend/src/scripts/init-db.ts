@@ -5,6 +5,25 @@ import bcrypt from 'bcryptjs';
 const SCHEMA_VERSION = '2026-03-29';
 
 /**
+ * Idempotent — adds any columns that were introduced after initial deployment.
+ * Uses ADD COLUMN IF NOT EXISTS so it's safe to run on every startup.
+ */
+async function ensureSchemaColumns(): Promise<void> {
+  const alterations: string[] = [
+    // organizations.status — added in design review 1.2
+    `ALTER TABLE organizations ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`,
+    // location_id on orgs, courses, invoices — added in design review 1.2
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS location_id INTEGER`,
+    `ALTER TABLE course_requests ADD COLUMN IF NOT EXISTS location_id INTEGER`,
+    `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS location_id INTEGER`,
+  ];
+  for (const sql of alterations) {
+    try { await query(sql); } catch { /* column already exists */ }
+  }
+  console.log('✅ Schema column drift checked');
+}
+
+/**
  * Idempotent — adds CHECK constraints to status columns.
  * Prevents invalid status values from being stored (e.g. typos like 'appoved').
  * Safe to run on every startup; existing constraints are silently skipped.
@@ -87,7 +106,8 @@ export async function initializeDatabase() {
         } catch (viewErr) {
           console.error('❌ View refresh failed — queries using these views will fail:', viewErr instanceof Error ? viewErr.message : viewErr);
         }
-        // Ensure high-frequency indexes and status constraints on every startup (idempotent)
+        // Ensure schema columns, high-frequency indexes, and status constraints on every startup (idempotent)
+        await ensureSchemaColumns();
         await ensurePerformanceIndexes();
         await ensureStatusConstraints();
         return;
@@ -131,7 +151,8 @@ export async function initializeDatabase() {
         } catch (viewErr) {
           console.error('❌ View refresh failed — queries using these views will fail:', viewErr instanceof Error ? viewErr.message : viewErr);
         }
-        // Ensure high-frequency indexes and status constraints on every startup (idempotent)
+        // Ensure schema columns, high-frequency indexes, and status constraints on every startup (idempotent)
+        await ensureSchemaColumns();
         await ensurePerformanceIndexes();
         await ensureStatusConstraints();
         return;

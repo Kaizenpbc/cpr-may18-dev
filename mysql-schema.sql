@@ -27,9 +27,31 @@ CREATE TABLE IF NOT EXISTS organizations (
   ceo_email VARCHAR(255),
   ceo_phone VARCHAR(50),
   organization_comments TEXT,
+  status VARCHAR(20) DEFAULT 'active' CHECK (status IS NULL OR status IN ('active','inactive')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS organization_locations (
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  organization_id INTEGER NOT NULL,
+  location_name VARCHAR(255) NOT NULL,
+  address TEXT,
+  city VARCHAR(100),
+  province VARCHAR(100),
+  postal_code VARCHAR(20),
+  contact_first_name VARCHAR(100),
+  contact_last_name VARCHAR(100),
+  contact_email VARCHAR(255),
+  contact_phone VARCHAR(32),
+  is_active TINYINT(1) DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_org_loc_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX IF NOT EXISTS idx_org_locations_org_id ON organization_locations(organization_id);
+CREATE INDEX IF NOT EXISTS idx_org_locations_active ON organization_locations(organization_id, is_active);
 
 CREATE TABLE IF NOT EXISTS vendors (
   id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -80,8 +102,10 @@ CREATE TABLE IF NOT EXISTS users (
   emergency_contact_phone VARCHAR(50),
   certifications TEXT,
   pay_rate DECIMAL(10,2),
+  location_id INTEGER,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_users_location FOREIGN KEY (location_id) REFERENCES organization_locations(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS user_id INTEGER;
@@ -148,9 +172,11 @@ CREATE TABLE IF NOT EXISTS course_requests (
   archived TINYINT(1) DEFAULT 0,
   archived_at TIMESTAMP NULL,
   instructor_comments TEXT,
+  location_id INTEGER,
   deleted_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_cr_location FOREIGN KEY (location_id) REFERENCES organization_locations(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS course_students (
@@ -201,16 +227,23 @@ CREATE TABLE IF NOT EXISTS class_students (
 
 CREATE TABLE IF NOT EXISTS certifications (
   id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  user_id INTEGER NOT NULL,
-  course_id INTEGER NOT NULL,
+  course_student_id INTEGER NOT NULL,
+  course_request_id INTEGER NOT NULL,
+  organization_id INTEGER,
+  first_name VARCHAR(255) NOT NULL,
+  last_name VARCHAR(255) NOT NULL,
+  email VARCHAR(255),
   course_name VARCHAR(255) NOT NULL,
+  certification_number VARCHAR(50) NOT NULL UNIQUE,
   issue_date DATE NOT NULL,
   expiration_date DATE NOT NULL,
-  certification_number VARCHAR(50) NOT NULL,
-  status VARCHAR(20) NOT NULL,
   instructor_name VARCHAR(255) NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active','expired','revoked')),
+  pdf_generated_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  CONSTRAINT fk_cert_student FOREIGN KEY (course_student_id) REFERENCES course_students(id) ON DELETE CASCADE,
+  CONSTRAINT fk_cert_course FOREIGN KEY (course_request_id) REFERENCES course_requests(id) ON DELETE CASCADE,
+  CONSTRAINT fk_cert_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS audit_log (
@@ -254,9 +287,11 @@ CREATE TABLE IF NOT EXISTS invoices (
   approval_status VARCHAR(20) DEFAULT 'pending' CHECK (approval_status IS NULL OR approval_status IN ('pending','approved','rejected')),
   rejected_by INTEGER,
   rejected_at TIMESTAMP NULL,
+  location_id INTEGER,
   deleted_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_inv_location FOREIGN KEY (location_id) REFERENCES organization_locations(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS payments (
