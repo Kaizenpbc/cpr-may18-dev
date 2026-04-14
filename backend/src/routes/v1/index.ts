@@ -631,159 +631,84 @@ router.post(
       const instructor = instructorResult.rows[0];
       const classes = classesResult.rows;
 
-      // Generate HTML for PDF
-      const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Weekly Schedule</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            color: #333;
-          }
-          .header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #007bff;
-            padding-bottom: 20px;
-          }
-          .header h1 {
-            color: #007bff;
-            margin: 0;
-          }
-          .header p {
-            margin: 5px 0;
-            color: #666;
-          }
-          .schedule-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-          }
-          .schedule-table th {
-            background-color: #007bff;
-            color: white;
-            padding: 12px;
-            text-align: left;
-            border: 1px solid #ddd;
-          }
-          .schedule-table td {
-            padding: 10px;
-            border: 1px solid #ddd;
-          }
-          .schedule-table tr:nth-child(even) {
-            background-color: #f9f9f9;
-          }
-          .day-header {
-            background-color: #e9ecef !important;
-            font-weight: bold;
-            color: #495057;
-          }
-          .no-classes {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-            font-style: italic;
-          }
-          .footer {
-            margin-top: 30px;
-            text-align: center;
-            color: #666;
-            font-size: 12px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Weekly Schedule</h1>
-          <p><strong>Instructor:</strong> ${instructor.username}</p>
-          <p><strong>Week:</strong> ${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}</p>
-          <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
-        </div>
+      // Generate PDF with PDFKit (puppeteer is unavailable on shared hosting)
+      const PDFDocument = (await import('pdfkit')).default;
+      const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+        const doc = new PDFDocument({ margin: 40, size: 'A4' });
+        const chunks: Buffer[] = [];
+        doc.on('data', (c: Buffer) => chunks.push(c));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
 
-        ${
-          classes.length > 0
-            ? `
-          <table class="schedule-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Course Type</th>
-                <th>Organization</th>
-                <th>Location</th>
-                <th>Students</th>
-                <th>Contact</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${classes
-                .map(cls => {
-                  const date = new Date(cls.date);
-                  const dayName = date.toLocaleDateString('en-US', {
-                    weekday: 'long',
-                  });
-                  const formattedDate = date.toLocaleDateString();
-                  const startTime = cls.start_time
-                    ? cls.start_time.slice(0, 5)
-                    : 'TBD';
-                  const endTime = cls.end_time
-                    ? cls.end_time.slice(0, 5)
-                    : 'TBD';
+        // Header
+        doc.fontSize(18).fillColor('#007bff').text('Weekly Schedule', { align: 'center' });
+        doc.moveDown(0.3);
+        doc.fontSize(11).fillColor('#333')
+          .text(`Instructor: ${instructor.username}`, { align: 'center' })
+          .text(`Week: ${new Date(startDate).toLocaleDateString()} – ${new Date(endDate).toLocaleDateString()}`, { align: 'center' })
+          .text(`Generated: ${new Date().toLocaleString()}`, { align: 'center' });
+        doc.moveDown(0.5);
+        doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#007bff').stroke();
+        doc.moveDown(0.5);
 
-                  return `
-                  <tr>
-                    <td><strong>${dayName}</strong><br>${formattedDate}</td>
-                    <td>${startTime} - ${endTime}</td>
-                    <td>${cls.course_type}</td>
-                    <td>${cls.organization_name}</td>
-                    <td>${cls.location}</td>
-                    <td>${cls.registered_students || 0}</td>
-                    <td>${cls.organization_phone || 'N/A'}</td>
-                  </tr>
-                `;
-                })
-                .join('')}
-            </tbody>
-          </table>
-        `
-            : `
-          <div class="no-classes">
-            <p>No classes scheduled for this week.</p>
-          </div>
-        `
+        if (classes.length === 0) {
+          doc.fontSize(12).fillColor('#666').text('No classes scheduled for this week.', { align: 'center' });
+        } else {
+          // Table header
+          const cols = [55, 75, 95, 110, 90, 50, 80]; // widths
+          const headers = ['Date', 'Time', 'Course Type', 'Organization', 'Location', 'Students', 'Contact'];
+          let x = 40;
+          const headerY = doc.y;
+          doc.rect(40, headerY, 515, 18).fill('#007bff');
+          doc.fillColor('white').fontSize(9);
+          let cx = 40;
+          for (let i = 0; i < headers.length; i++) {
+            doc.text(headers[i], cx + 2, headerY + 4, { width: cols[i] - 4, lineBreak: false });
+            cx += cols[i];
+          }
+          doc.moveDown(0.1);
+          let rowY = headerY + 20;
+
+          for (let ri = 0; ri < classes.length; ri++) {
+            const cls = classes[ri] as any;
+            const date = new Date(cls.date);
+            const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+            const formattedDate = date.toLocaleDateString('en-CA'); // YYYY-MM-DD
+            const startT = cls.start_time ? String(cls.start_time).slice(0, 5) : 'TBD';
+            const endT = cls.end_time ? String(cls.end_time).slice(0, 5) : 'TBD';
+            const rowHeight = 18;
+            const bg = ri % 2 === 0 ? '#f9f9f9' : 'white';
+            doc.rect(40, rowY, 515, rowHeight).fill(bg);
+            doc.fillColor('#333').fontSize(8);
+            const cells = [
+              `${dayName} ${formattedDate}`,
+              `${startT}-${endT}`,
+              String(cls.course_type || ''),
+              String(cls.organization_name || ''),
+              String(cls.location || ''),
+              String(cls.registered_students || 0),
+              String(cls.organization_phone || 'N/A'),
+            ];
+            cx = 40;
+            for (let i = 0; i < cells.length; i++) {
+              doc.text(cells[i], cx + 2, rowY + 5, { width: cols[i] - 4, lineBreak: false });
+              cx += cols[i];
+            }
+            // Draw row border
+            doc.rect(40, rowY, 515, rowHeight).strokeColor('#ddd').stroke();
+            rowY += rowHeight;
+          }
+          doc.y = rowY + 5;
         }
 
-        <div class="footer">
-          <p>CPR Training System - Instructor Portal</p>
-          <p>This is a confidential document. Please do not share.</p>
-        </div>
-      </body>
-      </html>
-    `;
+        // Footer
+        doc.moveDown(1);
+        doc.fontSize(9).fillColor('#666')
+          .text('CPR Training System – Instructor Portal', { align: 'center' })
+          .text('This is a confidential document. Please do not share.', { align: 'center' });
 
-      // Use puppeteer to generate PDF
-      const puppeteer = require('puppeteer');
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        doc.end();
       });
-      const page = await browser.newPage();
-      await page.setContent(html);
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: {
-          top: '20mm',
-          right: '20mm',
-          bottom: '20mm',
-          left: '20mm',
-        },
-      });
-      await browser.close();
 
       // Send PDF as response
       res.setHeader('Content-Type', 'application/pdf');
