@@ -489,6 +489,16 @@ router.post(
         }
 
         const course = courseResult.rows[0];
+
+        // Require billing contact before creating invoice (3.7)
+        if (!course.contact_email) {
+          throw new AppError(
+            422,
+            errorCodes.VALIDATION_ERROR,
+            'Organization has no billing contact email. Please add a contact email to the organization before creating an invoice.'
+          );
+        }
+
         const baseCost = course.students_attended * course.price_per_student;
         const taxAmount = baseCost * HST_RATE;
         const totalAmount = baseCost + taxAmount;

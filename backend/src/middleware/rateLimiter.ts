@@ -40,14 +40,16 @@ export const apiLimiter = rateLimit({
 });
 
 // Stricter limiter for auth routes
+// 20 per 15 minutes per IP — protects against brute-force while allowing normal office
+// use (multiple staff on the same IP address). 10/hour was too aggressive for shared networks.
 export const authLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: isProduction ? 10 : 100, // Strict in production (10), relaxed for development (100)
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: isProduction ? 20 : 200,
   message: {
     error: {
       code: 'AUTH_RATE_LIMIT_EXCEEDED',
-      message: 'Too many authentication attempts, please try again later.',
-      retryAfter: '1 hour',
+      message: 'Too many authentication attempts, please try again in 15 minutes.',
+      retryAfter: '15 minutes',
     },
   },
   standardHeaders: true,
@@ -58,8 +60,8 @@ export const authLimiter = rateLimit({
       success: false,
       error: {
         code: 'AUTH_RATE_LIMIT_EXCEEDED',
-        message: 'Too many authentication attempts, please try again later.',
-        retryAfter: '1 hour',
+        message: 'Too many authentication attempts, please try again in 15 minutes.',
+        retryAfter: '15 minutes',
       },
     });
   },
