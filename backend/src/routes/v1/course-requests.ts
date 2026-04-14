@@ -709,6 +709,16 @@ router.put(
           );
         }
 
+        // Void any outstanding invoices tied to this course request (3.3)
+        await client.query(
+          `UPDATE invoices
+           SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+           WHERE course_request_id = $1
+           AND status IN ('pending', 'overdue')
+           AND deleted_at IS NULL`,
+          [id]
+        );
+
         await client.query('COMMIT');
 
         // Emit real-time update event
@@ -1255,8 +1265,8 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { emailQueueService } = await import('../../services/emailQueue.js');
-      const status = await emailQueueService.getQueueLength();
-      res.json(ApiResponseBuilder.success(keysToCamel(status), 'Email queue status retrieved'));
+      const queueLength = await emailQueueService.getQueueLength();
+      res.json(ApiResponseBuilder.success({ pendingJobs: queueLength, failedJobs: 0, isProcessing: false }, 'Email queue status retrieved'));
     } catch (error) {
       console.error('❌ [EMAIL QUEUE] Error getting queue status:', error);
       res.json(ApiResponseBuilder.success(keysToCamel({

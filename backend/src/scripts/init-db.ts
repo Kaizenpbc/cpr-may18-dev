@@ -108,7 +108,7 @@ export async function initializeDatabase() {
         console.log(`✅ Database schema is current (v${SCHEMA_VERSION}) — skipping init`);
         // Always refresh views — idempotent, fast, and safe
         try {
-          await query(`CREATE OR REPLACE VIEW invoice_with_breakdown AS SELECT * FROM invoices`);
+          await query(`CREATE OR REPLACE VIEW invoice_with_breakdown AS SELECT * FROM invoices WHERE deleted_at IS NULL`);
           await query(`CREATE OR REPLACE VIEW course_request_details AS
             SELECT
               cr.id, cr.organization_id, cr.course_type_id, cr.date_requested,
@@ -124,7 +124,8 @@ export async function initializeDatabase() {
             FROM course_requests cr
             LEFT JOIN organizations o ON cr.organization_id = o.id
             LEFT JOIN class_types ct ON cr.course_type_id = ct.id
-            LEFT JOIN users u ON cr.instructor_id = u.id`);
+            LEFT JOIN users u ON cr.instructor_id = u.id
+            WHERE cr.deleted_at IS NULL`);
           console.log('✅ Views refreshed');
         } catch (viewErr) {
           console.error('❌ View refresh failed — queries using these views will fail:', viewErr instanceof Error ? viewErr.message : viewErr);
@@ -153,7 +154,7 @@ export async function initializeDatabase() {
         console.log(`✅ Tables already exist — stamped schema version ${SCHEMA_VERSION}, skipping DDL`);
         // Always recreate views — idempotent, cheap, and may be missing after first deploy
         try {
-          await query(`CREATE OR REPLACE VIEW invoice_with_breakdown AS SELECT * FROM invoices`);
+          await query(`CREATE OR REPLACE VIEW invoice_with_breakdown AS SELECT * FROM invoices WHERE deleted_at IS NULL`);
           await query(`CREATE OR REPLACE VIEW course_request_details AS
             SELECT
               cr.id, cr.organization_id, cr.course_type_id, cr.date_requested,
@@ -169,7 +170,8 @@ export async function initializeDatabase() {
             FROM course_requests cr
             LEFT JOIN organizations o ON cr.organization_id = o.id
             LEFT JOIN class_types ct ON cr.course_type_id = ct.id
-            LEFT JOIN users u ON cr.instructor_id = u.id`);
+            LEFT JOIN users u ON cr.instructor_id = u.id
+            WHERE cr.deleted_at IS NULL`);
           console.log('✅ Views refreshed');
         } catch (viewErr) {
           console.error('❌ View refresh failed — queries using these views will fail:', viewErr instanceof Error ? viewErr.message : viewErr);
@@ -1203,10 +1205,10 @@ export async function initializeDatabase() {
     try { await query(`DROP VIEW IF EXISTS invoice_with_breakdown`); } catch { /* ignore if has deps */ }
     try { await query(`DROP VIEW IF EXISTS course_request_details`); } catch { /* ignore if has deps */ }
 
-    // Invoice breakdown view - now just a pass-through since base_cost and tax_amount are stored columns
+    // Invoice breakdown view — filters soft-deleted invoices
     await query(`
       CREATE VIEW invoice_with_breakdown AS
-      SELECT * FROM invoices
+      SELECT * FROM invoices WHERE deleted_at IS NULL
     `);
 
     // Course request details view
@@ -1238,6 +1240,7 @@ export async function initializeDatabase() {
       LEFT JOIN organizations o ON cr.organization_id = o.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
       LEFT JOIN users u ON cr.instructor_id = u.id
+      WHERE cr.deleted_at IS NULL
     `);
 
     console.log('✅ Views created');

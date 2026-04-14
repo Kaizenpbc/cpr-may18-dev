@@ -509,6 +509,14 @@ router.post(
 
       // Fall back to standard JWT refresh
       const { verifyRefreshToken } = await import('../../utils/jwtUtils.js');
+
+      // Reject if token was already rotated (prevents refresh-token replay)
+      const alreadyUsed = await TokenBlacklist.isBlacklisted(refreshToken);
+      if (alreadyUsed) {
+        res.clearCookie('refreshToken');
+        throw new AppError(401, errorCodes.AUTH_TOKEN_INVALID, 'Refresh token already used — please log in again');
+      }
+
       const payload = verifyRefreshToken(refreshToken);
 
       // Fetch fresh user data from database with organization name in a single query
@@ -540,6 +548,13 @@ router.post(
         organizationId: user.organization_id,
         organizationName,
       });
+
+      // Blacklist the old refresh token so it can't be replayed (token rotation)
+      const oldTokenExpiry = (payload as unknown as { exp?: number }).exp;
+      const expiresAt = oldTokenExpiry
+        ? new Date(oldTokenExpiry * 1000)
+        : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await TokenBlacklist.addToBlacklist(refreshToken, expiresAt).catch(() => { /* non-fatal */ });
 
       // Set new refresh token
       res.cookie('refreshToken', tokens.refreshToken, {

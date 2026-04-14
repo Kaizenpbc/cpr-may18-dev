@@ -10,6 +10,8 @@ import { cacheService } from '../../services/cacheService.js';
 import { devLog } from '../../utils/devLog.js';
 import { HST_RATE } from '../../utils/taxConfig.js';
 
+const INVOICE_DUE_DAYS = parseInt(process.env.INVOICE_DUE_DAYS || '30', 10);
+
 const router = Router();
 
 // Get accounting dashboard data
@@ -31,6 +33,7 @@ router.get(
         SELECT COALESCE(SUM(p.amount), 0) as total_paid
         FROM payments p
         WHERE p.status = 'verified'
+        AND p.deleted_at IS NULL
       `);
 
       // Outstanding Amount (Total Billed - Total Paid)
@@ -42,7 +45,7 @@ router.get(
         LEFT JOIN (
           SELECT invoice_id, SUM(amount) as total_paid
           FROM payments
-          WHERE status = 'verified'
+          WHERE status = 'verified' AND deleted_at IS NULL
           GROUP BY invoice_id
         ) payments ON payments.invoice_id = i.id
         WHERE i.posted_to_org = TRUE
@@ -54,6 +57,7 @@ router.get(
         SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total_amount
         FROM payments
         WHERE status = 'verified'
+        AND deleted_at IS NULL
         AND MONTH(payment_date) = MONTH(CURRENT_DATE)
         AND YEAR(payment_date) = YEAR(CURRENT_DATE)
       `);
@@ -63,6 +67,7 @@ router.get(
         SELECT COUNT(*) as completed_courses
         FROM course_requests
         WHERE status = 'completed'
+        AND deleted_at IS NULL
         AND MONTH(completed_at) = MONTH(CURRENT_DATE)
         AND YEAR(completed_at) = YEAR(CURRENT_DATE)
       `);
@@ -536,7 +541,7 @@ router.post(
           rate_per_student,
           approval_status
         )
-        VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7, 'pending', CURRENT_DATE + INTERVAL 30 DAY, FALSE, NULL, $8, $9, $10, $11, 'pending')
+        VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7, 'pending', CURRENT_DATE + INTERVAL ${INVOICE_DUE_DAYS} DAY, FALSE, NULL, $8, $9, $10, $11, 'pending')
         RETURNING *
       `,
           [

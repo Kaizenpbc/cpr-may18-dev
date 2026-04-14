@@ -724,7 +724,7 @@ CREATE INDEX IF NOT EXISTS idx_course_requests_deleted_at ON course_requests(del
 -- ============================================
 
 CREATE OR REPLACE VIEW invoice_with_breakdown AS
-SELECT * FROM invoices;
+SELECT * FROM invoices WHERE deleted_at IS NULL;
 
 CREATE OR REPLACE VIEW course_request_details AS
 SELECT
@@ -752,7 +752,8 @@ SELECT
 FROM course_requests cr
 LEFT JOIN organizations o ON cr.organization_id = o.id
 LEFT JOIN class_types ct ON cr.course_type_id = ct.id
-LEFT JOIN users u ON cr.instructor_id = u.id;
+LEFT JOIN users u ON cr.instructor_id = u.id
+WHERE cr.deleted_at IS NULL;
 
 -- ============================================
 -- SEED DATA
