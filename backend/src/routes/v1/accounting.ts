@@ -8,6 +8,7 @@ import { authenticateToken, requireRole } from '../../middleware/authMiddleware.
 import { PDFService } from '../../services/pdfService.js';
 import { cacheService } from '../../services/cacheService.js';
 import { devLog } from '../../utils/devLog.js';
+import { HST_RATE } from '../../utils/taxConfig.js';
 
 const router = Router();
 
@@ -489,7 +490,7 @@ router.post(
 
         const course = courseResult.rows[0];
         const baseCost = course.students_attended * course.price_per_student;
-        const taxAmount = baseCost * 0.13; // 13% HST
+        const taxAmount = baseCost * HST_RATE;
         const totalAmount = baseCost + taxAmount;
 
         devLog(`[DEBUG] Invoice creation calculations:`, {
@@ -878,7 +879,7 @@ router.put(
 
         // Calculate correct values
         const baseCost = invoice.students_billed * invoice.price_per_student;
-        const taxAmount = baseCost * 0.13; // 13% HST
+        const taxAmount = baseCost * HST_RATE;
         const totalAmount = baseCost + taxAmount;
 
         devLog(`[DEBUG] Fixing invoice calculations:`, {
@@ -1237,7 +1238,7 @@ router.get(
         COALESCE(payments.total_paid, 0) as amount_paid,
         COALESCE(i.amount - COALESCE(payments.total_paid, 0), i.amount) as balance_due,
         (i.students_billed * COALESCE(cp.price_per_student, i.rate_per_student, 0)) as base_cost,
-        ((i.students_billed * COALESCE(cp.price_per_student, i.rate_per_student, 0)) * 0.13) as tax_amount,
+        ((i.students_billed * COALESCE(cp.price_per_student, i.rate_per_student, 0)) * ${HST_RATE}) as tax_amount,
         i.due_date as duedate,
         i.status as paymentstatus,
         i.approval_status,
@@ -1654,25 +1655,22 @@ router.get(
         ct.name as course_type_name,
         cr.completed_at as date_completed,
         cp.price_per_student as rate_per_student,
-        COALESCE(
-          json_agg(
-            json_build_object(
-              'first_name', cs.first_name,
-              'last_name', cs.last_name,
-              'email', cs.email,
-              'attended', cs.attended
-            ) ORDER BY cs.last_name, cs.first_name
-          ) FILTER (WHERE cs.id IS NOT NULL),
-          '[]'::json
+        IFNULL(
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT(
+            'first_name', s.first_name,
+            'last_name', s.last_name,
+            'email', s.email,
+            'attended', s.attended
+          ))
+          FROM (SELECT * FROM course_students WHERE course_request_id = cr.id ORDER BY last_name, first_name) s),
+          JSON_ARRAY()
         ) as attendance_list
       FROM invoices i
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
       LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
-      LEFT JOIN course_students cs ON cr.id = cs.course_request_id
       WHERE i.id = $1
-      GROUP BY i.id, i.invoice_number, i.organization_id, i.course_request_id, i.created_at, i.due_date, i.amount, i.status, i.students_billed, i.paid_date, o.name, o.contact_email, cr.location, ct.name, cr.completed_at, cp.price_per_student
     `,
         [id]
       );
@@ -1737,25 +1735,22 @@ router.get(
         ct.name as course_type_name,
         cr.completed_at as date_completed,
         cp.price_per_student as rate_per_student,
-        COALESCE(
-          json_agg(
-            json_build_object(
-              'first_name', cs.first_name,
-              'last_name', cs.last_name,
-              'email', cs.email,
-              'attended', cs.attended
-            ) ORDER BY cs.last_name, cs.first_name
-          ) FILTER (WHERE cs.id IS NOT NULL),
-          '[]'::json
+        IFNULL(
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT(
+            'first_name', s.first_name,
+            'last_name', s.last_name,
+            'email', s.email,
+            'attended', s.attended
+          ))
+          FROM (SELECT * FROM course_students WHERE course_request_id = cr.id ORDER BY last_name, first_name) s),
+          JSON_ARRAY()
         ) as attendance_list
       FROM invoices i
       JOIN organizations o ON i.organization_id = o.id
       LEFT JOIN course_requests cr ON i.course_request_id = cr.id
       LEFT JOIN class_types ct ON cr.course_type_id = ct.id
       LEFT JOIN course_pricing cp ON cr.organization_id = cp.organization_id AND cr.course_type_id = cp.course_type_id AND cp.is_active = true
-      LEFT JOIN course_students cs ON cr.id = cs.course_request_id
       WHERE i.id = $1
-      GROUP BY i.id, i.invoice_number, i.organization_id, i.course_request_id, i.created_at, i.due_date, i.amount, i.status, i.students_billed, i.paid_date, o.name, o.contact_email, cr.location, ct.name, cr.completed_at, cp.price_per_student
     `,
         [id]
       );

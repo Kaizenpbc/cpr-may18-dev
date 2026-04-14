@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import type { CertData } from './certificationService.js';
+import { HST_RATE, HST_LABEL } from '../utils/taxConfig.js';
 
 interface InvoiceData {
   invoice_id: number;
@@ -97,7 +98,7 @@ export class PDFService {
         }
 
         const subtotal = studentsBilled * ratePerStudent;
-        const hst = subtotal * 0.13;
+        const hst = subtotal * HST_RATE;
         const total = subtotal + hst;
         const attendanceList = Array.isArray(invoice.attendance_list) ? invoice.attendance_list : [];
         const present = attendanceList.filter(s => s.attended).length;
@@ -181,7 +182,7 @@ export class PDFService {
         // Three columns for cost
         doc.fontSize(9).fillColor(GRAY);
         doc.text('Base Cost', 80, costBoxY + 30, { align: 'left' });
-        doc.text('Tax (HST 13%)', 230, costBoxY + 30, { align: 'left' });
+        doc.text(`Tax (${HST_LABEL})`, 230, costBoxY + 30, { align: 'left' });
         doc.text('Total Amount', 380, costBoxY + 30, { align: 'left' });
 
         doc.fontSize(14).fillColor('#000000');
@@ -276,7 +277,7 @@ export class PDFService {
     const studentsBilled = invoice.students_billed || 0;
     const ratePerStudent = Number(invoice.rate_per_student) || 0;
     const subtotal = studentsBilled * ratePerStudent;
-    const hst = subtotal * 0.13;
+    const hst = subtotal * HST_RATE;
     const total = subtotal + hst;
     const attendanceList = Array.isArray(invoice.attendance_list) ? invoice.attendance_list : [];
     const present = attendanceList.filter(s => s.attended).length;
@@ -326,7 +327,7 @@ export class PDFService {
         <div class="section">
             <h3>Cost Breakdown</h3>
             <p>Base Cost (${studentsBilled} x ${this.formatCurrency(ratePerStudent)}): ${this.formatCurrency(subtotal)}</p>
-            <p>HST (13%): ${this.formatCurrency(hst)}</p>
+            <p>${HST_LABEL}: ${this.formatCurrency(hst)}</p>
             <p class="total">Total: ${this.formatCurrency(total)}</p>
         </div>
         ${attendanceList.length > 0 ? `
