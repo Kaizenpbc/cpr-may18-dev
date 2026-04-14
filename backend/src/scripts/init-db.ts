@@ -1263,7 +1263,8 @@ export async function initializeDatabase() {
         { username: 'admin', email: 'admin@cpr.com', role: 'admin' },
         { username: 'sysadmin', email: 'sysadmin@cpr.com', role: 'sysadmin' },
         { username: 'instructor', email: 'instructor@cpr.com', role: 'instructor' },
-        { username: 'accountant', email: 'accountant@cpr.com', role: 'accountant' }
+        { username: 'accountant', email: 'accountant@cpr.com', role: 'accountant' },
+        { username: 'hr', email: 'hr@cpr.com', role: 'hr' }
       ];
       for (const user of defaultUsers) {
         await query(`
@@ -1295,6 +1296,21 @@ export async function initializeDatabase() {
       console.log('✅ Default data created');
     } else {
       console.log('ℹ️ Database already has data');
+    }
+
+    // Always ensure hr user exists (even if database already has data)
+    const hrUserCheck = await query("SELECT id FROM users WHERE username = 'hr' OR email = 'hr@cpr.com'");
+    if (hrUserCheck.rows.length === 0) {
+      console.log('👤 Creating hr account...');
+      const hrPasswordHash = await bcrypt.hash('test123', 12);
+      await query(`
+        INSERT INTO users (username, email, password_hash, role)
+        SELECT 'hr', 'hr@cpr.com', $1, 'hr'
+        WHERE NOT EXISTS (
+          SELECT 1 FROM users WHERE username = 'hr' OR email = 'hr@cpr.com'
+        )
+      `, [hrPasswordHash]);
+      console.log('✅ hr account created');
     }
 
     // Always ensure orguser exists (even if database already has data)
