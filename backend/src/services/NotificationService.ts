@@ -451,15 +451,14 @@ export class NotificationService {
     const sql = `
       INSERT INTO notification_preferences (user_id, type, email_enabled, push_enabled, sound_enabled)
       VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (user_id, type) DO UPDATE SET
-        email_enabled = COALESCE($3, notification_preferences.email_enabled),
-        push_enabled = COALESCE($4, notification_preferences.push_enabled),
-        sound_enabled = COALESCE($5, notification_preferences.sound_enabled),
+      ON DUPLICATE KEY UPDATE
+        email_enabled = COALESCE(VALUES(email_enabled), email_enabled),
+        push_enabled = COALESCE(VALUES(push_enabled), push_enabled),
+        sound_enabled = COALESCE(VALUES(sound_enabled), sound_enabled),
         updated_at = NOW()
-      RETURNING type, email_enabled, push_enabled, sound_enabled
     `;
 
-    const result = await query(sql, [
+    await query(sql, [
       userId,
       type,
       settings.email_enabled ?? true,
@@ -467,7 +466,12 @@ export class NotificationService {
       settings.sound_enabled ?? true
     ]);
 
-    return result.rows[0] as any;
+    const fetched = await query(
+      `SELECT type, email_enabled, push_enabled, sound_enabled FROM notification_preferences WHERE user_id = $1 AND type = $2`,
+      [userId, type]
+    );
+
+    return fetched.rows[0] as any;
   }
 }
 

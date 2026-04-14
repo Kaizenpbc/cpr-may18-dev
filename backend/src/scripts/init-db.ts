@@ -20,6 +20,25 @@ async function ensureSchemaColumns(): Promise<void> {
   for (const sql of alterations) {
     try { await query(sql); } catch { /* column already exists */ }
   }
+
+  // notification_preferences — created in design review 1.3 (was missing entirely)
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS notification_preferences (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        email_enabled TINYINT(1) NOT NULL DEFAULT 1,
+        push_enabled TINYINT(1) NOT NULL DEFAULT 1,
+        sound_enabled TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_notif_pref_user_type (user_id, type),
+        CONSTRAINT fk_notif_pref_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+  } catch { /* already exists */ }
+
   console.log('✅ Schema column drift checked');
 }
 
