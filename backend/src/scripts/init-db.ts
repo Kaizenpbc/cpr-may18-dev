@@ -4,6 +4,38 @@ import bcrypt from 'bcryptjs';
 // Bump this string whenever you make schema changes that require re-running init-db.
 const SCHEMA_VERSION = '2026-03-29';
 
+/**
+ * Idempotent — adds CHECK constraints to status columns.
+ * Prevents invalid status values from being stored (e.g. typos like 'appoved').
+ * Safe to run on every startup; existing constraints are silently skipped.
+ */
+async function ensureStatusConstraints(): Promise<void> {
+  const constraints: [string, string, string][] = [
+    ['course_requests',          'chk_cr_status',          `status IN ('pending','confirmed','completed','cancelled','past_due','invoiced')`],
+    ['invoices',                 'chk_inv_status',         `status IN ('pending','paid','overdue','cancelled')`],
+    ['invoices',                 'chk_inv_approval',       `approval_status IS NULL OR approval_status IN ('pending','approved','rejected')`],
+    ['payments',                 'chk_pay_status',         `status IS NULL OR status IN ('pending','verified','reversed','rejected')`],
+    ['timesheets',               'chk_ts_status',          `status IN ('pending','submitted','approved','rejected','paid')`],
+    ['users',                    'chk_users_status',       `status IS NULL OR status IN ('active','inactive','suspended')`],
+    ['organizations',            'chk_org_status',         `status IS NULL OR status IN ('active','inactive')`],
+    ['vendors',                  'chk_vendor_status',      `status IS NULL OR status IN ('active','inactive')`],
+    ['instructor_availability',  'chk_ia_status',          `status IN ('available','confirmed','cancelled')`],
+    ['certifications',           'chk_cert_status',        `status IN ('active','expired','revoked')`],
+    ['instructor_certifications','chk_ic_status',          `status IS NULL OR status IN ('active','expired','revoked')`],
+    ['profile_changes',          'chk_pc_status',          `status IS NULL OR status IN ('pending','approved','rejected')`],
+  ];
+  let added = 0;
+  for (const [table, name, check] of constraints) {
+    try {
+      await query(`ALTER TABLE \`${table}\` ADD CONSTRAINT \`${name}\` CHECK (${check})`);
+      added++;
+    } catch {
+      // Constraint already exists or table not yet created — skip silently
+    }
+  }
+  console.log(`✅ Status CHECK constraints verified (${added} newly added)`);
+}
+
 /** Idempotent — creates missing indexes on high-query columns; safe to run on every startup. */
 async function ensurePerformanceIndexes(): Promise<void> {
   const indexes: [string, string][] = [
@@ -55,8 +87,9 @@ export async function initializeDatabase() {
         } catch (viewErr) {
           console.error('❌ View refresh failed — queries using these views will fail:', viewErr instanceof Error ? viewErr.message : viewErr);
         }
-        // Ensure high-frequency indexes exist on every startup (idempotent)
+        // Ensure high-frequency indexes and status constraints on every startup (idempotent)
         await ensurePerformanceIndexes();
+        await ensureStatusConstraints();
         return;
       }
     } catch {
@@ -98,8 +131,9 @@ export async function initializeDatabase() {
         } catch (viewErr) {
           console.error('❌ View refresh failed — queries using these views will fail:', viewErr instanceof Error ? viewErr.message : viewErr);
         }
-        // Ensure high-frequency indexes exist on every startup (idempotent)
+        // Ensure high-frequency indexes and status constraints on every startup (idempotent)
         await ensurePerformanceIndexes();
+        await ensureStatusConstraints();
         return;
       }
     } catch {
