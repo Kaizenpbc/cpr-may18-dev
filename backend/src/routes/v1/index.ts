@@ -806,6 +806,8 @@ router.post(
 // Delete instructor availability for a specific date (admin only)
 router.delete(
   '/instructors/:instructorId/availability/:date',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const { instructorId, date } = req.params;
