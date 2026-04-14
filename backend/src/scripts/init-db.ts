@@ -16,6 +16,10 @@ async function ensureSchemaColumns(): Promise<void> {
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS location_id INTEGER`,
     `ALTER TABLE course_requests ADD COLUMN IF NOT EXISTS location_id INTEGER`,
     `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS location_id INTEGER`,
+    // instructor_pay_rates missing columns — design review 1.5
+    `ALTER TABLE instructor_pay_rates ADD COLUMN IF NOT EXISTS end_date DATE`,
+    `ALTER TABLE instructor_pay_rates ADD COLUMN IF NOT EXISTS notes TEXT`,
+    `ALTER TABLE instructor_pay_rates ADD COLUMN IF NOT EXISTS created_by INTEGER`,
   ];
   for (const sql of alterations) {
     try { await query(sql); } catch { /* column already exists */ }

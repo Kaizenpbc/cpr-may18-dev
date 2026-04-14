@@ -465,10 +465,12 @@ CREATE TABLE IF NOT EXISTS instructor_pay_rates (
   hourly_rate DECIMAL(10,2) NOT NULL,
   course_bonus DECIMAL(10,2) DEFAULT 0,
   effective_date DATE DEFAULT (CURRENT_DATE),
+  end_date DATE,
+  notes TEXT,
+  created_by INTEGER,
   is_active TINYINT(1) DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_instructor_active (instructor_id, is_active)
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS pay_rate_history (
