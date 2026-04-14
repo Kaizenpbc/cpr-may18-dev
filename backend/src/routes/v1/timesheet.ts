@@ -748,23 +748,21 @@ router.post('/reminders/send', authenticateToken, asyncHandler(async (req: Reque
     previousMonday.setDate(thisMonday.getDate() - 7);
     const previousMondayStr = previousMonday.toISOString().split('T')[0];
 
-    // Create notifications for each instructor
+    // Batch-insert notifications for all instructors in a single query
+    const message = `Please submit your timesheet for the week of ${previousMondayStr}. Timesheets are due by end of week.`;
     let sentCount = 0;
-    for (const instructorId of instructorIds) {
-      // Check if notification table exists, if not skip
+    if (instructorIds.length > 0) {
       try {
-        await client.query(`
-          INSERT INTO notifications (user_id, type, title, message, created_at)
-          VALUES ($1, 'timesheet_reminder', 'Timesheet Reminder',
-                  $2, NOW())
-          ON CONFLICT DO NOTHING
-        `, [
-          instructorId,
-          `Please submit your timesheet for the week of ${previousMondayStr}. Timesheets are due by end of week.`
-        ]);
-        sentCount++;
+        const valuePlaceholders = instructorIds.map((_: number, i: number) => `($${i * 2 + 1}, 'timesheet_reminder', 'Timesheet Reminder', $${i * 2 + 2}, NOW())`).join(', ');
+        const valueParams = instructorIds.flatMap((id: number) => [id, message]);
+        await client.query(
+          `INSERT INTO notifications (user_id, type, title, message, created_at)
+           VALUES ${valuePlaceholders}
+           ON DUPLICATE KEY UPDATE user_id = user_id`,
+          valueParams
+        );
+        sentCount = instructorIds.length;
       } catch (notifError) {
-        // If notifications table doesn't exist, just log
         devLog('Notification table may not exist, skipping notification creation');
       }
     }

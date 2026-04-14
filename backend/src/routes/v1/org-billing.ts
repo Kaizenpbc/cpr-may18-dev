@@ -45,6 +45,10 @@ router.get(
       } = req.query;
       const offset = (Number(page) - 1) * Number(limit);
 
+      const INVOICE_SORT_COLS = new Set(['created_at', 'due_date', 'amount', 'status', 'invoice_date', 'invoice_number']);
+      const safeSortBy = INVOICE_SORT_COLS.has(sort_by as string) ? sort_by as string : 'created_at';
+      const safeSortOrder = (sort_order as string)?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
       let whereClause =
         'WHERE i.organization_id = $1 AND i.posted_to_org = TRUE';
       const queryParams: any[] = [user.organizationId];
@@ -59,7 +63,7 @@ router.get(
       // Exclude fully paid invoices from AR
       whereClause += ' AND (i.status != \'paid\' AND (i.base_cost + i.tax_amount - COALESCE((SELECT SUM(amount) FROM payments WHERE invoice_id = i.id AND status = \'verified\'), 0)) > 0)';
 
-      const orderClause = `ORDER BY i.${sort_by} ${sort_order.toString().toUpperCase()}`;
+      const orderClause = `ORDER BY i.${safeSortBy} ${safeSortOrder}`;
 
       devLog(`[DEBUG] Organization invoices query params:`, queryParams);
       devLog(`[DEBUG] Organization invoices whereClause:`, whereClause);
@@ -427,7 +431,11 @@ router.get(
     try {
       const user = req.user!;
       const { id } = req.params;
-      const proposedAmount = parseFloat(req.query.amount as string) || 0;
+      const rawAmount = parseFloat(req.query.amount as string);
+      if (isNaN(rawAmount) || rawAmount < 0 || rawAmount > 9999999) {
+        throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Invalid payment amount');
+      }
+      const proposedAmount = rawAmount;
 
       // Get invoice with payment totals — scope by org for organization role
       const isOrgUser = user.role === 'organization';
@@ -1199,7 +1207,10 @@ router.get(
       } = req.query;
       const offset = (Number(page) - 1) * Number(limit);
 
-      const orderClause = `ORDER BY i.${sort_by} ${sort_order.toString().toUpperCase()}`;
+      const PAID_SORT_COLS = new Set(['paid_date', 'created_at', 'amount', 'invoice_number']);
+      const safeSortBy2 = PAID_SORT_COLS.has(sort_by as string) ? sort_by as string : 'paid_date';
+      const safeSortOrder2 = (sort_order as string)?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+      const orderClause = `ORDER BY i.${safeSortBy2} ${safeSortOrder2}`;
 
       const result = await query(
         `

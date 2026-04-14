@@ -639,7 +639,7 @@ router.put(
 
       let passwordHash = undefined;
       if (password) {
-        passwordHash = bcrypt.hashSync(password, 10);
+        passwordHash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
       }
 
       const result = await query(
