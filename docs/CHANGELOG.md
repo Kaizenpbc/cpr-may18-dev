@@ -5,6 +5,75 @@ All notable changes to the CPR Training System will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Design Review Fixes Batch 2 — 2026-04-14
+
+### Security
+- **Refresh token rotation (2.4)**: Old refresh token is now blacklisted in the DB-backed
+  `token_blacklist` table immediately after issuing a new one on `POST /auth/refresh`.
+  A blacklist check at the start of the fallback path prevents replay attacks if a rotated
+  token is somehow captured.
+
+### Fixed
+- **Soft-delete views (1.7)**: `invoice_with_breakdown` and `course_request_details` DB views
+  now filter `WHERE deleted_at IS NULL`. Dashboard aggregate queries on `payments` and
+  `course_requests` also exclude soft-deleted rows.
+- **Invoice voiding on cancellation (3.3)**: Cancelling a course now sets
+  `status = 'cancelled'` on any related `pending` or `overdue` invoices inside the same
+  database transaction.
+- **Email queue status shape (5.6)**: `GET /courses/email-queue/status` was calling
+  `keysToCamel()` on the raw number returned by `getQueueLength()`. Fixed to return
+  `{ pendingJobs, failedJobs, isProcessing }`.
+- **User list pagination (4.1)**: Replaced static `LIMIT 500` on `GET /sysadmin/users`
+  with `page/limit/offset` pagination supporting `?search=` and `?role=` filters (MySQL
+  `LIKE` — case-insensitive with utf8mb4_general_ci).
+
+---
+
+## [Unreleased] — Design Review Fixes Batch 1 — 2026-04-12 to 2026-04-13
+
+### Added
+- **CHECK constraints on all status columns (1.1)**: `timesheets.status`,
+  `profile_changes.status`, `instructor_certifications.status` — enforced at the DB layer.
+- **`organization_locations` table (1.2)**: Missing table added to schema with `location_id`
+  FK on users, course_requests, and invoices; `organizations.status` column added.
+- **`notification_preferences` table (1.3)**: New table with UNIQUE KEY (user_id, type);
+  fixed `?` placeholder bug in NotificationService.
+- **Hourly `past_due` sweep (3.2)**: `setInterval` in `index.ts` background init marks
+  overdue course requests as `past_due` every hour.
+- **HR seed user (4.2)**: Default `hr` user created on init so payroll/HR features work
+  out of the box.
+- **PDFKit weekly schedule PDF (5.8)**: Replaced puppeteer (unavailable on shared hosting)
+  with PDFKit for the instructor weekly schedule PDF endpoint.
+
+### Changed
+- **HST tax rate configurable (3.6)**: `HST_RATE` env var controls tax rate across
+  accounting, PDF, and email templates (default 0.13). `taxConfig.ts` utility.
+- **`FRONTEND_URL` env var (5.3 / 4.3)**: Certificate verify links and footer URLs in
+  emails and PDFs now use `process.env.FRONTEND_URL` instead of hardcoded domain.
+- **Auth rate limit tuned (2.1)**: `authLimiter` now allows 20 attempts per 15 minutes
+  (was 10/hour — too aggressive for shared office IPs).
+- **Profile change field allowlist (4.3)**: `hr-dashboard.ts` and `profile-changes.ts`
+  validate `field_name` against an explicit allowlist set before constructing UPDATE SQL.
+
+### Fixed
+- **`instructor_pay_rates` columns (1.5)**: Added missing `end_date`, `notes`, `created_by`
+  columns; removed erroneous UNIQUE KEY that prevented storing multiple inactive records.
+- **Course cancellation `is_cancelled` sync (3.1)**: `POST /courses/:id/cancel` now sets
+  `is_cancelled = 1, cancelled_at, cancellation_reason` alongside `status = 'cancelled'`.
+- **Billing contact validation (3.7)**: Invoice creation returns 422 if the course has no
+  `contact_email`.
+
+---
+
+## [Unreleased] — MySQL/MariaDB Migration — 2026-04-12
+
+### Changed
+- **Database migrated from Neon PostgreSQL to TMD MySQL/MariaDB** (`kaizenmo_cpr`).
+  All `$N` placeholders auto-converted via `convertPlaceholders()`; `RETURNING` emulated
+  in the `query()` wrapper. Schema file: `mysql-schema.sql`.
+
+---
+
 ## [Unreleased] — Week 4 CSP, bcrypt, COEP & Comment Cleanup — 2026-03-06
 
 ### Security
