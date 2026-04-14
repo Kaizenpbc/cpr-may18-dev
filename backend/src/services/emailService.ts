@@ -522,6 +522,63 @@ class EmailService {
     `;
     return this.sendEmail(userEmail, subject, html);
   }
+
+  async sendCertificateEmail(
+    studentEmail: string,
+    firstName: string,
+    cert: { courseName: string; certificationNumber: string; issueDate: string; expirationDate: string; instructorName: string },
+    pdfBuffer: Buffer
+  ): Promise<boolean> {
+    const subject = `Your ${cert.courseName} Certificate — ${cert.certificationNumber}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: #2196F3; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0; font-size: 22px;">GTA CPR Training Services</h1>
+          <p style="margin: 5px 0 0 0; font-size: 14px;">Certificate of Completion</p>
+        </div>
+        <div style="background: #f9f9f9; padding: 25px; border: 1px solid #e0e0e0;">
+          <p style="font-size: 16px;">Dear ${firstName},</p>
+          <p>Congratulations! You have successfully completed <strong>${cert.courseName}</strong>.</p>
+          <p>Your certificate is attached to this email as a PDF. Please keep it for your records.</p>
+          <div style="background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px; margin: 20px 0;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="color: #666; font-size: 13px; padding: 4px 0;">Certificate No.</td>
+                <td style="font-weight: bold; font-size: 13px; padding: 4px 0;">${cert.certificationNumber}</td>
+              </tr>
+              <tr>
+                <td style="color: #666; font-size: 13px; padding: 4px 0;">Course</td>
+                <td style="font-weight: bold; font-size: 13px; padding: 4px 0;">${cert.courseName}</td>
+              </tr>
+              <tr>
+                <td style="color: #666; font-size: 13px; padding: 4px 0;">Issue Date</td>
+                <td style="font-weight: bold; font-size: 13px; padding: 4px 0;">${cert.issueDate}</td>
+              </tr>
+              <tr>
+                <td style="color: #666; font-size: 13px; padding: 4px 0;">Expiry Date</td>
+                <td style="font-weight: bold; font-size: 13px; padding: 4px 0;">${cert.expirationDate}</td>
+              </tr>
+              <tr>
+                <td style="color: #666; font-size: 13px; padding: 4px 0;">Instructor</td>
+                <td style="font-weight: bold; font-size: 13px; padding: 4px 0;">${cert.instructorName}</td>
+              </tr>
+            </table>
+          </div>
+          <p style="font-size: 13px; color: #666;">
+            You can verify this certificate at any time at <strong>cpr.kpbc.ca/verify</strong>
+            using certificate number <strong>${cert.certificationNumber}</strong>.
+          </p>
+          <p>Thank you for training with us!</p>
+        </div>
+        <div style="text-align: center; padding: 15px; color: #999; font-size: 12px;">
+          GTA CPR Training Services &mdash; cpr.kpbc.ca
+        </div>
+      </div>
+    `;
+    return this.sendEmail(studentEmail, subject, html, [
+      { filename: `Certificate-${cert.certificationNumber}.pdf`, content: pdfBuffer },
+    ]);
+  }
 }
 
 export const emailService = EmailService.getInstance();

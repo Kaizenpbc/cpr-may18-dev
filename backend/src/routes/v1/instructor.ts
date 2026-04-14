@@ -909,6 +909,16 @@ router.post('/classes/:classId/complete', authenticateToken, requireRole(['instr
     }
   })();
 
+  // Issue certificates asynchronously — non-blocking, errors logged not thrown
+  (async () => {
+    try {
+      const { issueCertificates } = await import('../../services/certificationService.js');
+      await issueCertificates(parseInt(courseRequestId));
+    } catch (certError) {
+      console.error('❌ [CERT] Error issuing certificates for course:', courseRequestId, certError);
+    }
+  })();
+
   res.json(ApiResponseBuilder.success(keysToCamel(result.rows[0])));
 }));
 

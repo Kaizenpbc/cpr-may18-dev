@@ -900,6 +900,54 @@ router.get(
   })
 );
 
+// ── Certifications ────────────────────────────────────────────────────────────
+
+// Public: verify a certificate by number
+router.get(
+  '/certifications/verify/:certNumber',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { verifyCertificate } = await import('../../services/certificationService.js');
+    const cert = await verifyCertificate(req.params.certNumber.toUpperCase());
+    if (!cert) {
+      return res.status(404).json({ success: false, message: 'Certificate not found or invalid' });
+    }
+    res.json({ success: true, data: cert });
+  })
+);
+
+// Admin: list all certificates
+router.get(
+  '/admin/certifications',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { getAllCertificates } = await import('../../services/certificationService.js');
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const { certs, total } = await getAllCertificates(page, limit);
+    res.json({ success: true, data: certs, pagination: { page, limit, total } });
+  })
+);
+
+// Admin: download a specific certificate PDF
+router.get(
+  '/admin/certifications/:certNumber/download',
+  authenticateToken,
+  requireRole(['admin', 'sysadmin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { getCertificatePDF } = await import('../../services/certificationService.js');
+    const result = await getCertificatePDF(req.params.certNumber.toUpperCase());
+    if (!result) {
+      return res.status(404).json({ success: false, message: 'Certificate not found' });
+    }
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="Certificate-${result.cert.certificationNumber}.pdf"`,
+    });
+    res.send(result.pdf);
+  })
+);
+
 // Accounting routes extracted to accounting.ts
 
 

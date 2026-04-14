@@ -33,6 +33,7 @@ import { initializeEnvironmentConfig, checkConfigurationHealth } from './config/
 import { initializeMFADatabase } from './config/mfaDatabase.js';
 import { initializeEncryptionDatabase } from './config/encryptionDatabase.js';
 import { initializeSecurityMonitoringDatabase } from './config/securityMonitoringDatabase.js';
+import { initializeCertificationDatabase } from './config/certificationDatabase.js';
 
 const execAsync = promisify(exec);
 
@@ -620,6 +621,7 @@ const startServer = async () => {
           await initializeMFADatabase().catch(e => console.warn('MFA database init skipped:', e.message));
           await initializeEncryptionDatabase().catch(e => console.warn('Encryption database init skipped:', e.message));
           await initializeSecurityMonitoringDatabase().catch(e => console.warn('Security monitoring init skipped:', e.message));
+          await initializeCertificationDatabase().catch(e => console.warn('Certification database init skipped:', e.message));
           await initializeSSL().catch(e => console.warn('SSL/TLS init skipped:', e.message));
         } catch (bgError) {
           console.error('Background initialization error:', bgError);

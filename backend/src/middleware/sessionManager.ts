@@ -133,27 +133,27 @@ export async function createSession(
     await query(
       `UPDATE user_sessions
        SET is_active = FALSE
-       WHERE user_id = ? AND is_active = TRUE AND expires_at > NOW()
+       WHERE user_id = $1 AND is_active = TRUE AND expires_at > NOW()
          AND id NOT IN (
            SELECT id FROM (
              SELECT id FROM user_sessions
-             WHERE user_id = ? AND is_active = TRUE AND expires_at > NOW()
+             WHERE user_id = $1 AND is_active = TRUE AND expires_at > NOW()
              ORDER BY last_activity DESC
-             LIMIT ?
+             LIMIT $2
            ) AS kept
          )`,
-      [userId, userId, config.maxConcurrentSessions - 1]
+      [userId, config.maxConcurrentSessions - 1]
     );
 
     // Create new session
     await query(
       `INSERT INTO user_sessions
        (session_id, user_id, role, ip_address, user_agent, expires_at, login_location)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [sessionId, userId, role, ipAddress, userAgent, expiresAt, loginLocation]
     );
     const result = await query(
-      `SELECT * FROM user_sessions WHERE session_id = ?`,
+      `SELECT * FROM user_sessions WHERE session_id = $1`,
       [sessionId]
     );
 

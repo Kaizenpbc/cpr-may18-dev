@@ -301,24 +301,21 @@ router.get(
           cr.location,
           ct.name as course_type_name,
           cr.completed_at as date_completed,
-          COALESCE(
-            json_agg(
-              json_build_object(
-                'first_name', cs.first_name,
-                'last_name', cs.last_name,
-                'email', cs.email,
-                'attended', cs.attended
-              ) ORDER BY cs.last_name, cs.first_name
-            ) FILTER (WHERE cs.id IS NOT NULL),
-            '[]'::json
+          IFNULL(
+            (SELECT JSON_ARRAYAGG(JSON_OBJECT(
+              'first_name', s.first_name,
+              'last_name', s.last_name,
+              'email', s.email,
+              'attended', s.attended
+            ))
+            FROM (SELECT * FROM course_students WHERE course_request_id = cr.id ORDER BY last_name, first_name) s),
+            JSON_ARRAY()
           ) as attendance_list
         FROM invoices i
         JOIN organizations o ON i.organization_id = o.id
         LEFT JOIN course_requests cr ON i.course_request_id = cr.id
         LEFT JOIN class_types ct ON cr.course_type_id = ct.id
-        LEFT JOIN course_students cs ON cr.id = cs.course_request_id
         WHERE i.id = $1 AND i.organization_id = $2
-        GROUP BY i.id, i.invoice_number, i.organization_id, i.course_request_id, i.created_at, i.due_date, i.amount, i.status, i.students_billed, i.paid_date, i.base_cost, i.tax_amount, i.rate_per_student, o.name, o.contact_email, cr.location, ct.name, cr.completed_at
         `,
         [id, user.organizationId]
       );
@@ -1830,6 +1827,56 @@ router.get(
       console.error('[Balance Calculation] Error:', error);
       throw error;
     }
+  })
+);
+
+// ── Certifications (org portal) ───────────────────────────────────────────────
+
+// List all certificates for the org's courses
+router.get(
+  '/organization/certifications',
+  authenticateToken,
+  requireRole(['organization', 'admin', 'sysadmin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const organizationId = user.role === 'organization' ? user.organizationId : parseInt(req.query.organizationId as string);
+    if (!organizationId) {
+      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Organization ID required');
+    }
+    const { getCertificatesForOrg } = await import('../../services/certificationService.js');
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const { certs, total } = await getCertificatesForOrg(organizationId, page, limit);
+    res.json({ success: true, data: certs, pagination: { page, limit, total } });
+  })
+);
+
+// Download a specific certificate PDF by cert number
+router.get(
+  '/organization/certifications/:certNumber/download',
+  authenticateToken,
+  requireRole(['organization', 'admin', 'sysadmin']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { getCertificatePDF, verifyCertificate } = await import('../../services/certificationService.js');
+
+    // For org users, verify the cert belongs to their org before serving it
+    if (user.role === 'organization') {
+      const cert = await verifyCertificate(req.params.certNumber.toUpperCase());
+      if (!cert || cert.organizationId !== user.organizationId) {
+        throw new AppError(403, errorCodes.AUTH_INSUFFICIENT_PERMISSIONS, 'Access denied');
+      }
+    }
+
+    const result = await getCertificatePDF(req.params.certNumber.toUpperCase());
+    if (!result) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'Certificate not found');
+    }
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="Certificate-${result.cert.certificationNumber}.pdf"`,
+    });
+    res.send(result.pdf);
   })
 );
 
