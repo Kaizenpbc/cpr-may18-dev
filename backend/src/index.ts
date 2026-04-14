@@ -16,7 +16,7 @@ import fs from 'fs';
 import path from 'path';
 import cookieParser from 'cookie-parser';
 import emailTemplatesRouter from './routes/v1/emailTemplates.js';
-import { closeDatabaseConnections } from './config/database.js';
+import { closeDatabaseConnections, query } from './config/database.js';
 import { initializeTokenBlacklist } from './utils/tokenBlacklist.js';
 import { apiLimiter, authLimiter, registerLimiter } from './middleware/rateLimiter.js';
 import { sanitizeInput } from './middleware/inputSanitizer.js';
@@ -623,6 +623,22 @@ const startServer = async () => {
           await initializeSecurityMonitoringDatabase().catch(e => console.warn('Security monitoring init skipped:', e.message));
           await initializeCertificationDatabase().catch(e => console.warn('Certification database init skipped:', e.message));
           await initializeSSL().catch(e => console.warn('SSL/TLS init skipped:', e.message));
+
+          // Mark overdue course requests past_due — run once on startup, then hourly
+          const markPastDue = async () => {
+            try {
+              const r = await query(
+                `UPDATE course_requests
+                 SET status = 'past_due', updated_at = CURRENT_TIMESTAMP
+                 WHERE status IN ('pending', 'confirmed')
+                   AND scheduled_date < CURRENT_DATE
+                   AND deleted_at IS NULL`
+              );
+              if (r.rowCount > 0) console.log(`⏰ Marked ${r.rowCount} course request(s) as past_due`);
+            } catch (e) { console.warn('past_due sweep failed:', e); }
+          };
+          await markPastDue();
+          setInterval(markPastDue, 60 * 60 * 1000); // every hour
         } catch (bgError) {
           console.error('Background initialization error:', bgError);
           // Don't exit - server is already running and can handle requests
