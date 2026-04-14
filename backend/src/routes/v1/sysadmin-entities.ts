@@ -308,37 +308,49 @@ router.get(
   requireRole(['admin', 'sysadmin']),
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const result = await query(`
-      SELECT
-        u.id,
-        u.username,
-        u.email,
-        u.role,
-        u.phone,
-        u.mobile,
-        u.first_name as "firstName",
-        u.last_name as "lastName",
-        u.full_name as "fullName",
-        u.organization_id as "organizationId",
-        o.name as "organizationName",
-        u.location_id as "locationId",
-        ol.location_name as "locationName",
-        u.date_onboarded as "dateOnboarded",
-        u.date_offboarded as "dateOffboarded",
-        u.user_comments as "userComments",
-        u.status,
-        u.created_at as "createdAt",
-        u.updated_at as "updatedAt"
-      FROM users u
-      LEFT JOIN organizations o ON u.organization_id = o.id
-      LEFT JOIN organization_locations ol ON u.location_id = ol.id
-      ORDER BY u.created_at DESC
-      LIMIT 500
-    `);
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 100));
+      const offset = (page - 1) * limit;
+      const search = (req.query.search as string) || '';
+      const roleFilter = (req.query.role as string) || '';
 
+      const conditions: string[] = [];
+      const params: unknown[] = [];
+      if (search) {
+        params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        conditions.push(`(u.username LIKE $${params.length - 2} OR u.email LIKE $${params.length - 1} OR u.full_name LIKE $${params.length})`);
+      }
+      if (roleFilter) {
+        params.push(roleFilter);
+        conditions.push(`u.role = $${params.length}`);
+      }
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      const [result, countResult] = await Promise.all([
+        query(`
+          SELECT
+            u.id, u.username, u.email, u.role, u.phone, u.mobile,
+            u.first_name as "firstName", u.last_name as "lastName", u.full_name as "fullName",
+            u.organization_id as "organizationId", o.name as "organizationName",
+            u.location_id as "locationId", ol.location_name as "locationName",
+            u.date_onboarded as "dateOnboarded", u.date_offboarded as "dateOffboarded",
+            u.user_comments as "userComments", u.status,
+            u.created_at as "createdAt", u.updated_at as "updatedAt"
+          FROM users u
+          LEFT JOIN organizations o ON u.organization_id = o.id
+          LEFT JOIN organization_locations ol ON u.location_id = ol.id
+          ${where}
+          ORDER BY u.created_at DESC
+          LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+        `, [...params, limit, offset]),
+        query(`SELECT COUNT(*) as count FROM users u ${where}`, params),
+      ]);
+
+      const total = parseInt(countResult.rows[0].count);
       res.json({
         success: true,
         data: result.rows,
+        pagination: { page, limit, total, pages: Math.ceil(total / limit) },
       });
     } catch (error) {
       console.error('Error fetching users:', error);
