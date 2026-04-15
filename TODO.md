@@ -27,11 +27,8 @@
 - [ ] **🔴 Hosting resource limits (HOSTING-1)**: TMD confirmed LVE cap: **100 processes, 2GB RAM, 2 CPU cores**. Running multiple Node.js apps simultaneously hits the process limit → 503 errors (seen 2026-03-15). Options:
   - **Option A**: Manage carefully — only run CPR app on this account; avoid opening extra Node.js processes during deploy.
   - **Option B (recommended at scale)**: Upgrade to TMD Managed VPS — no process limits, dedicated resources, full root access. Do this before onboarding multiple paying customers simultaneously.
-- [ ] **🔴 Database backup SLA (BACKUP-1)**: Currently on Neon free tier — no guaranteed backup retention or point-in-time restore SLA.
-  - **Option A (recommended)**: Upgrade Neon project to a paid plan — gives PITR, branching, and guaranteed backups.
-  - **Option B**: Add a `pg_dump` cron job: schedule nightly dump → compress → upload to external storage (e.g. Cloudflare R2 or Backblaze B2). Requires a server that can reach Neon (e.g. GitHub Actions on a schedule).
-  - Do this **before** first paying customer.
-- [ ] **Database backups** — see BACKUP-1 above; action required before first paying customer
+- [x] **🔴 Database backup SLA (BACKUP-1)**: Daily `mysqldump` cron running at 2 AM via `/home/kaizenmo/backup-cpr.sh` — 7-day rotation confirmed. Backup log shows successful runs 2026-04-14 and 2026-04-15.
+  - [ ] **BACKUP-2 (offsite)**: Both backups are on the same server — if TMD server fails, backups are lost. Add offsite copy: push `cpr_*.sql.gz` to an FTP/S3/B2 destination after each successful dump. Do before scaling.
 
 ### **Security Enhancements**
 - [ ] **🟡 Switch to dedicated noreply mailbox (EMAIL-2)**: Currently using `michaela@kpbc.ca` as SMTP sender (temporary). Create a dedicated `noreply@kpbc.ca` mailbox in cPanel, update `.htaccess` `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` to use it, and restart Passenger.
@@ -147,7 +144,7 @@
 
 ### **🔴 Must do before first paying customer**
 1. ~~**EMAIL-1**~~ ✅ Email delivery working via Resend (noreply@kpbc.ca)
-2. **BACKUP-1** — Database backup strategy (decision required: Neon paid PITR or pg_dump cron)
+2. ~~**BACKUP-1**~~ ✅ Daily mysqldump cron running, 7-day rotation confirmed — **BACKUP-2** (offsite copy) deferred
 3. ~~**BUG-1**~~ ✅ Fixed sysadmin/courses POST 500
 4. ~~**LEGAL-1**~~ ✅ Terms of Service page live at `/terms`
 5. ~~**SECURITY-2**~~ ✅ Org data isolation audit complete — 9 issues fixed
