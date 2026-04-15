@@ -60,6 +60,14 @@ Get current user information.
 }
 ```
 
+#### GET /auth/my-data
+Export all personal data held for the authenticated user (PIPEDA right of access).
+Returns a JSON object containing profile, class history, attendance records, and payment data.
+Data download, not deletion — per PIPEDA 5-year retention requirement, account erasure requests
+must be submitted to the Privacy Officer and may be declined for training/attendance/payment records.
+
+**Response:** `200 OK` — JSON object with user data payload.
+
 ## Organization Endpoints
 
 ### Course Management

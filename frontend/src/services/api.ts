@@ -147,18 +147,20 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       const errorCode = error.response?.data?.error?.code;
 
-      // If it's a refresh token error OR a login attempt, don't try to refresh
+      // For failed login attempts, just reject — let the Login component show the error.
+      // Do NOT call forceLogout() here: it navigates before React can render the alert.
+      if (originalRequest.url?.includes('/auth/login')) {
+        devLog('🔐 [API] Login attempt rejected (401) — passing error to caller');
+        return Promise.reject(error);
+      }
+
+      // For refresh token errors or blacklisted tokens, force logout + redirect
       if (
         errorCode === 'AUTH_1003' ||
-        error.response?.data?.error?.message?.includes('Refresh token') ||
-        originalRequest.url?.includes('/auth/login')
+        error.response?.data?.error?.message?.includes('Refresh token')
       ) {
-        devLog('🔐 [API] Auth error (refresh or login) - redirecting to login');
+        devLog('🔐 [API] Refresh/blacklist auth error - forcing logout');
         tokenService.forceLogout();
-        // Don't redirect if it's already the login page/request to avoid reload loops
-        if (!originalRequest.url?.includes('/auth/login')) {
-          window.location.href = '/login';
-        }
         return Promise.reject(error);
       }
 

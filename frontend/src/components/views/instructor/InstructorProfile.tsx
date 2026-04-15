@@ -30,9 +30,11 @@ import {
   Edit as EditIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
+import api from '../../../services/api';
 
 const InstructorProfile: React.FC = () => {
   const { user } = useAuth();
@@ -84,6 +86,27 @@ const InstructorProfile: React.FC = () => {
     } else {
       setSmsNotifications(!smsNotifications);
       info(`SMS notifications ${!smsNotifications ? 'enabled' : 'disabled'}`);
+    }
+  };
+
+  const [downloadingData, setDownloadingData] = useState(false);
+
+  const handleDownloadMyData = async () => {
+    setDownloadingData(true);
+    try {
+      const response = await api.get('/auth/my-data');
+      const json = JSON.stringify(response.data?.data ?? response.data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'my-data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      info('Failed to download data. Please try again.');
+    } finally {
+      setDownloadingData(false);
     }
   };
 
@@ -427,6 +450,14 @@ const InstructorProfile: React.FC = () => {
                   onClick={() => info('Login history view coming soon!')}
                 >
                   View Login History
+                </Button>
+                <Button
+                  variant='outlined'
+                  startIcon={<DownloadIcon />}
+                  onClick={handleDownloadMyData}
+                  disabled={downloadingData}
+                >
+                  {downloadingData ? 'Downloading…' : 'Download My Data'}
                 </Button>
               </Box>
             </CardContent>

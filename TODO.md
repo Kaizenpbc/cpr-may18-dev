@@ -33,7 +33,7 @@
 ### **Security Enhancements**
 - [ ] **🟡 Switch to dedicated noreply mailbox (EMAIL-2)**: Currently using `michaela@kpbc.ca` as SMTP sender (temporary). Create a dedicated `noreply@kpbc.ca` mailbox in cPanel, update `.htaccess` `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` to use it, and restart Passenger.
 - [ ] **🟡 Confirm email delivery (EMAIL-1)** *(deferred)*: SMTP updated to `mail.kpbc.ca:587` using `michaela@kpbc.ca` (deployed 2026-03-18). API returns `RESET_SENT` but delivery to `kpbcma@gmail.com` unconfirmed. **Next step**: check inbox/spam for the test reset email; if not received, investigate TMD mail logs via cPanel → Email → Track Delivery, or try an alternate recipient. May need SPF/DKIM records checked for `kpbc.ca`.
-- [ ] **🟡 Re-enable rate limiting (RATELIMIT-1)** *(deferred — SOP item, not blocking launch)*: All rate limiters are commented out in `backend/src/index.ts` lines 321–326. Uncomment `apiLimiter`, `authLimiter`, and `registerLimiter` before scaling / public exposure. Test locally first to confirm limits don't block legitimate usage patterns.
+- [x] **🟡 Re-enable rate limiting (RATELIMIT-1)**: All three limiters confirmed active — `authLimiter` on login/forgot-password/recover/reset (20 req/15min); `registerLimiter` on /auth/register; `apiLimiter` on all /api/v1 routes.
 - [x] **🟡 Fix billing lifecycle inconsistency (BUG-2)**: `PUT /accounting/invoices/:id/approval` auto-sets `posted_to_org=TRUE`, but `PUT /accounting/invoices/:id/post-to-org` requires `posted_to_org=FALSE` to run. These two paths are mutually exclusive. The PDF/email is only sent via post-to-org — approval silently skips it. Accountant must manually call `POST /accounting/invoices/:id/email` after approving. Fix: approval should NOT set `posted_to_org=TRUE`; that should remain the post-to-org endpoint's responsibility.
 - [x] **🟡 Fix vendor dashboard non-standard response (BUG-3)**: `GET /vendor/dashboard` returns a raw object `{pendingInvoices, totalInvoices, ...}` instead of the standard `{success: true, data: {...}}` wrapper used by every other endpoint. Frontend may handle this inconsistently.
 - [x] **🟡 Fix sysadmin POST /vendors ignoring contactEmail (BUG-4)**: `POST /sysadmin/vendors` only maps `email` or `contact_email` from request body — camelCase `contactEmail` is silently ignored. Created vendors have null contact_email, breaking vendor portal profile/dashboard lookup (which queries `WHERE contact_email = $1`).
@@ -103,7 +103,7 @@
 ### **Automated Testing**
 - [ ] **Unit tests**: Achieve 80%+ code coverage
 - [x] **Integration tests** — 51 tests across 4 suites (auth, lockout, reset, recovery)
-- [ ] **End-to-end tests** — Playwright installed but no tests written yet
+- [x] **End-to-end tests** — Playwright suite complete (2026-04-15): auth.spec.ts + portal.spec.ts cover login, role redirect, dashboard load, navigation, logout for all 4 roles. **13 passed, 5 gracefully skipped, 0 failed.** Run: `npx playwright test --project=chromium`. Note: authLimiter allows 20 logins/15min; suite uses 5 logins per run.
 - [ ] **Performance tests**: Load testing for concurrent users
 - [ ] **Security tests**: Automated vulnerability scanning
 
@@ -113,7 +113,11 @@
 - [x] **Type safety** — TypeScript strict mode enabled frontend + backend
 - [ ] **Documentation** — inline code docs partial; API docs not auto-generated
 - [ ] **API documentation**: Generate OpenAPI/Swagger documentation
-- [ ] **🟡 Document PIPEDA endpoints in API docs (API-PRIVACY-1)**: `GET /auth/my-data` (right to access) and `DELETE /auth/my-data` (right to erasure) added 2026-04-14 — not yet documented in `docs/API_DOCUMENTATION.md`. Add request/response examples, authentication requirement, and error codes.
+- [x] **🟡 Document PIPEDA endpoints in API docs (API-PRIVACY-1)**: `GET /auth/my-data` documented in `docs/API_DOCUMENTATION.md`; `DELETE /auth/my-data` was removed (5-year retention).
+- [x] **🟡 Fix login error message not showing (BUG-5)**: Fixed in `frontend/src/services/api.ts` interceptor — login 401s now reject the promise without calling `forceLogout()`, allowing Login.tsx catch block to call `setError()` and render the alert.
+- [x] **🟡 Frontend: "Download My Data" button (UI-DOWNLOAD-1)**: Added to Security Settings card in `InstructorProfile.tsx` — calls `GET /auth/my-data` and downloads the response as `my-data.json`.
+- [ ] **🟡 Email: Confirm delivery working (EMAIL-1)**: SMTP set to `mail.kpbc.ca:587` via `michaela@kpbc.ca`. Confirm actual email delivery by triggering a password reset and checking the inbox at kpbcma@gmail.com.
+- [ ] **🟡 Email: Switch to dedicated noreply mailbox (EMAIL-2)**: Create `noreply@kpbc.ca` in cPanel, update `.htaccess` `SMTP_USER/SMTP_PASS/SMTP_FROM`, restart Passenger.
 
 ## 📋 **Operational Tasks**
 
@@ -153,13 +157,18 @@
 7. **BIZ-2** — Define offboarding / cancellation policy *(deferred — ToS already covers 30-day notice, 30-day data export window, then anonymization; formalize as internal process when first customer churns)*
 
 ### **🟡 Medium Priority**
-- **RATELIMIT-1** — Uncomment rate limiters in `index.ts` lines 321–326 before going to production
+- **EMAIL-1** — Confirm email delivery (trigger a password reset and check kpbcma@gmail.com)
+- **EMAIL-2** — Switch SMTP sender from michaela@kpbc.ca to dedicated noreply@kpbc.ca
+- **UI-DOWNLOAD-1** — Build "Download My Data" button in user account settings (backend `GET /auth/my-data` exists)
+- **RATELIMIT-1** — Verify/tune rate limiters before scaling; authLimiter IS active on login (20/15min)
 - **HOSTING-1** — Plan VPS upgrade before multiple concurrent paying customers
 - **ONBOARD-1** — Customer onboarding flow (self-serve or documented manual process)
+- **API-PRIVACY-1** — Update API docs: document GET /auth/my-data, remove DELETE /auth/my-data entry
+- **BACKUP-2** — Offsite copy of MySQL backups (both copies currently on same TMD server)
 - Mobile responsiveness
-- **OPS-1** — Uptime monitoring (UptimeRobot on `/api/v1/health`)
+- **OPS-1** — Uptime monitoring (UptimeRobot on `/api/v1/health`) ✅ already active — verify monitor still running
 - Data retention enforcement (auto-purge old records)
-- End-to-end (Playwright) tests — cover login, course request, invoice
+- End-to-end (Playwright) tests — ✅ suite written 2026-04-15; run: `npx playwright test --project=chromium`
 - Custom invoice number sequences per org
 
 ### **🟢 Low Priority / Future**

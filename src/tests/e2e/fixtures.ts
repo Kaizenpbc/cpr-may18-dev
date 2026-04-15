@@ -1,54 +1,25 @@
+import { Page } from '@playwright/test';
 import { test as base } from '@playwright/test';
-import type { TestFixtures } from './types';
 
-// Extend the base test with our custom fixtures
-export const test = base.extend<TestFixtures>({
-  // Add a fixture for test data
-  testData: async ({}, use) => {
-    // Provide test data to the test
-    await use({
-      user: {
-        username: 'testuser',
-        email: 'test@example.com',
-        password: 'testpass123'
-      }
-    });
-  },
+// Shared credentials — test accounts on the server (password: test123)
+export const USERS = {
+  instructor:  { username: 'instructor',  password: 'test123', portal: '/instructor/dashboard' },
+  accountant:  { username: 'accountant',  password: 'test123', portal: '/accounting/dashboard' },
+  sysadmin:    { username: 'sysadmin',    password: 'test123', portal: '/sysadmin/dashboard'   },
+  admin:       { username: 'admin',       password: 'test123', portal: '/admin/dashboard'       },
+} as const;
 
-  // Add a fixture for authenticated user
-  authenticatedUser: async ({ page, testData }, use) => {
-    // Mock authentication by setting a token in localStorage
-    await page.addInitScript(() => {
-      window.localStorage.setItem('token', 'mock-token');
-      window.localStorage.setItem('user', JSON.stringify({
-        id: 1,
-        username: testData.user.username,
-        email: testData.user.email
-      }));
-    });
+/** Log in via the login form and wait for navigation away from /login. */
+export async function loginAs(page: Page, username: string, password: string) {
+  await page.goto('/login');
+  await page.waitForSelector('input[name="username"]');
+  await page.fill('input[name="username"]', username);
+  await page.fill('input[name="password"]', password);
+  await page.click('button[type="submit"]');
+  await page.waitForURL(url => !url.pathname.includes('/login'), { timeout: 20000 });
+  await page.waitForLoadState('networkidle');
+}
 
-    // Pass the user data to the test
-    await use({
-      id: 1,
-      username: testData.user.username,
-      email: testData.user.email
-    });
-
-    // Cleanup
-    await page.evaluate(() => {
-      window.localStorage.removeItem('token');
-      window.localStorage.removeItem('user');
-    });
-  },
-
-  // Add a fixture for unauthenticated state
-  unauthenticatedUser: async ({ page }, use) => {
-    // Clear any existing authentication
-    await page.addInitScript(() => {
-      window.localStorage.removeItem('token');
-      window.localStorage.removeItem('user');
-    });
-
-    await use({});
-  }
-}); 
+export type TestFixtures = Record<string, never>;
+export const test = base;
+export { expect } from '@playwright/test';
