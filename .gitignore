@@ -284,6 +284,7 @@ ecosystem.config.js.backup
 test-results/
 playwright-report/
 test-results.xml
+playwright/.auth/
 
 # Build artifacts
 *.tar.gz

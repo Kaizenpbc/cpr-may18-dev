@@ -12,7 +12,9 @@ function convertPlaceholders(sql: string, params?: any[]): { sql: string; params
   if (!params || params.length === 0) return { sql, params: params ?? [] };
   const newParams: any[] = [];
   const converted = sql.replace(/\$(\d+)/g, (_, num) => {
-    newParams.push(params[parseInt(num, 10) - 1]);
+    const val = params[parseInt(num, 10) - 1];
+    // mysql2 does not accept undefined — convert to null
+    newParams.push(val === undefined ? null : val);
     return '?';
   });
   return { sql: converted, params: newParams };

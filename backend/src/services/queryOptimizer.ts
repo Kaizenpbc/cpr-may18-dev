@@ -65,7 +65,7 @@ class QueryOptimizer {
         SELECT 
           course_request_id,
           COUNT(*) as student_count,
-          COUNT(*) FILTER (WHERE attended = true) as attended_count
+          SUM(CASE WHEN attended = 1 OR attended = true THEN 1 ELSE 0 END) as attended_count
         FROM course_students
         GROUP BY course_request_id
       ) cs ON cr.id = cs.course_request_id

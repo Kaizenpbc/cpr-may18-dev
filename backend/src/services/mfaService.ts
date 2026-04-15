@@ -350,9 +350,9 @@ export class MFAService {
       `INSERT INTO mfa_users (user_id, status, totp_secret, totp_backup_codes, sms_verified, 
        email_verified, failed_attempts, trusted_devices, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       ON CONFLICT (user_id) DO UPDATE SET
-       status = $2, totp_secret = $3, totp_backup_codes = $4, sms_verified = $5,
-       email_verified = $6, failed_attempts = $7, trusted_devices = $8, updated_at = $10`,
+       ON DUPLICATE KEY UPDATE
+       status = VALUES(status), totp_secret = VALUES(totp_secret), totp_backup_codes = VALUES(totp_backup_codes), sms_verified = VALUES(sms_verified),
+       email_verified = VALUES(email_verified), failed_attempts = VALUES(failed_attempts), trusted_devices = VALUES(trusted_devices), updated_at = VALUES(updated_at)`,
       [
         userId, data.status, data.totpSecret, data.totpBackupCodes,
         data.smsVerified, data.emailVerified, data.failedAttempts,

@@ -10,12 +10,12 @@ export async function initializeEncryptionDatabase(): Promise<void> {
     await query(`
       CREATE TABLE IF NOT EXISTS encryption_keys (
         id VARCHAR(255) PRIMARY KEY,
-        key_data BYTEA NOT NULL,
+        key_data LONGBLOB NOT NULL,
         algorithm VARCHAR(50) NOT NULL,
         status VARCHAR(50) NOT NULL DEFAULT 'active',
-        created_at TIMESTAMP DEFAULT NOW(),
-        expires_at TIMESTAMP,
-        last_used TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NULL,
+        last_used TIMESTAMP NULL,
         usage_count INTEGER DEFAULT 0,
         metadata JSON,
         created_by VARCHAR(255) DEFAULT 'system'
@@ -25,26 +25,26 @@ export async function initializeEncryptionDatabase(): Promise<void> {
     // Create encryption audit log table
     await query(`
       CREATE TABLE IF NOT EXISTS encryption_audit_log (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         operation VARCHAR(100) NOT NULL,
         table_name VARCHAR(255),
         field_name VARCHAR(255),
         key_id VARCHAR(255),
         algorithm VARCHAR(50),
         data_length INTEGER,
-        success BOOLEAN DEFAULT TRUE,
+        success TINYINT(1) DEFAULT 1,
         error_message TEXT,
         user_id VARCHAR(255),
-        ip_address INET,
+        ip_address VARCHAR(45),
         user_agent TEXT,
-        created_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Create encryption statistics table
     await query(`
       CREATE TABLE IF NOT EXISTS encryption_statistics (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         date DATE NOT NULL,
         total_encryptions INTEGER DEFAULT 0,
         total_decryptions INTEGER DEFAULT 0,
@@ -86,60 +86,18 @@ export async function initializeEncryptionDatabase(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_encryption_statistics_date ON encryption_statistics(date);
     `);
 
-    // Create function to clean up expired keys
+    // Clean up expired keys (archive rotating keys that have passed expiry)
     await query(`
-      CREATE OR REPLACE FUNCTION cleanup_expired_encryption_keys()
-      RETURNS void AS $$
-      BEGIN
-        UPDATE encryption_keys 
-        SET status = 'archived' 
-        WHERE expires_at < NOW() 
-        AND status = 'rotating';
-      END;
-      $$ LANGUAGE plpgsql;
+      UPDATE encryption_keys
+      SET status = 'archived'
+      WHERE expires_at < NOW() AND status = 'rotating'
     `);
 
-    // Create function to update encryption statistics
+    // Ensure today's statistics row exists
     await query(`
-      CREATE OR REPLACE FUNCTION update_encryption_statistics()
-      RETURNS void AS $$
-      BEGIN
-        INSERT INTO encryption_statistics (date, total_encryptions, total_decryptions, total_keys, active_keys, rotating_keys, archived_keys)
-        SELECT 
-          CURRENT_DATE,
-          0, 0, 0, 0, 0, 0
-        WHERE NOT EXISTS (
-          SELECT 1 FROM encryption_statistics WHERE date = CURRENT_DATE
-        );
-      END;
-      $$ LANGUAGE plpgsql;
+      INSERT IGNORE INTO encryption_statistics (date, total_encryptions, total_decryptions, total_keys, active_keys, rotating_keys, archived_keys)
+      VALUES (CURRENT_DATE, 0, 0, 0, 0, 0, 0)
     `);
-
-    // Create function to update updated_at timestamp
-    await query(`
-      CREATE OR REPLACE FUNCTION update_encryption_statistics_updated_at()
-      RETURNS TRIGGER AS $$
-      BEGIN
-        NEW.updated_at = NOW();
-        RETURN NEW;
-      END;
-      $$ LANGUAGE plpgsql;
-    `);
-
-    // Create trigger for updated_at
-    await query(`
-      DROP TRIGGER IF EXISTS trigger_update_encryption_statistics_updated_at ON encryption_statistics;
-      CREATE TRIGGER trigger_update_encryption_statistics_updated_at
-        BEFORE UPDATE ON encryption_statistics
-        FOR EACH ROW
-        EXECUTE FUNCTION update_encryption_statistics_updated_at();
-    `);
-
-    // Clean up expired keys
-    await query('SELECT cleanup_expired_encryption_keys();');
-
-    // Update statistics
-    await query('SELECT update_encryption_statistics();');
 
     console.log('✅ Encryption database tables initialized');
     console.log('✅ Encryption indexes created');
@@ -260,10 +218,10 @@ export async function storeEncryptionKey(keyId: string, keyData: Buffer, algorit
     await query(`
       INSERT INTO encryption_keys (id, key_data, algorithm, status, metadata, created_by)
       VALUES ($1, $2, $3, 'active', $4, 'system')
-      ON CONFLICT (id) DO UPDATE SET
-      key_data = $2,
-      algorithm = $3,
-      metadata = $4
+      ON DUPLICATE KEY UPDATE
+      key_data = VALUES(key_data),
+      algorithm = VALUES(algorithm),
+      metadata = VALUES(metadata)
     `, [keyId, keyData, algorithm, JSON.stringify(metadata)]);
   } catch (error) {
     console.error('Failed to store encryption key:', error);

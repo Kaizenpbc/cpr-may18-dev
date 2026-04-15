@@ -411,22 +411,22 @@ export async function initializeApiSecurity(): Promise<void> {
     // Create API keys table
     await query(`
       CREATE TABLE IF NOT EXISTS api_keys (
-        id SERIAL PRIMARY KEY,
-        key VARCHAR(64) UNIQUE NOT NULL,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        \`key\` VARCHAR(64) UNIQUE NOT NULL,
         name VARCHAR(255) NOT NULL,
         organization_id INTEGER REFERENCES organizations(id),
-        permissions TEXT[] DEFAULT '{}',
-        rate_limit JSON DEFAULT '{"requests": 100, "window": 60}',
-        is_active BOOLEAN DEFAULT TRUE,
-        expires_at TIMESTAMP,
-        last_used TIMESTAMP,
-        created_at TIMESTAMP DEFAULT NOW()
+        permissions JSON,
+        rate_limit JSON,
+        is_active TINYINT(1) DEFAULT 1,
+        expires_at TIMESTAMP NULL,
+        last_used TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Create index for faster lookups
     await query(`
-      CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key) WHERE is_active = TRUE
+      CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(\`key\`)
     `);
 
     console.log('✅ API security tables initialized');

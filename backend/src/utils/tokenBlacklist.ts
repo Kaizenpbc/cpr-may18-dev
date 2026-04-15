@@ -15,7 +15,7 @@ export class TokenBlacklist {
       const sql = `
         INSERT INTO token_blacklist (token_hash, expires_at, created_at)
         VALUES ($1, $2, NOW())
-        ON CONFLICT (token_hash) DO NOTHING
+        ON DUPLICATE KEY UPDATE token_hash = token_hash
       `;
       
       // Hash the token for storage (don't store the actual token)
@@ -83,7 +83,7 @@ export async function initializeTokenBlacklist(): Promise<void> {
   try {
     const createTableQuery = `
       CREATE TABLE IF NOT EXISTS token_blacklist (
-        id SERIAL PRIMARY KEY,
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         token_hash VARCHAR(255) UNIQUE NOT NULL,
         expires_at TIMESTAMP NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
