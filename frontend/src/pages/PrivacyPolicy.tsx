@@ -30,7 +30,7 @@ const PrivacyPolicy = () => {
           Privacy Policy
         </Typography>
         <Typography variant="body2" color="text.secondary" gutterBottom>
-          Last updated: March 2026
+          Last updated: April 2026
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           Applies to: CPR Training Portal at{' '}
@@ -152,12 +152,12 @@ const PrivacyPolicy = () => {
         <Box component="ul" sx={{ pl: 3, mb: 2 }}>
           <Box component="li" sx={{ mb: 1 }}>
             <Typography variant="body1">
-              <strong>Neon Technology Inc.</strong> (United States) — provides the PostgreSQL database service where all application data, including personal information, is stored. Data is hosted on servers in the United States.
+              <strong>TMD Hosting</strong> (Canada) — provides the web hosting and MySQL database service where all application data, including personal information, is stored. Data is hosted on servers in Canada.
             </Typography>
           </Box>
           <Box component="li" sx={{ mb: 1 }}>
             <Typography variant="body1">
-              <strong>Google LLC</strong> (United States) — used for transactional email delivery via Gmail SMTP (e.g., password reset emails, course notifications). Data transmitted through this service may be processed in the United States.
+              <strong>KPBC mail server (kpbc.ca)</strong> — used for transactional email delivery (e.g., password reset emails, course notifications). Emails are sent from noreply@kpbc.ca via our own mail infrastructure.
             </Typography>
           </Box>
           <Box component="li" sx={{ mb: 1 }}>
@@ -167,7 +167,7 @@ const PrivacyPolicy = () => {
           </Box>
         </Box>
         <Typography variant="body1" paragraph>
-          <strong>Cross-border transfer notice:</strong> By using this service, you acknowledge that your personal information may be transferred to and stored in the United States, which may have different privacy laws than Canada. We take reasonable steps to ensure your data is protected in accordance with PIPEDA.
+          <strong>Cross-border transfer notice:</strong> Application data and backups are stored in Canada (TMD Hosting). Error monitoring data (Sentry) may be processed in the United States. We take reasonable steps to ensure your data is protected in accordance with PIPEDA.
         </Typography>
 
         <Divider sx={{ my: 3 }} />
@@ -217,22 +217,22 @@ const PrivacyPolicy = () => {
         <Box component="ul" sx={{ pl: 3, mb: 2 }}>
           <Box component="li" sx={{ mb: 0.5 }}>
             <Typography variant="body1">
-              <strong>Right of access:</strong> You may request a copy of the personal information we hold about you
+              <strong>Right of access:</strong> You may download a copy of all personal information we hold about you directly from the portal. When logged in, go to your account settings and select <em>"Download My Data"</em>. This exports your profile, session history, audit log, notification preferences, and profile change history as a JSON file.
             </Typography>
           </Box>
           <Box component="li" sx={{ mb: 0.5 }}>
             <Typography variant="body1">
-              <strong>Right to correction:</strong> You may request that inaccurate or incomplete personal information be corrected
+              <strong>Right to correction:</strong> You may request that inaccurate or incomplete personal information be corrected. Contact your organization's administrator or email us at the address below.
             </Typography>
           </Box>
           <Box component="li" sx={{ mb: 0.5 }}>
             <Typography variant="body1">
-              <strong>Right to erasure:</strong> You may request deletion or anonymisation of your personal data. Note that certain records (course attendance, payment records) may be retained for the regulatory periods described above even after a deletion request
+              <strong>Right to erasure:</strong> You may request erasure of your personal data directly from the portal. When logged in, go to your account settings and select <em>"Delete My Account & Data"</em>. This anonymises your profile information immediately. Note that certain records (course attendance, payment records) are retained for the regulatory periods described in Section 5 even after erasure, but will no longer be linked to your identity.
             </Typography>
           </Box>
           <Box component="li" sx={{ mb: 0.5 }}>
             <Typography variant="body1">
-              <strong>Right to withdraw consent:</strong> You may withdraw consent to the collection and use of your personal information at any time, subject to legal or contractual restrictions and reasonable notice. Withdrawing consent may prevent us from providing the service to you
+              <strong>Right to withdraw consent:</strong> You may withdraw consent at any time by requesting account erasure as described above. Withdrawing consent will prevent us from providing the service to you.
             </Typography>
           </Box>
           <Box component="li" sx={{ mb: 0.5 }}>
@@ -245,7 +245,7 @@ const PrivacyPolicy = () => {
           </Box>
         </Box>
         <Typography variant="body1" paragraph>
-          To exercise any of these rights, please contact your organization's administrator within the portal, or contact us directly at the address below.
+          To exercise your rights, use the self-service tools in your account settings or contact us directly at the address below. We will respond to all written privacy requests within 30 days as required by PIPEDA.
         </Typography>
 
         <Divider sx={{ my: 3 }} />

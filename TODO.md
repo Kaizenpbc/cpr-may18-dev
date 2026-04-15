@@ -113,6 +113,7 @@
 - [x] **Type safety** — TypeScript strict mode enabled frontend + backend
 - [ ] **Documentation** — inline code docs partial; API docs not auto-generated
 - [ ] **API documentation**: Generate OpenAPI/Swagger documentation
+- [ ] **🟡 Document PIPEDA endpoints in API docs (API-PRIVACY-1)**: `GET /auth/my-data` (right to access) and `DELETE /auth/my-data` (right to erasure) added 2026-04-14 — not yet documented in `docs/API_DOCUMENTATION.md`. Add request/response examples, authentication requirement, and error codes.
 
 ## 📋 **Operational Tasks**
 
