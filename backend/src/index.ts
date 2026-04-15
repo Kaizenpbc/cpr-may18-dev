@@ -639,6 +639,16 @@ const startServer = async () => {
           };
           await markPastDue();
           setInterval(markPastDue, 60 * 60 * 1000); // every hour
+
+          // Daily purge of expired token blacklist rows (keeps the table lean)
+          const purgeBlacklist = async () => {
+            try {
+              const { TokenBlacklist } = await import('./utils/tokenBlacklist.js');
+              await TokenBlacklist.cleanupExpiredTokens();
+            } catch { /* non-fatal */ }
+          };
+          await purgeBlacklist();
+          setInterval(purgeBlacklist, 24 * 60 * 60 * 1000); // every 24 hours
         } catch (bgError) {
           console.error('Background initialization error:', bgError);
           // Don't exit - server is already running and can handle requests

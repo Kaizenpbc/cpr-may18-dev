@@ -806,4 +806,103 @@ function extractDeviceInfo(userAgent: string): string {
   return `${browser} on ${os}`;
 }
 
+// ─── PIPEDA / Privacy endpoints ──────────────────────────────────────────────
+
+// GET /auth/my-data  — right to access: export all personal data for the logged-in user
+router.get(
+  '/my-data',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+
+    const [profile, sessions, auditLogs, notifications, profileChanges] = await Promise.all([
+      query(
+        `SELECT id, username, email, role, phone, mobile, first_name, last_name, full_name,
+                organization_id, location_id, date_onboarded, date_offboarded, created_at, updated_at
+         FROM users WHERE id = $1`,
+        [userId]
+      ),
+      query(
+        `SELECT id, ip_address, user_agent, created_at, last_activity_at
+         FROM user_sessions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
+        [userId]
+      ).catch(() => ({ rows: [] })),
+      query(
+        `SELECT action, entity_type, entity_id, details, created_at
+         FROM audit_logs WHERE user_id = $1 ORDER BY created_at DESC LIMIT 200`,
+        [userId]
+      ).catch(() => ({ rows: [] })),
+      query(
+        `SELECT type, is_enabled, updated_at FROM notification_preferences WHERE user_id = $1`,
+        [userId]
+      ).catch(() => ({ rows: [] })),
+      query(
+        `SELECT field_name, old_value, new_value, status, created_at
+         FROM profile_changes WHERE user_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      ).catch(() => ({ rows: [] })),
+    ]);
+
+    res.json(ApiResponseBuilder.success({
+      profile: profile.rows[0] || null,
+      sessions: sessions.rows,
+      auditLogs: auditLogs.rows,
+      notificationPreferences: notifications.rows,
+      profileChangeHistory: profileChanges.rows,
+      exportedAt: new Date().toISOString(),
+    }, 'Personal data export'));
+  })
+);
+
+// DELETE /auth/my-data  — right to erasure: anonymise the logged-in user's personal data
+// Requires password confirmation. Keeps anonymised record for referential integrity.
+router.delete(
+  '/my-data',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    const { password } = req.body;
+    if (!password) {
+      throw new AppError(400, errorCodes.VALIDATION_ERROR, 'Password confirmation required');
+    }
+
+    const userId = req.user!.id;
+
+    // Verify password before erasure
+    const userResult = await query(
+      'SELECT id, password_hash FROM users WHERE id = $1',
+      [userId]
+    );
+    if (userResult.rows.length === 0) {
+      throw new AppError(404, errorCodes.RESOURCE_NOT_FOUND, 'User not found');
+    }
+    const valid = await bcrypt.compare(password, userResult.rows[0].password_hash);
+    if (!valid) {
+      throw new AppError(401, errorCodes.AUTH_INVALID_CREDENTIALS, 'Incorrect password');
+    }
+
+    // Anonymise: overwrite PII fields; preserve account shell for referential integrity
+    const anonymousEmail = `deleted-${userId}@erased.invalid`;
+    const { randomBytes } = await import('crypto');
+    const anonymousHash = await bcrypt.hash(randomBytes(32).toString('hex'), 12);
+
+    await query(
+      `UPDATE users
+       SET username = $2, email = $3, password_hash = $4,
+           first_name = NULL, last_name = NULL, full_name = NULL,
+           phone = NULL, mobile = NULL,
+           date_offboarded = CURRENT_DATE, status = 'inactive',
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [userId, `deleted-${userId}`, anonymousEmail, anonymousHash]
+    );
+
+    // Clear any active sessions
+    await query('DELETE FROM user_sessions WHERE user_id = $1', [userId]).catch(() => {});
+    await query('DELETE FROM notification_preferences WHERE user_id = $1', [userId]).catch(() => {});
+
+    res.clearCookie('refreshToken');
+    res.json(ApiResponseBuilder.success(null, 'Your personal data has been erased. The account has been anonymised.'));
+  })
+);
+
 export default router;
