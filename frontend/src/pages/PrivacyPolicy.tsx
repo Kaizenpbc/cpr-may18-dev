@@ -227,12 +227,12 @@ const PrivacyPolicy = () => {
           </Box>
           <Box component="li" sx={{ mb: 0.5 }}>
             <Typography variant="body1">
-              <strong>Right to erasure:</strong> You may request erasure of your personal data directly from the portal. When logged in, go to your account settings and select <em>"Delete My Account & Data"</em>. This anonymises your profile information immediately. Note that certain records (course attendance, payment records) are retained for the regulatory periods described in Section 5 even after erasure, but will no longer be linked to your identity.
+              <strong>Right to erasure:</strong> You may submit a written erasure request to our Privacy Officer at the address below. Please note that under PIPEDA, we are permitted to refuse or limit erasure requests where retention is required by law. Training certification records, attendance records, and payment/invoice records are subject to a mandatory 5-year minimum retention period for regulatory and legal compliance purposes. Accordingly, requests to erase these categories of data will be declined for the applicable retention period. Account profile information (name, email, contact details) may be anonymised upon request where doing so does not conflict with the above obligations.
             </Typography>
           </Box>
           <Box component="li" sx={{ mb: 0.5 }}>
             <Typography variant="body1">
-              <strong>Right to withdraw consent:</strong> You may withdraw consent at any time by requesting account erasure as described above. Withdrawing consent will prevent us from providing the service to you.
+              <strong>Right to withdraw consent:</strong> You may withdraw consent for non-essential processing at any time by contacting our Privacy Officer. Note that withdrawal of consent for core service processing will prevent us from providing the service to you, and records subject to mandatory retention will be kept for the required period regardless.
             </Typography>
           </Box>
           <Box component="li" sx={{ mb: 0.5 }}>
@@ -245,7 +245,7 @@ const PrivacyPolicy = () => {
           </Box>
         </Box>
         <Typography variant="body1" paragraph>
-          To exercise your rights, use the self-service tools in your account settings or contact us directly at the address below. We will respond to all written privacy requests within 30 days as required by PIPEDA.
+          To exercise your rights, use the data download tool in your account settings or contact us directly at the address below. We will respond to all written privacy requests within 30 days as required by PIPEDA.
         </Typography>
 
         <Divider sx={{ my: 3 }} />
