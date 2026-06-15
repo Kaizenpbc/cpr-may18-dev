@@ -180,6 +180,13 @@
 - ~~End-to-end (Playwright) tests~~ ✅ 36/36 passing on staging (2026-06-15)
 - Custom invoice number sequences per org
 
+### **🟠 Enterprise Grade (9/10) — Remaining from Code Review**
+- [ ] **T-1/T-2**: Unit tests — backend services (BillingService, CourseService, AuthService) and frontend components. Target 80%+ coverage.
+- [ ] **T-3**: Integration tests — billing lifecycle end-to-end (course → invoice → payment), the revenue-critical path
+- [ ] **D-1**: CI/CD pipeline — automated testing on push, health check after deploy, rollback on failure (replace hourly cron pull)
+- [ ] **R-1**: Monitoring/alerting infrastructure — metrics (p99 latency, error rates, DB pool utilization), dashboards, PagerDuty/alerting beyond UptimeRobot
+- [ ] **R-2**: Backup strategy verification — offsite backups (S3/B2), automated restore testing, documented RTO/RPO
+
 ### **🟢 Low Priority / Future**
 - Multi-language support
 - Predictive analytics
@@ -221,6 +228,11 @@
 ## 📝 **Recent Changes**
 
 ### **2026-06-15**
+- **CODE REVIEW**: Enterprise-grade review completed — 86 findings (12 critical, 21 high, 29 medium, 24 low). Production readiness score: 4.5/10 → estimated 6-7/10 after fixes.
+- **SECURITY (Phase 1)**: Fixed AuthError 500→401, IDOR on calculate-balance/vendor invoices, password_hash leak, billing role checks, SSE auth
+- **SECURITY (Phase 2)**: Added Zod validation to 11 unvalidated routes, removed PII from frontend console.log, externalized test credentials, removed hardcoded default password, fixed process.env bypasses, fixed staging error leakage, fixed instructor timesheet IDOR
+- **ARCHITECTURE (Phase 3)**: Fixed double Bearer prefix, consolidated API clients, added account lockout (5 attempts/15min), token blacklist on password change, HTTP access logging, deep health check with DB verification
+- **PRODUCTION (Phase 4)**: Revenue report 24→2 queries, batch student INSERT, DB pool hardening (connectTimeout/queueLimit), email API 15s timeout, structured logging in EmailService, shutdown timeout, token expiry format validation, fixed findByRole
 - **PRODUCTION CUTOVER**: Replaced Express with Fastify 5 on `cpr.kpbc.ca`. All 8 roles verified. Auto-deploy cron switched from Express repo to `cpr-fastify` repo. Email switched from Gmail SMTP to Resend API (noreply@kpbc.ca). Express backup preserved in `dist-backup/`.
 - **EMAIL**: Ported EmailService with Resend API — 12 templates, PDF attachments, domain verified (DKIM/SPF/MX for kpbc.ca)
 - **PDF**: Ported PDFService with pdfkit — invoice, receipt, certificate generation + download/preview endpoints
