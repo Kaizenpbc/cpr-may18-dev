@@ -232,6 +232,7 @@
 - **SECURITY**: SECURITY-3 multi-tenant pentest passed — IDOR, role escalation, SQLi, XSS, JWT forgery, CORS all blocked on production
 - **SENTRY**: Added @sentry/node v10 to Fastify backend — dynamic import with graceful fallback if not installed
 - **DOCS**: Added `docs/Production_Cutover.md` — full technical details of Express→Fastify cutover, rollback procedure, env vars, verification steps
+- **DOCS**: Generated `docs/CPR_Technical_Design_Document.docx` — 13-section Word document for programmer handover (system overview, infrastructure, backend/frontend architecture, DB schema, services, ~145-endpoint API reference, security model, testing, operations)
 
 ### **2026-06-14**
 - **QA**: Comprehensive API-level QA of Fastify staging — 76+ GET, 23 mutations, edge cases all passing
