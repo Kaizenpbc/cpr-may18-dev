@@ -73,7 +73,7 @@
 ### **Business Features**
 - [ ] **🟡 OCR receipt scanning (OCR-1)**: Google Cloud Vision integration existed in Express production but was not ported to Fastify. Re-implement if customers use receipt/document scanning. Requires `@google-cloud/vision` + service account key.
 - [ ] **🟡 WebSocket real-time updates (WS-1)**: socket.io existed in Express production but was not ported to Fastify. Re-implement with `@fastify/websocket` if real-time dashboard updates are needed. Low priority — polling works for current user count.
-- [ ] **🟡 Sentry error monitoring (SENTRY-1)**: Sentry was integrated in Express production. Port to Fastify with `@sentry/node` for production error tracking. DSN already configured in production .htaccess.
+- [x] **🟡 Sentry error monitoring (SENTRY-1)**: Ported to Fastify — dynamic import with graceful fallback. `@sentry/node` v10, DSN in production .htaccess. Captures unhandled 500 errors with request context.
 - [ ] **Email notifications**: Automated email alerts for course status changes
 - [ ] **SMS notifications**: Text message alerts for urgent updates
 - [ ] **Calendar integration**: Sync with Google Calendar/Outlook
