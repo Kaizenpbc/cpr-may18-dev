@@ -230,6 +230,8 @@
 - **DOCS**: Added Customer Onboarding guide (pricing model, offboarding policy, MSA outline, PIPEDA breach SOP)
 - **TODO**: Added OCR-1, WS-1, SENTRY-1 for features not ported from Express
 - **SECURITY**: SECURITY-3 multi-tenant pentest passed — IDOR, role escalation, SQLi, XSS, JWT forgery, CORS all blocked on production
+- **SENTRY**: Added @sentry/node v10 to Fastify backend — dynamic import with graceful fallback if not installed
+- **DOCS**: Added `docs/Production_Cutover.md` — full technical details of Express→Fastify cutover, rollback procedure, env vars, verification steps
 
 ### **2026-06-14**
 - **QA**: Comprehensive API-level QA of Fastify staging — 76+ GET, 23 mutations, edge cases all passing
