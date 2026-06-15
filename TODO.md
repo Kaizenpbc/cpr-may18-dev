@@ -162,8 +162,8 @@
 7. **BIZ-2** — Define offboarding / cancellation policy *(deferred — ToS already covers 30-day notice, 30-day data export window, then anonymization; formalize as internal process when first customer churns)*
 
 ### **🟡 Medium Priority**
-- **EMAIL-1** — Confirm email delivery (trigger a password reset and check kpbcma@gmail.com)
-- **EMAIL-2** — Switch SMTP sender from michaela@kpbc.ca to dedicated noreply@kpbc.ca
+- ~~**EMAIL-1**~~ ✅ Email delivery confirmed via Resend API on staging (noreply@kpbc.ca, domain verified)
+- ~~**EMAIL-2**~~ ✅ Staging uses dedicated noreply@kpbc.ca via Resend (production still uses michaela@kpbc.ca SMTP — switch when migrating)
 - **UI-DOWNLOAD-1** — Build "Download My Data" button in user account settings (backend `GET /auth/my-data` exists)
 - **RATELIMIT-1** — Verify/tune rate limiters before scaling; authLimiter IS active on login (20/15min)
 - **HOSTING-1** — Plan VPS upgrade before multiple concurrent paying customers
@@ -204,13 +204,22 @@
   6. Added `requireAuth` to change-password, fixed courseadmin column names
 - **DB migrations run**: Created `organization_pricing` table; added missing columns to `vendor_invoices`, `instructor_pay_rates`, `pay_rate_history`, `notifications`, `notification_preferences`
 
-### **Not Yet Ported (TODOs in Fastify codebase)**
-- [ ] File uploads (student CSV, vendor invoice scans) — no multipart endpoints yet
-- [ ] PDF generation (invoice PDF download) — TODO stub in `org-billing.ts`
-- [ ] Email sending (invoice emails, password reset) — no SMTP/nodemailer configured
+### **Ported Features (2026-06-14 — 2026-06-15)**
+- [x] **Email sending** — `EmailService` with Resend API (`noreply@kpbc.ca`), 12 template methods, PDF attachment support, reminder dedup via `email_reminders` table, test-send endpoint, domain verified (DKIM + SPF + MX)
+- [x] **PDF generation** — `PDFService` with pdfkit: invoice PDF, payment receipt, certificate (landscape A4 with border). Endpoints in `org-billing.ts` and `billing.ts` for org/accounting download + HTML preview
+- [x] **File uploads** — `@fastify/multipart` registered (10MB limit). Vendor invoice submit (`POST /vendor/invoices`) accepts multipart with optional PDF file, saves to `uploads/vendor-invoices/`. Student CSV upload was already ported (frontend parses CSV, sends JSON)
+- [x] **Vendor invoice PDF download** — `GET /vendor/invoices/:id/download` generates PDF from DB data, with vendor/staff authorization check
+
+### **Not Yet Ported**
 - [ ] Playwright E2E tests — not yet adapted for Fastify staging
 
 ## 📝 **Recent Changes**
+
+### **2026-06-15**
+- **EMAIL**: Ported EmailService with Resend API — 12 templates, PDF attachments, domain verified (DKIM/SPF/MX for kpbc.ca)
+- **PDF**: Ported PDFService with pdfkit — invoice, receipt, certificate generation + download/preview endpoints
+- **UPLOADS**: Added vendor invoice file upload via `@fastify/multipart` — multipart form data with optional PDF, backward-compatible with JSON
+- **DOWNLOAD**: Added vendor invoice PDF download endpoint with authorization checks
 
 ### **2026-06-14**
 - **QA**: Comprehensive API-level QA of Fastify staging — 76+ GET, 23 mutations, edge cases all passing
