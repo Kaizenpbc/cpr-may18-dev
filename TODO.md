@@ -45,6 +45,10 @@
 - [x] **🔴 Fix sysadmin/courses POST 500 (BUG-1)**: `null value in column "duration_minutes" of relation "class_types"` — sysadmin course creation crashes. Investigate `class_types` insert in `sysadmin.ts` / `sysadmin-entities.ts`; ensure `duration_minutes` is required in the request body or has a DB default.
 - [x] **🔴 Terms of Service page (LEGAL-1)**: Privacy policy exists at `/privacy` but no ToS/Service Agreement. Required before taking money. Add `/terms` page and link it alongside the privacy policy on the login screen.
 - [x] **🔴 Org data isolation audit (SECURITY-2)**: Audited all 67 routes across 4 files. Fixed 9 issues: 8 unauthenticated/unscoped course-admin routes in `course-requests.ts` (added `authenticateToken` + `requireRole`), 1 fetch-before-check in `org-billing.ts` (moved org scope into WHERE clause).
+- [ ] **🔴 Multi-tenant isolation pentest (SECURITY-3)**: Code audit is done but no black-box test has been run. Before onboarding a third customer, log in as Org A's admin and attempt to read Org B's course requests, invoices, and student records via the API. Verify all 67 routes enforce org scoping under real HTTP calls, not just code review.
+- [ ] **🔴 Customer MSA / contract (LEGAL-2)**: No signed agreement exists for paying customers. Required before taking money. Must cover: scope of service, data ownership, liability limits, acceptable use, payment terms, and termination. Draft a B2B Master Service Agreement or SaaS subscription terms.
+- [ ] **🔴 PIPEDA breach notification SOP (LEGAL-3)**: PIPEDA requires notifying the Privacy Commissioner and affected individuals of a data breach within a reasonable time (de facto 72 hours). No procedure exists. Define: detection → assessment → notification steps, who is responsible, and what records must be kept. Document before first paying customer.
+- [x] **🟡 Staging environment (OPS-2)**: Staging live at https://stagecprapp.kpbc.ca — Fastify 5 port with hourly auto-deploy from GitHub (`deploy-staging.sh` at `:18`). Frontend built locally, uploaded via cPanel API. Force-deploy possible via one-time cron or FTPS `restart.txt` touch.
 - [ ] **🟡 Customer onboarding flow (ONBOARD-1)**: Currently sysadmin manually creates orgs and users — no self-signup or invite flow. Fine for early customers; document the manual process and decide if/when to build self-serve onboarding.
 - [x] **🟡 Uptime monitoring (OPS-1)**: UptimeRobot monitor active on `https://cpr.kpbc.ca/api/v1/health` — alerts kpbcma@gmail.com every 5 minutes.
 - [x] **Revisit npm audit vulnerabilities**: Ran `npm audit fix` — picomatch high-severity ReDoS fixed. Remaining: 6 low + 5 moderate (all dev tooling: `esbuild`/`vite`/`@google-cloud/storage`) — require breaking-change upgrades. Revisit when upgrading Vite or Google Cloud Storage.
@@ -105,6 +109,7 @@
 - [x] **Integration tests** — 51 tests across 4 suites (auth, lockout, reset, recovery)
 - [x] **End-to-end tests** — Playwright suite complete (2026-04-15): auth.spec.ts + portal.spec.ts cover login, role redirect, dashboard load, navigation, logout for all 4 roles. **13 passed, 5 gracefully skipped, 0 failed.** Run: `npx playwright test --project=chromium`. Note: authLimiter allows 20 logins/15min; suite uses 5 logins per run.
 - [ ] **Performance tests**: Load testing for concurrent users
+- [ ] **🟡 Penetration test (SEC-PENTEST-1)**: Before scaling to 5+ customers, engage a freelance pentester or run Burp Suite against the production API. Focus areas: auth bypass, IDOR across org boundaries, rate limit bypass, injection, session fixation. Document findings and fixes.
 - [ ] **Security tests**: Automated vulnerability scanning
 
 ### **Code Quality**
@@ -179,7 +184,39 @@
 
 ---
 
+## 🔄 **Fastify 5 Staging Port**
+
+### **Status**: Live at https://stagecprapp.kpbc.ca — QA complete (2026-06-14)
+- **Repo**: https://github.com/Kaizenpbc/cpr-fastify (public)
+- **Auto-deploy**: Hourly cron at `:18` pulls master, builds backend via tsc, deploys
+- **Frontend**: Built locally (server OOM on vite/esbuild), uploaded via cPanel Fileman API
+
+### **QA Results (2026-06-14)**
+- **76+ GET endpoints tested** — all pass across admin, sysadmin, instructor, accountant, organization, HR, courseadmin, vendor portals
+- **23 POST/PUT/DELETE mutations tested** — all pass (auth, CRUD, scheduling, billing, notifications, profile changes)
+- **Edge cases tested** — invalid input (validation errors), expired tokens (401), wrong roles (403), CORS headers, CSP headers
+- **6 bug-fix commits** pushed during QA:
+  1. Removed `deleted_at` references from users/organizations tables (use `status` column instead)
+  2. Fixed duplicate `status` field in Organization interface
+  3. Removed `rejected_by` column references from vendor-admin queries
+  4. Disambiguated `amount` column in org dashboard query
+  5. Disabled soft-delete on `profile_changes`/`course_students` tables
+  6. Added `requireAuth` to change-password, fixed courseadmin column names
+- **DB migrations run**: Created `organization_pricing` table; added missing columns to `vendor_invoices`, `instructor_pay_rates`, `pay_rate_history`, `notifications`, `notification_preferences`
+
+### **Not Yet Ported (TODOs in Fastify codebase)**
+- [ ] File uploads (student CSV, vendor invoice scans) — no multipart endpoints yet
+- [ ] PDF generation (invoice PDF download) — TODO stub in `org-billing.ts`
+- [ ] Email sending (invoice emails, password reset) — no SMTP/nodemailer configured
+- [ ] Playwright E2E tests — not yet adapted for Fastify staging
+
 ## 📝 **Recent Changes**
+
+### **2026-06-14**
+- **QA**: Comprehensive API-level QA of Fastify staging — 76+ GET, 23 mutations, edge cases all passing
+- **FIXED**: 6 bug-fix commits for schema mismatches, auth middleware, soft-delete flags
+- **DB**: Migration script added missing tables/columns to staging DB
+- **STAGING**: OPS-2 complete — staging environment fully operational with auto-deploy
 
 ### **2025-01-25**
 - **FIXED**: Temporarily disabled analytics sample data generation to resolve backend startup crashes
@@ -188,4 +225,4 @@
 
 ---
 
-**Note**: This TODO list represents the roadmap from a **commercial-grade application** to a **enterprise-production-ready system**. Your current application already meets commercial standards - these items are for continuous improvement and operational excellence. 
+**Note**: This TODO list represents the roadmap from a **commercial-grade application** to a **enterprise-production-ready system**. Your current application already meets commercial standards - these items are for continuous improvement and operational excellence.
