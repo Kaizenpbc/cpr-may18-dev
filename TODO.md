@@ -107,7 +107,7 @@
 ### **Automated Testing**
 - [ ] **Unit tests**: Achieve 80%+ code coverage
 - [x] **Integration tests** — 51 tests across 4 suites (auth, lockout, reset, recovery)
-- [x] **End-to-end tests** — Playwright suite complete (2026-04-15): auth.spec.ts + portal.spec.ts cover login, role redirect, dashboard load, navigation, logout for all 4 roles. **13 passed, 5 gracefully skipped, 0 failed.** Run: `npx playwright test --project=chromium`. Note: authLimiter allows 20 logins/15min; suite uses 5 logins per run.
+- [x] **End-to-end tests** — Playwright suite on staging (2026-06-15): auth.spec.ts + portal.spec.ts cover login, role redirect, dashboard load, navigation, logout for all 8 roles. **36 passed, 0 skipped, 0 failed.** Run: `npx playwright test --project=chromium`.
 - [ ] **Performance tests**: Load testing for concurrent users
 - [ ] **🟡 Penetration test (SEC-PENTEST-1)**: Before scaling to 5+ customers, engage a freelance pentester or run Burp Suite against the production API. Focus areas: auth bypass, IDOR across org boundaries, rate limit bypass, injection, session fixation. Document findings and fixes.
 - [ ] **Security tests**: Automated vulnerability scanning
@@ -173,7 +173,7 @@
 - Mobile responsiveness
 - **OPS-1** — Uptime monitoring (UptimeRobot on `/api/v1/health`) ✅ already active — verify monitor still running
 - Data retention enforcement (auto-purge old records)
-- End-to-end (Playwright) tests — ✅ suite written 2026-04-15; run: `npx playwright test --project=chromium`
+- ~~End-to-end (Playwright) tests~~ ✅ 36/36 passing on staging (2026-06-15)
 - Custom invoice number sequences per org
 
 ### **🟢 Low Priority / Future**
@@ -186,7 +186,7 @@
 
 ## 🔄 **Fastify 5 Staging Port**
 
-### **Status**: Live at https://stagecprapp.kpbc.ca — QA complete (2026-06-14)
+### **Status**: Live at https://stagecprapp.kpbc.ca — feature-complete, all tests passing (2026-06-15)
 - **Repo**: https://github.com/Kaizenpbc/cpr-fastify (public)
 - **Auto-deploy**: Hourly cron at `:18` pulls master, builds backend via tsc, deploys
 - **Frontend**: Built locally (server OOM on vite/esbuild), uploaded via cPanel Fileman API
@@ -210,8 +210,8 @@
 - [x] **File uploads** — `@fastify/multipart` registered (10MB limit). Vendor invoice submit (`POST /vendor/invoices`) accepts multipart with optional PDF file, saves to `uploads/vendor-invoices/`. Student CSV upload was already ported (frontend parses CSV, sends JSON)
 - [x] **Vendor invoice PDF download** — `GET /vendor/invoices/:id/download` generates PDF from DB data, with vendor/staff authorization check
 
-### **Not Yet Ported**
-- [ ] Playwright E2E tests — not yet adapted for Fastify staging
+### **All Features Ported** — staging is feature-complete vs production
+- [x] **Playwright E2E tests** — 36 tests across all 8 portals (4 auth + 32 portal: login/redirect/dashboard/nav/logout per role). Rate-limit resilient with 429 retry, lazy-load tolerant (30s timeouts). Run: `npx playwright test --project=chromium`. Result: **36 passed, 0 skipped, 0 failed.**
 
 ## 📝 **Recent Changes**
 
@@ -220,6 +220,7 @@
 - **PDF**: Ported PDFService with pdfkit — invoice, receipt, certificate generation + download/preview endpoints
 - **UPLOADS**: Added vendor invoice file upload via `@fastify/multipart` — multipart form data with optional PDF, backward-compatible with JSON
 - **DOWNLOAD**: Added vendor invoice PDF download endpoint with authorization checks
+- **E2E TESTS**: Playwright suite complete — 36 tests (4 auth + 32 portal), **36 passed, 0 skipped, 0 failed**. Fixed lazy-load spinner timeouts, eliminated all skips by using portal-specific selectors for each role's nav/logout UI
 
 ### **2026-06-14**
 - **QA**: Comprehensive API-level QA of Fastify staging — 76+ GET, 23 mutations, edge cases all passing
