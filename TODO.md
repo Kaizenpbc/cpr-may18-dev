@@ -71,6 +71,9 @@
 - [ ] **Multi-language support**: Add internationalization (i18n)
 
 ### **Business Features**
+- [ ] **🟡 OCR receipt scanning (OCR-1)**: Google Cloud Vision integration existed in Express production but was not ported to Fastify. Re-implement if customers use receipt/document scanning. Requires `@google-cloud/vision` + service account key.
+- [ ] **🟡 WebSocket real-time updates (WS-1)**: socket.io existed in Express production but was not ported to Fastify. Re-implement with `@fastify/websocket` if real-time dashboard updates are needed. Low priority — polling works for current user count.
+- [ ] **🟡 Sentry error monitoring (SENTRY-1)**: Sentry was integrated in Express production. Port to Fastify with `@sentry/node` for production error tracking. DSN already configured in production .htaccess.
 - [ ] **Email notifications**: Automated email alerts for course status changes
 - [ ] **SMS notifications**: Text message alerts for urgent updates
 - [ ] **Calendar integration**: Sync with Google Calendar/Outlook
@@ -186,7 +189,8 @@
 
 ## 🔄 **Fastify 5 Staging Port**
 
-### **Status**: Live at https://stagecprapp.kpbc.ca — feature-complete, all tests passing (2026-06-15)
+### **Status**: CUTOVER COMPLETE (2026-06-15) — Fastify 5 now running on production (cpr.kpbc.ca)
+- Staging remains live at https://stagecprapp.kpbc.ca for testing
 - **Repo**: https://github.com/Kaizenpbc/cpr-fastify (public)
 - **Auto-deploy**: Hourly cron at `:18` pulls master, builds backend via tsc, deploys
 - **Frontend**: Built locally (server OOM on vite/esbuild), uploaded via cPanel Fileman API
@@ -216,11 +220,14 @@
 ## 📝 **Recent Changes**
 
 ### **2026-06-15**
+- **PRODUCTION CUTOVER**: Replaced Express with Fastify 5 on `cpr.kpbc.ca`. All 8 roles verified. Auto-deploy cron switched from Express repo to `cpr-fastify` repo. Email switched from Gmail SMTP to Resend API (noreply@kpbc.ca). Express backup preserved in `dist-backup/`.
 - **EMAIL**: Ported EmailService with Resend API — 12 templates, PDF attachments, domain verified (DKIM/SPF/MX for kpbc.ca)
 - **PDF**: Ported PDFService with pdfkit — invoice, receipt, certificate generation + download/preview endpoints
 - **UPLOADS**: Added vendor invoice file upload via `@fastify/multipart` — multipart form data with optional PDF, backward-compatible with JSON
 - **DOWNLOAD**: Added vendor invoice PDF download endpoint with authorization checks
 - **E2E TESTS**: Playwright suite complete — 36 tests (4 auth + 32 portal), **36 passed, 0 skipped, 0 failed**. Fixed lazy-load spinner timeouts, eliminated all skips by using portal-specific selectors for each role's nav/logout UI
+- **DOCS**: Added Customer Onboarding guide (pricing model, offboarding policy, MSA outline, PIPEDA breach SOP)
+- **TODO**: Added OCR-1, WS-1, SENTRY-1 for features not ported from Express
 
 ### **2026-06-14**
 - **QA**: Comprehensive API-level QA of Fastify staging — 76+ GET, 23 mutations, edge cases all passing
