@@ -45,7 +45,7 @@
 - [x] **🔴 Fix sysadmin/courses POST 500 (BUG-1)**: `null value in column "duration_minutes" of relation "class_types"` — sysadmin course creation crashes. Investigate `class_types` insert in `sysadmin.ts` / `sysadmin-entities.ts`; ensure `duration_minutes` is required in the request body or has a DB default.
 - [x] **🔴 Terms of Service page (LEGAL-1)**: Privacy policy exists at `/privacy` but no ToS/Service Agreement. Required before taking money. Add `/terms` page and link it alongside the privacy policy on the login screen.
 - [x] **🔴 Org data isolation audit (SECURITY-2)**: Audited all 67 routes across 4 files. Fixed 9 issues: 8 unauthenticated/unscoped course-admin routes in `course-requests.ts` (added `authenticateToken` + `requireRole`), 1 fetch-before-check in `org-billing.ts` (moved org scope into WHERE clause).
-- [ ] **🔴 Multi-tenant isolation pentest (SECURITY-3)**: Code audit is done but no black-box test has been run. Before onboarding a third customer, log in as Org A's admin and attempt to read Org B's course requests, invoices, and student records via the API. Verify all 67 routes enforce org scoping under real HTTP calls, not just code review.
+- [x] **🔴 Multi-tenant isolation pentest (SECURITY-3)**: Black-box pentest completed (2026-06-15) against production. Tested: IDOR via query params and path params, cross-role escalation (org→sysadmin/admin/accounting, instructor→admin), mutation attacks, SQL injection, XSS, JWT forgery, no-auth access, CORS. All blocked — org scoping enforced via `request.userOrgId` in WHERE clauses, role middleware blocks unauthorized access.
 - [ ] **🔴 Customer MSA / contract (LEGAL-2)**: No signed agreement exists for paying customers. Required before taking money. Must cover: scope of service, data ownership, liability limits, acceptable use, payment terms, and termination. Draft a B2B Master Service Agreement or SaaS subscription terms.
 - [ ] **🔴 PIPEDA breach notification SOP (LEGAL-3)**: PIPEDA requires notifying the Privacy Commissioner and affected individuals of a data breach within a reasonable time (de facto 72 hours). No procedure exists. Define: detection → assessment → notification steps, who is responsible, and what records must be kept. Document before first paying customer.
 - [x] **🟡 Staging environment (OPS-2)**: Staging live at https://stagecprapp.kpbc.ca — Fastify 5 port with hourly auto-deploy from GitHub (`deploy-staging.sh` at `:18`). Frontend built locally, uploaded via cPanel API. Force-deploy possible via one-time cron or FTPS `restart.txt` touch.
@@ -161,7 +161,8 @@
 3. ~~**BUG-1**~~ ✅ Fixed sysadmin/courses POST 500
 4. ~~**LEGAL-1**~~ ✅ Terms of Service page live at `/terms`
 5. ~~**SECURITY-2**~~ ✅ Org data isolation audit complete — 9 issues fixed
-6. **BIZ-1** — Decide SaaS pricing & billing model *(deferred — options: flat monthly fee, per-student, per-course, or manual invoicing for early customers)*
+6. ~~**SECURITY-3**~~ ✅ Multi-tenant pentest passed — IDOR, role escalation, SQLi, XSS, JWT forgery all blocked
+7. **BIZ-1** — Decide SaaS pricing & billing model *(deferred — options: flat monthly fee, per-student, per-course, or manual invoicing for early customers)*
 7. **BIZ-2** — Define offboarding / cancellation policy *(deferred — ToS already covers 30-day notice, 30-day data export window, then anonymization; formalize as internal process when first customer churns)*
 
 ### **🟡 Medium Priority**
@@ -228,6 +229,7 @@
 - **E2E TESTS**: Playwright suite complete — 36 tests (4 auth + 32 portal), **36 passed, 0 skipped, 0 failed**. Fixed lazy-load spinner timeouts, eliminated all skips by using portal-specific selectors for each role's nav/logout UI
 - **DOCS**: Added Customer Onboarding guide (pricing model, offboarding policy, MSA outline, PIPEDA breach SOP)
 - **TODO**: Added OCR-1, WS-1, SENTRY-1 for features not ported from Express
+- **SECURITY**: SECURITY-3 multi-tenant pentest passed — IDOR, role escalation, SQLi, XSS, JWT forgery, CORS all blocked on production
 
 ### **2026-06-14**
 - **QA**: Comprehensive API-level QA of Fastify staging — 76+ GET, 23 mutations, edge cases all passing
