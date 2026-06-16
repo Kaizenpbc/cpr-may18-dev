@@ -91,24 +91,12 @@
 - [ ] **🟢 Audit log visibility for admins (BIZ-7)**: Audit trail exists internally but no UI to view it. Paying customers (especially larger orgs) may want to see who did what. Add a read-only audit log view in the admin portal.
 
 ### **Billing & Invoicing**
-- [ ] **Configurable per-organization invoice numbers**
-  - **Goal**: Allow each organization to have its own invoice numbering scheme (e.g., `ORG1-00001`, `ORG2-0100`).
-  - **Data model**: Create `invoice_number_sequences` table with fields: `organization_id` (FK, unique), `prefix`, `format_string`, `padding`, `next_number`, `step` (default 1), `reset_policy` (none|yearly|monthly), `last_reset_period`, timestamps.
-  - **Uniqueness policy**: Decide and implement either global uniqueness on `invoices.invoice_number` or scoped uniqueness on `(organization_id, invoice_number)`. Default recommendation: scoped per-organization.
-  - **Atomic allocation**: In invoice creation transaction, allocate and increment using single `UPDATE ... RETURNING` to avoid race conditions; format number using `format_string` tokens.
-  - **Formatting tokens**: Support `{PREFIX}`, `{NN}`/`{NNNN}` (based on `padding`), and date tokens `{YYYY}`, `{YY}`, `{MM}`, `{DD}`. Example: `{PREFIX}-{YYYY}-{NNNN}`.
-  - **Reset behavior**: When `reset_policy` applies and the period changes, reset `next_number` and update `last_reset_period` atomically.
-  - **Fallback**: If an org has no sequence row, use a default system config row or current `INV-YYYY-XXXXXX` generator.
-  - **Admin API/UI**: Endpoints and screen to view/update: `prefix`, `format_string`, `padding`, `next_number`, `step`, `reset_policy`; include a "preview next" function; audit changes.
-  - **Audit (optional)**: `invoice_number_events` table to record allocations and manual adjustments.
-  - **Testing**: Unit and integration tests for allocation under concurrency, formatting, resets, and uniqueness violations.
-  - **Backfill**: Validate existing invoices do not violate the chosen uniqueness constraint; no renumbering unless explicitly required.
-  - **Scope**: Vendor invoices remain user-supplied; no auto-generation change required.
+- [x] **Configurable per-organization invoice numbers** — `InvoiceNumberService` with atomic `SELECT FOR UPDATE` allocation, format tokens ({PREFIX}, {YYYY}, {YY}, {MM}, {DD}, {N+}), reset policies (none/yearly/monthly), admin CRUD endpoints (GET/PUT/DELETE `/accounting/invoice-sequences`), preview endpoint, migration v3 (`invoice_number_sequences` table), 14 unit tests. Fallback to `INV-YYYY-NNNNNNNN` when no org sequence configured.
 
 ## 🧪 **Testing & Quality Assurance**
 
 ### **Automated Testing**
-- [ ] **Unit tests**: Achieve 80%+ code coverage (currently: 64 backend + 5 frontend = 69 vitest tests covering AuthService, BillingService, HRService, billing lifecycle)
+- [ ] **Unit tests**: Achieve 80%+ code coverage (currently: 78 backend + 5 frontend = 83 vitest tests covering AuthService, BillingService, HRService, billing lifecycle, InvoiceNumberService)
 - [x] **Integration tests** — 51 tests across 4 suites (auth, lockout, reset, recovery)
 - [x] **End-to-end tests** — Playwright suite on staging (2026-06-15): auth.spec.ts + portal.spec.ts cover login, role redirect, dashboard load, navigation, logout for all 8 roles. **36 passed, 0 skipped, 0 failed.** Run: `npx playwright test --project=chromium`.
 - [ ] **Performance tests**: Load testing for concurrent users
@@ -119,8 +107,8 @@
 - [ ] **Code review process**: Establish peer review requirements
 - [x] **Linting rules** — ESLint configured with pre-commit hook
 - [x] **Type safety** — TypeScript strict mode enabled frontend + backend
-- [ ] **Documentation** — inline code docs partial; API docs not auto-generated
-- [ ] **API documentation**: Generate OpenAPI/Swagger documentation
+- [x] **Documentation** — inline code docs partial; OpenAPI/Swagger auto-generated at `/api/v1/docs`
+- [x] **API documentation**: OpenAPI 3.0.3 via `@fastify/swagger` + `@fastify/swagger-ui` — 22 tags, 181 paths, JWT bearer auth scheme, auto-tagged by route prefix
 - [x] **🟡 Document PIPEDA endpoints in API docs (API-PRIVACY-1)**: `GET /auth/my-data` documented in `docs/API_DOCUMENTATION.md`; `DELETE /auth/my-data` was removed (5-year retention).
 - [x] **🟡 Fix login error message not showing (BUG-5)**: Fixed in `frontend/src/services/api.ts` interceptor — login 401s now reject the promise without calling `forceLogout()`, allowing Login.tsx catch block to call `setError()` and render the alert.
 - [x] **🟡 Frontend: "Download My Data" button (UI-DOWNLOAD-1)**: Added to Security Settings card in `InstructorProfile.tsx` — calls `GET /auth/my-data` and downloads the response as `my-data.json`.
@@ -178,7 +166,7 @@
 - **OPS-1** — Uptime monitoring (UptimeRobot on `/api/v1/health`) ✅ already active — verify monitor still running
 - Data retention enforcement (auto-purge old records)
 - ~~End-to-end (Playwright) tests~~ ✅ 36/36 passing on staging (2026-06-15)
-- Custom invoice number sequences per org
+- ~~Custom invoice number sequences per org~~ ✅ InvoiceNumberService deployed
 
 ### **🟠 Enterprise Grade (9/10) — Remaining from Code Review**
 - [x] **T-1/T-2**: Unit tests — 39 backend tests (AuthService 11, BillingService 16, HRService 12) + 5 frontend tests. Vitest with ESM mocking, DB pool mocks. Also caught and fixed HRService "rejectd" typo bug.
@@ -190,7 +178,7 @@
 ### **🟢 Low Priority / Future**
 - Multi-language support
 - Predictive analytics
-- OpenAPI/Swagger docs
+- ~~OpenAPI/Swagger docs~~ ✅ Live at `/api/v1/docs`
 - Calendar integration (Google/Outlook)
 
 ---
@@ -228,8 +216,11 @@
 ## 📝 **Recent Changes**
 
 ### **2026-06-16**
-- **T-3 BILLING TESTS**: 25 integration tests covering full revenue path (createInvoice, postToOrg, fixCalculations, pricing CRUD, partial payments, reject/resubmit flow). Total: 69 vitest tests (64 backend + 5 frontend).
+- **INVOICE NUMBERS**: Configurable per-org invoice number sequences — `InvoiceNumberService` with atomic allocation (`SELECT FOR UPDATE`), format tokens ({PREFIX}, {YYYY}, {YY}, {MM}, {DD}, {N+}), reset policies (none/yearly/monthly), admin CRUD + preview endpoints, migration v3, 14 unit tests. BillingService updated to use allocator.
+- **API DOCS**: OpenAPI 3.0.3 Swagger UI at `/api/v1/docs` — `@fastify/swagger` + `@fastify/swagger-ui`, 22 tags, 181 paths, JWT bearer auth, auto-tagged by route prefix via `onRoute` hook.
+- **T-3 BILLING TESTS**: 25 integration tests covering full revenue path (createInvoice, postToOrg, fixCalculations, pricing CRUD, partial payments, reject/resubmit flow). Total: 83 vitest tests (78 backend + 5 frontend).
 - **ROUTE FIXES**: Fixed student upload/get API mismatch (frontend→backend path alignment). Consolidated dual course-creation and dual assign-instructor routes through CourseService (adds duplicate detection, conflict checking, transaction safety).
+- **DEPLOY FIX**: Fixed `deploy-production.sh` — added `git checkout -- .` before `git pull` to handle lockfile drift on server.
 
 ### **2026-06-15**
 - **CODE REVIEW**: Enterprise-grade review completed — 86 findings (12 critical, 21 high, 29 medium, 24 low). Production readiness score: 4.5/10 → estimated 6-7/10 after Phase A-E fixes.
