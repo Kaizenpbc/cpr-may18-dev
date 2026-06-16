@@ -108,7 +108,7 @@
 ## 🧪 **Testing & Quality Assurance**
 
 ### **Automated Testing**
-- [ ] **Unit tests**: Achieve 80%+ code coverage (currently: 39 backend + 5 frontend = 44 vitest tests covering AuthService, BillingService, HRService)
+- [ ] **Unit tests**: Achieve 80%+ code coverage (currently: 64 backend + 5 frontend = 69 vitest tests covering AuthService, BillingService, HRService, billing lifecycle)
 - [x] **Integration tests** — 51 tests across 4 suites (auth, lockout, reset, recovery)
 - [x] **End-to-end tests** — Playwright suite on staging (2026-06-15): auth.spec.ts + portal.spec.ts cover login, role redirect, dashboard load, navigation, logout for all 8 roles. **36 passed, 0 skipped, 0 failed.** Run: `npx playwright test --project=chromium`.
 - [ ] **Performance tests**: Load testing for concurrent users
@@ -182,7 +182,7 @@
 
 ### **🟠 Enterprise Grade (9/10) — Remaining from Code Review**
 - [x] **T-1/T-2**: Unit tests — 39 backend tests (AuthService 11, BillingService 16, HRService 12) + 5 frontend tests. Vitest with ESM mocking, DB pool mocks. Also caught and fixed HRService "rejectd" typo bug.
-- [ ] **T-3**: Integration tests — billing lifecycle end-to-end (course → invoice → payment), the revenue-critical path
+- [x] **T-3**: Integration tests — 25 billing lifecycle tests: createInvoice (calculation, format, guards), postToOrg (archive, guards), fixCalculations, pricing CRUD, negative payment rejection, full flows (create→approve→post→pay, reject→resubmit, partial payments).
 - [x] **D-1**: CI/CD pipeline — `.github/workflows/ci.yml` with backend + frontend jobs (checkout → npm ci → tsc --noEmit → vitest run). Frontend job also runs vite build. `ROLLBACK.md` documents rollback procedure.
 - [ ] **R-1**: Monitoring/alerting infrastructure — metrics (p99 latency, error rates, DB pool utilization), dashboards, PagerDuty/alerting beyond UptimeRobot
 - [ ] **R-2**: Backup strategy verification — offsite backups (S3/B2), automated restore testing, documented RTO/RPO
@@ -226,6 +226,10 @@
 - [x] **Playwright E2E tests** — 36 tests across all 8 portals (4 auth + 32 portal: login/redirect/dashboard/nav/logout per role). Rate-limit resilient with 429 retry, lazy-load tolerant (30s timeouts). Run: `npx playwright test --project=chromium`. Result: **36 passed, 0 skipped, 0 failed.**
 
 ## 📝 **Recent Changes**
+
+### **2026-06-16**
+- **T-3 BILLING TESTS**: 25 integration tests covering full revenue path (createInvoice, postToOrg, fixCalculations, pricing CRUD, partial payments, reject/resubmit flow). Total: 69 vitest tests (64 backend + 5 frontend).
+- **ROUTE FIXES**: Fixed student upload/get API mismatch (frontend→backend path alignment). Consolidated dual course-creation and dual assign-instructor routes through CourseService (adds duplicate detection, conflict checking, transaction safety).
 
 ### **2026-06-15**
 - **CODE REVIEW**: Enterprise-grade review completed — 86 findings (12 critical, 21 high, 29 medium, 24 low). Production readiness score: 4.5/10 → estimated 6-7/10 after Phase A-E fixes.
