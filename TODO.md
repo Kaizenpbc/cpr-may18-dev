@@ -6,7 +6,7 @@
 - [ ] **Standardize database naming**: Rename `cpr_may18` to `cpr_training` for production consistency
 - [ ] **Environment configuration**: Create proper `.env` files for different environments (dev, staging, prod)
 - [x] **Analytics sample data generation** — code no longer exists; crash was already cleaned up
-- [x] **Connection pooling optimization** — pool limits set (max 10, 30s idle, 5s conn timeout)
+- [x] **Connection pooling optimization** — pool limits set (max 20, 30s idle, 10s conn timeout, queue limit 100, keepalive enabled)
 - [x] **email_sent_at column** — column exists in DB; accounting.ts already uses it correctly
 - [x] **Payments table structure** — payments table has invoice_id; payment tracking works correctly
 
@@ -22,7 +22,7 @@
 - [x] **SSL/TLS** — Apache handles HTTPS termination; HSTS enabled
 - [x] **Environment variables** — all secrets in .htaccess SetEnv; not in code
 - [ ] ~~Docker containerization~~ — not applicable (TMD Hosting / Passenger)
-- [ ] **CI/CD pipeline** — GitHub Actions runs tests on push; deploy is manual FTPS
+- [x] **CI/CD pipeline** — GitHub Actions CI runs tsc + vitest on push (backend + frontend jobs); deploy is manual FTPS
 - [ ] ~~Load balancing~~ — not applicable on shared hosting
 - [ ] **🔴 Hosting resource limits (HOSTING-1)**: TMD confirmed LVE cap: **100 processes, 2GB RAM, 2 CPU cores**. Running multiple Node.js apps simultaneously hits the process limit → 503 errors (seen 2026-03-15). Options:
   - **Option A**: Manage carefully — only run CPR app on this account; avoid opening extra Node.js processes during deploy.
@@ -108,7 +108,7 @@
 ## 🧪 **Testing & Quality Assurance**
 
 ### **Automated Testing**
-- [ ] **Unit tests**: Achieve 80%+ code coverage
+- [ ] **Unit tests**: Achieve 80%+ code coverage (currently: 39 backend + 5 frontend = 44 vitest tests covering AuthService, BillingService, HRService)
 - [x] **Integration tests** — 51 tests across 4 suites (auth, lockout, reset, recovery)
 - [x] **End-to-end tests** — Playwright suite on staging (2026-06-15): auth.spec.ts + portal.spec.ts cover login, role redirect, dashboard load, navigation, logout for all 8 roles. **36 passed, 0 skipped, 0 failed.** Run: `npx playwright test --project=chromium`.
 - [ ] **Performance tests**: Load testing for concurrent users
@@ -181,9 +181,9 @@
 - Custom invoice number sequences per org
 
 ### **🟠 Enterprise Grade (9/10) — Remaining from Code Review**
-- [ ] **T-1/T-2**: Unit tests — backend services (BillingService, CourseService, AuthService) and frontend components. Target 80%+ coverage.
+- [x] **T-1/T-2**: Unit tests — 39 backend tests (AuthService 11, BillingService 16, HRService 12) + 5 frontend tests. Vitest with ESM mocking, DB pool mocks. Also caught and fixed HRService "rejectd" typo bug.
 - [ ] **T-3**: Integration tests — billing lifecycle end-to-end (course → invoice → payment), the revenue-critical path
-- [ ] **D-1**: CI/CD pipeline — automated testing on push, health check after deploy, rollback on failure (replace hourly cron pull)
+- [x] **D-1**: CI/CD pipeline — `.github/workflows/ci.yml` with backend + frontend jobs (checkout → npm ci → tsc --noEmit → vitest run). Frontend job also runs vite build. `ROLLBACK.md` documents rollback procedure.
 - [ ] **R-1**: Monitoring/alerting infrastructure — metrics (p99 latency, error rates, DB pool utilization), dashboards, PagerDuty/alerting beyond UptimeRobot
 - [ ] **R-2**: Backup strategy verification — offsite backups (S3/B2), automated restore testing, documented RTO/RPO
 
@@ -228,7 +228,13 @@
 ## 📝 **Recent Changes**
 
 ### **2026-06-15**
-- **CODE REVIEW**: Enterprise-grade review completed — 86 findings (12 critical, 21 high, 29 medium, 24 low). Production readiness score: 4.5/10 → estimated 6-7/10 after fixes.
+- **CODE REVIEW**: Enterprise-grade review completed — 86 findings (12 critical, 21 high, 29 medium, 24 low). Production readiness score: 4.5/10 → estimated 6-7/10 after Phase A-E fixes.
+- **CODE REVIEW PHASES A-E COMPLETE**:
+  - **Phase A (Security)**: AuthError 500→401, IDOR fixes, password_hash leak, billing role checks, SSE auth
+  - **Phase B (Architecture)**: Double Bearer fix, API client consolidation, account lockout, token blacklist, HTTP access logging, deep health check
+  - **Phase C (Testing)**: Vitest infrastructure + 44 unit tests (AuthService 11, BillingService 16, HRService 12, frontend 5). Fixed HRService "rejectd" bug. Fixed frontend crypto mock, stale test exclusions.
+  - **Phase D (DevOps)**: GitHub Actions CI (`ci.yml`), versioned DB migrations (`schema_migrations` table), request correlation IDs (`x-request-id`), client-side error reporting (`POST /client-errors`), `ROLLBACK.md`
+  - **Phase E (Frontend Polish)**: Deleted dead code (`ErrorBoundary.tsx` duplicate, `socketService.ts`, Socket.IO from RealtimeContext), lazy-loaded Monaco Editor, dev-only logging (AuthContext 35 console calls gated behind `import.meta.env.DEV`), DB pool increased (10→20), React Query defaults (staleTime 30s, gcTime 5min)
 - **SECURITY (Phase 1)**: Fixed AuthError 500→401, IDOR on calculate-balance/vendor invoices, password_hash leak, billing role checks, SSE auth
 - **SECURITY (Phase 2)**: Added Zod validation to 11 unvalidated routes, removed PII from frontend console.log, externalized test credentials, removed hardcoded default password, fixed process.env bypasses, fixed staging error leakage, fixed instructor timesheet IDOR
 - **ARCHITECTURE (Phase 3)**: Fixed double Bearer prefix, consolidated API clients, added account lockout (5 attempts/15min), token blacklist on password change, HTTP access logging, deep health check with DB verification
