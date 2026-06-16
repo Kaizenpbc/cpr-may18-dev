@@ -90,13 +90,20 @@
 - [ ] **🟡 Per-org branding / white-label (BIZ-6)**: All orgs see "CPR Training Portal." B2B customers may expect their name/logo. Decide if white-labeling is part of the offering; if yes, add org logo upload and name override.
 - [ ] **🟢 Audit log visibility for admins (BIZ-7)**: Audit trail exists internally but no UI to view it. Paying customers (especially larger orgs) may want to see who did what. Add a read-only audit log view in the admin portal.
 
+### **Student Data & LMS**
+- [x] **Students master table** — `students` table with email-based dedup, org FK, marketing consent flag. Write-through on org roster upload and instructor add. Backfill migration links existing `course_students` to master records. `StudentRepository` with findOrCreate, bulk ops, search, course history. 9 unit tests.
+- [ ] **Certification expiry tracking** — Add `certification_type`, `issue_date`, `expiry_date` to student course records. Enable automated renewal reminder emails for expiring certifications. Revenue driver for orgs.
+- [ ] **LMS integration** — Capture online course evaluations from home-grown LMS into `student_evaluations` table (score, pass/fail, attempts, time spent). Link to `students` master record. Phase 2 after LMS architecture is decided.
+- [ ] **Student marketing emails** — Use `students.marketing_consent` + certification expiry data to send renewal reminders. Requires PIPEDA consent opt-in flow.
+- [ ] **WSIB reporting** — Cross-course training history per student for WSIB compliance. Data model complete; needs reporting UI/export.
+
 ### **Billing & Invoicing**
 - [x] **Configurable per-organization invoice numbers** — `InvoiceNumberService` with atomic `SELECT FOR UPDATE` allocation, format tokens ({PREFIX}, {YYYY}, {YY}, {MM}, {DD}, {N+}), reset policies (none/yearly/monthly), admin CRUD endpoints (GET/PUT/DELETE `/accounting/invoice-sequences`), preview endpoint, migration v3 (`invoice_number_sequences` table), 14 unit tests. Fallback to `INV-YYYY-NNNNNNNN` when no org sequence configured.
 
 ## 🧪 **Testing & Quality Assurance**
 
 ### **Automated Testing**
-- [ ] **Unit tests**: Achieve 80%+ code coverage (currently: 78 backend + 5 frontend = 83 vitest tests covering AuthService, BillingService, HRService, billing lifecycle, InvoiceNumberService)
+- [ ] **Unit tests**: Achieve 80%+ code coverage (currently: 87 backend + 5 frontend = 92 vitest tests covering AuthService, BillingService, HRService, billing lifecycle, InvoiceNumberService, StudentRepository)
 - [x] **Integration tests** — 51 tests across 4 suites (auth, lockout, reset, recovery)
 - [x] **End-to-end tests** — Playwright suite on staging (2026-06-15): auth.spec.ts + portal.spec.ts cover login, role redirect, dashboard load, navigation, logout for all 8 roles. **36 passed, 0 skipped, 0 failed.** Run: `npx playwright test --project=chromium`.
 - [ ] **Performance tests**: Load testing for concurrent users
@@ -216,11 +223,13 @@
 ## 📝 **Recent Changes**
 
 ### **2026-06-16**
+- **STUDENTS MASTER TABLE**: `students` table with email-based dedup, org FK, marketing consent. Write-through on roster upload (org + instructor paths). Backfill migration (v7) links existing course_students. `StudentRepository` with findOrCreate, bulk ops, search, course history. 9 unit tests.
+- **AUTH FIX**: Fixed production/staging auth — all Bearer token requests returned 401. Root cause: `token_blacklist` table was created manually before migration system, missing `invalidated_at` column. `isTokenBlacklisted()` threw, caught by generic catch in `requireAuth`. Fix: migration v4 adds column + `requireAuth` separates JWT errors from blacklist DB errors (fail-open on DB error).
 - **INVOICE NUMBERS**: Configurable per-org invoice number sequences — `InvoiceNumberService` with atomic allocation (`SELECT FOR UPDATE`), format tokens ({PREFIX}, {YYYY}, {YY}, {MM}, {DD}, {N+}), reset policies (none/yearly/monthly), admin CRUD + preview endpoints, migration v3, 14 unit tests. BillingService updated to use allocator.
 - **API DOCS**: OpenAPI 3.0.3 Swagger UI at `/api/v1/docs` — `@fastify/swagger` + `@fastify/swagger-ui`, 22 tags, 181 paths, JWT bearer auth, auto-tagged by route prefix via `onRoute` hook.
-- **T-3 BILLING TESTS**: 25 integration tests covering full revenue path (createInvoice, postToOrg, fixCalculations, pricing CRUD, partial payments, reject/resubmit flow). Total: 83 vitest tests (78 backend + 5 frontend).
+- **T-3 BILLING TESTS**: 25 integration tests covering full revenue path (createInvoice, postToOrg, fixCalculations, pricing CRUD, partial payments, reject/resubmit flow). Total: 92 vitest tests (87 backend + 5 frontend).
 - **ROUTE FIXES**: Fixed student upload/get API mismatch (frontend→backend path alignment). Consolidated dual course-creation and dual assign-instructor routes through CourseService (adds duplicate detection, conflict checking, transaction safety).
-- **DEPLOY FIX**: Fixed `deploy-production.sh` — added `git checkout -- .` before `git pull` to handle lockfile drift on server.
+- **DEPLOY FIX**: Fixed both `deploy-production.sh` and `deploy-staging.sh` — added `git checkout -- .` before `git pull` to handle lockfile drift on server.
 
 ### **2026-06-15**
 - **CODE REVIEW**: Enterprise-grade review completed — 86 findings (12 critical, 21 high, 29 medium, 24 low). Production readiness score: 4.5/10 → estimated 6-7/10 after Phase A-E fixes.
