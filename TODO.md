@@ -92,6 +92,7 @@
 
 ### **Student Data & LMS**
 - [x] **Students master table** — `students` table with email-based dedup, org FK, marketing consent flag. Write-through on org roster upload and instructor add. Backfill migration links existing `course_students` to master records. `StudentRepository` with findOrCreate, bulk ops, search, course history. 9 unit tests.
+- [x] **Student Directory (sysadmin)** — `StudentManagement.tsx` in sysadmin portal: debounced search by name/email, sortable table (name, email, phone, org, course count, last course date, marketing consent), course history detail dialog, inline edit (name/phone/notes), consent toggle. Backend: 4 endpoints (`GET/PUT /sysadmin/students`, `GET/PUT /sysadmin/students/:id`). Deployed to staging + production.
 - [ ] **Certification expiry tracking** — Add `certification_type`, `issue_date`, `expiry_date` to student course records. Enable automated renewal reminder emails for expiring certifications. Revenue driver for orgs.
 - [ ] **LMS integration** — Capture online course evaluations from home-grown LMS into `student_evaluations` table (score, pass/fail, attempts, time spent). Link to `students` master record. Phase 2 after LMS architecture is decided.
 - [ ] **Student marketing emails** — Use `students.marketing_consent` + certification expiry data to send renewal reminders. Requires PIPEDA consent opt-in flow.
@@ -224,6 +225,7 @@
 
 ### **2026-06-16**
 - **STUDENTS MASTER TABLE**: `students` table with email-based dedup, org FK, marketing consent. Write-through on roster upload (org + instructor paths). Backfill migration (v7) links existing course_students. `StudentRepository` with findOrCreate, bulk ops, search, course history. 9 unit tests.
+- **STUDENT DIRECTORY**: Sysadmin portal Student Directory page — debounced search, course history view, inline edit, consent toggle. `StudentManagement.tsx` + 4 API endpoints + `sysAdminApi` methods. Deployed to staging + production.
 - **AUTH FIX**: Fixed production/staging auth — all Bearer token requests returned 401. Root cause: `token_blacklist` table was created manually before migration system, missing `invalidated_at` column. `isTokenBlacklisted()` threw, caught by generic catch in `requireAuth`. Fix: migration v4 adds column + `requireAuth` separates JWT errors from blacklist DB errors (fail-open on DB error).
 - **INVOICE NUMBERS**: Configurable per-org invoice number sequences — `InvoiceNumberService` with atomic allocation (`SELECT FOR UPDATE`), format tokens ({PREFIX}, {YYYY}, {YY}, {MM}, {DD}, {N+}), reset policies (none/yearly/monthly), admin CRUD + preview endpoints, migration v3, 14 unit tests. BillingService updated to use allocator.
 - **API DOCS**: OpenAPI 3.0.3 Swagger UI at `/api/v1/docs` — `@fastify/swagger` + `@fastify/swagger-ui`, 22 tags, 181 paths, JWT bearer auth, auto-tagged by route prefix via `onRoute` hook.
