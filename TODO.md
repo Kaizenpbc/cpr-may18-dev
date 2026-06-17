@@ -93,7 +93,8 @@
 ### **Student Data & LMS**
 - [x] **Students master table** — `students` table with email-based dedup, org FK, marketing consent flag. Write-through on org roster upload and instructor add. Backfill migration links existing `course_students` to master records. `StudentRepository` with findOrCreate, bulk ops, search, course history. 9 unit tests.
 - [x] **Student Directory (sysadmin)** — `StudentManagement.tsx` in sysadmin portal: debounced search by name/email, sortable table (name, email, phone, org, course count, last course date, marketing consent), course history detail dialog, inline edit (name/phone/notes), consent toggle. Backend: 4 endpoints (`GET/PUT /sysadmin/students`, `GET/PUT /sysadmin/students/:id`). Deployed to staging + production.
-- [ ] **Certification expiry tracking** — Add `certification_type`, `issue_date`, `expiry_date` to student course records. Enable automated renewal reminder emails for expiring certifications. Revenue driver for orgs.
+- [x] **Certification expiry tracking** — `class_types.certification_validity_months` (per course type), `course_students.certificate_number/issued_at/expires_at` with index. Migrations v8-v10 (schema + backfill). Instructor attendance auto-populates cert dates. API: `GET /sysadmin/certifications/expiring?days=N`, `/expired`, `/stats`. `CertificationTracking.tsx` in sysadmin portal: stats cards (active/expiring 30d/90d/expired), expiring/expired toggle, time window filter, color-coded chips. Student course history shows cert status column. Course CRUD includes validity months. Deployed to staging + production.
+- [ ] **Certification renewal reminder emails** — Use cert expiry data + `sendCertificateEmail()` to auto-send renewal reminders. Requires cron or scheduled job + reminder dedup via `email_reminders` table. Revenue driver for orgs.
 - [ ] **LMS integration** — Capture online course evaluations from home-grown LMS into `student_evaluations` table (score, pass/fail, attempts, time spent). Link to `students` master record. Phase 2 after LMS architecture is decided.
 - [ ] **Student marketing emails** — Use `students.marketing_consent` + certification expiry data to send renewal reminders. Requires PIPEDA consent opt-in flow.
 - [ ] **WSIB reporting** — Cross-course training history per student for WSIB compliance. Data model complete; needs reporting UI/export.
@@ -175,6 +176,7 @@
 - Data retention enforcement (auto-purge old records)
 - ~~End-to-end (Playwright) tests~~ ✅ 36/36 passing on staging (2026-06-15)
 - ~~Custom invoice number sequences per org~~ ✅ InvoiceNumberService deployed
+- ~~Certification expiry tracking~~ ✅ Migrations v8-v10, auto-populate on attendance, sysadmin dashboard + stats
 
 ### **🟠 Enterprise Grade (9/10) — Remaining from Code Review**
 - [x] **T-1/T-2**: Unit tests — 39 backend tests (AuthService 11, BillingService 16, HRService 12) + 5 frontend tests. Vitest with ESM mocking, DB pool mocks. Also caught and fixed HRService "rejectd" typo bug.
@@ -222,6 +224,9 @@
 - [x] **Playwright E2E tests** — 36 tests across all 8 portals (4 auth + 32 portal: login/redirect/dashboard/nav/logout per role). Rate-limit resilient with 429 retry, lazy-load tolerant (30s timeouts). Run: `npx playwright test --project=chromium`. Result: **36 passed, 0 skipped, 0 failed.**
 
 ## 📝 **Recent Changes**
+
+### **2026-06-17**
+- **CERTIFICATION EXPIRY TRACKING**: Migrations v8-v10: `class_types.certification_validity_months`, `course_students` cert fields (number, issued_at, expires_at + index), backfill for attended students. Instructor attendance auto-populates cert dates. 3 API endpoints (expiring, expired, stats). `CertificationTracking.tsx` sysadmin page: stats cards, expiring/expired views, time window filter. Student course history shows cert status column. CourseManagement form maps validity period to DB. Deployed to staging + production.
 
 ### **2026-06-16**
 - **STUDENTS MASTER TABLE**: `students` table with email-based dedup, org FK, marketing consent. Write-through on roster upload (org + instructor paths). Backfill migration (v7) links existing course_students. `StudentRepository` with findOrCreate, bulk ops, search, course history. 9 unit tests.
